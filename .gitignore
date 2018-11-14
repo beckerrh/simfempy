@@ -1,3 +1,14 @@
+# Python
+*.pyc
+
+# PyCharm
+*.bak
+
+
+# others
+*.msh
+Results*
+
 # Prerequisites
 *.d
 
