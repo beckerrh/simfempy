@@ -19,7 +19,7 @@ class TableData(object):
         self.n = n
         self.values = values
         try:
-            keys = values.keys()
+            keys = list(values.keys())
         except:
             raise ValueError("values is not a dictionary (values=%s)" %values)
         self.precs = {}
@@ -31,7 +31,7 @@ class TableData(object):
         self.nname = nname
     def add(self, tdata):
         assert np.all(self.n == tdata.n)
-        for key in tdata.values.keys():
+        for key in list(tdata.values.keys()):
             self.values[key] = tdata.values[key]
             self.precs[key] = tdata.precs[key]
             self.types[key] = tdata.types[key]
@@ -47,14 +47,14 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-        print __name__
-        print 'dirname', dirname
-        print self.dirname, self.latexfilename
+        print(__name__)
+        print('dirname', dirname)
+        print(self.dirname, self.latexfilename)
 
     def computeReductionRate(self, tabledata):
         n = tabledata.n
         values = tabledata.values
-        keys = values.keys()
+        keys = list(values.keys())
         orders = {}
         for key in keys:
             key2 = key + '-o'
@@ -92,7 +92,7 @@ class LatexWriter(object):
             if redrate and name.find('OS')==-1 and name.find('US')==-1 and name != "niter" and name !="nliter":
                 tabledata, order = self.computeReductionRate(tabledata)
                 orders[name] = order
-            if name in self.data.keys():
+            if name in list(self.data.keys()):
                 self.data[name].add(tabledata)
             else:
                 self.data[name] = tabledata
@@ -111,7 +111,7 @@ class LatexWriter(object):
     def write(self):
         self.latexfile = open(self.latexfilename, "w")
         self.writePreamble()
-        for key,tabledata in sorted(self.data.iteritems()):
+        for key,tabledata in sorted(self.data.items()):
             self.writeTable(name=key, tabledata=tabledata)
         self.writePostamble()
         self.latexfile.close()

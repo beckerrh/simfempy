@@ -1,12 +1,12 @@
 // This code was created by pygmsh v4.3.6.
 p0 = newp;
-Point(p0) = {-1.0, -1.0, 0.0, 0.4};
+Point(p0) = {-1.0, -1.0, 0.0, 1.0};
 p1 = newp;
-Point(p1) = {1.0, -1.0, 0.0, 0.4};
+Point(p1) = {1.0, -1.0, 0.0, 1.0};
 p2 = newp;
-Point(p2) = {1.0, 1.0, 0.0, 0.4};
+Point(p2) = {1.0, 1.0, 0.0, 1.0};
 p3 = newp;
-Point(p3) = {-1.0, 1.0, 0.0, 0.4};
+Point(p3) = {-1.0, 1.0, 0.0, 1.0};
 l0 = newl;
 Line(l0) = {p0, p1};
 l1 = newl;

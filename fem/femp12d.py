@@ -40,23 +40,24 @@ class FemP12D(object):
                 for jj in range(3):
                     phi = self.phi(ic, x, y, grads[jj])
                     if ii == jj:
-                        if np.abs(phi-1.0) > 1e-15:
+                        test = np.abs(phi-1.0)
+                        if test > 1e-14:
                             print('ic=', ic, 'grad=', grads)
                             print('x,y', x, y)
-                            print('x-xc,y-yc', x-self.xcells[ic], y-self.ycells[ic])
-                            raise ValueError('wrong in cell=%d, ii,jj=%d,%d phi: 1!=%g' %(ic,ii,jj, phi))
+                            print('x-xc,y-yc', x-self.mesh.centersx[ic], y-self.mesh.centersy[ic])
+                            raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
                     else:
-                        if np.abs(phi) > 1e-15:
+                        test = np.abs(phi)
+                        if np.abs(phi) > 1e-14:
                             print('ic=', ic, 'grad=', grads)
-                            raise ValueError('wrong in cell=%d, ii,jj=%d,%d phi: 0!=%g' %(ic,ii,jj, phi))
+                            raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
 
 
 
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    filename = 'test2.vtu'
-    trimesh = TriMesh(filename=filename)
+    trimesh = TriMesh(geomname="backwardfacingstep", hmean=0.3)
     fem = FemP12D(trimesh)
     trimesh.plot(plt)
     fem.testgrad()

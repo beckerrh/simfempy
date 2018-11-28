@@ -21,15 +21,15 @@ class TransportCg1(Transport):
     cense etre derivee
     """
     def __init__(self, **kwargs):
-        if kwargs.has_key('sym'):
+        if 'sym' in kwargs:
             self.sym = kwargs.pop('sym')
         else:
             self.sym = False
-        if kwargs.has_key('xi'):
+        if 'xi' in kwargs:
             self.xi = kwargs.pop('xi')
         else:
             self.xi = 'xisignmin'
-        if kwargs.has_key('shockcapturing'):
+        if 'shockcapturing' in kwargs:
             self.phi = kwargs.pop('shockcapturing')
         else:
             self.phi = 'phione'
@@ -43,7 +43,7 @@ class TransportCg1(Transport):
             self.bdrycor = False
         self.patchdiff = None
     def constructLimiter(self, xi, phi):
-        print 'xi', xi, 'phi', phi
+        print('xi', xi, 'phi', phi)
         if phi=='phione':
             self.phi = phifunction.phione
             self.dphi = phifunction.dphione
@@ -123,9 +123,10 @@ class TransportCg1(Transport):
             self.npatchmax = max(self.npatchmax, len(self.mesh.patchinfo[iv]))
             npatch = len(self.mesh.patchinfo[iv])
             self.patchdiff[iv] = np.zeros(npatch, dtype=np.float64)
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 npatch = patch[1].shape[0]
                 self.nnpatches += npatch
+
     def computeShockCapturing(self, u):
         for iv in range( self.mesh.nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
@@ -333,7 +334,7 @@ class TransportCg1(Transport):
     def formPatchesDiffusionAll(self, du, u, nl=False):
         for iv in range( self.mesh.nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
-            for ii,patch in self.mesh.patchinfo[iv].iteritems():
+            for ii,patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 gradu = u[iv2] - u[iv]
@@ -391,7 +392,7 @@ class TransportCg1(Transport):
         # countbdry=0
         for iv in range( nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 # if iv2 == iv:
@@ -421,7 +422,7 @@ class TransportCg1(Transport):
 
     def formPatchesDiffusionTwoLinear(self, du, u):
         for iv in range( self.mesh.nnodes):
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 du[iv] += bndiff*(u[iv]-u[iv2])
@@ -436,7 +437,7 @@ class TransportCg1(Transport):
         A = np.zeros(nplocal * nnpatches, dtype=np.float64)
         count = 0
         for iv in range( nnodes):
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 index[count:count+2] = iv
@@ -456,7 +457,7 @@ class TransportCg1(Transport):
         n = len(self.mesh.patchinfo[iv])
         g = np.zeros(n)
         g2 = np.zeros(n)
-        for ii,patch in self.mesh.patchinfo[iv].iteritems():
+        for ii,patch in self.mesh.patchinfo[iv].items():
             iv2 = patch[0][0]
             g[ii] = u[iv2] - u[iv]
             iop = patch[0][2]
@@ -471,7 +472,7 @@ class TransportCg1(Transport):
         phis = np.zeros(n, dtype=np.float64)
         inds = np.zeros(n, dtype=int)
         if isbdry:
-            for ii,patch in self.mesh.patchinfo[iv].iteritems():
+            for ii,patch in self.mesh.patchinfo[iv].items():
                 bndiff = sc*patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 inds[ii] = iv2
@@ -484,7 +485,7 @@ class TransportCg1(Transport):
                 phi = gradu-gradcor
                 phis[ii] = bndiff * phi
         else:
-            for ii,patch in self.mesh.patchinfo[iv].iteritems():
+            for ii,patch in self.mesh.patchinfo[iv].items():
                 bndiff = sc*patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 inds[ii] = iv2
@@ -549,7 +550,7 @@ class TransportCg1(Transport):
         count = 0
         for iv in range( nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.sc[iv]*self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 jnd, coef = self.computeCorrectionPatchDerTwo(boundary, iv, iv2, patch, bndiff, u)
@@ -586,7 +587,7 @@ class TransportCg1(Transport):
                 iv2 = inds[ii]
                 # du[iv] -= phi
                 # du[iv2] += phi
-                for jj, patch in self.mesh.patchinfo[iv].iteritems():
+                for jj, patch in self.mesh.patchinfo[iv].items():
                     jv2 = patch[0][0]
                     iop = patch[0][2]
                     j0 = patch[1][iop][0]
@@ -640,7 +641,7 @@ class TransportCg1(Transport):
     def formPatchesDiffusionTwoSym(self, du, u):
         for iv in range( self.mesh.nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
-            for ii,patch in self.mesh.patchinfo[iv].iteritems():
+            for ii,patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 self.computeCorrectionPatchTwoSym(boundary, iv, iv2, patch, bndiff, du, u)
@@ -730,7 +731,7 @@ class TransportCg1(Transport):
         count = 0
         for iv in range( nnodes):
             boundary = -1 in  self.mesh.patches_bnodes[iv][:, 5]
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.patchdiff[iv][ii]
                 iv2 = patch[0][0]
                 ind, jnd, coef = self.computeCorrectionPatchDerTwoSym(boundary, iv, iv2, patch, bndiff, u)
@@ -750,4 +751,4 @@ class TransportCg1(Transport):
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    print 'pas de main disponible'
+    print('pas de main disponible')

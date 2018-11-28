@@ -25,7 +25,7 @@ class CompareErrors(object):
         self.blues = np.outer(np.linspace(0.2,0.8,n),[1,1,0])
         self.blues[:,2] = 1.0
         problemname = "none"
-        for name, method in self.methods.iteritems():
+        for name, method in self.methods.items():
             if problemname =="none":
                 problemname = method.problem
             else:
@@ -42,7 +42,7 @@ class CompareErrors(object):
         errors = {}
         times = {}
         nliter = {}
-        for name, method in self.methods.iteritems():
+        for name, method in self.methods.items():
             # errors[name] = {}
             nliter[name] = []
             times[name] = {}
@@ -53,28 +53,28 @@ class CompareErrors(object):
         has_nliter=False
         has_errors=False
         for hiter, hs in enumerate(h):
-            trimesh = TriMesh(geomname=geomname, hnew=hs)
-            for name, method in self.methods.iteritems():
+            trimesh = TriMesh(geomname=geomname, hmean=hs)
+            for name, method in self.methods.items():
                 method.setMesh(trimesh)
                 if solve=="stat":
                     point_data, cell_data, info = method.solve()
                 else:
                     point_data, cell_data, info = method.solvedynamic(name, hiter, self.dirname)
                 if hiter == 0:
-                    if info.has_key('error'):
+                    if 'error' in info:
                         has_errors = True
                     if has_errors:
                         for errname in info['error']:
-                            if not errors.has_key(errname):
+                            if errname not in errors:
                                 errors[errname] = {}
                             errors[errname][name] = []
                 if has_errors:
-                    for errname, err in info['error'].iteritems():
+                    for errname, err in info['error'].items():
                         errors[errname][name].append(err)
-                if info.has_key('nit'):
+                if 'nit' in info:
                     has_nliter = True
                     nliter[name].append(info['nit'])
-                print 'method', name, 'nit', info['nit']
+                print('method', name, 'nit', info['nit'])
                 times[name]['rhs'].append(info['timer']['rhs'])
                 times[name]['matrix'].append(info['timer']['matrix'])
                 times[name]['solve'].append(info['timer']['solve'])
@@ -85,7 +85,7 @@ class CompareErrors(object):
         orders = None
         if self.latex:
             latexwriter = LatexWriter(dirname=self.dirname)
-            for errname, error in errors.iteritems():
+            for errname, error in errors.items():
                 if errname.find('shoot') == -1:
                     orders = latexwriter.append(n=ncells, values=error, name='err_'+errname, redrate=True)
                 else:
@@ -96,13 +96,13 @@ class CompareErrors(object):
             latexwriter.compile()
 
         ax = plt.subplot(2,1,1)
-        for errname, error in errors.iteritems():
-            for name, method in self.methods.iteritems():
+        for errname, error in errors.items():
+            for name, method in self.methods.items():
                 if errname.find('shoot') == -1:
                     plt.loglog(ncells, error[name], '-x', label='err_'+errname+'_'+name)
         neworders=[]
         testrange = np.arange(0.25, 8.5, 0.25)
-        for (k, order) in orders.iteritems():
+        for (k, order) in orders.items():
             if order < 0.1 : continue
             apporder = testrange.flat[np.abs(testrange - orders[k]).argmin()]
             neworders.append(apporder)
@@ -116,7 +116,7 @@ class CompareErrors(object):
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         ax = plt.subplot(2,1,2)
         count=0
-        for name, method in self.methods.iteritems():
+        for name, method in self.methods.items():
             plt.loglog(ncells, times[name]['rhs'], '-', label='rhs_'+name, color=self.blues[count])
             plt.loglog(ncells, times[name]['matrix'], '-', label='matrix_' + name, color=self.greens[count])
             plt.loglog(ncells, times[name]['solve'], '-', label='solve_' + name, color=self.reds[count])

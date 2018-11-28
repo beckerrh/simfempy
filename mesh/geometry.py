@@ -15,7 +15,7 @@ if __name__ == '__main__' and __package__ is None:
 import os, sys, subprocess
 import pygmsh
 import meshio
-import vtk
+#import vtk
 import importlib
 
 
@@ -36,7 +36,8 @@ class Geometry(object):
         if self.geometry is None:
             raise ValueError("self.geometry has to be defined in %s.py" % self.name)
         file = open(self.name + '.geo', "w")
-        file.write(self.geometry.get_code().encode())
+        # file.write(self.geometry.get_code().encode())
+        file.write(self.geometry.get_code())
         file.close()
     def runGmsh(self, verbose=False, newgeometry=False):
         filenamegeo = self.name + '.geo'
@@ -56,11 +57,13 @@ class Geometry(object):
         filenamemsh = self.name + '.msh'
         if rungmsh or not os.path.isfile(filenamemsh):
             self.runGmsh(newgeometry=True)
-        points, cells, pointdata, celldata, fielddata = meshio.read(filenamemsh)
+        # points, cells, pointdata, celldata, fielddata = meshio.read(filenamemsh)
+        mesh = meshio.read(filename=filenamemsh)
+        points, cells, celldata = mesh.points, mesh.cells, mesh.cell_data
         # print ('cells', cells)
         # print ('celldata', celldata)
         filenamevtk = self.name + '.vtk'
-        meshio.write(filenamevtk, points, cells)
+        meshio.write(filenamevtk, mesh)
         reader = vtk.vtkUnstructuredGridReader()
         reader.SetFileName(filenamevtk)
         reader.ReadAllScalarsOn()

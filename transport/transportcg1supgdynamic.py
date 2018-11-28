@@ -21,15 +21,15 @@ class TransportCg1SupgDynamic(TransportCg1):
     """
     """
     def __init__(self, **kwargs):
-        if kwargs.has_key('upwind'):
+        if 'upwind' in kwargs:
             self.upwind = kwargs.pop('upwind')
         else:
             self.upwind = "supg"
-        if kwargs.has_key('coef'):
+        if 'coef' in kwargs:
             self.coef = kwargs.pop('coef')
         else:
             self.coef = "none"
-        print self.upwind, self.coef
+        print(self.upwind, self.coef)
         TransportCg1.__init__(self, **kwargs)
         if self.finaltime is not None:
             self.nvisusteps = 111
@@ -125,15 +125,15 @@ class TransportCg1SupgDynamic(TransportCg1):
                 c[1] = b[0]*dx1 + b[1]*dy1
                 x = np.dot(A,c)
                 if x[0]<0 or x[0] > 1 or x[1] < 0 or x[1] > 1:
-                    print 'x', x
+                    print('x', x)
                     raise ValueError('wrong coeff')
                 b2 = np.array([  x[0] * dx0 + x[1] * dx1 , x[0] * dy0 + x[1] * dy1])
                 if scipy.linalg.norm(b-b2) > 1e-15:
-                    print 'error in delta', scipy.linalg.norm(x[0]*beta[ic]-b2)
-                    print 'beta[ic]', beta[ic]
-                    print 'b', b
-                    print 'b2', b2
-                    print 'x', x
+                    print('error in delta', scipy.linalg.norm(x[0]*beta[ic]-b2))
+                    print('beta[ic]', beta[ic])
+                    print('b', b)
+                    print('b2', b2)
+                    print('x', x)
                     assert 0
 
                 delta = 1/np.sqrt(1.0+ np.dot(betacells[ic], betacells[ic]))
@@ -160,7 +160,7 @@ class TransportCg1SupgDynamic(TransportCg1):
                 i = elem[ic, ii]
                 for jj in range(3):
                     j = elem[ic, jj]
-                    for iii, patch in self.mesh.patchinfo[i].iteritems():
+                    for iii, patch in self.mesh.patchinfo[i].items():
                         if patch[0][0] == j:
                             faq = max(0.0, self.dowindcoefs[ic, 1, ii]*self.dowindcoefs[ic, 0, jj])
                             self.patchdiff[i][iii] = max(faq, self.patchdiff[i][iii])
@@ -177,7 +177,7 @@ class TransportCg1SupgDynamic(TransportCg1):
                     i = elem[ic, ii]
                     for jj in range(3):
                         j = elem[ic, jj]
-                        for iii, patch in self.mesh.patchinfo[i].iteritems():
+                        for iii, patch in self.mesh.patchinfo[i].items():
                             if patch[0][0] == j:
                                 faq = min(0.0, self.dowindcoefs[ic, 1, ii]*(self.dowindcoefs[ic, 2, jj])-1)
                                 self.patchdiffexplicit[i][iii] += faq

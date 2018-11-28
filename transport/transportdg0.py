@@ -16,7 +16,7 @@ if __name__ == '__main__' and __package__ is None:
     print('base', base)
     # sys.path.insert(0, base)
     sys.path.append(base)
-    print 'sys.path', sys.path
+    print ('sys.path', sys.path)
 from tools.analyticalsolution import AnalyticalSolution
 from fem.femp12d import FemP12D
 from transport import Transport

@@ -38,9 +38,9 @@ class AnalyticalSolution():
 if __name__ == '__main__':
     uexact = AnalyticalSolution('x*x+2*y*y')
     for (x,y) in [(0,0), (1,1), (1,0), (0,1)]:
-        print 'Quadratic function', uexact, ' in x,y=:',x,y, ' equals: ', uexact(x,y)
-        print 'grad=', uexact.x(x,y), uexact.y(x,y)
-        print 'laplace=', uexact.xx(x,y),  uexact.yy(x,y)
+        print('Quadratic function', uexact, ' in x,y=:',x,y, ' equals: ', uexact(x,y))
+        print('grad=', uexact.x(x,y), uexact.y(x,y))
+        print('laplace=', uexact.xx(x,y),  uexact.yy(x,y))
 
     
     

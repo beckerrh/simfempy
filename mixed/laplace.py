@@ -201,7 +201,7 @@ if __name__ == '__main__':
     problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
     # problem = 'Analytic_Exponential'
-    problem = 'Analytic_Linear'
+    # problem = 'Analytic_Linear'
     # problem = 'Analytic_Hubbel'
 
     methods = {}

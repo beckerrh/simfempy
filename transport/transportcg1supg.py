@@ -22,15 +22,15 @@ class TransportCg1Supg(TransportCg1):
     """
     """
     def __init__(self, **kwargs):
-        if kwargs.has_key('upwind'):
+        if 'upwind' in kwargs:
             self.upwind = kwargs.pop('upwind')
         else:
             self.upwind = "supg"
-        if kwargs.has_key('coef'):
+        if 'coef' in kwargs:
             self.coef = kwargs.pop('coef')
         else:
             self.coef = "none"
-        print self.upwind, self.coef
+        print(self.upwind, self.coef)
         TransportCg1.__init__(self, **kwargs)
         if self.finaltime is not None:
             self.nvisusteps = 111
@@ -118,15 +118,15 @@ class TransportCg1Supg(TransportCg1):
                 c[1] = b[0]*dx1 + b[1]*dy1
                 x = np.dot(A,c)
                 if x[0]<0 or x[0] > 1 or x[1] < 0 or x[1] > 1:
-                    print 'x', x
+                    print('x', x)
                     raise ValueError('wrong coeff')
                 b2 = np.array([  x[0] * dx0 + x[1] * dx1 , x[0] * dy0 + x[1] * dy1])
                 if scipy.linalg.norm(b-b2) > 1e-15:
-                    print 'error in delta', scipy.linalg.norm(x[0]*beta[ic]-b2)
-                    print 'beta[ic]', beta[ic]
-                    print 'b', b
-                    print 'b2', b2
-                    print 'x', x
+                    print('error in delta', scipy.linalg.norm(x[0]*beta[ic]-b2))
+                    print('beta[ic]', beta[ic])
+                    print('b', b)
+                    print('b2', b2)
+                    print('x', x)
                     assert 0
 
                 delta = 1/np.sqrt(1.0+ np.dot(betacells[ic], betacells[ic]))
@@ -161,7 +161,7 @@ class TransportCg1Supg(TransportCg1):
                     Ac[ii,jj] = self.dowindcoefs[ic, 1, ii]*self.dowindcoefs[ic, 0, jj]
             for ii in range(3):
                 i = elem[ic, ii]
-                for iii, patch in self.mesh.patchinfo[i].iteritems():
+                for iii, patch in self.mesh.patchinfo[i].items():
                     j = patch[0][0]
                     for jj in range(3):
                         if j == elem[ic, jj]:
@@ -178,7 +178,7 @@ class TransportCg1Supg(TransportCg1):
             else:
                 self.sc[iv] = 0.0
                 g, g2 = self.computePatchGradients(iv, u)
-                for iii, patch in self.mesh.patchinfo[iv].iteritems():
+                for iii, patch in self.mesh.patchinfo[iv].items():
                     jv = patch[0][0]
                     self.sc[iv] += self.stencil[iv][iii]*g2[iii]
                 self.sc[iv]= abs(self.sc[iv])
@@ -188,14 +188,14 @@ class TransportCg1Supg(TransportCg1):
             boundary = -1 in self.mesh.patches_bnodes[i][:, 5]
             if boundary:
                 continue
-            for iii, patchi in self.mesh.patchinfo[i].iteritems():
+            for iii, patchi in self.mesh.patchinfo[i].items():
                 j = patchi[0][0]
                 boundary = -1 in self.mesh.patches_bnodes[j][:, 5]
                 if boundary:
                     continue
                 bij = self.stencil[i][iii]
                 found = False
-                for jjj, patchj in self.mesh.patchinfo[j].iteritems():
+                for jjj, patchj in self.mesh.patchinfo[j].items():
                     if patchj[0][0] ==i:
                         bji = self.stencil[j][jjj]
                         found = True
@@ -204,12 +204,12 @@ class TransportCg1Supg(TransportCg1):
                 bijm = min(bij, 0.0)
                 bjip = max(bji, 0.0)
                 if bijm-bjip > 0.0:
-                    print 'bij, bji', bij, bji, i, j
+                    print('bij, bji', bij, bji, i, j)
                     self.mesh.plotNodePatches(plt)
                     sys.exit(1)
 
         for iv in range(self.mesh.nnodes):
-            for iii, patch in self.mesh.patchinfo[iv].iteritems():
+            for iii, patch in self.mesh.patchinfo[iv].items():
                 self.patchdiff[iv][iii] = max(0.0, self.stencil[iv][iii])
         return
 
@@ -220,7 +220,7 @@ class TransportCg1Supg(TransportCg1):
                 i = elem[ic, ii]
                 for jj in range(3):
                     j = elem[ic, jj]
-                    for iii, patch in self.mesh.patchinfo[i].iteritems():
+                    for iii, patch in self.mesh.patchinfo[i].items():
                         if patch[0][0] == j:
                             faq = max(0.0, self.dowindcoefs[ic, 1, ii]*self.dowindcoefs[ic, 0, jj])
                             self.patchdiff[i][iii] = max(faq, self.patchdiff[i][iii])
@@ -237,7 +237,7 @@ class TransportCg1Supg(TransportCg1):
                     i = elem[ic, ii]
                     for jj in range(3):
                         j = elem[ic, jj]
-                        for iii, patch in self.mesh.patchinfo[i].iteritems():
+                        for iii, patch in self.mesh.patchinfo[i].items():
                             if patch[0][0] == j:
                                 faq = min(0.0, self.dowindcoefs[ic, 1, ii]*(self.dowindcoefs[ic, 2, jj])-1)
                                 self.patchdiffexplicit[i][iii] += faq
@@ -303,7 +303,7 @@ class TransportCg1Supg(TransportCg1):
         return A
     def formSc(self, du, u):
         for iv in range( self.mesh.nnodes):
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 bndiff = self.sc[iv]
                 iv2 = patch[0][0]
                 du[iv] += bndiff*(u[iv]-u[iv2])
@@ -319,7 +319,7 @@ class TransportCg1Supg(TransportCg1):
         count = 0
         for iv in range( nnodes):
             bndiff = self.sc[iv]
-            for ii, patch in self.mesh.patchinfo[iv].iteritems():
+            for ii, patch in self.mesh.patchinfo[iv].items():
                 iv2 = patch[0][0]
                 index[count:count+2] = iv
                 index[count+2:count+4] = iv2
@@ -336,7 +336,7 @@ class TransportCg1Supg(TransportCg1):
 
     def formCell(self, du, u):
         for iv in range( self.mesh.nnodes):
-            for ii,patch in self.mesh.patchinfo[iv].iteritems():
+            for ii,patch in self.mesh.patchinfo[iv].items():
                 jv = patch[0][0]
                 du[iv]  += self.stencil[iv][ii]*(u[jv]-u[iv])
         du = np.around(du, 16) + 0
@@ -444,6 +444,7 @@ if __name__ == '__main__':
     # methods['xispline'] = TransportCg1Supg(problem=problem, upwind = "sl", xi='xispline')
 
     compareerrors = CompareErrors(methods, latex=True, vtk=True)
+    print("before CompareErrors")
     niter = 4
     h = [1.0*np.power(0.5,i)  for i in range(niter)]
     compareerrors.compare(h=h)

@@ -8,7 +8,7 @@ Created on Sun Dec  4 18:14:29 2016
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg
-from .trimesh import TriMesh
+from trimesh import TriMesh
 
 class TriMeshWithNodePatches(TriMesh):
     def __init__(self, trimesh=None, geomname="unitsquare", hnew=None):

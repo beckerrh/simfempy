@@ -20,11 +20,11 @@ def newton(f, solve, x, rtol=1e-10, gtol=1e-14, maxiter=100, checkmaxiter=False,
     residual = f(x)
     resn = linalg.norm(residual)
     if resn <= gtol:
-        print 'newton(): first residual is zero'
+        print('newton(): first residual is zero')
         return x, resn, 0
     rtol *= resn
     if gtol>rtol:  rtol = gtol
-    if not silent: print 'it=', it, 'res, dx=', resn, rtol
+    if not silent: print('it=', it, 'res, dx=', resn, rtol)
     nbaditeration = 0
     redrate = -1
     while resn > rtol:
@@ -58,9 +58,9 @@ def newton(f, solve, x, rtol=1e-10, gtol=1e-14, maxiter=100, checkmaxiter=False,
                 break
             omega *= np.power(0.6, nn+1)
             nn += 1
-            print 'nn=', nn, 'resn/resnold', resn / resnold, 'omega', omega
+            print('nn=', nn, 'resn/resnold', resn / resnold, 'omega', omega)
         it += 1
-        if not silent: print 'it=', it, 'res, dx=', resn, linalg.norm(dx)
+        if not silent: print('it=', it, 'res, dx=', resn, linalg.norm(dx))
     return x, resn, it
 
 
@@ -82,4 +82,4 @@ if __name__ == '__main__':
     x0 = -2.
     x0 = 3.
     info = newton(f, solve, x0)
-    print('info=', info)
+    print(('info=', info))

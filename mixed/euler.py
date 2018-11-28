@@ -22,48 +22,44 @@ from  raviartthomas import RaviartThomas
 
 
 class Euler(RaviartThomas):
-    def __init__(self, dirichlet=None, rhs=None, solexact=None, problem=None, method="centered", alpha=100.0):
+    def __init__(self, problem=None, method="centered", alpha=100.0):
         RaviartThomas.__init__(self)
-        self.dirichlet = dirichlet
-        self.rhs = rhs
-        self.defineProblem(dirichlet=dirichlet, rhs=rhs, solexact=solexact, problem=problem)
         self.problem = problem
-        self.alpha = alpha
         self.method = method
+        self.alpha = alpha
+        self.dirichlet = None
+        self.rhs = None
+        self.solexact = None
+        self.defineProblem()
 
-    def defineProblem(self, dirichlet=None, rhs=None, solexact=None, problem=None):
-        if problem is not None:
-            assert dirichlet is None
-            assert rhs is None
-            assert solexact is None
-            problemsplit = problem.split('_')
-            if problemsplit[0] == 'Analytic':
-                if problemsplit[1] == 'Linear':
-                    solexactp = AnalyticalSolution('0.3 * x + 0.7 * y')
-                    solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
-                    solexactv2 = AnalyticalSolution('-1.0 + 0.7 * x - 0.3 * y')
-                    # solexactv1 = AnalyticalSolution('-0.3')
-                    # solexactv2 = AnalyticalSolution('-0.7')
-                elif problemsplit[1] == 'Quadratic':
-                    solexactp = AnalyticalSolution('x*x+2*y*y')
-                    solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
-                    solexactv2 = AnalyticalSolution('-1.0 + 0.7 * x - 0.3 * y')
-                else:
-                    raise ValueError("unknown analytic solution: '%s'" %(problemsplit[1]))
-                self.solexact = (solexactp, solexactv1, solexactv2)
-                dirichlet = solexact
+    def defineProblem(self):
+        assert problem is not None
+        problemsplit = self.problem.split('_')
+        if problemsplit[0] == 'Analytic':
+            if problemsplit[1] == 'Linear':
+                solexactp = AnalyticalSolution('0.3 * x + 0.7 * y')
+                solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
+                solexactv2 = AnalyticalSolution('-1.0 + 0.7 * x - 0.3 * y')
+                # solexactv1 = AnalyticalSolution('-0.3')
+                # solexactv2 = AnalyticalSolution('-0.7')
+            elif problemsplit[1] == 'Quadratic':
+                solexactp = AnalyticalSolution('x*x+2*y*y')
+                solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
+                solexactv2 = AnalyticalSolution('-1.0 + 0.7 * x - 0.3 * y')
             else:
-                self.solexact = None
-                if problem == 'Canal':
-                    dirichletp = AnalyticalSolution('0.0')
-                    # dirichletv1 = AnalyticalSolution('1-y**2')
-                    dirichletv1 = AnalyticalSolution('1.0')
-                    dirichletv2 = AnalyticalSolution('0.0')
-                    dirichlet = (dirichletp, dirichletv1, dirichletv2)
-                else:
-                    raise ValueError("unownd problem %s" %problem)
-        self.dirichlet = dirichlet
-        self.rhs = rhs
+                raise ValueError("unknown analytic solution: '%s'" %(problemsplit[1]))
+            self.solexact = (solexactp, solexactv1, solexactv2)
+            self.dirichlet = self.solexact
+        else:
+            self.solexact = None
+            if problem == 'Canal':
+                dirichletp = AnalyticalSolution('0.0')
+                # dirichletv1 = AnalyticalSolution('1-y**2')
+                dirichletv1 = AnalyticalSolution('1.0')
+                dirichletv2 = AnalyticalSolution('0.0')
+                self.dirichlet = (dirichletp, dirichletv1, dirichletv2)
+            else:
+                raise ValueError("unownd problem %s" %problem)
 
     def solve(self):
         u = self.initialize()

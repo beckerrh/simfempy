@@ -19,48 +19,48 @@ import scipy.sparse.linalg as splinalg
 class Transport(Solver):
     def __init__(self, **kwargs):
         Solver.__init__(self)
-        if kwargs.has_key('finaltime'):
+        if 'finaltime' in kwargs:
             self.finaltime = kwargs.pop('finaltime')
             self.nvisusteps = 100
         else:
             self.finaltime=None
-        if kwargs.has_key('dontcomputeBcells'):
+        if 'dontcomputeBcells' in kwargs:
             self.dontcomputeBcells = kwargs.pop('dontcomputeBcells')
         else:
             self.dontcomputeBcells = False
-        if kwargs.has_key('errorformula'):
+        if 'errorformula' in kwargs:
             self.errorformula = kwargs.pop('errorformula')
         else:
             self.errorformula = "node"
-        if kwargs.has_key('mesh'):
+        if 'mesh' in kwargs:
             self.mesh = kwargs.pop('mesh')
         else:
             self.mesh = None
-        if kwargs.has_key('beta'):
+        if 'beta' in kwargs:
             self.beta = kwargs.pop('beta')
         else:
             self.beta = None
-        if kwargs.has_key('alpha'):
+        if 'alpha' in kwargs:
             self.alpha = kwargs.pop('alpha')
         else:
             self.alpha = 0.0
-        if kwargs.has_key('dirichlet'):
+        if 'dirichlet' in kwargs:
             self.dirichlet = kwargs.pop('dirichlet')
         else:
             self.dirichlet = None
-        if kwargs.has_key('rhs'):
+        if 'rhs' in kwargs:
             self.rhs = kwargs.pop('rhs')
         else:
             self.rhs = None
-        if kwargs.has_key('solexact'):
+        if 'solexact' in kwargs:
             self.solexact = kwargs.pop('solexact')
         else:
             self.solexact = None
-        if kwargs.has_key('initialcondition'):
+        if 'initialcondition' in kwargs:
             self.initialcondition = kwargs.pop('initialcondition')
         else:
             self.initialcondition = None
-        if kwargs.has_key('problem'):
+        if 'problem' in kwargs:
             self.problem = kwargs.pop('problem')
         else:
             self.problem = "none"
@@ -105,6 +105,7 @@ class Transport(Solver):
             self.umoinsdeux = np.zeros(self.mesh.nnodes)
         else:
             self.dt = None
+
     def defineProblem(self):
         problemsplit = self.problem.split('_')
         if problemsplit[0] == 'Analytic':
@@ -112,7 +113,7 @@ class Transport(Solver):
             assert self.rhs is None
             assert self.solexact is None
             if self.alpha != 0.0:
-               print 3*'*** alpha not zero: linear function is not reproduced exactly! '
+               print(3*'*** alpha not zero: linear function is not reproduced exactly! ')
             if self.beta is None:
                 self.beta = lambda x, y: (0.4, 0.6)
             if problemsplit[1] == 'Linear':
@@ -136,7 +137,7 @@ class Transport(Solver):
             assert self.solexact is None
             assert self.beta is None
             if self.alpha != 0.0:
-                print '***WARNING alpha=',alpha
+                print('***WARNING alpha=',alpha)
             self.beta = lambda x, y: (0.1, 0.6)
             def dir(x, y):
                 if x > 0: return 1.0
@@ -335,11 +336,11 @@ class Transport(Solver):
                     aij = A.data[pos]
                     if aij>1e-16:
                         problem = True
-                        print "positive off-diagonal in %d-%d: %g"  %(i, j, aij)
+                        print("positive off-diagonal in %d-%d: %g"  %(i, j, aij))
                     sum += A.data[pos]<=0.0
             if diag + sum < 0.0:
                 problem = True
-                print "summ condition voilated in row %d sum=%g diag=%g" %(i, sum, diag)
+                print("summ condition voilated in row %d sum=%g diag=%g" %(i, sum, diag))
         if problem:
             import matplotlib.pyplot as plt
             self.mesh.plot(plt)
@@ -378,7 +379,7 @@ class Transport(Solver):
                                  checkmaxiter=True, silent=True)
             nittotal += nit
             s = "%d/%d (%d)" % (iter, self.nitertime + 1, nit)
-            print len(s) * '\r', s,
+            print(len(s) * '\r', s, end=' ')
             t3 = time.clock()
             self.timer['rhs'] += t1 - t0
             self.timer['matrix'] += t2 - t1
@@ -387,8 +388,8 @@ class Transport(Solver):
             if iter % outputfilter == 0:
                 filename = "%s%02d_%04d.vtk" % (name, meshiter, iter / outputfilter)
                 self.mesh.write(filename=filename, dirname=dirname, point_data=point_data)
-        print
-        print 'self.countmatrix', self.countmatrix
+        print()
+        print('self.countmatrix', self.countmatrix)
         info = {}
         info['timer'] = self.timer
         if nit: info['nit'] = nittotal
