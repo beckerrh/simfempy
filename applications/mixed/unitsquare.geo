@@ -1,0 +1,26 @@
+// This code was created by pygmsh v4.3.6.
+p20 = newp;
+Point(p20) = {-1.0, -1.0, 0.0, 0.03};
+p21 = newp;
+Point(p21) = {1.0, -1.0, 0.0, 0.03};
+p22 = newp;
+Point(p22) = {1.0, 1.0, 0.0, 0.03};
+p23 = newp;
+Point(p23) = {-1.0, 1.0, 0.0, 0.03};
+l20 = newl;
+Line(l20) = {p20, p21};
+l21 = newl;
+Line(l21) = {p21, p22};
+l22 = newl;
+Line(l22) = {p22, p23};
+l23 = newl;
+Line(l23) = {p23, p20};
+ll5 = newll;
+Line Loop(ll5) = {l20, l21, l22, l23};
+s5 = news;
+Plane Surface(s5) = {ll5};
+Physical Line(11) = {l20};
+Physical Line(22) = {l21};
+Physical Line(33) = {l22};
+Physical Line(44) = {l23};
+Physical Surface(99) = {s5};
