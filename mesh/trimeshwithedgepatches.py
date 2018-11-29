@@ -12,8 +12,8 @@ from trimesh import TriMesh
 import copy
 
 class TriMeshWithEdgePatches(TriMesh):
-    def __init__(self, trimesh=None, geomname="unitsquare", hnew=None):
-        TriMesh.__init__(self, trimesh=trimesh, geomname=geomname, hnew=hnew)
+    def __init__(self, trimesh=None, geomname="unitsquare", hmean=None):
+        TriMesh.__init__(self, trimesh=trimesh, geomname=geomname, hmean=hmean)
         # self.edgesx = self.x[self.edges].mean(axis=1)
         # self.edgesy = self.y[self.edges].mean(axis=1)
         # self.xedges = self.mesh.x[self.mesh.edges].mean(axis=1)
@@ -176,7 +176,7 @@ class TriMeshWithEdgePatches(TriMesh):
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    trimesh = TriMeshWithEdgePatches(hnew=0.9)
+    trimesh = TriMeshWithEdgePatches(hmean=0.9)
     # trimesh.plot(plt, edges=True)
     trimesh.testPatches()
     trimesh.plotPatches(plt)

@@ -13,6 +13,8 @@ if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from transport import Transport
+# import mesh.trimesh
+# import mesh.trimeshwithnodepatches
 import phifunction
 import xifunction
 
@@ -110,12 +112,12 @@ class TransportCg1(Transport):
             raise ValueError('unknown limiter %s' %xi)
     def setMesh(self, mesh):
         Transport.setMesh(self, mesh)
-        # self.mesh = TriMeshWithNodePatches(mesh)
-        self.mesh.computeNodePatches()
-        self.nnpatches = 0
-        self.npatchmax = 0
-        self.npatchmax2 = 0
-        self.patchdiff = {}
+        self.mesh = TriMeshWithNodePatches(mesh)
+        # self.mesh.computeNodePatches()
+        # self.nnpatches = 0
+        # self.npatchmax = 0
+        # self.npatchmax2 = 0
+        # self.patchdiff = {}
         self.sc = np.ones(self.mesh.nnodes, dtype=np.float64)
         for iv in range( self.mesh.nnodes):
             npatch2 = self.mesh.patchinfo[iv][0][1].shape[0]

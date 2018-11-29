@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg
 from trimesh import TriMesh
+# import trimesh
 
 class TriMeshWithNodePatches(TriMesh):
-    def __init__(self, trimesh=None, geomname="unitsquare", hnew=None):
-        TriMesh.__init__(self, trimesh=trimesh, geomname=geomname, hnew=hnew)
+    def __init__(self, tmesh=None, geomname="unitsquare", hmean=None):
+        TriMesh.__init__(self, trimesh=tmesh, geomname=geomname, hmean=hmean)
         # self.constructPatches()
         # self.constructNodePatchIndices()
         # self.computeNodePatchInfo()
@@ -451,10 +452,10 @@ class TriMeshWithNodePatches(TriMesh):
     #                 assert self.patch_indexofedge[ie,1]==-1
     #                 self.patch_indexofedge[ie,1] = i
     class PatchPlotterEdges(object):
-        def __init__(self, ax, trimesh):
+        def __init__(self, ax, tmesh):
             self.ax = ax
-            assert isinstance(trimesh, TriMesh)
-            self.trimesh = trimesh
+            assert isinstance(tmesh, TriMesh)
+            self.trimesh = tmesh
             self.canvas = ax.figure.canvas
             self.cid = self.canvas.mpl_connect('button_press_event', self)
         def __call__(self, event):
@@ -495,10 +496,10 @@ class TriMeshWithNodePatches(TriMesh):
             self.trimesh._preparePlot(self.ax, 'Patches', setlimits=True)
             self.canvas.draw()
     class PatchPlotterNodes(object):
-        def __init__(self, ax, trimesh):
+        def __init__(self, ax, tmesh):
             self.ax = ax
-            assert isinstance(trimesh, TriMesh)
-            self.trimesh = trimesh
+            assert isinstance(tmesh, TriMesh)
+            self.trimesh = tmesh
             self.canvas = ax.figure.canvas
             self.cid = self.canvas.mpl_connect('button_press_event', self)
         def __call__(self, event):
@@ -579,10 +580,8 @@ class TriMeshWithNodePatches(TriMesh):
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    trimesh1 = TriMesh(hnew=0.4)
-    # test de 'constructeur par copie'
-    trimesh = TriMeshWithNodePatches(trimesh1)
-    # trimesh = TriMeshWithNodePatches(hnew=0.9)
-    trimesh.testNodePatches()
-    trimesh.testNodePatchesOld()
-    trimesh.plotNodePatches(plt)
+    tmesh1 = TriMesh(hmean=0.4)
+    tmesh = TriMeshWithNodePatches(tmesh1)
+    tmesh.testNodePatches()
+    tmesh.testNodePatchesOld()
+    tmesh.plotNodePatches(plt)

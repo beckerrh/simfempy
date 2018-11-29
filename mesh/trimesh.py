@@ -814,20 +814,5 @@ class TriMesh(matplotlib.tri.Triangulation):
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    trimesh = TriMesh(geomname="backwardfacingstep", hmean=0.7)
-    trimesh.plot(plt, boundaryLabels=True)
-    # print('0')
-    # test = "simple"
-    # # test = "nodepatches"
-    # if test == "simple":
-    #     # trimesh = TriMesh(hnew=0.8)
-    #     trimesh = TriMesh(geomname="backwardfacingstep", hnew=0.7)
-    #     # trimesh.plot(plt, edges=True, edgesOfCells=True, cellsOfEdges=True)
-    #     trimesh.plot(plt, boundaryLabels=True)
-    #     # trimesh.plotVtkBdrylabels()
-    # else:
-    #     trimesh = TriMesh(hnew=0.9)
-    #     trimesh.computeNodePatches()
-    #     trimesh.testNodePatches()
-    #     trimesh.testNodePatchesOld()
-    #     trimesh.plotNodePatches()
+    tmesh = TriMesh(geomname="backwardfacingstep", hmean=0.7)
+    tmesh.plot(plt, boundaryLabels=True)

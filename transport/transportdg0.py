@@ -25,8 +25,8 @@ from tools.comparerrors import CompareErrors
 
 
 class TransportDg0(Transport):
-    def __init__(self, mesh=None, beta = None, alpha=0.0, dirichlet=None, rhs=None, solexact=None, problem=None):
-        Transport.__init__(self, mesh, beta=beta, alpha=alpha, dirichlet=dirichlet, rhs=rhs, solexact=solexact, problem=problem)
+    def __init__(self, **kwargs):
+        Transport.__init__(self, kwargs)
 
     def computeRhs(self):
         dirichlet, rhs = self.dirichlet, self.rhs
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         compareerrors = CompareErrors(methods)
         compareerrors.compare( orders=[1])
     elif run == 'Ramp' or run == 'RotStat':
-        trimesh = TriMesh(hnew=0.2)
+        trimesh = TriMesh(hmean=0.2)
         transport = TransportDg0(trimesh, problem=run)
         point_data, cell_data, info = transport.solve()
         trimesh.write('transportdg0'+ run + ' .vtk', point_data=point_data, cell_data=cell_data)

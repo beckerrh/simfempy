@@ -8,17 +8,13 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
-import matplotlib.pyplot as plt
 
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from tools.analyticalsolution import AnalyticalSolution
-from fem.femp12d import FemP12D
-from mesh.trimesh import TriMesh
 from tools.comparerrors import CompareErrors
-from tools.solver import Solver
-from  raviartthomas import RaviartThomas
+from raviartthomas import RaviartThomas
 
 
 class Laplace(RaviartThomas):

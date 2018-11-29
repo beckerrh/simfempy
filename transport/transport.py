@@ -404,5 +404,5 @@ class Transport(Solver):
 
 if __name__ == '__main__':
     beta = lambda x, y: (1.0, 2.0)
-    trimesh = TriMesh(hnew=0.4)
+    trimesh = TriMesh(hmean=0.4)
     # Transport

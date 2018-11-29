@@ -53,7 +53,7 @@ class TransportCg1Edges(TransportCg1):
                     a0 = self.mesh.patches_opcoeff[iv][iinp, 0]
                     a1 = self.mesh.patches_opcoeff[iv][iinp, 1]
                     if a0 > 0.0 or a1 > 0.0:
-                        print 'positive coeff ', a0, a1, ' in ie', ie, ' iv=', iv, ' i0, i1', i0, i1
+                        print ('positive coeff ', a0, a1, ' in ie', ie, ' iv=', iv, ' i0, i1', i0, i1)
                     self.edgeinfo[0][ii, ie, 0] = i0
                     self.edgeinfo[0][ii, ie, 1] = i1
                     self.edgeinfo[1][ii, ie, 0] = a0
@@ -64,7 +64,7 @@ class TransportCg1Edges(TransportCg1):
                         assert iv in self.mesh.bdryvert
                         # print 'no correction found for ie ', ie, '(ii=', ii, ') iv=', iv, ' i0, i1', i0, i1
                 else:
-                    print 'no correction found for ie', ie, ' and iv=', iv
+                    print ('no correction found for ie', ie, ' and iv=', iv)
             # print 'ie', ie
             # print '\t il', self.mesh.edges[ie, 0], 'il0, il1', self.edgeinfo[0][0, ie]
             # print '\t ir', self.mesh.edges[ie, 1], 'ir0, ir1', self.edgeinfo[0][1, ie]
@@ -114,13 +114,13 @@ class TransportCg1Edges(TransportCg1):
                     raise ValueError("not upwind %s" % str(sp))
             else:
                 print("only one ! ie=%d" % ie)
-                print "patch_indexofedge", self.mesh.patch_indexofedge[ie]
+                print ("patch_indexofedge", self.mesh.patch_indexofedge[ie])
                 for ii in range(2):
                     iinp = self.mesh.patch_indexofedge[ie, ii]
                     if iinp == -1:
                         stop
                     iv = self.mesh.edges[ie, ii]
-                    print 'iv', iv, 'patches_opind', self.mesh.patches_opind[iv][iinp]
+                    print ('iv', iv, 'patches_opind', self.mesh.patches_opind[iv][iinp])
                 self.mesh.plotPatches(plt)
                 raise ValueError("only one ! ie=%d" % ie)
                 # print 'ie', ie, 'il', il, 'ir', ir, 'sp', sp,  self.mesh.edges[ie,ii]
@@ -351,10 +351,10 @@ class TransportCg1Edges(TransportCg1):
                 a10 =  self.mesh.patches_opcoeff[ir][iinp1][0]
                 a11 =  self.mesh.patches_opcoeff[ir][iinp1][1]
                 if i00 == -1 and i10 == -1:
-                    print '*** no correction il', il, 'ir', ir, 'ie', ie
-                    print 'a', a00, a01, a10, a11
-                    print 'i', i00, i01, i10, i11
-                    print 'iinp', iinp0, iinp1
+                    print ('*** no correction il', il, 'ir', ir, 'ie', ie)
+                    print ('a', a00, a01, a10, a11)
+                    print ('i', i00, i01, i10, i11)
+                    print ('iinp', iinp0, iinp1)
                     self.mesh.testPatches()
                     self.mesh.plotPatches(plt)
                     raise ValueError("something's wrong")
