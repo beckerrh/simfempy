@@ -11,9 +11,11 @@ import scipy.sparse
 
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
-    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-from tools.analyticalsolution import AnalyticalSolution
-from tools.comparerrors import CompareErrors
+    fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+    print("fempypath", fempypath,__file__)
+    sys.path.append(fempypath)
+from fempy.tools import analyticalsolution
+from fempy.tools import comparerrors
 from raviartthomas import RaviartThomas
 
 
@@ -21,38 +23,33 @@ class Laplace(RaviartThomas):
     """
     Fct de base de RT0 = sigma * 0.5 * |S|/|K| (x-x_N)
     """
-    def __init__(self, dirichlet=None, rhs=None, solexact=None, problem=None):
+    def __init__(self, problem):
         RaviartThomas.__init__(self)
-        self.dirichlet = dirichlet
-        self.rhs = rhs
-        self.defineProblem(dirichlet=dirichlet, rhs=rhs, solexact=solexact, problem=problem)
+        self.dirichlet = None
+        self.rhs = None
+        self.solexact = None
         self.problem = problem
+        self.defineProblem(problem=problem)
 
-    def defineProblem(self, dirichlet=None, rhs=None, solexact=None, problem=None):
-        if problem is not None:
-            assert dirichlet is None
-            assert rhs is None
-            assert solexact is None
-            problemsplit = problem.split('_')
-            if problemsplit[0] == 'Analytic':
-                if problemsplit[1] == 'Linear':
-                    solexact = AnalyticalSolution('0.3 * x + 0.7 * y')
-                elif problemsplit[1] == 'Quadratic':
-                    solexact = AnalyticalSolution('x*x+2*y*y')
-                elif problemsplit[1] == 'Hubbel':
-                    solexact = AnalyticalSolution('(1-x*x)*(1-y*y)')
-                elif problemsplit[1] == 'Exponential':
-                    solexact = AnalyticalSolution('exp(x-0.7*y)')
-                elif problemsplit[1] == 'Sinus':
-                    solexact = AnalyticalSolution('sin(x+0.2*y*y)')
-                else:
-                    raise ValueError("unknown analytic solution: '%s'" %(problemsplit[1]))
+    def defineProblem(self, problem):
+        problemsplit = problem.split('_')
+        if problemsplit[0] == 'Analytic':
+            if problemsplit[1] == 'Linear':
+                solexact = analyticalsolution.AnalyticalSolution('0.3 * x + 0.7 * y')
+            elif problemsplit[1] == 'Quadratic':
+                solexact = analyticalsolution.AnalyticalSolution('x*x+2*y*y')
+            elif problemsplit[1] == 'Hubbel':
+                solexact = analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
+            elif problemsplit[1] == 'Exponential':
+                solexact = analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
+            elif problemsplit[1] == 'Sinus':
+                solexact = analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
             else:
-                raise ValueError("unownd problem %s" %problem)
-            dirichlet = solexact
-        self.dirichlet = dirichlet
-        self.rhs = rhs
-        self.solexact = solexact
+                raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
+            self.dirichlet = solexact
+            self.solexact = solexact
+        else:
+            raise ValueError("unownd problem {}".format(problem))
 
     def solve(self):
         return self.solveLinear()
@@ -196,12 +193,9 @@ class Laplace(RaviartThomas):
 if __name__ == '__main__':
     problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
-    # problem = 'Analytic_Exponential'
-    # problem = 'Analytic_Linear'
-    # problem = 'Analytic_Hubbel'
 
     methods = {}
     methods['poisson'] = Laplace(problem=problem)
 
-    compareerrors = CompareErrors(methods, latex=True, vtk=True)
-    compareerrors.compare(h=[1.0, 0.5, 0.25, 0.125])
+    comp = comparerrors.CompareErrors(methods, latex=True, vtk=False)
+    comp.compare(h=[1.0, 0.5, 0.25, 0.125, 0.062, 0.03])
