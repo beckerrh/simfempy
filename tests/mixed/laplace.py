@@ -12,12 +12,11 @@ import scipy.sparse
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-    print("fempypath", fempypath,__file__)
+    # fempypath = path.join(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))),'fempy')
+    print("fempypath={} __file__={}".format(fempypath,__file__))
     sys.path.append(fempypath)
-from fempy.tools import analyticalsolution
-from fempy.tools import comparerrors
 from raviartthomas import RaviartThomas
-
+import fempy.tools.analyticalsolution
 
 class Laplace(RaviartThomas):
     """
@@ -43,7 +42,7 @@ class Laplace(RaviartThomas):
             elif problemsplit[1] == 'Exponential':
                 solexact = analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
             elif problemsplit[1] == 'Sinus':
-                solexact = analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
+                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
             else:
                 raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
             self.dirichlet = solexact
@@ -191,11 +190,16 @@ class Laplace(RaviartThomas):
 # ------------------------------------- #
 
 if __name__ == '__main__':
+    import fempy.tools.comparerrors
+    import sys
+    for module in sys.modules.keys():
+        if 'fempy' in module:
+            print(module)
     problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
 
     methods = {}
     methods['poisson'] = Laplace(problem=problem)
 
-    comp = comparerrors.CompareErrors(methods, latex=True, vtk=False)
-    comp.compare(h=[1.0, 0.5, 0.25, 0.125, 0.062, 0.03])
+    comp = fempy.tools.comparerrors.CompareErrors(methods, latex=True, vtk=False)
+    comp.compare(h=[1.0, 0.5, 0.25, 0.125, 0.062])

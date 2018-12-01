@@ -13,10 +13,11 @@ from fempy.meshes.trianglemesh import TriangleMesh
 
 
 class CompareErrors(object):
-    def __init__(self, methods, latex=True, vtk=True, clean=True):
+    def __init__(self, methods, latex=True, vtk=True, clean=True, plot=True):
         self.methods = methods
         self.latex = latex
         self.vtk = vtk
+        self.plot = plot
         n = len(methods)
         self.reds = np.outer(np.linspace(0.2,0.8,n),[0,1,1])
         self.reds[:,0] = 1.0
@@ -79,7 +80,7 @@ class CompareErrors(object):
                 times[name]['matrix'].append(info['timer']['matrix'])
                 times[name]['solve'].append(info['timer']['solve'])
                 if self.vtk:
-                    filename = "%s%s_%02d.vtk" % (method.problem, name, hiter)
+                    filename = "{}_{}_{:02d}.vtk".format(method.problem, name, hiter)
                     trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
             ncells.append(trimesh.ncells)
         orders = None
