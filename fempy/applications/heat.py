@@ -39,8 +39,18 @@ class Heat(solvers.newtonsolver.NewtonSolver):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.mesh.computeSimpOfVert(test=False)
-        self.hvert = np.ravel(np.mean(self.mesh.simpOfVert, axis=1))
-        print("self.hvert",np.mean(self.hvert))
+        nnodes = self.mesh.nnodes
+        ar, si = self.mesh.area, self.mesh.simpOfVert
+        # self.hvert = np.ravel(np.mean(self.mesh.simpOfVert, axis=1))
+        self.hvert = np.zeros(nnodes)
+        for i in range(nnodes):
+            # print("si[i]", type(si.data[i]))
+            # print("si[i]", si.data[i])
+            self.hvert[i] = np.sum(ar[si.data[si.indptr[i]:si.indptr[i+1]]])/3
+        # print(self.mesh.area[self.mesh.simpOfVert])
+        # print("self.hvert", self.hvert)
+        # print("self.hvert", np.mean(self.hvert))
+
     def solve(self):
         return self.solveLinear()
     def computeRhs(self):
@@ -51,8 +61,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         b = np.zeros(nnodes)
         if self.solexact:
             assert self.rhs is None
-            # bcells = self.solexact(xc, yc) -(self.solexact.xx(xc, yc) + self.solexact.yy(xc, yc))* ar[:]
-            bcells = self.solexact(xc, yc)*ar[:]
+            bcells = (self.solexact(xc, yc) -self.solexact.xx(xc, yc) - self.solexact.yy(xc, yc))* ar[:]
+            # bcells = self.solexact(xc, yc)*ar[:]
         elif rhs:
             assert self.solexact is None
             bcells = self.rhs(xc, yc) *  ar[:]
@@ -75,8 +85,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 for jj in range(3):
                     index[count+3*ii+jj] = simps[ic, ii]
                     jndex[count+3*ii+jj] = simps[ic, jj]
-                    # A[count + 3 * ii + jj] = np.dot(normals[simps[ic, jj]], normals[simps[ic, ii]])/ar[ic]
-                    A[count + 3 * ii + jj] += ar[ic]/3
+                    # A[count + 3 * ii + jj] = np.dot(normals[simps[ic, jj]], normals[simps[ic, ii]])/ar[ic]/4
+                    A[count + 3 * ii + jj] += ar[ic]/9
             count += nlocal
         # print("A", A)
         Asp = sparse.coo_matrix((A, (index, jndex)), shape=(nnodes, nnodes)).tocsr()

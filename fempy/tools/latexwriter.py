@@ -9,6 +9,7 @@ import os
 import numpy as np
 
 
+#=================================================================#
 class TableData(object):
     """
     n : first axis
@@ -36,6 +37,7 @@ class TableData(object):
             self.precs[key] = tdata.precs[key]
             self.types[key] = tdata.types[key]
 
+#=================================================================#
 class LatexWriter(object):
     def __init__(self, dirname="latextest", filename=None):
         if filename is None:
@@ -70,11 +72,12 @@ class LatexWriter(object):
             values[key2] = valorder
             tabledata.precs[key2] = 2
             tabledata.types[key2] = 'ffloat'
-            try:
-                fnd = float(n[-1]) / float(n[0])
-                orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)
-            except:
-                orders[key] = -1
+            orders[key] = -1
+            if len(n)>1:
+                try:
+                    orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)
+                except:
+                    pass
         return tabledata, orders
 
     def addFadaLightData(self, data, method= 'cg1', redrate=True):
@@ -116,7 +119,10 @@ class LatexWriter(object):
         self.writePostamble()
         self.latexfile.close()
     def __del__(self):
-        self.latexfile.close()
+        try:
+            self.latexfile.close()
+        except:
+            pass
     def writeTable(self, name, tabledata):
         n = tabledata.n
         values = tabledata.values

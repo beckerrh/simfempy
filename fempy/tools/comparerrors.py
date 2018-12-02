@@ -12,6 +12,7 @@ from fempy.tools.latexwriter import LatexWriter
 from fempy.meshes.trianglemesh import TriangleMesh
 
 
+#=================================================================#
 class CompareErrors(object):
     def __init__(self, methods, latex=True, vtk=True, clean=True, plot=True):
         self.methods = methods
@@ -82,17 +83,22 @@ class CompareErrors(object):
                 if self.vtk:
                     filename = "{}_{}_{:02d}.vtk".format(method.problem, name, hiter)
                     trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
+                if self.plot:
+                    from ..meshes import plotmesh
+                    import matplotlib.pyplot as plt
+                    plotmesh.meshWithData(trimesh, point_data, cell_data)
+                    plt.show()
             ncells.append(trimesh.ncells)
         orders = None
+        latexwriter = LatexWriter(dirname=self.dirname)
+        for errname, error in errors.items():
+            if errname.find('shoot') == -1:
+                orders = latexwriter.append(n=ncells, values=error, name='err_'+errname, redrate=True)
+            else:
+                latexwriter.append(n=ncells, values=error, name='err_' + errname)
+        if has_nliter:
+            latexwriter.append(n=ncells, values=nliter, name = 'nlit', type='int')
         if self.latex:
-            latexwriter = LatexWriter(dirname=self.dirname)
-            for errname, error in errors.items():
-                if errname.find('shoot') == -1:
-                    orders = latexwriter.append(n=ncells, values=error, name='err_'+errname, redrate=True)
-                else:
-                    latexwriter.append(n=ncells, values=error, name='err_' + errname)
-            if has_nliter:
-                latexwriter.append(n=ncells, values=nliter, name = 'nlit', type='int')
             latexwriter.write()
             latexwriter.compile()
 
@@ -112,20 +118,23 @@ class CompareErrors(object):
         for order in neworders:
             plt.loglog(ncells, np.power(ncells, -order/dim), '--', label='order_'+str(order))
 
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        # box = ax.get_position()
+        # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax.legend()
         ax = plt.subplot(2,1,2)
         count=0
         for name, method in self.methods.items():
-            plt.loglog(ncells, times[name]['rhs'], '-', label='rhs_'+name, color=self.blues[count])
-            plt.loglog(ncells, times[name]['matrix'], '-', label='matrix_' + name, color=self.greens[count])
-            plt.loglog(ncells, times[name]['solve'], '-', label='solve_' + name, color=self.reds[count])
+            plt.loglog(ncells, times[name]['rhs'], '-x', label='rhs_'+name, color=self.blues[count])
+            plt.loglog(ncells, times[name]['matrix'], '-x', label='matrix_' + name, color=self.greens[count])
+            plt.loglog(ncells, times[name]['solve'], '-x', label='solve_' + name, color=self.reds[count])
             count += 1
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        # box = ax.get_position()
+        # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax.legend()
         ax.set_title("times")
+        plt.tight_layout()
         plt.show()
 
 

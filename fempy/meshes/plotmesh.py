@@ -2,9 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+#----------------------------------------------------------------#
+def _settitle(ax, text):
+    try:
+        ax.set_title(text)
+    except:
+        ax.title(text)
+
 
 #----------------------------------------------------------------#
-def _plotVerticesAndCells(x, y, triangles, centersx, centersy, ax=plt, plotlocalNumbering=True):
+def _plotVerticesAndCellsLabels(x, y, triangles, centersx, centersy, ax=plt, plotlocalNumbering=True):
     props = dict(boxstyle='round', facecolor='wheat')
     for iv in range(len(x)):
         ax.text(x[iv], y[iv], r'%d' % (iv), fontweight='bold', bbox=props)
@@ -20,13 +27,13 @@ def _plotVerticesAndCells(x, y, triangles, centersx, centersy, ax=plt, plotlocal
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):
     try:
+        x, y, tris, lines, bdrylabels =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.lines, meshdata.bdrylabelsmsh
+    except:
         points, cells, point_data, cell_data, field_data = meshdata
         x, y = points[:,0], points[:,1]
         tris = cells['triangle']
         lines = cells['line']
         bdrylabels = cell_data['line']['gmsh:physical']
-    except:
-        x, y, tris, lines, bdrylabels = meshdata
     assert len(bdrylabels) == lines.shape[0]
     colors = np.unique(bdrylabels)
     print("colors", colors)
@@ -40,14 +47,27 @@ def meshWithBoundaries(meshdata, ax=plt):
         for line in linescolor:
             ax.plot(x[line],y[line], color=pltcolors[i], lw=4)
     ax.legend(handles=patches)
-    ax.set_title("Mesh and Boundary Labels")
+    _settitle(ax, "Mesh and Boundary Labels")
 
 #=================================================================#
-def meshWithNodesAndTriangles(plotdata, ax=plt):
-    x, y, tris, cx, cy = plotdata
-    plt.triplot(x, y, tris, color='k', lw=1)
-    _plotVerticesAndCells(x, y, tris, cx, cy, ax=ax)
+def meshWithNodesAndTriangles(meshdata, ax=plt):
     try:
-        ax.set_title("Nodes and Triangles")
+        x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
     except:
-        ax.title("Nodes and Triangles")
+        x, y, tris, cx, cy = meshdata
+    plt.triplot(x, y, tris, color='k', lw=1)
+    _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
+    _settitle(ax, "Nodes and Triangles")
+
+#=================================================================#
+def meshWithData(meshdata, point_data, cell_data, ax=plt):
+    try:
+        x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
+    except:
+        raise ValueError("cannot get data from meshdata")
+    ax.triplot(x, y, tris, color='gray', lw=1)
+    for pdn, pd in point_data.items():
+        assert x.shape == pd.shape
+        cs = ax.tricontourf(x, y, tris, pd)
+        plt.colorbar()
+        _settitle(ax, pdn)
