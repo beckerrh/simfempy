@@ -73,6 +73,7 @@ class LatexWriter(object):
             tabledata.precs[key2] = 2
             tabledata.types[key2] = 'ffloat'
             orders[key] = -1
+            fnd = float(n[-1]) / float(n[0])
             if len(n)>1:
                 try:
                     orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)

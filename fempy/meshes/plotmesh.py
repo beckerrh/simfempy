@@ -60,14 +60,21 @@ def meshWithNodesAndTriangles(meshdata, ax=plt):
     _settitle(ax, "Nodes and Triangles")
 
 #=================================================================#
-def meshWithData(meshdata, point_data, cell_data, ax=plt):
+def meshWithData(meshdata, point_data, cell_data, numbering=False):
     try:
         x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
     except:
         raise ValueError("cannot get data from meshdata")
-    ax.triplot(x, y, tris, color='gray', lw=1)
+    nplots = len(point_data)
+    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4,4))
+    count=0
     for pdn, pd in point_data.items():
         assert x.shape == pd.shape
-        cs = ax.tricontourf(x, y, tris, pd)
-        plt.colorbar()
-        _settitle(ax, pdn)
+        axs[count].triplot(x, y, tris, color='gray', lw=1)
+        cnt = axs[count].tricontourf(x, y, tris, pd)
+        if numbering:
+            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=axs[count])
+        plt.colorbar(cnt, ax=axs[count])
+        _settitle(axs[count], pdn)
+        count += 1
+    plt.tight_layout()

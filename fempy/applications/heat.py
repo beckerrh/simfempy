@@ -2,22 +2,37 @@ import numpy as np
 import scipy.linalg as linalg
 import fempy.tools.analyticalsolution
 import scipy.sparse as sparse
-
 from fempy import solvers
+from fempy import fems
 
 class Heat(solvers.newtonsolver.NewtonSolver):
     """
     """
-    def __init__(self, problem):
+    def __init__(self, **kwargs):
         solvers.newtonsolver.NewtonSolver.__init__(self)
-        print("problem is {}".format(problem))
-        self.problem = problem
+        self.fem = fems.femp12d.FemP12D()
         self.dirichlet = None
+        self.neumann = None
         self.rhs = None
         self.solexact = None
-        self.defineProblem(problem=problem)
+        if 'problem' in kwargs:
+            self.defineProblem(problem=kwargs.pop('problem'))
+        else:
+            self.dirichlet = kwargs.pop('dirichlet')
+            self.neumann = kwargs.pop('neumann')
+            self.rhs = kwargs.pop('rhs')
+        if 'rhocp' in kwargs:
+            self.rhocp = kwargs.pop('rhocp')
+        else:
+            self.rhocp = 1234.56
+        if 'kheat' in kwargs:
+            self.kheat = kwargs.pop('kheat')
+        else:
+            self.kheat = 0.123
 
     def defineProblem(self, problem):
+        print("problem is {}".format(problem))
+        self.problem = problem
         problemsplit = problem.split('_')
         if problemsplit[0] == 'Analytic':
             if problemsplit[1] == 'Linear':
@@ -50,26 +65,41 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         # print(self.mesh.area[self.mesh.simpOfVert])
         # print("self.hvert", self.hvert)
         # print("self.hvert", np.mean(self.hvert))
+        self.fem.setMesh(self.mesh)
+        self.massmatrix = self.fem.massMatrix()
 
     def solve(self):
         return self.solveLinear()
     def computeRhs(self):
         dirichlet, rhs = self.dirichlet, self.rhs
-        nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
         ar = self.mesh.area
-        b = np.zeros(nnodes)
         if self.solexact:
             assert self.rhs is None
-            bcells = (self.solexact(xc, yc) -self.solexact.xx(xc, yc) - self.solexact.yy(xc, yc))* ar[:]
-            # bcells = self.solexact(xc, yc)*ar[:]
+            bnodes = self.solexact(x, y) - self.kheat*(self.solexact.xx(x, y) + self.solexact.yy(x, y))
         elif rhs:
             assert self.solexact is None
-            bcells = self.rhs(xc, yc) *  ar[:]
+            bnodes = self.rhs(x, y) *  ar[:]
         else:
             raise ValueError("nor exactsolution nor rhs given")
-        for i,simp in enumerate(simps):
-            b[simp] += bcells[i]/3
+        b = self.massmatrix*bnodes
+        bdryedges, normals =  self.mesh.bdryedges, self.mesh.normals
+        for (count, ie) in enumerate(bdryedges):
+            iv0 =  self.mesh.edges[ie, 0]
+            iv1 =  self.mesh.edges[ie, 1]
+            xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
+            if self.solexact:
+                assert self.neumann is None
+                bn = self.kheat*(self.solexact.x(xe, ye)*normals[ie][0] + self.solexact.y(xe, ye)*normals[ie][1])
+            elif self.neumann:
+                assert self.solexact is None
+                bn = self.neumann(xe, ye) * linalg.norm(normals[ie])
+            else:
+                raise ValueError("nor exactsolution nor neumann given")
+            bn *= 2*(self.mesh.cellsOfEdge[ie, 1]==-1)-1
+            # print("bn", bn, normals[ie])
+            b[iv0] += 0.5 * bn
+            b[iv1] += 0.5 * bn
         return b
     def matrix(self):
         nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
@@ -81,32 +111,33 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         A = np.zeros(nlocal*ncells, dtype=np.float64)
         count = 0
         for ic in range(ncells):
+            mass = self.fem.elementMassMatrix(ic)
+            lap = self.fem.elementLaplaceMatrix(ic)
             for ii in range(3):
                 for jj in range(3):
                     index[count+3*ii+jj] = simps[ic, ii]
                     jndex[count+3*ii+jj] = simps[ic, jj]
-                    # A[count + 3 * ii + jj] = np.dot(normals[simps[ic, jj]], normals[simps[ic, ii]])/ar[ic]/4
-                    A[count + 3 * ii + jj] += ar[ic]/9
+                    A[count + 3 * ii + jj] = self.kheat*lap[ii,jj]
             count += nlocal
         # print("A", A)
         Asp = sparse.coo_matrix((A, (index, jndex)), shape=(nnodes, nnodes)).tocsr()
         # print("Asp", Asp)
-        return Asp
+        # print("ar", ar)
+        return Asp+self.massmatrix
     def postProcess(self, u, timer, nit=True, vtkbeta=True):
         info = {}
         cell_data = {}
         point_data = {}
         point_data['U'] = u
         if self.solexact:
-            info['error'] = self.computeError(self.solexact, u)
+            info['error'], point_data['E'] = self.computeError(self.solexact, u)
         info['timer'] = self.timer
         if nit: info['nit'] = nit
         return point_data, cell_data, info
     def computeError(self, solex, uh):
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
         e = solex(x, y) - uh
-        e *= e*self.hvert
         errors = {}
-        errors['L2'] = np.sqrt(np.sum(e))
-        return errors
+        errors['L2'] = np.sqrt( np.dot(e, self.massmatrix*e) )
+        return errors, e
 

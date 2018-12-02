@@ -72,7 +72,6 @@ class TriangleMesh(matplotlib.tri.Triangulation):
             os.makedirs(dirname)
         filename = os.path.join(dirname, filename)
         meshio.write_points_cells(filename=filename, points=points, cells=cells, point_data=point_data, cell_data=cell_data_meshio)
-
     def construcNormalsAndAreas(self):
         sidesx = self.y[self.edges[:, 0]] - self.y[self.edges[:, 1]]
         sidesy = self.x[self.edges[:, 1]] - self.x[self.edges[:, 0]]

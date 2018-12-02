@@ -76,7 +76,7 @@ class CompareErrors(object):
                 if 'nit' in info:
                     has_nliter = True
                     nliter[name].append(info['nit'])
-                print('method', name, 'nit', info['nit'])
+                # print('method', name, 'nit', info['nit'])
                 times[name]['rhs'].append(info['timer']['rhs'])
                 times[name]['matrix'].append(info['timer']['matrix'])
                 times[name]['solve'].append(info['timer']['solve'])
@@ -85,7 +85,6 @@ class CompareErrors(object):
                     trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
-                    import matplotlib.pyplot as plt
                     plotmesh.meshWithData(trimesh, point_data, cell_data)
                     plt.show()
             ncells.append(trimesh.ncells)

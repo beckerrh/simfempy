@@ -10,7 +10,6 @@ import pygmsh
 import importlib
 try:
     import geomdefs
-    print("### ")
 except ModuleNotFoundError:
     from . import geomdefs as geomdefs
 
