@@ -66,7 +66,7 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
     except:
         raise ValueError("cannot get data from meshdata")
     nplots = len(point_data)
-    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4,4))
+    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4))
     count=0
     for pdn, pd in point_data.items():
         assert x.shape == pd.shape

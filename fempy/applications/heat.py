@@ -15,6 +15,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.neumann = None
         self.rhs = None
         self.solexact = None
+        self.bdrycond = kwargs.pop('bdrycond')
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
         else:
@@ -29,7 +30,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.kheat = kwargs.pop('kheat')
         else:
             self.kheat = 0.123
-
     def defineProblem(self, problem):
         print("problem is {}".format(problem))
         self.problem = problem
@@ -50,7 +50,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.dirichlet = self.solexact
         else:
             raise ValueError("unownd problem {}".format(problem))
-
     def setMesh(self, mesh):
         self.mesh = mesh
         self.mesh.computeSimpOfVert(test=False)
@@ -67,6 +66,14 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         # print("self.hvert", np.mean(self.hvert))
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
+        edgesdir = np.empty(shape=(0), dtype=int)
+        for color, edges in self.mesh.bdrylabels.items():
+            bdrycond = self.bdrycond[color]
+            if bdrycond == "Dirichlet":
+                edgesdir = np.union1d(edgesdir, edges)
+        print("edgesdir", edgesdir)
+        self.nodesdir = np.unique(self.mesh.edges[edgesdir].flat[:])
+        print("nodesdir", self.nodesdir)
 
     def solve(self):
         return self.solveLinear()
@@ -84,22 +91,39 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             raise ValueError("nor exactsolution nor rhs given")
         b = self.massmatrix*bnodes
         bdryedges, normals =  self.mesh.bdryedges, self.mesh.normals
-        for (count, ie) in enumerate(bdryedges):
-            iv0 =  self.mesh.edges[ie, 0]
-            iv1 =  self.mesh.edges[ie, 1]
-            xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
-            if self.solexact:
-                assert self.neumann is None
-                bn = self.kheat*(self.solexact.x(xe, ye)*normals[ie][0] + self.solexact.y(xe, ye)*normals[ie][1])
-            elif self.neumann:
-                assert self.solexact is None
-                bn = self.neumann(xe, ye) * linalg.norm(normals[ie])
-            else:
-                raise ValueError("nor exactsolution nor neumann given")
-            bn *= 2*(self.mesh.cellsOfEdge[ie, 1]==-1)-1
-            # print("bn", bn, normals[ie])
-            b[iv0] += 0.5 * bn
-            b[iv1] += 0.5 * bn
+        for color, edges in self.mesh.bdrylabels.items():
+            bdrycond = self.bdrycond[color]
+            print("Boundary condition:", bdrycond)
+            if bdrycond == "Neumann":
+                for ie in edges:
+                    iv0 =  self.mesh.edges[ie, 0]
+                    iv1 =  self.mesh.edges[ie, 1]
+                    xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
+                    if self.solexact:
+                        assert self.neumann is None
+                        bn = self.kheat*(self.solexact.x(xe, ye)*normals[ie][0] + self.solexact.y(xe, ye)*normals[ie][1])
+                    elif self.neumann:
+                        assert self.solexact is None
+                        bn = self.neumann(xe, ye) * linalg.norm(normals[ie])
+                    else:
+                        raise ValueError("nor exactsolution nor neumann given")
+                    bn *= 2*(self.mesh.cellsOfEdge[ie, 1]==-1)-1
+                    # print("bn", bn, normals[ie])
+                    b[iv0] += 0.5 * bn
+                    b[iv1] += 0.5 * bn
+        for color, edges in self.mesh.bdrylabels.items():
+            bdrycond = self.bdrycond[color]
+            print("Boundary condition:", bdrycond)
+            if bdrycond == "Dirichlet":
+                for ie in edges:
+                    iv0 = self.mesh.edges[ie, 0]
+                    iv1 = self.mesh.edges[ie, 1]
+                    if self.solexact:
+                        b[iv0] = self.solexact(x[iv0], y[iv0])
+                        b[iv1] = self.solexact(x[iv1], y[iv1])
+                    else:
+                        b[iv0] = self.dirichlet(x[iv0], y[iv0])
+                        b[iv1] = self.dirichlet(x[iv1], y[iv1])
         return b
     def matrix(self):
         nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
@@ -121,9 +145,18 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             count += nlocal
         # print("A", A)
         Asp = sparse.coo_matrix((A, (index, jndex)), shape=(nnodes, nnodes)).tocsr()
+        Asp += self.massmatrix
+        uno = np.ones((nnodes))
+        uno[self.nodesdir] = 0
+        uno = sparse.dia_matrix((uno,0), shape = (nnodes,nnodes))
+        Asp = uno.dot(Asp)
+        new_diag_entries = np.zeros((nnodes))
+        new_diag_entries[self.nodesdir] = 1.0
+        uno = sparse.dia_matrix((new_diag_entries,0), shape = (nnodes,nnodes))
+        Asp += uno
         # print("Asp", Asp)
         # print("ar", ar)
-        return Asp+self.massmatrix
+        return Asp
     def postProcess(self, u, timer, nit=True, vtkbeta=True):
         info = {}
         cell_data = {}
