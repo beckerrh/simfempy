@@ -36,7 +36,7 @@ def meshWithBoundaries(meshdata, ax=plt):
         bdrylabels = cell_data['line']['gmsh:physical']
     assert len(bdrylabels) == lines.shape[0]
     colors = np.unique(bdrylabels)
-    print("colors", colors)
+    # print("colors", colors)
     ax.triplot(x, y, tris, color='k')
     pltcolors = 'bgrcmyk'
     patches=[]
@@ -66,15 +66,16 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
     except:
         raise ValueError("cannot get data from meshdata")
     nplots = len(point_data)
-    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4))
+    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4), squeeze=False)
     count=0
     for pdn, pd in point_data.items():
         assert x.shape == pd.shape
-        axs[count].triplot(x, y, tris, color='gray', lw=1)
-        cnt = axs[count].tricontourf(x, y, tris, pd)
+        ax = axs[0,count]
+        ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
+        cnt = ax.tricontourf(x, y, tris, pd)
         if numbering:
-            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=axs[count])
-        plt.colorbar(cnt, ax=axs[count])
-        _settitle(axs[count], pdn)
+            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
+        plt.colorbar(cnt, ax=ax)
+        _settitle(ax, pdn)
         count += 1
     plt.tight_layout()

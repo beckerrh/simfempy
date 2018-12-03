@@ -19,9 +19,9 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
         else:
-            self.dirichlet = kwargs.pop('dirichlet')
-            self.neumann = kwargs.pop('neumann')
-            self.rhs = kwargs.pop('rhs')
+            self.dirichlet = np.vectorize(kwargs.pop('dirichlet'))
+            self.neumann = np.vectorize(kwargs.pop('neumann'))
+            self.rhs = np.vectorize(kwargs.pop('rhs'))
         if 'rhocp' in kwargs:
             self.rhocp = kwargs.pop('rhocp')
         else:
@@ -55,15 +55,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.mesh.computeSimpOfVert(test=False)
         nnodes = self.mesh.nnodes
         ar, si = self.mesh.area, self.mesh.simpOfVert
-        # self.hvert = np.ravel(np.mean(self.mesh.simpOfVert, axis=1))
-        self.hvert = np.zeros(nnodes)
-        for i in range(nnodes):
-            # print("si[i]", type(si.data[i]))
-            # print("si[i]", si.data[i])
-            self.hvert[i] = np.sum(ar[si.data[si.indptr[i]:si.indptr[i+1]]])/3
-        # print(self.mesh.area[self.mesh.simpOfVert])
-        # print("self.hvert", self.hvert)
-        # print("self.hvert", np.mean(self.hvert))
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
         edgesdir = np.empty(shape=(0), dtype=int)
@@ -71,9 +62,9 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             bdrycond = self.bdrycond[color]
             if bdrycond == "Dirichlet":
                 edgesdir = np.union1d(edgesdir, edges)
-        print("edgesdir", edgesdir)
+        # print("edgesdir", edgesdir)
         self.nodesdir = np.unique(self.mesh.edges[edgesdir].flat[:])
-        print("nodesdir", self.nodesdir)
+        # print("nodesdir", self.nodesdir)
 
     def solve(self):
         return self.solveLinear()
@@ -86,14 +77,14 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             bnodes = self.solexact(x, y) - self.kheat*(self.solexact.xx(x, y) + self.solexact.yy(x, y))
         elif rhs:
             assert self.solexact is None
-            bnodes = self.rhs(x, y) *  ar[:]
+            bnodes = self.rhs(x, y)
         else:
             raise ValueError("nor exactsolution nor rhs given")
         b = self.massmatrix*bnodes
         bdryedges, normals =  self.mesh.bdryedges, self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond[color]
-            print("Boundary condition:", bdrycond)
+            # print("Boundary condition:", bdrycond)
             if bdrycond == "Neumann":
                 for ie in edges:
                     iv0 =  self.mesh.edges[ie, 0]
@@ -113,7 +104,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                     b[iv1] += 0.5 * bn
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond[color]
-            print("Boundary condition:", bdrycond)
+            # print("Boundary condition:", bdrycond)
             if bdrycond == "Dirichlet":
                 for ie in edges:
                     iv0 = self.mesh.edges[ie, 0]

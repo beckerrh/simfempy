@@ -21,14 +21,22 @@ class TriangleMesh(matplotlib.tri.Triangulation):
     """
     triangular mesh based on matplotlib.tri.Triangulation
     """
-    def __init__(self, geomname="unitsquare", hmean=None):
-        self.geomname = geomname
-        filenamemsh = geomname + '.msh'
+    def __init__(self, **kwargs):
+        if 'data' in kwargs:
+            self.geomname = 'own'
+            data = kwargs.pop('data')
+            self._initMesh(data[0], data[1], data[3])
+            return
+        self.geomname = kwargs.pop('geomname')
+        hmean = None
+        if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
+        filenamemsh = self.geomname + '.msh'
         if hmean is not None or not os.path.isfile(filenamemsh):
-            geom = geometry.Geometry(geomname=geomname, h=hmean)
+            geom = geometry.Geometry(geomname=self.geomname, h=hmean)
             geom.runGmsh(newgeometry=(hmean is not None))
         mesh = meshio.read(filename=filenamemsh)
-        points, cells, celldata = mesh.points, mesh.cells, mesh.cell_data
+        self._initMesh(mesh.points, mesh.cells, mesh.cell_data)
+    def _initMesh(self, points, cells, celldata):
         self.bdrylabelsmsh = celldata['line']['gmsh:physical']
         matplotlib.tri.Triangulation.__init__(self, x=points[:, 0], y=points[:, 1], triangles=cells['triangle'])
         self.nedges = len(self.edges)
@@ -55,6 +63,7 @@ class TriangleMesh(matplotlib.tri.Triangulation):
         self.lines = cells['line']
         self.constructBoundaryEdges(self.bdrylabelsmsh, cells['line'])
         print(self)
+
     def __str__(self):
         return "TriangleMesh({}): nvert/ncells/nedges: {}/{}/{} bdrylabels={}".format(self.geomname, len(self.x), len(self.triangles), len(self.edges), list(self.bdrylabels.keys()))
     def write(self, filename, dirname = "out", point_data=None, cell_data=None):
@@ -161,7 +170,7 @@ class TriangleMesh(matplotlib.tri.Triangulation):
         S.data -= 1
         self.simpOfVert = S
         if test:
-            print("S=",S)
+            # print("S=",S)
             from . import plotmesh
             import matplotlib.pyplot as plt
             simps, xc, yc = self.triangles, self.centersx, self.centersy
