@@ -72,7 +72,7 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
         assert x.shape == pd.shape
         ax = axs[0,count]
         ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
-        cnt = ax.tricontourf(x, y, tris, pd)
+        cnt = ax.tricontourf(x, y, tris, pd, 16)
         if numbering:
             _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
         plt.colorbar(cnt, ax=ax)

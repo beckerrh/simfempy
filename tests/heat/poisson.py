@@ -10,13 +10,13 @@ def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
     # problem = 'Analytic_Quadratic'
-    # problem = 'Analytic_Sinus'
-    geomname="unitsquare"
-    bdrycond={}
-    bdrycond[11] = "Neumann"
-    bdrycond[22] = "Neumann"
-    bdrycond[33] = "Dirichlet"
-    bdrycond[44] = "Dirichlet"
+    problem = 'Analytic_Sinus'
+    geomname = "unitsquare"
+    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond.type[11] = "Neumann"
+    bdrycond.type[22] = "Neumann"
+    bdrycond.type[33] = "Dirichlet"
+    bdrycond.type[44] = "Dirichlet"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond)
     comp = fempy.tools.comparerrors.CompareErrors(methods, latex=True, vtk=True, plot=True)
@@ -32,7 +32,7 @@ def test_coefs_stat():
     h = 0.05
     p0 =  geometry.add_point([-2.0, -2.0, 0.0], h)
     p1 =  geometry.add_point([1.0, -1.0, 0.0], h)
-    p2 =  geometry.add_point([1.0, 1.0, 0.0], h)
+    p2 =  geometry.add_point([2.0, 2.0, 0.0], h)
     p3 =  geometry.add_point([-1.0, 1.0, 0.0], h)
     l0 =  geometry.add_line(p0, p1)
     l1 =  geometry.add_line(p1, p2)
@@ -47,17 +47,26 @@ def test_coefs_stat():
     geometry.add_physical_surface(surf, label=99)
     data = pygmsh.generate_mesh(geometry)
     mesh = fempy.meshes.trianglemesh.TriangleMesh(data=data)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    plt.show()
-    bdrycond={}
-    bdrycond[11] = "Neumann"
-    bdrycond[22] = "Neumann"
-    bdrycond[33] = "Dirichlet"
-    bdrycond[44] = "Dirichlet"
-    def dirichlet(x, y): return 120.
-    def neumann(x, y): return 0.
-    def rhs(x, y): return 1.
-    heat = fempy.applications.heat.Heat(dirichlet=dirichlet, neumann=neumann, rhs=rhs, bdrycond=bdrycond)
+    # fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    # plt.show()
+    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabelsmsh)
+    bdrycond.type[11] = "Neumann"
+    bdrycond.type[22] = "Dirichlet"
+    bdrycond.type[33] = "Neumann"
+    bdrycond.type[44] = "Dirichlet"
+    bdrycond.fct[11] = lambda x,y, nx, ny, k: 0
+    bdrycond.fct[33] = lambda x,y, nx, ny, k: -10
+    bdrycond.fct[22] = lambda x,y: 120
+    bdrycond.fct[44] = bdrycond.fct[22]
+    print("bdrycond", bdrycond)
+    rhs = lambda x, y: 20.
+    def kheat(x, y):
+        if (-0.25 < x < 0.25) and (0.25 < y < 0.75):
+            return 1234.5
+        else:
+            return 0.123
+
+    heat = fempy.applications.heat.Heat(rhs=rhs, bdrycond=bdrycond, kheat=kheat)
     heat.setMesh(mesh)
     point_data, cell_data, info = heat.solve()
     fempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
