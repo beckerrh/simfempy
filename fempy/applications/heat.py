@@ -29,8 +29,13 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.defineProblem(problem=kwargs.pop('problem'))
         else:
             self.rhs = np.vectorize(kwargs.pop('rhs'))
+        if 'postproc' in kwargs:
+            self.postproc = kwargs.pop('postproc')
+        else:
+            self.postproc={}
+
     def defineProblem(self, problem):
-        print("problem is {}".format(problem))
+        # print("problem is {}".format(problem))
         self.problem = problem
         problemsplit = problem.split('_')
         if problemsplit[0] == 'Analytic':
@@ -74,24 +79,30 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         nnodes, ncells, xc, yc = self.mesh.nnodes, self.mesh.ncells, self.mesh.centersx, self.mesh.centersy
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
-        edgesdir = np.empty(shape=(0), dtype=int)
-        for color, edges in self.mesh.bdrylabels.items():
-            bdrycond = self.bdrycond.type[color]
-            if bdrycond == "Dirichlet":
-                edgesdir = np.union1d(edgesdir, edges)
-        # print("edgesdir", edgesdir)
-        self.nodesdir = np.unique(self.mesh.edges[edgesdir].flat[:])
+
+        colorsdir = []
+        self.nodedirall = np.empty(shape=(0), dtype=int)
+        for color, type in self.bdrycond.type.items():
+            if type == "Dirichlet": colorsdir.append(color)
+        self.nodesdir={}
+        for color in colorsdir:
+            edgesdir = self.mesh.bdrylabels[color]
+            self.nodesdir[color] = np.unique(self.mesh.edges[edgesdir].flat[:])
+            self.nodedirall = np.unique(np.union1d(self.nodedirall, self.nodesdir[color]))
+        # print("colorsdir", colorsdir)
         # print("nodesdir", self.nodesdir)
+        self.bsaved={}
+        self.Asaved={}
+
         self.kheatcell = np.zeros(ncells)
         self.kheatcell = self.kheat(xc, yc)
         self.rhocpcell = np.zeros(ncells)
         self.rhocpcell = self.rhocp(xc, yc)
         # print("self.kheatcell", self.kheatcell)
 
-    def solve(self):
+    def solvestatic(self):
         return self.solveLinear()
     def computeRhs(self):
-        dirichlet, rhs = self.dirichlet, self.rhs
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
         bnodes = self.rhs(x, y)
         b = self.massmatrix*bnodes
@@ -114,48 +125,59 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                     # print("bn", bn, "nomal", normal)
                     b[iv0] += 0.5 * bn
                     b[iv1] += 0.5 * bn
-        for color, edges in self.mesh.bdrylabels.items():
-            bdrycond = self.bdrycond.type[color]
-            # print("Boundary condition:", bdrycond)
-            if bdrycond == "Dirichlet":
-                dirichlet = self.bdrycond.fct[color]
-                for ie in edges:
-                    iv0 = self.mesh.edges[ie, 0]
-                    iv1 = self.mesh.edges[ie, 1]
-                    b[iv0] = dirichlet(x[iv0], y[iv0])
-                    b[iv1] = dirichlet(x[iv1], y[iv1])
+        for color, nodes in self.nodesdir.items():
+            dirichlet = self.bdrycond.fct[color]
+            self.bsaved[color] = b[nodes]
+            b[nodes] = dirichlet(x[nodes], y[nodes])
         return b
     def matrix(self):
-        nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
+        import time
+        nnodes, ncells, normals = self.mesh.nnodes, self.mesh.ncells, self.mesh.normals
+        t1 = time.time()
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
-        ar, normals = self.mesh.area, self.mesh.normals
         nlocal = 9
-        index = np.zeros(nlocal*ncells, dtype=int)
-        jndex = np.zeros(nlocal*ncells, dtype=int)
-        A = np.zeros(nlocal*ncells, dtype=np.float64)
-        count = 0
-        for ic in range(ncells):
-            mass = self.fem.elementMassMatrix(ic)
-            lap = self.fem.elementLaplaceMatrix(ic)
-            for ii in range(3):
-                for jj in range(3):
-                    index[count+3*ii+jj] = simps[ic, ii]
-                    jndex[count+3*ii+jj] = simps[ic, jj]
-                    A[count + 3 * ii + jj] = self.kheatcell[ic]*lap[ii,jj]
-            count += nlocal
-        # print("A", A)
-        Asp = sparse.coo_matrix((A, (index, jndex)), shape=(nnodes, nnodes)).tocsr()
-        uno = np.ones((nnodes))
-        uno[self.nodesdir] = 0
-        uno = sparse.dia_matrix((uno,0), shape = (nnodes,nnodes))
-        Asp = uno.dot(Asp)
-        new_diag_entries = np.zeros((nnodes))
-        new_diag_entries[self.nodesdir] = 1.0
-        uno = sparse.dia_matrix((new_diag_entries,0), shape = (nnodes,nnodes))
-        Asp += uno
-        # print("Asp", Asp)
-        # print("ar", ar)
+        # A = np.zeros(nlocal*ncells, dtype=np.float64)
+        # count = 0
+        # for ic in range(ncells):
+        #     lap = self.fem.elementLaplaceMatrix(ic)
+        #     for ii in range(3):
+        #         for jj in range(3):
+        #             A[count + 3 * ii + jj] = self.kheatcell[ic]*lap[ii,jj]
+        #     count += nlocal
+        A = self.fem.assemble(self.kheatcell)
+
+        t2 = time.time()
+        Asp = sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
+        t3 = time.time()
+        for color, nodes in self.nodesdir.items():
+            nb = nodes.shape[0]
+            help = sparse.dia_matrix((np.ones(nb),0), shape=(nb,nnodes))
+            self.Asaved[color] = help.dot(Asp)
+        help = np.ones((nnodes))
+        help[self.nodedirall] = 0
+        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+        Asp = help.dot(Asp)
+        help = np.zeros((nnodes))
+        help[self.nodedirall] = 1.0
+        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+        Asp += help
+        t4 = time.time()
+        self.timer['mat_cells'] = t2-t1
+        self.timer['mat_coo'] = t3-t2
+        self.timer['mat_bdry'] = t4-t3
         return Asp
+    def computeMean(self, color, u):
+        edges = self.mesh.bdrylabels[color]
+        mean, omega = 0, 0
+        for ie in edges:
+            normal = self.mesh.normals[ie]
+            d = linalg.norm(normal)
+            omega += d
+            mean += d*np.mean(u[self.mesh.edges[ie, :]])
+        return mean/omega
+    def computeFlux(self, color, u):
+        length = np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]]))
+        return np.sum(self.bsaved[color] - self.Asaved[color]*u)/length
     def postProcess(self, u, timer, nit=True, vtkbeta=True):
         info = {}
         cell_data = {}
@@ -164,7 +186,16 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         if self.solexact:
             info['error'], point_data['E'] = self.computeError(self.solexact, u)
         info['timer'] = self.timer
-        if nit: info['nit'] = nit
+        info['runinfo'] = self.runinfo
+        for key, val in self.postproc.items():
+            info[key] = {}
+            for color in val.split(','):
+                if key == "mean":
+                    info[key][color] = self.computeMean(int(color),u)
+                elif key == "flux":
+                    info[key][color] = self.computeFlux(int(color), u)
+                else:
+                    raise ValueError("unknown postprocess {}".format(key))
         return point_data, cell_data, info
     def computeError(self, solex, uh):
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy

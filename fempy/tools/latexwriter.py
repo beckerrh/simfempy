@@ -49,8 +49,6 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-        print(__name__)
-        print('dirname', dirname)
         print(self.dirname, self.latexfilename)
 
     def computeReductionRate(self, tabledata):
@@ -80,27 +78,6 @@ class LatexWriter(object):
                 except:
                     pass
         return tabledata, orders
-
-    def addFadaLightData(self, data, method= 'cg1', redrate=True):
-        names = sorted(data.keys())
-        names.remove('N')
-        if 'iter' in names:
-          names.remove('iter')
-        if redrate: orders={}
-        for name in names:
-            values = {method: data[name]}
-            type = 'float'
-            if name == "niter" or name == "nliter":
-                type = 'int'
-            tabledata = TableData(n=data['N'], values=values, type=type)
-            if redrate and name.find('OS')==-1 and name.find('US')==-1 and name != "niter" and name !="nliter":
-                tabledata, order = self.computeReductionRate(tabledata)
-                orders[name] = order
-            if name in list(self.data.keys()):
-                self.data[name].add(tabledata)
-            else:
-                self.data[name] = tabledata
-        return
 
     def append(self, n, values, type='float', name= None, redrate=False):
         if name is None:
@@ -200,5 +177,7 @@ if __name__ == '__main__':
     values={}
     values['u'] = np.random.rand((len(n)))
     values['v'] = np.random.rand((len(n)))
-    latexwriter = LatexWriter(n=n, values=values)
+    latexwriter = LatexWriter()
+    latexwriter.append(n, values)
+    latexwriter.write()
     latexwriter.compile()

@@ -13,15 +13,16 @@ import scipy.optimize as optimize
 class NewtonSolver(object):
     def __init__(self):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0}
+        self.runinfo = {'niter':0}
 
     def solveLinear(self):
-        t0 = time.clock()
+        t0 = time.time()
         b = self.computeRhs()
-        t1 = time.clock()
+        t1 = time.time()
         A = self.matrix()
-        t2 = time.clock()
+        t2 = time.time()
         u = splinalg.spsolve(A, b)
-        t3 = time.clock()
+        t3 = time.time()
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
         self.timer['solve'] = t3-t2
@@ -68,16 +69,16 @@ class NewtonSolver(object):
         return x
 
     def solveNonlinear(self, u=None, rtol=1e-10, gtol=1e-16, maxiter=100, checkmaxiter=True):
-        t0 = time.clock()
+        t0 = time.time()
         self.b = self.computeRhs()
         if u is None:
             u = np.zeros_like(self.b)
         else:
             assert u.shape == self.b.shape
         self.du = np.zeros_like(self.b)
-        t1 = time.clock()
+        t1 = time.time()
         self.A = self.matrix(u)
-        t2 = time.clock()
+        t2 = time.time()
 
         method = 'broyden2'
         method = 'anderson'
@@ -100,7 +101,7 @@ class NewtonSolver(object):
         # except:
         #     nit = -1
         # print 'nit=', nit
-        t3 = time.clock()
+        t3 = time.time()
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
         self.timer['solve'] = t3-t2

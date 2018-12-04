@@ -23,8 +23,47 @@ class FemP12D(object):
     def setMesh(self, mesh):
         assert isinstance(mesh, TriangleMesh)
         self.mesh = mesh
-        self.xedges = self.mesh.x[self.mesh.edges].mean(axis=1)
-        self.yedges = self.mesh.y[self.mesh.edges].mean(axis=1)
+        ncells, x, y, simps = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles
+        self.rows = np.array([np.outer(simps[s],np.ones(3, dtype=int)) for s in range(ncells)]).flatten()
+        self.cols = np.array([np.outer(np.ones(3, dtype=int),simps[s]) for s in range(ncells)]).flatten()
+
+        S = np.array(((-1,-1),(1,0),(0,1)))
+        A1 = np.dot(x[simps], S)
+        A2 = np.dot(y[simps], S)
+        self.Adet = A1[:, 0] * A2[:, 1] - A1[:, 1] * A2[:, 0]
+        # print('self.Adet.shape', self.Adet.shape)
+        # print('A1.shape', A1.shape)
+
+        # Coefficients of inverse mapping
+        Ap1 = np.c_[A2[:, 1], -A1[:, 1]] / self.Adet.reshape(ncells, 1)
+        Ap2 = np.c_[-A2[:, 0], A1[:, 0]] / self.Adet.reshape(ncells, 1)
+
+        # print('Ap1.shape', Ap1.shape)
+
+        # Basic matrix types on the reference element
+        self.M = np.array(((2, 1, 1), (1, 2, 1), (1, 1, 2))) / 24.0
+        self.Kxx = np.array(((1, -1, 0), (-1, 1, 0), (0, 0, 0))) / 2.0
+        self.Kxy = np.array(((1, 0, -1), (-1, 0, 1), (0, 0, 0))) / 2.0
+        self.Kyy = np.array(((1, 0, -1), (0, 0, 0), (-1, 0, 1))) / 2.0
+        self.Phi1 = np.array(((6, 2, 2), (2, 2, 1), (2, 1, 2))) / 120.0
+        self.Phi2 = np.array(((2, 2, 1), (2, 6, 2), (1, 2, 2))) / 120.0
+        self.Phi3 = np.array(((2, 1, 2), (1, 2, 2), (2, 2, 6))) / 120.0
+
+        # Compute all of the elemental stiffness and mass matrices
+        self.cxx = (Ap1[:, 0] ** 2 + Ap1[:, 1] ** 2) * self.Adet
+        self.cxy = (Ap1[:, 0] * Ap2[:, 0] + Ap1[:, 1] * Ap2[:, 1]) * self.Adet
+        self.cyy = (Ap2[:, 0] ** 2 + Ap2[:, 1] ** 2) * self.Adet
+
+        # print('self.cxx.shape', self.cxx.shape)
+
+    def assemble(self, k):
+        Kel= \
+        np.kron(k * self.cxx, self.Kxx) + \
+        np.kron(k * self.cxy, self.Kxy) + \
+        np.kron(k * self.cxy, self.Kxy.T) + \
+        np.kron(k * self.cyy, self.Kyy)
+        return Kel.flatten("F")
+
     def phi(self, ic, x, y, grad):
         return 1./3. + np.dot(grad, np.array([x-self.mesh.centersx[ic], y-self.mesh.centersy[ic]]))
     def elementMassMatrix(self, ic):
