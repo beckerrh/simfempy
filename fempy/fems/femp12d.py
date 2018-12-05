@@ -20,13 +20,56 @@ class FemP12D(object):
             self.setMesh(mesh)
         self.locmatmass = np.zeros((3,3))
         self.locmatlap = np.zeros((3,3))
+        self.traforefelement = False
     def setMesh(self, mesh):
         assert isinstance(mesh, TriangleMesh)
         self.mesh = mesh
-        ncells, x, y, simps = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles
-        self.rows = np.array([np.outer(simps[s],np.ones(3, dtype=int)) for s in range(ncells)]).flatten()
-        self.cols = np.array([np.outer(np.ones(3, dtype=int),simps[s]) for s in range(ncells)]).flatten()
+        ncells, simps = self.mesh.ncells, self.mesh.triangles
+        self.rows = np.array([np.outer(simps[ic],np.ones(3, dtype=int)) for ic in range(ncells)]).flatten()
+        self.cols = np.array([np.outer(np.ones(3, dtype=int),simps[ic]) for ic in range(ncells)]).flatten()
+        if self.traforefelement:
+            self.computeFemMatricesRefElement()
+        else:
+            self.computeFemMatrices()
 
+    def computeFemMatrices(self):
+        ncells, x, y, simps, area = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.area
+        normals, edgesOfCell, cellsOfEdge = self.mesh.normals, self.mesh.edgesOfCell, self.mesh.cellsOfEdge
+        sigma = np.array([ 1.0 - 2.0 * (cellsOfEdge[edgesOfCell[ic,:], 0] == ic) for ic in range(ncells)])
+
+        cellgrads = 0.5*(normals[edgesOfCell].T * sigma.T / area.T).T
+        # test gradients
+        # for ic in range(ncells):
+        #     grad = self.grad(ic)
+        #     grad2 = cellgrads[ic]
+        #     if not np.all(grad==grad2):
+        #         print("true grad=\n{}\nwrong grad=\n{}".format(grad,grad2))
+        #         print("sigma", sigma[ic])
+        #         print("normals", normals[edgesOfCell[ic,:]])
+        #         chsg = (ic == self.mesh.cellsOfEdge[self.mesh.edgesOfCell[ic, :], 0])
+        #         print("chsg", chsg)
+        #         raise ValueError("wrong grad")
+        self.matxx = np.einsum('nk,nl->nkl', cellgrads[:,:,0], cellgrads[:,:,0])
+        self.matxy = np.einsum('nk,nl->nkl', cellgrads[:,:,0], cellgrads[:,:,1])
+        self.matyx = np.einsum('nk,nl->nkl', cellgrads[:,:,1], cellgrads[:,:,0])
+        self.matyy = np.einsum('nk,nl->nkl', cellgrads[:,:,1], cellgrads[:,:,1])
+        self.matxx =  (self.matxx.T*area).T
+        self.matxy =  (self.matxy.T*area).T
+        self.matyx =  (self.matyx.T*area).T
+        self.matyy =  (self.matyy.T*area).T
+        # print("self.matxx", self.matxx.shape)
+
+
+        # #test laplace
+        # for ic in range(ncells):
+        #     A = self.elementLaplaceMatrix(ic)
+        #     A2 = self.matxx[ic] + self.matyy[ic]
+        #     if not np.allclose(A, A2):
+        #         msg = "wrong element={} matrix\ngood={}\nwrong={}".format(ic,A,A2)
+        #         raise ValueError(msg)
+
+    def computeFemMatricesRefElement(self):
+        ncells, x, y, simps = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles
         S = np.array(((-1,-1),(1,0),(0,1)))
         A1 = np.dot(x[simps], S)
         A2 = np.dot(y[simps], S)
@@ -57,12 +100,12 @@ class FemP12D(object):
         # print('self.cxx.shape', self.cxx.shape)
 
     def assemble(self, k):
-        Kel= \
-        np.kron(k * self.cxx, self.Kxx) + \
-        np.kron(k * self.cxy, self.Kxy) + \
-        np.kron(k * self.cxy, self.Kxy.T) + \
-        np.kron(k * self.cyy, self.Kyy)
-        return Kel.flatten("F")
+        if self.traforefelement:
+            Kel= np.kron(k * self.cxx, self.Kxx) + np.kron(k * self.cyy, self.Kyy)
+            return Kel.flatten("F")
+        else:
+            K2 = (self.matxx.T*k).T  + (self.matyy.T*k).T
+            return K2.flatten()
 
     def phi(self, ic, x, y, grad):
         return 1./3. + np.dot(grad, np.array([x-self.mesh.centersx[ic], y-self.mesh.centersy[ic]]))
@@ -85,6 +128,7 @@ class FemP12D(object):
         normals = self.mesh.normals[self.mesh.edgesOfCell[ic,:]]
         grads = 0.5*normals/self.mesh.area[ic]
         chsg =  (ic == self.mesh.cellsOfEdge[self.mesh.edgesOfCell[ic,:],0])
+        # print("### chsg", chsg, "normals", normals)
         grads[chsg] *= -1.
         return grads
     def testgrad(self):
@@ -107,7 +151,6 @@ class FemP12D(object):
                         if np.abs(phi) > 1e-14:
                             print('ic=', ic, 'grad=', grads)
                             raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
-
     def massMatrix(self):
         nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy

@@ -19,8 +19,8 @@ def test_analytic():
     bdrycond.type[44] = "Dirichlet"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
-    result = comp.compare(geomname=geomname, h=[1.0, 0.5, 0.25, 0.125, 0.06, 0.03])
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
+    result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03])
 
 #----------------------------------------------------------------#
 def test_coefs_stat():
@@ -71,6 +71,7 @@ def test_coefs_stat():
     heat = fempy.applications.heat.Heat(rhs=rhs, bdrycond=bdrycond, kheat=kheat, postproc=postproc)
     heat.setMesh(mesh)
     point_data, cell_data, info = heat.solvestatic()
+    print("time: {}".format(info['timer']))
     print("mean: {} flux: {}".format(info['mean'], info['flux']))
     fempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
     plt.show()
