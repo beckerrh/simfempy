@@ -30,16 +30,39 @@ class TableData(object):
             self.types[key] = type
         self.rotatenames = False
         self.nname = nname
-    def add(self, tdata):
-        assert np.all(self.n == tdata.n)
-        for key in list(tdata.values.keys()):
-            self.values[key] = tdata.values[key]
-            self.precs[key] = tdata.precs[key]
-            self.types[key] = tdata.types[key]
+    def computeDiffs(self):
+        n, values, keys = self.n, self.values, list(self.values.keys())
+        for key in keys:
+            key2 = key + '-d'
+            valorder = np.zeros(len(n))
+            for i in range(1,len(n)):
+                valorder[i] = abs(values[key][i]-values[key][i-1])
+            values[key2] = valorder
+            self.precs[key2] = self.precs[key]
+            self.types[key2] = self.types[key]
+    def computeReductionRate(self, diff=False):
+        n, values, keys = self.n, self.values, list(self.values.keys())
+        fi = 1+int(diff)
+        for key in keys:
+            if diff:
+                if key[-2:] != "-d": continue
+            key2 = key + '-o'
+            valorder = np.zeros(len(n))
+            for i in range(fi,len(n)):
+                try:
+                    fnd = float(n[i])/float(n[i-1])
+                    alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
+                    # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
+                except:
+                    alpha=-1
+                valorder[i] = alpha
+            values[key2] = valorder
+            self.precs[key2] = 2
+            self.types[key2] = 'ffloat'
 
 #=================================================================#
 class LatexWriter(object):
-    def __init__(self, dirname="latextest", filename=None):
+    def __init__(self, dirname="Resultslatextest", filename=None):
         if filename is None:
             filename = dirname + ".tex"
         self.dirname = dirname + os.sep + "tex"
@@ -79,16 +102,17 @@ class LatexWriter(object):
                     pass
         return tabledata, orders
 
-    def append(self, n, values, type='float', name= None, redrate=False):
+    def append(self, n, values, type='float', name= None, redrate=False, diffandredrate=False):
         if name is None:
             name = 'table%1d' %self.countdata
         self.countdata += 1
         tabledata = TableData(n=n, values=values, type=type)
+        if diffandredrate:
+            tabledata.computeDiffs()
+            tabledata.computeReductionRate(diff=True)
         if redrate:
-            tabledata, order = self.computeReductionRate(tabledata)
+            tabledata.computeReductionRate()
         self.data[name] = tabledata
-        if redrate: return order
-        else: return None
     def write(self):
         self.latexfile = open(self.latexfilename, "w")
         self.writePreamble()

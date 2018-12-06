@@ -28,7 +28,6 @@ class CompareErrors(object):
         self.vtk = True
         self.plot = True
         self.plotpostprocs = True
-        self.solve = "static"
         if 'clean' in kwargs and kwargs.pop("clean")==True:
             import os, shutil
             try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
@@ -37,7 +36,6 @@ class CompareErrors(object):
         if 'vtk' in kwargs: self.vtk = kwargs.pop("vtk")
         if 'plot' in kwargs: self.plot = kwargs.pop("plot")
         if 'plotpostprocs' in kwargs: self.plotpostprocs = kwargs.pop("plotpostprocs")
-        if 'solve' in kwargs: self.solve = kwargs.pop("solve")
         if 'hmean' in kwargs:
             self.hmean = kwargs.pop("hmean")
             self.paramname = kwargs.pop("paramname")
@@ -58,10 +56,7 @@ class CompareErrors(object):
                 self.parameters.append(param)
             for name, method in self.methods.items():
                 method.setMesh(trimesh)
-                if self.solve=="static":
-                    point_data, cell_data, info = method.solvestatic()
-                else:
-                    point_data, cell_data, info = method.solvedynamic(name, iter, self.dirname)
+                point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.vtk:
                     filename = "{}_{}_{:02d}.vtk".format(method.problem, name, iter)
                     trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
@@ -86,26 +81,26 @@ class CompareErrors(object):
                 for key3, info3 in info2.items():
                     self.infos[key2][key3] = {}
                     # print("key3", key3,"info3", info3)
-                    for name in self.methods.keys():
-                        self.infos[key2][key3][name] = np.zeros(shape=(n), dtype=type(info3))
+                    # for name in self.methods.keys():
+                    self.infos[key2][key3][name] = np.zeros(shape=(n), dtype=type(info3))
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
-                for name in self.methods.keys():
-                    self.infos[key2][key3][name][iter] = info3
+                # for name in self.methods.keys():
+                self.infos[key2][key3][name][iter] = info3
     def generateLatex(self, names, paramname, parameters, infos):
         singleplots = ['timer', 'runinfo']
         latexwriter = LatexWriter(dirname=self.dirname)
         for key, val in infos.items():
-            redrate = (key=="error")
+            redrate = (key=="error") and (paramname=="ncells")
             if key in singleplots:
                 newdict={}
                 for key2, val2 in val.items():
                     for name in names:
                         newdict["{}:{}".format(key2, name)] = val2[name]
-                latexwriter.append(n=parameters, values=newdict, name='{}'.format(key), redrate=redrate)
+                latexwriter.append(n=parameters, values=newdict, name='{}'.format(key))
             else:
                 for key2, val2 in val.items():
-                    latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), redrate=redrate)
+                    latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), redrate=redrate, diffandredrate=not redrate)
         latexwriter.write()
         latexwriter.compile()
     def computeOrder(self, ncells, values):

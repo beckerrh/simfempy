@@ -8,7 +8,8 @@ import os
 import meshio
 import matplotlib.tri
 import numpy as np
-import scipy.sparse as sparse
+from scipy import sparse
+from scipy import spatial
 
 try:
     import geometry
@@ -18,6 +19,7 @@ except ModuleNotFoundError:
 
 #=================================================================#
 class TriangleMesh(matplotlib.tri.Triangulation):
+# class TriangleMesh(object):
     """
     triangular mesh based on matplotlib.tri.Triangulation
     """
@@ -36,31 +38,70 @@ class TriangleMesh(matplotlib.tri.Triangulation):
             geom.runGmsh(newgeometry=(hmean is not None))
         mesh = meshio.read(filename=filenamemsh)
         self._initMesh(mesh.points, mesh.cells, mesh.cell_data)
+    def _constructFaces(self):
+        simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
+        count=0
+        for i in range(len(simps)):
+            for idim in range(self.dimension+1):
+                if i > neighbrs[i, idim]: count +=1
+        self.faces = np.empty(shape=(count,self.dimension), dtype=int)
+        count=0
+        for i in range(len(simps)):
+            for idim in range(self.dimension+1):
+                if i > neighbrs[i, idim]:
+                    mask = np.array( [ii !=idim for ii in range(self.dimension+1)] )
+                    self.faces[count] = simps[i,mask]
+                    count +=1
+        self.nfaces = count
+
     def _initMesh(self, points, cells, celldata):
         self.bdrylabelsmsh = celldata['line']['gmsh:physical']
         matplotlib.tri.Triangulation.__init__(self, x=points[:, 0], y=points[:, 1], triangles=cells['triangle'])
+        self.delaunay = spatial.Delaunay(points[:,:2])
+        self.dimension = self.delaunay.points.shape[1]
+        # print("self.delaunay.simplices", self.delaunay.simplices.shape, "self.dimension", self.dimension)
+        assert self.dimension+1 == self.delaunay.simplices.shape[1]
+        self._constructFaces()
+        # import matplotlib.pyplot as plt
+        # plt.triplot(points[:, 0], points[:, 1], delaunay.simplices.copy())
+        # plt.plot(points[:, 0], points[:, 1], 'o')
+        # plt.show()
+        # edges = []
+        # for i in range(len(self.delaunay.simplices)):
+        #     if i > self.delaunay.neighbors[i,2]:
+        #         edges.append((self.delaunay.simplices[i,0], self.delaunay.simplices[i,1]))
+        #     if i > self.delaunay.neighbors[i,0]:
+        #         edges.append((self.delaunay.simplices[i,1], self.delaunay.simplices[i,2]))
+        #     if i > self.delaunay.neighbors[i,1]:
+        #         edges.append((self.delaunay.simplices[i,2], self.delaunay.simplices[i,0]))
+        # print("self.edges", type(self.edges), "edges", type(edges))
+        # if np.any(edges != self.edges):
+        #     print("self.edges", self.edges)
+        #     print("edges", edges)
+        #     print("self.faces", self.faces)
+        #     raise ValueError("edges are not lines")
         self.nedges = len(self.edges)
         self.ncells = len(self.triangles)
         self.nnodes = len(self.x)
-        self.bdryvert = self.triangles.flat[np.flatnonzero(self.neighbors == -1)]
-        self.intvert = np.setxor1d(np.arange(self.nnodes), self.bdryvert)
-        self.nbdryvert = len(self.bdryvert)
+        # self.bdryvert = self.triangles.flat[np.flatnonzero(self.neighbors == -1)]
+        # self.intvert = np.setxor1d(np.arange(self.nnodes), self.bdryvert)
+        # self.nbdryvert = len(self.bdryvert)
+        self.lines = cells['line']
         self.normals = None
         self.area = None
         self.cellsOfEdge = None
         self.edgesOfCell = None
         self.centersx = self.x[self.triangles].mean(axis=1)
         self.centersy = self.y[self.triangles].mean(axis=1)
-        self.edgesx = self.x[self.edges].mean(axis=1)
-        self.edgesy = self.y[self.edges].mean(axis=1)
+        # self.edgesx = self.x[self.edges].mean(axis=1)
+        # self.edgesy = self.y[self.edges].mean(axis=1)
         self.construcCellEdgeConnectivity()
         self.construcNormalsAndAreas()
         self.bdryedges = np.flatnonzero(np.any(self.cellsOfEdge == -1, axis=1))
-        self.intedges = np.setxor1d(np.arange(self.nedges), self.bdryedges)
+        # self.intedges = np.setxor1d(np.arange(self.nedges), self.bdryedges)
         self.nbdryedges = len(self.bdryedges)
-        self.nintedges = len(self.intedges)
+        # self.nintedges = len(self.intedges)
         self.bdrylabels = None
-        self.lines = cells['line']
         self.constructBoundaryEdges(self.bdrylabelsmsh, cells['line'])
         print(self)
 

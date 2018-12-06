@@ -65,7 +65,10 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
         x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
     except:
         raise ValueError("cannot get data from meshdata")
-    nplots = len(point_data)
+    nplots = len(point_data)+len(cell_data)
+    if nplots==0:
+        print("meshWithData() no point_data")
+        return
     fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4), squeeze=False)
     count=0
     for pdn, pd in point_data.items():
@@ -77,5 +80,14 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
             _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
         plt.colorbar(cnt, ax=ax)
         _settitle(ax, pdn)
+        count += 1
+    for cdn, cd in cell_data.items():
+        assert tris.shape[0] == cd.shape[0]
+        ax = axs[0,count]
+        cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k')
+        if numbering:
+            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
+        plt.colorbar(cnt, ax=ax)
+        _settitle(ax, cdn)
         count += 1
     plt.tight_layout()

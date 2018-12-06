@@ -7,32 +7,48 @@ import numpy as np
 import sympy
 
 class AnalyticalSolution():
+    """
+    computes numpy vectorized functions for the function and its dericatives up to two
+    for a given expression, derivatives computed with sympy
+    """
     def __init__(self, expr):
-        (x, y) = sympy.symbols('x,y')
+        (x, y, z) = sympy.symbols('x,y,z')
         self.expr = expr
-        self.fct = np.vectorize(sympy.lambdify('x,y',expr))
+        self.fct = np.vectorize(sympy.lambdify('x,y,z',expr))
         fx = sympy.diff(expr, x)
         fy = sympy.diff(expr, y)
+        fz = sympy.diff(expr, z)
         fxx = sympy.diff(fx, x)
         fxy = sympy.diff(fx, y)
+        fxz = sympy.diff(fx, z)
         fyy = sympy.diff(fy, y)
-        self.fct_x = np.vectorize(sympy.lambdify('x,y', fx))
-        self.fct_y = np.vectorize(sympy.lambdify('x,y', fy))
-        self.fct_xx = np.vectorize(sympy.lambdify('x,y', fxx))
-        self.fct_xy = np.vectorize(sympy.lambdify('x,y', fxy))
-        self.fct_yy = np.vectorize(sympy.lambdify('x,y', fyy))
+        fyz = sympy.diff(fy, z)
+        fzz = sympy.diff(fz, z)
+        self.fct_x = np.vectorize(sympy.lambdify('x,y,z', fx),otypes=[float])
+        self.fct_y = np.vectorize(sympy.lambdify('x,y,z', fy),otypes=[float])
+        self.fct_z = np.vectorize(sympy.lambdify('x,y,z', fz),otypes=[float])
+        self.fct_xx = np.vectorize(sympy.lambdify('x,y,z', fxx),otypes=[float])
+        self.fct_xy = np.vectorize(sympy.lambdify('x,y,z', fxy),otypes=[float])
+        self.fct_xz = np.vectorize(sympy.lambdify('x,y,z', fxz),otypes=[float])
+        self.fct_yy = np.vectorize(sympy.lambdify('x,y,z', fyy),otypes=[float])
+        self.fct_yz = np.vectorize(sympy.lambdify('x,y,z', fyz),otypes=[float])
+        self.fct_zz = np.vectorize(sympy.lambdify('x,y,z', fzz),otypes=[float])
     def __str__(self):
         return str(self.expr)
-    def __call__(self, x, y):
-        return self.fct(x,y)
-    def x(self, x, y):
-        return self.fct_x(x,y)
-    def y(self, x, y):
-        return self.fct_y(x,y)
-    def xx(self, x, y):
-        return self.fct_xx(x,y)
-    def yy(self, x, y):
-        return self.fct_yy(x,y)
+    def __call__(self, x, y, z=0.0):
+        return self.fct(x,y, z)
+    def x(self, x, y, z=0.0):
+        return self.fct_x(x,y, z)
+    def y(self, x, y, z=0.0):
+        return self.fct_y(x,y, z)
+    def z(self, x, y, z=0.0):
+        return self.fct_z(x,y, z)
+    def xx(self, x, y, z=0.0):
+        return self.fct_xx(x,y,z )
+    def yy(self, x, y, z=0.0):
+        return self.fct_yy(x,y,z)
+    def zz(self, x, y, z=0.0):
+        return self.fct_zz(x,y,z)
 
 # ------------------------------------------------------------------- #
 if __name__ == '__main__':

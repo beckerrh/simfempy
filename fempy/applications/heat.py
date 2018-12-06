@@ -33,46 +33,49 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.postproc = kwargs.pop('postproc')
         else:
             self.postproc={}
+        if 'method' in kwargs:
+            self.method = kwargs.pop('method')
+        else:
+            self.method="trad"
 
     def defineProblem(self, problem):
-        # print("problem is {}".format(problem))
         self.problem = problem
         problemsplit = problem.split('_')
-        if problemsplit[0] == 'Analytic':
-            if problemsplit[1] == 'Linear':
-                self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.7 * y')
-            elif problemsplit[1] == 'Quadratic':
-                self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
-            elif problemsplit[1] == 'Hubbel':
-                self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
-            elif problemsplit[1] == 'Exponential':
-                self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
-            elif problemsplit[1] == 'Sinus':
-                self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
-            else:
-                raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
-            class NeummannExact():
-                def __init__(self, ex):
-                    self.ex = ex
-                def __call__(self,x,y,nx,ny,k):
-                    return k*(self.ex.x(x, y)*nx + self.ex.y(x, y)*ny)
-            class RhsExact():
-                def __init__(self, ex, k):
-                    self.ex = ex
-                    self.k = k
-                def __call__(self,x,y):
-                    return -self.k(x,y)*(self.ex.xx(x, y) + self.ex.yy(x, y))
-            neumannex = NeummannExact(self.solexact)
-            self.rhs = RhsExact(self.solexact, self.kheat)
-            for color, bc in self.bdrycond.type.items():
-                if bc == "Dirichlet":
-                    self.bdrycond.fct[color] = self.solexact
-                elif bc == "Neumann":
-                    self.bdrycond.fct[color] = neumannex
-                else:
-                    raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
-        else:
+        if problemsplit[0] != 'Analytic':
             raise ValueError("unownd problem {}".format(problem))
+        function = problemsplit[1]
+        if function == 'Linear':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.7 * y')
+        elif function == 'Quadratic':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
+        elif function == 'Hubbel':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
+        elif function == 'Exponential':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
+        elif function == 'Sinus':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
+        else:
+            raise ValueError("unknown analytic solution: {}".format(function))
+        class NeummannExact():
+            def __init__(self, ex):
+                self.ex = ex
+            def __call__(self,x,y,nx,ny,k):
+                return k*(self.ex.x(x, y)*nx + self.ex.y(x, y)*ny)
+        class RhsExact():
+            def __init__(self, ex, k):
+                self.ex = ex
+                self.k = k
+            def __call__(self,x,y):
+                return -self.k(x,y)*(self.ex.xx(x, y) + self.ex.yy(x, y))
+        neumannex = np.vectorize(NeummannExact(self.solexact).__call__)
+        self.rhs = np.vectorize(RhsExact(self.solexact, self.kheat).__call__)
+        for color, bc in self.bdrycond.type.items():
+            if bc == "Dirichlet":
+                self.bdrycond.fct[color] = self.solexact
+            elif bc == "Neumann":
+                self.bdrycond.fct[color] = neumannex
+            else:
+                raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
     def setMesh(self, mesh):
         self.mesh = mesh
         self.mesh.computeSimpOfVert(test=False)
@@ -100,12 +103,21 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.rhocpcell = self.rhocp(xc, yc)
         # print("self.kheatcell", self.kheatcell)
 
-    def solvestatic(self):
+    def solve(self, iter, dirname):
         return self.solveLinear()
     def computeRhs(self):
+        import time
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
-        bnodes = self.rhs(x, y)
+        t1 = time.time()
+        if self.solexact:
+            # bnodes = -self.kheat(x,y)*(self.solexact.xx(x, y) + self.solexact.yy(x, y))
+            bnodes = -self.solexact.xx(x, y) - self.solexact.yy(x, y)
+            bnodes *= self.kheat(x,y)
+        else:
+            bnodes = self.rhs(x, y)
+        t2 = time.time()
         b = self.massmatrix*bnodes
+        t3 = time.time()
         bdryedges, normals =  self.mesh.bdryedges, self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond.type[color]
@@ -115,37 +127,30 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 for ie in edges:
                     iv0 =  self.mesh.edges[ie, 0]
                     iv1 =  self.mesh.edges[ie, 1]
+                    sigma = 1-2*(self.mesh.cellsOfEdge[ie, 0]==-1)
                     normal = normals[ie]
+                    normal *= sigma
                     ic = self.mesh.cellsOfEdge[ie,0]
                     if ic < 0: ic = self.mesh.cellsOfEdge[ie,1]
                     xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
                     d = linalg.norm(normal)
                     bn = neumann(xe, ye, normal[0]/d, normal[1]/d, self.kheatcell[ic]) * d
-                    bn *= 2*(self.mesh.cellsOfEdge[ie, 1]==-1)-1
-                    # print("bn", bn, "nomal", normal)
                     b[iv0] += 0.5 * bn
                     b[iv1] += 0.5 * bn
         for color, nodes in self.nodesdir.items():
             dirichlet = self.bdrycond.fct[color]
             self.bsaved[color] = b[nodes]
             b[nodes] = dirichlet(x[nodes], y[nodes])
+        t4 = time.time()
+        self.timer['rhs_fct'] = t2-t1
+        self.timer['rhs_mult'] = t3-t2
+        self.timer['rhs_bdry'] = t4-t3
         return b
     def matrix(self):
         import time
         nnodes, ncells, normals = self.mesh.nnodes, self.mesh.ncells, self.mesh.normals
         t1 = time.time()
-        x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
-        nlocal = 9
-        # A = np.zeros(nlocal*ncells, dtype=np.float64)
-        # count = 0
-        # for ic in range(ncells):
-        #     lap = self.fem.elementLaplaceMatrix(ic)
-        #     for ii in range(3):
-        #         for jj in range(3):
-        #             A[count + 3 * ii + jj] = self.kheatcell[ic]*lap[ii,jj]
-        #     count += nlocal
         A = self.fem.assemble(self.kheatcell)
-
         t2 = time.time()
         Asp = sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
         t3 = time.time()
@@ -176,9 +181,9 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             mean += d*np.mean(u[self.mesh.edges[ie, :]])
         return mean/omega
     def computeFlux(self, color, u):
-        length = np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]]))
+        length = np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
         return np.sum(self.bsaved[color] - self.Asaved[color]*u)/length
-    def postProcess(self, u, timer, nit=True, vtkbeta=True):
+    def postProcess(self, u):
         info = {}
         cell_data = {}
         point_data = {}

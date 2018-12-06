@@ -12,8 +12,6 @@ import scipy.sparse
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-    # fempypath = path.join(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))),'fempy')
-    print("fempypath={} __file__={}".format(fempypath,__file__))
     sys.path.append(fempypath)
 from raviartthomas import RaviartThomas
 import fempy.tools.analyticalsolution
@@ -50,10 +48,10 @@ class Laplace(RaviartThomas):
         else:
             raise ValueError("unownd problem {}".format(problem))
 
-    def solve(self):
+    def solve(self, iter, dirname):
         return self.solveLinear()
 
-    def postProcess(self, u, timer, nit=True, vtkbeta=True):
+    def postProcess(self, u):
         nedges =  self.mesh.nedges
         info = {}
         cell_data = {'p': u[nedges:]}
@@ -64,13 +62,12 @@ class Laplace(RaviartThomas):
         point_data = {}
         if self.solexact:
             err, pe, vex, vey = self.computeError(self.solexact, u, (v0, v1))
-            cell_data['pex'] =  pe
             cell_data['perr'] =np.abs(pe - u[nedges:])
             cell_data['verrx'] =np.abs(vex + v0)
             cell_data['verry'] =np.abs(vey + v1)
             info['error'] = err
         info['timer'] = self.timer
-        if nit: info['nit'] = nit
+        info['runinfo'] = self.runinfo
         return point_data, cell_data, info
 
     def computeError(self, solexact, u, vcell):
@@ -93,7 +90,6 @@ class Laplace(RaviartThomas):
         dirichlet, rhs = self.dirichlet, self.rhs
         nedges =  self.mesh.nedges
         bdryedges =  self.mesh.bdryedges
-        nbdryedges = len(bdryedges)
         bcells = None
         solexact = self.solexact
         xmid, ymid =  self.mesh.centersx,  self.mesh.centersy
@@ -201,5 +197,5 @@ if __name__ == '__main__':
     methods = {}
     methods['poisson'] = Laplace(problem=problem)
 
-    comp = fempy.tools.comparerrors.CompareErrors(methods, latex=True, vtk=False)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     comp.compare(h=[1.0, 0.5, 0.25, 0.125, 0.062])

@@ -32,12 +32,23 @@ class FemP12D(object):
         else:
             self.computeFemMatrices()
 
+    def assemble(self, k):
+        if self.traforefelement:
+            Kel= np.kron(k * self.cxx, self.Kxx) + np.kron(k * self.cyy, self.Kyy)
+            return Kel.flatten("F")
+        else:
+            # K2 = (self.matxx.T*k).T  + (self.matyy.T*k).T
+            # return K2.flatten()
+            matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+            matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+            return ( (matxx+matyy).T*self.mesh.area*k).T.flatten()
+
     def computeFemMatrices(self):
         ncells, x, y, simps, area = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.area
         normals, edgesOfCell, cellsOfEdge = self.mesh.normals, self.mesh.edgesOfCell, self.mesh.cellsOfEdge
         sigma = np.array([ 1.0 - 2.0 * (cellsOfEdge[edgesOfCell[ic,:], 0] == ic) for ic in range(ncells)])
 
-        cellgrads = 0.5*(normals[edgesOfCell].T * sigma.T / area.T).T
+        self.cellgrads = 0.5*(normals[edgesOfCell].T * sigma.T / area.T).T
         # test gradients
         # for ic in range(ncells):
         #     grad = self.grad(ic)
@@ -49,14 +60,14 @@ class FemP12D(object):
         #         chsg = (ic == self.mesh.cellsOfEdge[self.mesh.edgesOfCell[ic, :], 0])
         #         print("chsg", chsg)
         #         raise ValueError("wrong grad")
-        self.matxx = np.einsum('nk,nl->nkl', cellgrads[:,:,0], cellgrads[:,:,0])
-        self.matxy = np.einsum('nk,nl->nkl', cellgrads[:,:,0], cellgrads[:,:,1])
-        self.matyx = np.einsum('nk,nl->nkl', cellgrads[:,:,1], cellgrads[:,:,0])
-        self.matyy = np.einsum('nk,nl->nkl', cellgrads[:,:,1], cellgrads[:,:,1])
-        self.matxx =  (self.matxx.T*area).T
-        self.matxy =  (self.matxy.T*area).T
-        self.matyx =  (self.matyx.T*area).T
-        self.matyy =  (self.matyy.T*area).T
+        # self.matxx = np.einsum('nk,nl->nkl', self.cellgrads[:,:,0], self.cellgrads[:,:,0])
+        # self.matxy = np.einsum('nk,nl->nkl', self.cellgrads[:,:,0], self.cellgrads[:,:,1])
+        # self.matyx = np.einsum('nk,nl->nkl', self.cellgrads[:,:,1], self.cellgrads[:,:,0])
+        # self.matyy = np.einsum('nk,nl->nkl', self.cellgrads[:,:,1], self.cellgrads[:,:,1])
+        # self.matxx =  (self.matxx.T*area).T
+        # self.matxy =  (self.matxy.T*area).T
+        # self.matyx =  (self.matyx.T*area).T
+        # self.matyy =  (self.matyy.T*area).T
         # print("self.matxx", self.matxx.shape)
 
 
@@ -98,14 +109,6 @@ class FemP12D(object):
         self.cyy = (Ap2[:, 0] ** 2 + Ap2[:, 1] ** 2) * self.Adet
 
         # print('self.cxx.shape', self.cxx.shape)
-
-    def assemble(self, k):
-        if self.traforefelement:
-            Kel= np.kron(k * self.cxx, self.Kxx) + np.kron(k * self.cyy, self.Kyy)
-            return Kel.flatten("F")
-        else:
-            K2 = (self.matxx.T*k).T  + (self.matyy.T*k).T
-            return K2.flatten()
 
     def phi(self, ic, x, y, grad):
         return 1./3. + np.dot(grad, np.array([x-self.mesh.centersx[ic], y-self.mesh.centersy[ic]]))

@@ -26,7 +26,7 @@ class NewtonSolver(object):
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
         self.timer['solve'] = t3-t2
-        return self.postProcess(u, self.timer)
+        return self.postProcess(u)
 
     def residual(self, u):
         self.du[:]=0.0

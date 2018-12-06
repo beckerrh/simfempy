@@ -17,8 +17,11 @@ def test_analytic():
     bdrycond.type[22] = "Neumann"
     bdrycond.type[33] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
+    postproc = {}
+    postproc['mean'] = "11,22"
+    postproc['flux'] = "33,44"
     methods = {}
-    methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond)
+    methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03])
 
@@ -28,7 +31,7 @@ def test_coefs_stat():
     import fempy.meshes
     import matplotlib.pyplot as plt
     geometry = pygmsh.built_in.Geometry()
-    h = 0.08
+    h = 0.05
     p0 =  geometry.add_point([-2.0, -2.0, 0.0], h)
     p1 =  geometry.add_point([1.0, -1.0, 0.0], h)
     p2 =  geometry.add_point([2.0, 2.0, 0.0], h)
@@ -58,7 +61,7 @@ def test_coefs_stat():
     bdrycond.fct[22] = lambda x,y: 120
     bdrycond.fct[44] = bdrycond.fct[22]
     # print("bdrycond", bdrycond)
-    rhs = lambda x, y: 20.
+    rhs = lambda x, y: 0.
     def kheat(x, y):
         if (-0.25 < x < 0.25) and (0.25 < y < 0.75):
             return 1234.5
@@ -78,7 +81,11 @@ def test_coefs_stat():
 
 
 #================================================================#
-test = "coefs_stat"
-# test = "analytic"
-cmd = 'test_'+test+'()'
-eval(cmd)
+
+test_analytic()
+#test_coefs_stat()
+
+# test = "coefs_stat"
+# # test = "analytic"
+# cmd = 'test_'+test+'()'
+# eval(cmd)
