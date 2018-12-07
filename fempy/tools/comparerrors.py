@@ -17,13 +17,14 @@ class CompareErrors(object):
     def __init__(self, methods, **kwargs):
         self.methods = methods
         # check that every method solves the same problem
-        problemname = "none"
+        self.problemname = "none"
         for name, method in self.methods.items():
-            if problemname =="none":
-                problemname = method.problem
+            if self.problemname =="none":
+                try: self.problemname = method.problem
+                except: pass
             else:
-                assert problemname == method.problem
-        self.dirname = "Results_" + problemname
+                assert self.problemname == method.problem
+        self.dirname = "Results_" + self.problemname
         self.latex = True
         self.vtk = True
         self.plot = True
@@ -58,7 +59,7 @@ class CompareErrors(object):
                 method.setMesh(trimesh)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.vtk:
-                    filename = "{}_{}_{:02d}.vtk".format(method.problem, name, iter)
+                    filename = "{}_{}_{:02d}.vtk".format(self.problemname, name, iter)
                     trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh

@@ -49,6 +49,9 @@ class TableData(object):
             key2 = key + '-o'
             valorder = np.zeros(len(n))
             for i in range(fi,len(n)):
+                if not values[key][i-1]:
+                    alpha = -1
+                    continue
                 try:
                     fnd = float(n[i])/float(n[i-1])
                     alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)

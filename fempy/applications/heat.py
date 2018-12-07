@@ -96,6 +96,16 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         # print("nodesdir", self.nodesdir)
         self.bsaved={}
         self.Asaved={}
+        self.nodesdirflux={}
+        for key, val in self.postproc.items():
+            type,data = val.split(":")
+            if type != "flux": continue
+            colors = [int(x) for x in data.split(',')]
+            self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
+            for color in colors:
+                edgesdir = self.mesh.bdrylabels[color]
+                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.edges[edgesdir].flat[:])))
+
 
         self.kheatcell = np.zeros(ncells)
         self.kheatcell = self.kheat(xc, yc)
@@ -137,9 +147,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                     bn = neumann(xe, ye, normal[0]/d, normal[1]/d, self.kheatcell[ic]) * d
                     b[iv0] += 0.5 * bn
                     b[iv1] += 0.5 * bn
+        # self.bsavedall = b[self.nodedirall]
+        for key, nodes in self.nodesdirflux.items():
+            self.bsaved[key] = b[nodes]
         for color, nodes in self.nodesdir.items():
             dirichlet = self.bdrycond.fct[color]
-            self.bsaved[color] = b[nodes]
             b[nodes] = dirichlet(x[nodes], y[nodes])
         t4 = time.time()
         self.timer['rhs_fct'] = t2-t1
@@ -154,10 +166,13 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         t2 = time.time()
         Asp = sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
         t3 = time.time()
-        for color, nodes in self.nodesdir.items():
+        for key, nodes in self.nodesdirflux.items():
             nb = nodes.shape[0]
             help = sparse.dia_matrix((np.ones(nb),0), shape=(nb,nnodes))
-            self.Asaved[color] = help.dot(Asp)
+            self.Asaved[key] = help.dot(Asp)
+        # ndirs = self.nodedirall.shape[0]
+        # help = sparse.dia_matrix((np.ones(ndirs), 0), shape=(ndirs, nnodes))
+        # self.Asavedall = help.dot(Asp)
         help = np.ones((nnodes))
         help[self.nodedirall] = 0
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
@@ -171,18 +186,24 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.timer['mat_coo'] = t3-t2
         self.timer['mat_bdry'] = t4-t3
         return Asp
-    def computeMean(self, color, u):
-        edges = self.mesh.bdrylabels[color]
+    def computeMean(self, u, key, data):
+        colors = [int(x) for x in data.split(',')]
         mean, omega = 0, 0
-        for ie in edges:
-            normal = self.mesh.normals[ie]
-            d = linalg.norm(normal)
-            omega += d
-            mean += d*np.mean(u[self.mesh.edges[ie, :]])
+        for color in colors:
+            edges = self.mesh.bdrylabels[color]
+            for ie in edges:
+                normal = self.mesh.normals[ie]
+                d = linalg.norm(normal)
+                omega += d
+                mean += d*np.mean(u[self.mesh.edges[ie, :]])
         return mean/omega
-    def computeFlux(self, color, u):
-        length = np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        return np.sum(self.bsaved[color] - self.Asaved[color]*u)/length
+    def computeFlux(self, u, key, data):
+        # colors = [int(x) for x in data.split(',')]
+        # omega = 0
+        # for color in colors:
+        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
+        flux = np.sum(self.bsaved[key] - self.Asaved[key]*u)
+        return flux
     def postProcess(self, u):
         info = {}
         cell_data = {}
@@ -192,15 +213,15 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             info['error'], point_data['E'] = self.computeError(self.solexact, u)
         info['timer'] = self.timer
         info['runinfo'] = self.runinfo
+        info['postproc'] = {}
         for key, val in self.postproc.items():
-            info[key] = {}
-            for color in val.split(','):
-                if key == "mean":
-                    info[key][color] = self.computeMean(int(color),u)
-                elif key == "flux":
-                    info[key][color] = self.computeFlux(int(color), u)
-                else:
-                    raise ValueError("unknown postprocess {}".format(key))
+            type,data = val.split(":")
+            if type == "mean":
+                info['postproc'][key] = self.computeMean(u, key, data)
+            elif type == "flux":
+                info['postproc'][key] = self.computeFlux(u, key, data)
+            else:
+                raise ValueError("unknown postprocess {}".format(key))
         return point_data, cell_data, info
     def computeError(self, solex, uh):
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
