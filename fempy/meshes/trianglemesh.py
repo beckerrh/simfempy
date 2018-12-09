@@ -55,37 +55,17 @@ class TriangleMesh(matplotlib.tri.Triangulation):
         self.nfaces = count
 
     def _initMesh(self, points, cells, celldata):
-        self.bdrylabelsmsh = celldata['line']['gmsh:physical']
+        self.labels_lines = celldata['line']['gmsh:physical']
+        self.labels_triangles = celldata['triangle']['gmsh:physical']
         matplotlib.tri.Triangulation.__init__(self, x=points[:, 0], y=points[:, 1], triangles=cells['triangle'])
         self.delaunay = spatial.Delaunay(points[:,:2])
         self.dimension = self.delaunay.points.shape[1]
         # print("self.delaunay.simplices", self.delaunay.simplices.shape, "self.dimension", self.dimension)
         assert self.dimension+1 == self.delaunay.simplices.shape[1]
         self._constructFaces()
-        # import matplotlib.pyplot as plt
-        # plt.triplot(points[:, 0], points[:, 1], delaunay.simplices.copy())
-        # plt.plot(points[:, 0], points[:, 1], 'o')
-        # plt.show()
-        # edges = []
-        # for i in range(len(self.delaunay.simplices)):
-        #     if i > self.delaunay.neighbors[i,2]:
-        #         edges.append((self.delaunay.simplices[i,0], self.delaunay.simplices[i,1]))
-        #     if i > self.delaunay.neighbors[i,0]:
-        #         edges.append((self.delaunay.simplices[i,1], self.delaunay.simplices[i,2]))
-        #     if i > self.delaunay.neighbors[i,1]:
-        #         edges.append((self.delaunay.simplices[i,2], self.delaunay.simplices[i,0]))
-        # print("self.edges", type(self.edges), "edges", type(edges))
-        # if np.any(edges != self.edges):
-        #     print("self.edges", self.edges)
-        #     print("edges", edges)
-        #     print("self.faces", self.faces)
-        #     raise ValueError("edges are not lines")
         self.nedges = len(self.edges)
         self.ncells = len(self.triangles)
         self.nnodes = len(self.x)
-        # self.bdryvert = self.triangles.flat[np.flatnonzero(self.neighbors == -1)]
-        # self.intvert = np.setxor1d(np.arange(self.nnodes), self.bdryvert)
-        # self.nbdryvert = len(self.bdryvert)
         self.lines = cells['line']
         self.normals = None
         self.area = None
@@ -93,16 +73,12 @@ class TriangleMesh(matplotlib.tri.Triangulation):
         self.edgesOfCell = None
         self.centersx = self.x[self.triangles].mean(axis=1)
         self.centersy = self.y[self.triangles].mean(axis=1)
-        # self.edgesx = self.x[self.edges].mean(axis=1)
-        # self.edgesy = self.y[self.edges].mean(axis=1)
         self.construcCellEdgeConnectivity()
         self.construcNormalsAndAreas()
         self.bdryedges = np.flatnonzero(np.any(self.cellsOfEdge == -1, axis=1))
-        # self.intedges = np.setxor1d(np.arange(self.nedges), self.bdryedges)
         self.nbdryedges = len(self.bdryedges)
-        # self.nintedges = len(self.intedges)
         self.bdrylabels = None
-        self.constructBoundaryEdges(self.bdrylabelsmsh, cells['line'])
+        self.constructBoundaryEdges(self.labels_lines, cells['line'])
         print(self)
 
     def __str__(self):
@@ -226,7 +202,7 @@ if __name__ == '__main__':
     import plotmesh
     import matplotlib.pyplot as plt
     fig, axarr = plt.subplots(2, 1, sharex='col')
-    plotdata = tmesh.x, tmesh.y, tmesh.triangles, tmesh.lines, tmesh.bdrylabelsmsh
+    plotdata = tmesh.x, tmesh.y, tmesh.triangles, tmesh.lines, tmesh.labels_lines
     plotmesh.meshWithBoundaries(plotdata, ax=axarr[0])
     plotdata = tmesh.x, tmesh.y, tmesh.triangles, tmesh.centersx, tmesh.centersy
     plotmesh.meshWithNodesAndTriangles(plotdata, ax=axarr[1])

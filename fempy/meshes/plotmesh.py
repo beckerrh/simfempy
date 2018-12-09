@@ -27,7 +27,7 @@ def _plotVerticesAndCellsLabels(x, y, triangles, centersx, centersy, ax=plt, plo
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):
     try:
-        x, y, tris, lines, bdrylabels =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.lines, meshdata.bdrylabelsmsh
+        x, y, tris, lines, bdrylabels =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.lines, meshdata.labels_lines
     except:
         points, cells, point_data, cell_data, field_data = meshdata
         x, y = points[:,0], points[:,1]
@@ -75,7 +75,7 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
         assert x.shape == pd.shape
         ax = axs[0,count]
         ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
-        cnt = ax.tricontourf(x, y, tris, pd, 16)
+        cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
         if numbering:
             _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
         plt.colorbar(cnt, ax=ax)
@@ -84,7 +84,7 @@ def meshWithData(meshdata, point_data, cell_data, numbering=False):
     for cdn, cd in cell_data.items():
         assert tris.shape[0] == cd.shape[0]
         ax = axs[0,count]
-        cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k')
+        cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
         if numbering:
             _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
         plt.colorbar(cnt, ax=ax)

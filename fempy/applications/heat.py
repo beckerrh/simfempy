@@ -108,11 +108,13 @@ class Heat(solvers.newtonsolver.NewtonSolver):
 
 
         self.kheatcell = np.zeros(ncells)
-        self.kheatcell = self.kheat(xc, yc)
+        self.kheatcell = self.kheat(xc, yc, self.mesh.labels_triangles)
         self.rhocpcell = np.zeros(ncells)
         self.rhocpcell = self.rhocp(xc, yc)
         # print("self.kheatcell", self.kheatcell)
 
+    def solvestatic(self):
+        return self.solveLinear()
     def solve(self, iter, dirname):
         return self.solveLinear()
     def computeRhs(self):
@@ -222,6 +224,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 info['postproc'][key] = self.computeFlux(u, key, data)
             else:
                 raise ValueError("unknown postprocess {}".format(key))
+        cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
     def computeError(self, solex, uh):
         x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
