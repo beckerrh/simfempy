@@ -20,11 +20,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         if 'rhocp' in kwargs:
             self.rhocp = np.vectorize(kwargs.pop('rhocp'))
         else:
-            self.rhocp = np.vectorize(lambda x,y: 1234.56)
+            self.rhocp = np.vectorize(lambda i: 1234.56)
         if 'kheat' in kwargs:
             self.kheat = np.vectorize(kwargs.pop('kheat'))
         else:
-            self.kheat = np.vectorize(lambda x,y: 0.123)
+            self.kheat = np.vectorize(lambda i: 0.123)
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
         else:
@@ -79,7 +79,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.mesh.computeSimpOfVert(test=False)
-        nnodes, ncells, xc, yc = self.mesh.nnodes, self.mesh.ncells, self.mesh.centersx, self.mesh.centersy
+        nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
+        xc, yc, zc = self.mesh.pointsc[:,0], self.mesh.pointsc[:,1], self.mesh.pointsc[:,2]
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
 
@@ -90,7 +91,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.nodesdir={}
         for color in colorsdir:
             edgesdir = self.mesh.bdrylabels[color]
-            self.nodesdir[color] = np.unique(self.mesh.edges[edgesdir].flat[:])
+            self.nodesdir[color] = np.unique(self.mesh.faces[edgesdir].flat[:])
             self.nodedirall = np.unique(np.union1d(self.nodedirall, self.nodesdir[color]))
         # print("colorsdir", colorsdir)
         # print("nodesdir", self.nodesdir)
@@ -104,13 +105,13 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 edgesdir = self.mesh.bdrylabels[color]
-                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.edges[edgesdir].flat[:])))
+                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flat[:])))
 
 
         self.kheatcell = np.zeros(ncells)
-        self.kheatcell = self.kheat(xc, yc, self.mesh.labels_triangles)
+        self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = np.zeros(ncells)
-        self.rhocpcell = self.rhocp(xc, yc)
+        self.rhocpcell = self.rhocp(self.mesh.cell_labels)
         # print("self.kheatcell", self.kheatcell)
 
     def solvestatic(self):
@@ -119,31 +120,31 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         return self.solveLinear()
     def computeRhs(self):
         import time
-        x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
+        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         t1 = time.time()
         if self.solexact:
             # bnodes = -self.kheat(x,y)*(self.solexact.xx(x, y) + self.solexact.yy(x, y))
             bnodes = -self.solexact.xx(x, y) - self.solexact.yy(x, y)
-            bnodes *= self.kheat(x,y)
+            bnodes *= self.kheat(0)
         else:
             bnodes = self.rhs(x, y)
         t2 = time.time()
         b = self.massmatrix*bnodes
         t3 = time.time()
-        bdryedges, normals =  self.mesh.bdryedges, self.mesh.normals
+        normals =  self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond.type[color]
             # print("Boundary condition:", bdrycond)
             if bdrycond == "Neumann":
                 neumann = self.bdrycond.fct[color]
                 for ie in edges:
-                    iv0 =  self.mesh.edges[ie, 0]
-                    iv1 =  self.mesh.edges[ie, 1]
-                    sigma = 1-2*(self.mesh.cellsOfEdge[ie, 0]==-1)
+                    iv0 =  self.mesh.faces[ie, 0]
+                    iv1 =  self.mesh.faces[ie, 1]
+                    sigma = 1-2*(self.mesh.cellsOfFaces[ie, 0]==-1)
                     normal = normals[ie]
                     normal *= sigma
-                    ic = self.mesh.cellsOfEdge[ie,0]
-                    if ic < 0: ic = self.mesh.cellsOfEdge[ie,1]
+                    ic = self.mesh.cellsOfFaces[ie,0]
+                    if ic < 0: ic = self.mesh.cellsOfFaces[ie,1]
                     xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
                     d = linalg.norm(normal)
                     bn = neumann(xe, ye, normal[0]/d, normal[1]/d, self.kheatcell[ic]) * d
@@ -197,7 +198,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 normal = self.mesh.normals[ie]
                 d = linalg.norm(normal)
                 omega += d
-                mean += d*np.mean(u[self.mesh.edges[ie, :]])
+                mean += d*np.mean(u[self.mesh.faces[ie, :]])
         return mean/omega
     def computeFlux(self, u, key, data):
         # colors = [int(x) for x in data.split(',')]
@@ -227,7 +228,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
     def computeError(self, solex, uh):
-        x, y, simps, xc, yc = self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.centersx, self.mesh.centersy
+        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         e = solex(x, y) - uh
         errors = {}
         errors['L2'] = np.sqrt( np.dot(e, self.massmatrix*e) )

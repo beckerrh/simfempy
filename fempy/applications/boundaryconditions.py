@@ -8,12 +8,11 @@ class BoundaryConditions():
     fct: dictionary int->callable
     """
 
-    def __init__(self, bdrylabels=None):
-        if bdrylabels is None:
+    def __init__(self, colors=None):
+        if colors is None:
             self.type = {}
             self.fct = {}
         else:
-            colors = np.unique(bdrylabels)
             self.type = {color: None for color in colors}
             self.fct = {color: None for color in colors}
     def __str__(self):

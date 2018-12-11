@@ -46,8 +46,10 @@ def test_analytic():
     postproc['flux'] = "flux:33,44"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03])
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03]
+    # h = [2.0, 1.0]
+    result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
 def test_coefs_stat():
@@ -99,10 +101,10 @@ def test_coefs_stat():
     # plt.triplot(points[:,0], points[:,1], cells['triangle'])
     # plt.show()
 
-    mesh = fempy.meshes.trianglemesh.TriangleMesh(data=data)
+    mesh = fempy.meshes.simplexmesh.SimplexMesh(data=data)
     fempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions(mesh.labels_lines)
+    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
     bdrycond.type[11] = "Neumann"
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[33] = "Neumann"
@@ -113,7 +115,7 @@ def test_coefs_stat():
     bdrycond.fct[44] = bdrycond.fct[22]
     # print("bdrycond", bdrycond)
     rhs = lambda x, y: 0.
-    def kheat(x, y, label):
+    def kheat(label):
         if label==111: return 0.1
         return 100.0
 

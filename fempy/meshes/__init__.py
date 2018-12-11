@@ -1,3 +1,3 @@
-from . import trianglemesh
+from . import simplexmesh
 from . import geometry
 from . import plotmesh

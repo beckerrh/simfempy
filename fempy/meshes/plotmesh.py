@@ -1,93 +1,72 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+try:
+    import plotmesh2d
+except ModuleNotFoundError:
+    from . import plotmesh2d
+
 
 #----------------------------------------------------------------#
-def _settitle(ax, text):
+def _getDim(meshdata):
     try:
-        ax.set_title(text)
+        dim = meshdata.dimension
+        meshdataismesh = True
     except:
-        ax.title(text)
-
-
-#----------------------------------------------------------------#
-def _plotVerticesAndCellsLabels(x, y, triangles, centersx, centersy, ax=plt, plotlocalNumbering=True):
-    props = dict(boxstyle='round', facecolor='wheat')
-    for iv in range(len(x)):
-        ax.text(x[iv], y[iv], r'%d' % (iv), fontweight='bold', bbox=props)
-    for it in range(len(triangles)):
-        ax.text(centersx[it], centersy[it], r'%d' % (it), color='r', fontweight='bold')
-        if plotlocalNumbering:
-            for ii in range(3):
-                iv = triangles[it, ii]
-                ax.text(0.75 * x[iv] + 0.25 * centersx[it], 0.75 * y[iv] + 0.25 * centersy[it],
-                        r'%d' % (ii), color='g', fontweight='bold')
-
+        dim = len(meshdata)-3
+        meshdataismesh = False
+    return dim, meshdataismesh
 
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):
-    try:
-        x, y, tris, lines, bdrylabels =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.lines, meshdata.labels_lines
-    except:
-        points, cells, point_data, cell_data, field_data = meshdata
-        x, y = points[:,0], points[:,1]
-        tris = cells['triangle']
-        lines = cells['line']
-        bdrylabels = cell_data['line']['gmsh:physical']
-    assert len(bdrylabels) == lines.shape[0]
-    colors = np.unique(bdrylabels)
-    # print("colors", colors)
-    ax.triplot(x, y, tris, color='k')
-    pltcolors = 'bgrcmyk'
-    patches=[]
-    for i,color in enumerate(colors):
-        ind = (bdrylabels == color)
-        linescolor = lines[ind]
-        patches.append(mpatches.Patch(color=pltcolors[i], label=color))
-        for line in linescolor:
-            ax.plot(x[line],y[line], color=pltcolors[i], lw=4)
-    ax.legend(handles=patches)
-    _settitle(ax, "Mesh and Boundary Labels")
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==2:
+        if meshdataismesh:
+            x, y, tris, lines, labels = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces, meshdata.bdrylabels
+            plotmesh2d.meshWithBoundaries(x, y, tris, lines, labels, ax)
+        else:
+            plotmesh2d.meshWithBoundaries(meshdata, ax)
+    else:
+        msg = "Dimension is {} but plot is not written".format(dim)
+        raise ValueError(msg)
 
 #=================================================================#
 def meshWithNodesAndTriangles(meshdata, ax=plt):
-    try:
-        x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
-    except:
-        x, y, tris, cx, cy = meshdata
-    plt.triplot(x, y, tris, color='k', lw=1)
-    _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
-    _settitle(ax, "Nodes and Triangles")
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==2:
+        if meshdataismesh:
+            x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
+            plotmesh2d.meshWithNodesAndTriangles(x, y, tris, xc, yc, ax)
+        else:
+            plotmesh2d.meshWithNodesAndTriangles(meshdata, ax)
+    else:
+        msg = "Dimension is {} but plot is not written".format(dim)
+        raise ValueError(msg)
 
 #=================================================================#
-def meshWithData(meshdata, point_data, cell_data, numbering=False):
-    try:
-        x, y, tris, cx, cy =  meshdata.x, meshdata.y, meshdata.triangles, meshdata.centersx, meshdata.centersy
-    except:
-        raise ValueError("cannot get data from meshdata")
-    nplots = len(point_data)+len(cell_data)
-    if nplots==0:
-        print("meshWithData() no point_data")
-        return
-    fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4), squeeze=False)
-    count=0
-    for pdn, pd in point_data.items():
-        assert x.shape == pd.shape
-        ax = axs[0,count]
-        ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
-        cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
-        if numbering:
-            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
-        plt.colorbar(cnt, ax=ax)
-        _settitle(ax, pdn)
-        count += 1
-    for cdn, cd in cell_data.items():
-        assert tris.shape[0] == cd.shape[0]
-        ax = axs[0,count]
-        cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
-        if numbering:
-            _plotVerticesAndCellsLabels(x, y, tris, cx, cy, ax=ax)
-        plt.colorbar(cnt, ax=ax)
-        _settitle(ax, cdn)
-        count += 1
-    plt.tight_layout()
+def meshWithNodesAndFaces(meshdata, ax=plt):
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==2:
+        if meshdataismesh:
+            x, y, tris, faces = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces
+            try:
+                xf, yf = meshdata.pointsf[:,0], meshdata.pointsf[:,1]
+            except:
+                pointsf = meshdata.points[faces].mean(axis=1)
+            plotmesh2d.meshWithNodesAndFaces(x, y, tris, pointsf[:,0], pointsf[:,1], faces, ax)
+        else:
+            plotmesh2d.meshWithNodesAndFaces(meshdata, ax)
+    else:
+        msg = "Dimension is {} but plot is not written".format(dim)
+        raise ValueError(msg)
+
+#=================================================================#
+def meshWithData(meshdata, point_data, cell_data, ax=plt, numbering=False):
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==2:
+        if meshdataismesh:
+            x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
+            plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax)
+        else:
+            plotmesh2d.meshWithData(meshdata, point_data, cell_data, ax)
+    else:
+        msg = "Dimension is {} but plot is not written".format(dim)
+        raise ValueError(msg)

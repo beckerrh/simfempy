@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from fempy.tools.latexwriter import LatexWriter
-from fempy.meshes.trianglemesh import TriangleMesh
+from fempy.meshes.simplexmesh import SimplexMesh
 
 
 #=================================================================#
@@ -48,10 +48,10 @@ class CompareErrors(object):
         if self.paramname == "ncells":
             params = h
         else:
-            trimesh = TriangleMesh(geomname=geomname, hmean=self.hmean)
+            trimesh = SimplexMesh(geomname=geomname, hmean=self.hmean)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
-                trimesh = TriangleMesh(geomname=geomname, hmean=param)
+                trimesh = SimplexMesh(geomname=geomname, hmean=param)
                 self.parameters.append(trimesh.ncells)
             else:
                 self.parameters.append(param)
