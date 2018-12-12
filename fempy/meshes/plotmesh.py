@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 try:
     import plotmesh2d
+    import plotmesh3d
 except ModuleNotFoundError:
     from . import plotmesh2d
+    from . import plotmesh3d
 
 
 #----------------------------------------------------------------#
@@ -25,8 +27,12 @@ def meshWithBoundaries(meshdata, ax=plt):
         else:
             plotmesh2d.meshWithBoundaries(meshdata, ax)
     else:
-        msg = "Dimension is {} but plot is not written".format(dim)
-        raise ValueError(msg)
+        if meshdataismesh:
+            x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
+            faces, bdrylabels = meshdata.faces, meshdata.bdrylabels
+            plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, ax)
+        else:
+            plotmesh3d.meshWithBoundaries(meshdata, ax)
 
 #=================================================================#
 def meshWithNodesAndTriangles(meshdata, ax=plt):
@@ -68,5 +74,9 @@ def meshWithData(meshdata, point_data, cell_data, ax=plt, numbering=False):
         else:
             plotmesh2d.meshWithData(meshdata, point_data, cell_data, ax)
     else:
-        msg = "Dimension is {} but plot is not written".format(dim)
-        raise ValueError(msg)
+        if meshdataismesh:
+            x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
+            xc, yc, zc = meshdata.pointsc[:,0], meshdata.pointsc[:,1], meshdata.pointsc[:,2]
+            plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax)
+        else:
+            plotmesh3d.meshWithData(meshdata, point_data, cell_data, ax)

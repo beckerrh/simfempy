@@ -5,12 +5,13 @@ import scipy.sparse as sparse
 from fempy import solvers
 from fempy import fems
 
+#=================================================================#
 class Heat(solvers.newtonsolver.NewtonSolver):
     """
     """
     def __init__(self, **kwargs):
         solvers.newtonsolver.NewtonSolver.__init__(self)
-        self.fem = fems.femp12d.FemP12D()
+        self.fem = fems.femp1.FemP1()
         self.dirichlet = None
         self.neumann = None
         self.rhs = None
@@ -59,14 +60,14 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         class NeummannExact():
             def __init__(self, ex):
                 self.ex = ex
-            def __call__(self,x,y,nx,ny,k):
-                return k*(self.ex.x(x, y)*nx + self.ex.y(x, y)*ny)
+            def __call__(self, x, y, z, nx, ny, nz, k):
+                return k*(self.ex.x(x, y, z)*nx + self.ex.y(x, y, z)*ny + self.ex.z(x, y, z)*nz)
         class RhsExact():
             def __init__(self, ex, k):
                 self.ex = ex
                 self.k = k
-            def __call__(self,x,y):
-                return -self.k(x,y)*(self.ex.xx(x, y) + self.ex.yy(x, y))
+            def __call__(self, x, y, z):
+                return -self.k*(self.ex.xx(x, y, z) + self.ex.yy(x, y, z) + self.ex.zz(x, y, z))
         neumannex = np.vectorize(NeummannExact(self.solexact).__call__)
         self.rhs = np.vectorize(RhsExact(self.solexact, self.kheat).__call__)
         for color, bc in self.bdrycond.type.items():
@@ -123,11 +124,10 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         t1 = time.time()
         if self.solexact:
-            # bnodes = -self.kheat(x,y)*(self.solexact.xx(x, y) + self.solexact.yy(x, y))
-            bnodes = -self.solexact.xx(x, y) - self.solexact.yy(x, y)
+            bnodes = -self.solexact.xx(x, y, z) - self.solexact.yy(x, y, z)- self.solexact.zz(x, y, z)
             bnodes *= self.kheat(0)
         else:
-            bnodes = self.rhs(x, y)
+            bnodes = self.rhs(x, y, z)
         t2 = time.time()
         b = self.massmatrix*bnodes
         t3 = time.time()
@@ -137,25 +137,26 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             # print("Boundary condition:", bdrycond)
             if bdrycond == "Neumann":
                 neumann = self.bdrycond.fct[color]
+                scale = 1/self.mesh.dimension
                 for ie in edges:
-                    iv0 =  self.mesh.faces[ie, 0]
-                    iv1 =  self.mesh.faces[ie, 1]
-                    sigma = 1-2*(self.mesh.cellsOfFaces[ie, 0]==-1)
+                    # iv0 =  self.mesh.faces[ie, 0]
+                    # iv1 =  self.mesh.faces[ie, 1]
+                    # sigma = 1-2*(self.mesh.cellsOfFaces[ie, 0]==-1)
                     normal = normals[ie]
-                    normal *= sigma
+                    # normal *= sigma
                     ic = self.mesh.cellsOfFaces[ie,0]
-                    if ic < 0: ic = self.mesh.cellsOfFaces[ie,1]
-                    xe, ye = 0.5*(x[iv0]+x[iv1]), 0.5*(y[iv0]+y[iv1])
+                    # if ic < 0: ic = self.mesh.cellsOfFaces[ie,1]
+                    pe = np.mean(self.mesh.points[self.mesh.faces[ie]], axis=0)
                     d = linalg.norm(normal)
-                    bn = neumann(xe, ye, normal[0]/d, normal[1]/d, self.kheatcell[ic]) * d
-                    b[iv0] += 0.5 * bn
-                    b[iv1] += 0.5 * bn
-        # self.bsavedall = b[self.nodedirall]
+                    bn = neumann(pe[0], pe[1], pe[2], normal[0]/d, normal[1]/d, normal[2]/d, self.kheatcell[ic]) * d
+                    b[self.mesh.faces[ie]] += scale * bn
+                    # b[iv0] += 0.5 * bn
+                    # b[iv1] += 0.5 * bn
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
         for color, nodes in self.nodesdir.items():
             dirichlet = self.bdrycond.fct[color]
-            b[nodes] = dirichlet(x[nodes], y[nodes])
+            b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
         t4 = time.time()
         self.timer['rhs_fct'] = t2-t1
         self.timer['rhs_mult'] = t3-t2
@@ -199,7 +200,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 d = linalg.norm(normal)
                 omega += d
                 mean += d*np.mean(u[self.mesh.faces[ie, :]])
-        return mean/omega
+        return mean
     def computeFlux(self, u, key, data):
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
@@ -229,8 +230,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         return point_data, cell_data, info
     def computeError(self, solex, uh):
         x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        e = solex(x, y) - uh
+        e = solex(x, y, z) - uh
         errors = {}
         errors['L2'] = np.sqrt( np.dot(e, self.massmatrix*e) )
         return errors, e
 
+#=================================================================#
+if __name__ == '__main__':
+    print("Pas encore de test")

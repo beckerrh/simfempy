@@ -30,7 +30,7 @@ class Geometry(pygmsh.built_in.Geometry):
             try:
                 module = importlib.import_module('geomdefs.'+geomname)
             except:
-                print("Could not import 'geomdefs'. Having:\n")
+                print("Could not import '{}'. Having:\n".format('geomdefs.'+geomname))
                 for module in sys.modules.keys():
                     if 'fempy' in module or 'geomdefs' in module:
                         print(module)

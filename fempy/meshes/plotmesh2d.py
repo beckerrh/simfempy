@@ -9,7 +9,6 @@ def _settitle(ax, text):
     except:
         ax.title(text)
 
-
 #----------------------------------------------------------------#
 def _plotVertices(x, y, ax=plt):
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)

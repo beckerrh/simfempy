@@ -8,7 +8,7 @@ import os
 import meshio
 import numpy as np
 from scipy import sparse
-from scipy import spatial
+# from scipy import spatial
 
 try:
     import geometry
@@ -19,10 +19,21 @@ except ModuleNotFoundError:
 #=================================================================#
 class SimplexMesh(object):
     """
-    simplicial mesh based on scipy.delaunay
+    simplicial mesh
+    dimension, nnodes, ncells, nfaces: dimension, number of nodes, simplices, faces
+    points: coordinates of the vertices of shape (nnodes,3)
+    simplices: node ids of simplices of shape (ncells, dimension+1)
+    faces: node ids of faces of shape (nfaces, dimension)
+    facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]\setminus simplices[i,ii], sorted
+    cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
+    normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
+    dx: shape (ncells), volumes of simplices
+    bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
+
+    SimplexMesh can be initialized from the output of pygmsh
     """
     def __str__(self):
-        return "TriangleMesh({}): dim/nvert/ncells/nedges: {}/{}/{}/{} bdrylabels={}".format(self.geomname, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
+        return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geomname, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
         if 'data' in kwargs:
             self.geomname = 'own'
@@ -45,39 +56,83 @@ class SimplexMesh(object):
             self.dimension = 2
         else:
             self.dimension = 1
-        self.delaunay = spatial.Delaunay(points[:,:self.dimension])
+        # self.delaunay = spatial.Delaunay(points[:,:self.dimension])
         assert points.shape[1] ==3
+        # assert points.shape[0] == self.delaunay.points.shape[0]
         self.points = points
-        self.simplices = self.delaunay.simplices
-        assert self.dimension+1 == self.simplices.shape[1]
         self.nnodes = self.points.shape[0]
-        assert self.nnodes == points.shape[0]
+        # self.simplices = self.delaunay.simplices
+        if self.dimension==2:
+            self.simplices = cells['triangle']
+            self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
+            self.cell_labels = celldata['triangle']['gmsh:physical']
+            # assert cells['triangle'].shape[0] == self.delaunay.simplices.shape[0]
+            # self._constructCellLabels(cells['triangle'], celldata['triangle']['gmsh:physical'])
+            # self._constructFaces(cells['line'], celldata['line']['gmsh:physical'])
+        else:
+            self.simplices = cells['tetra']
+            self._constructFacesFromSimplices(cells['triangle'], celldata['triangle']['gmsh:physical'])
+            self.cell_labels = celldata['tetra']['gmsh:physical']
+            # assert cells['tetra'].shape[0] == self.delaunay.simplices.shape[0]
+            # self._constructCellLabels(cells['tetra'], celldata['tetra']['gmsh:physical'])
+            # self._constructFaces(cells['triangle'], celldata['triangle']['gmsh:physical'])
+        assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
-        if self.dimension==2:
-            self._constructCellLabels(cells['triangle'], celldata['triangle']['gmsh:physical'])
-            self._constructFaces(cells['line'], celldata['line']['gmsh:physical'])
-        else:
-            self._constructCellLabels(cells['tetra'], celldata['tetra']['gmsh:physical'])
-            self._constructFaces(cells['triangle'], celldata['triangle']['gmsh:physical'])
         self._constructNormalsAndAreas()
         print(self)
-    def _findIndices(self, A,B):
-        #http://numpy-discussion.10968.n7.nabble.com/How-to-find-indices-of-values-in-an-array-indirect-in1d-td41972.html
-        B_sorter = np.argsort(B)
-        B_sorted = B[B_sorter]
-        B_sorted_index = np.searchsorted(B_sorted, A)
-        # Go back into the original index:
-        B_index = B_sorter[B_sorted_index]
-        valid = B.take(B_index, mode='clip') == A
-        if not np.all(valid):
-            print("A", A)
-            print("B", B)
-            raise ValueError("Did not find indices", valid)
-        return B_index[valid]
-    def _constructCellLabels(self, simp2, labels):
+    def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):
+        simplices = self.simplices
+        ncells = simplices.shape[0]
+        nnpc = simplices.shape[1]
+        allfaces = np.empty(shape=(nnpc*ncells,nnpc-1), dtype=int)
+        for i in range(ncells):
+            for ii in range(nnpc):
+                mask = np.array( [jj !=ii for jj in range(nnpc)] )
+                allfaces[i*nnpc+ii] = np.sort(simplices[i,mask])
+        # print("allfaces", allfaces)
+        s = "{0}" + (nnpc-2)*", {0}"
+        s = s.format(allfaces.dtype)
+        # print("s",s)
+        order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        # print("order",order)
+        perm = np.argsort(allfaces.view(s), order=order, axis=0).flatten()
+        allfacescorted = allfaces[perm]
+        # print("allfaces sorted",allfacescorted)
+        # permi = np.empty(perm.size, perm.dtype)
+        # permi[perm] = np.arange(perm.size)
+        # print("allfaces",allfacescorted[permi])
+        self.faces, indices = np.unique(allfacescorted, return_inverse=True, axis=0)
+        # print("faces",self.faces)
+        # print("indices",indices)
+        locindex = np.tile(np.arange(0,nnpc), ncells)
+        cellindex = np.repeat(np.arange(0,ncells), nnpc)
+        # print("cellindex",cellindex)
+        self.nfaces = self.faces.shape[0]
+        self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
+        self.facesOfCells = np.zeros(shape=(ncells, nnpc), dtype=int)
+        for ii in range(indices.shape[0]):
+            f = indices[ii]
+            loc = locindex[perm[ii]]
+            cell = cellindex[perm[ii]]
+            self.facesOfCells[cell, loc] = f
+            if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
+            else: self.cellsOfFaces[f,1] = cell
+        # for i in range(ncells):
+        #     print("cell={} faces={}".format(simplices[i], self.faces[self.facesOfCells[i]]))
+        # print("self.cellsOfFaces",self.cellsOfFaces)
+        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+        # assert None
+    # dtf = "{0}, {0}".format(bdryfaces.dtype)
+    # bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0', 'f1')).flatten()
+
+    def _constructCellLabels(self, simpgmsh, labelsgmsh):
+        if self.simplices.shape != simpgmsh.shape:
+            msg ="wrong shapes self.simplices={} simpgmsh={}".format(self.simplices.shape,simpgmsh.shape)
+            raise ValueError(msg)
         simpsorted = np.sort(self.simplices, axis=1)
-        labelssorted = np.sort(simp2, axis=1)
+        labelssorted = np.sort(simpgmsh, axis=1)
+        assert simpsorted.shape == labelssorted.shape
         if self.dimension==2:
             dts = "{0}, {0}, {0}".format(simpsorted.dtype)
             dtl = "{0}, {0}, {0}".format(labelssorted.dtype)
@@ -91,8 +146,8 @@ class SimplexMesh(object):
         spi = np.empty(sp.size, sp.dtype)
         spi[sp] = np.arange(sp.size)
         perm = lp[spi]
-        self.cell_labels = labels[perm]
-    def _constructFaces(self, bdryfaces, bdrylabels):
+        self.cell_labels = labelsgmsh[perm]
+    def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
         simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
         count=0
         for i in range(len(simps)):
@@ -123,60 +178,43 @@ class SimplexMesh(object):
         # for i in range(self.nfaces):
         #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
         # bdries
-        self.bdryfaces = np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1))
-        self.nbdryfaces = len(self.bdryfaces)
-        if len(bdrylabels) != self.nbdryfaces:
-            raise ValueError("wrong number of boundary labels {} != {}".format(len(bdrylabelsmsh),self.nbdryfaces))
-        if len(bdryfaces) != self.nbdryfaces:
-            raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfaces), self.nbdryfaces))
+        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+    def _constructBoundaryLabels(self, bdryfacesgmsh, bdrylabelsgmsh):
+        # bdries
+        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
+        bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        nbdryfaces = len(bdryids)
+        if len(bdrylabelsgmsh) != nbdryfaces:
+            raise ValueError("wrong number of boundary labels {} != {}".format(len(bdrylabelsgmsh),nbdryfaces))
+        if len(bdryfacesgmsh) != nbdryfaces:
+            raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
         self.bdrylabels = {}
-        colors, counts = np.unique(bdrylabels, return_counts=True)
+        colors, counts = np.unique(bdrylabelsgmsh, return_counts=True)
         # print ("colors, counts", colors, counts)
         for i in range(len(colors)):
             self.bdrylabels[colors[i]] = -np.ones( (counts[i]), dtype=np.int32)
-        bdryfaces = np.sort(bdryfaces)
-        n = self.nfaces
+        bdryfacesgmsh = np.sort(bdryfacesgmsh)
         if self.dimension==2:
-            A = n*bdryfaces[:,0] + bdryfaces[:,1]
-            B = n * self.faces[:, 0] + self.faces[:, 1]
+            dtb = "{0}, {0}".format(bdryfacesgmsh.dtype)
+            dtf = "{0}, {0}".format(bdryfaces.dtype)
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0','f1'), axis=0).flatten()
+            fp = np.argsort(bdryfaces.view(dtf), order=('f0','f1'), axis=0).flatten()
         else:
-            A = n*n*bdryfaces[:,0] + n*bdryfaces[:,1] + bdryfaces[:,2]
-            B = n*n * self.faces[:, 0] + n*self.faces[:, 1] + bdryfaces[:,2]
-        toto = self._findIndices(A,B)
-
-        #nouvelle version
-        # if self.dimension==2:
-        #     dtb = "{0}, {0}".format(bdryfaces.dtype)
-        #     dtf = "{0}, {0}".format(self.faces.dtype)
-        #     bp = np.argsort(bdryfaces.view(dtb), order=('f0','f1'), axis=0).flatten()
-        #     fp = np.argsort(self.faces.view(dtf), order=('f0','f1'), axis=0).flatten()
-        # else:
-        #     dtb = "{0}, {0}, {0}".format(bdryfaces.dtype)
-        #     dtf = "{0}, {0}, {0}".format(self.faces.dtype)
-        #     bp = np.argsort(bdryfaces.view(dtb), order=('f0','f1','f2'), axis=0).flatten()
-        #     fp = np.argsort(self.faces.view(dtf), order=('f0','f1','f2'), axis=0).flatten()
-        #
-        # print ("bp", bp)
-        # print ("fp", fp)
-        # bpinfp = np.searchsorted(fp, bp)
-        # print ("bpinfp", bpinfp)
-        # bpi = np.empty(bp.size, bp.dtype)
-        # bpi[bp] = np.arange(bp.size)
-        # perm = fp[bpi]
-        # print ("toto", toto)
-        # print ("perm", perm)
-
-
-
-
-
+            dtb = "{0}, {0}, {0}".format(bdryfacesgmsh.dtype)
+            dtf = "{0}, {0}, {0}".format(bdryfaces.dtype)
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0','f1','f2'), axis=0).flatten()
+            fp = np.argsort(bdryfaces.view(dtf), order=('f0','f1','f2'), axis=0).flatten()
+        bpi = np.empty(bp.size, bp.dtype)
+        bpi[bp] = np.arange(bp.size)
+        perm = bdryids[fp[bpi]]
         counts = {}
         for key in list(self.bdrylabels.keys()): counts[key]=0
-        for i in range(len(toto)):
-            if np.any(bdryfaces[i] != self.faces[toto[i]]):
+        for i in range(len(perm)):
+            if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
                 raise ValueError("Did not find boundary indices")
-            color = bdrylabels[i]
-            self.bdrylabels[color][counts[color]] = toto[i]
+            color = bdrylabelsgmsh[i]
+            self.bdrylabels[color][counts[color]] = perm[i]
             counts[color] += 1
         # print ("self.bdrylabels", self.bdrylabels)
     def _constructNormalsAndAreas(self):
@@ -202,7 +240,7 @@ class SimplexMesh(object):
             sidesx = y1*z2 - y2*z1
             sidesy = x2*z1 - x1*z2
             sidesz = x1*y2 - x2*y1
-            self.normals = np.stack((sidesx, sidesy, sidesz), axis=-1)
+            self.normals = 0.5*np.stack((sidesx, sidesy, sidesz), axis=-1)
             elem = self.simplices
             dx1 = x[elem[:, 1]] - x[elem[:, 0]]
             dx2 = x[elem[:, 2]] - x[elem[:, 0]]
@@ -254,7 +292,7 @@ class SimplexMesh(object):
             plt.show()
 
 
-# ------------------------------------- #
+#=================================================================#
 if __name__ == '__main__':
     # tmesh = SimplexMesh(geomname="backwardfacingstep", hmean=0.7)
     tmesh = SimplexMesh(geomname="unitsquare", hmean=0.7)

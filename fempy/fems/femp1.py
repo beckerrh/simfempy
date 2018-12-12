@@ -14,45 +14,37 @@ except ModuleNotFoundError:
 
 
 #=================================================================#
-class FemP12D(object):
+class FemP1(object):
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
-        self.locmatmass = np.zeros((3,3))
-        self.locmatlap = np.zeros((3,3))
-        self.traforefelement = False
     def setMesh(self, mesh):
-        assert isinstance(mesh, SimplexMesh)
+        # assert isinstance(mesh, SimplexMesh)
         self.mesh = mesh
-        ncells, simps, nloc = self.mesh.ncells, self.mesh.simplices, self.mesh.dimension+1
+        nloc = self.mesh.dimension+1
+        self.locmatmass = np.zeros((nloc, nloc))
+        self.locmatlap = np.zeros((nloc, nloc))
+        self.nloc = nloc
+        ncells, simps = self.mesh.ncells, self.mesh.simplices
         self.rows = np.array([np.outer(simps[ic],np.ones(nloc, dtype=int)) for ic in range(ncells)]).flatten()
         self.cols = np.array([np.outer(np.ones(nloc, dtype=int),simps[ic]) for ic in range(ncells)]).flatten()
-        if self.traforefelement:
-            self.computeFemMatricesRefElement()
-        else:
-            self.computeFemMatrices()
+        self.computeFemMatrices()
 
     def assemble(self, k):
-        if self.traforefelement:
-            Kel= np.kron(k * self.cxx, self.Kxx) + np.kron(k * self.cyy, self.Kyy)
-            return Kel.flatten("F")
-        else:
-            # K2 = (self.matxx.T*k).T  + (self.matyy.T*k).T
-            # return K2.flatten()
-            matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-            matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-            return ( (matxx+matyy).T*self.mesh.dx*k).T.flatten()
+        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+        return ( (matxx+matyy+matzz).T*self.mesh.dx*k).T.flatten()
 
     def computeFemMatrices(self):
-        # ncells, x, y, simps, area = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles, self.mesh.area
-        # normals, edgesOfCell, cellsOfEdge = self.mesh.normals, self.mesh.edgesOfCell, self.mesh.cellsOfEdge
-
-        # sigma = np.array([ 1.0 - 2.0 * (cellsOfEdge[edgesOfCell[ic,:], 0] == ic) for ic in range(ncells)])
-        # self.cellgrads = 0.5*(normals[edgesOfCell].T * sigma.T / area.T).T
-
-        ncells, normals, cellsOfFaces, facesOfCells, area = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dx
+        ncells, normals, cellsOfFaces, facesOfCells, dx = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dx
+        scale = 1/self.mesh.dimension
         sigma = np.array([ 1.0 - 2.0 * (cellsOfFaces[facesOfCells[ic,:], 0] == ic) for ic in range(ncells)])
-        self.cellgrads = 0.5*(normals[facesOfCells].T * sigma.T / area.T).T
+        self.cellgrads = scale*(normals[facesOfCells].T * sigma.T / dx.T).T
+        scalemass = 1 / self.nloc / (self.nloc+1);
+        massloc = np.tile(scalemass, (self.nloc,self.nloc))
+        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
+        self.mass = np.einsum('n,kl->nkl', dx, massloc).flatten()
 
         # test gradients
         # for ic in range(ncells):
@@ -74,8 +66,6 @@ class FemP12D(object):
         # self.matyx =  (self.matyx.T*area).T
         # self.matyy =  (self.matyy.T*area).T
         # print("self.matxx", self.matxx.shape)
-
-
         # #test laplace
         # for ic in range(ncells):
         #     A = self.elementLaplaceMatrix(ic)
@@ -83,38 +73,6 @@ class FemP12D(object):
         #     if not np.allclose(A, A2):
         #         msg = "wrong element={} matrix\ngood={}\nwrong={}".format(ic,A,A2)
         #         raise ValueError(msg)
-
-    def computeFemMatricesRefElement(self):
-        ncells, x, y, simps = self.mesh.ncells, self.mesh.x, self.mesh.y, self.mesh.triangles
-        S = np.array(((-1,-1),(1,0),(0,1)))
-        A1 = np.dot(x[simps], S)
-        A2 = np.dot(y[simps], S)
-        self.Adet = A1[:, 0] * A2[:, 1] - A1[:, 1] * A2[:, 0]
-        # print('self.Adet.shape', self.Adet.shape)
-        # print('A1.shape', A1.shape)
-
-        # Coefficients of inverse mapping
-        Ap1 = np.c_[A2[:, 1], -A1[:, 1]] / self.Adet.reshape(ncells, 1)
-        Ap2 = np.c_[-A2[:, 0], A1[:, 0]] / self.Adet.reshape(ncells, 1)
-
-        # print('Ap1.shape', Ap1.shape)
-
-        # Basic matrix types on the reference element
-        self.M = np.array(((2, 1, 1), (1, 2, 1), (1, 1, 2))) / 24.0
-        self.Kxx = np.array(((1, -1, 0), (-1, 1, 0), (0, 0, 0))) / 2.0
-        self.Kxy = np.array(((1, 0, -1), (-1, 0, 1), (0, 0, 0))) / 2.0
-        self.Kyy = np.array(((1, 0, -1), (0, 0, 0), (-1, 0, 1))) / 2.0
-        self.Phi1 = np.array(((6, 2, 2), (2, 2, 1), (2, 1, 2))) / 120.0
-        self.Phi2 = np.array(((2, 2, 1), (2, 6, 2), (1, 2, 2))) / 120.0
-        self.Phi3 = np.array(((2, 1, 2), (1, 2, 2), (2, 2, 6))) / 120.0
-
-        # Compute all of the elemental stiffness and mass matrices
-        self.cxx = (Ap1[:, 0] ** 2 + Ap1[:, 1] ** 2) * self.Adet
-        self.cxy = (Ap1[:, 0] * Ap2[:, 0] + Ap1[:, 1] * Ap2[:, 1]) * self.Adet
-        self.cyy = (Ap2[:, 0] ** 2 + Ap2[:, 1] ** 2) * self.Adet
-
-        # print('self.cxx.shape', self.cxx.shape)
-
     def phi(self, ic, x, y, grad):
         return 1./3. + np.dot(grad, np.array([x-self.mesh.centersx[ic], y-self.mesh.centersy[ic]]))
     def elementMassMatrix(self, ic):
@@ -161,22 +119,8 @@ class FemP12D(object):
                             print('ic=', ic, 'grad=', grads)
                             raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
     def massMatrix(self):
-        nnodes, ncells, simps = self.mesh.nnodes, self.mesh.ncells, self.mesh.simplices
-        nloc = self.mesh.dimension+1
-        index = np.zeros(nloc*nloc*ncells, dtype=int)
-        jndex = np.zeros(nloc*nloc*ncells, dtype=int)
-        A = np.zeros(nloc*nloc*ncells, dtype=np.float64)
-        count = 0
-        for ic in range(ncells):
-            mass = self.elementMassMatrix(ic)
-            for ii in range(nloc):
-                for jj in range(nloc):
-                    index[count+nloc*ii+jj] = simps[ic, ii]
-                    jndex[count+nloc*ii+jj] = simps[ic, jj]
-                    A[count + nloc * ii + jj] += mass[ii,jj]
-            count += nloc*nloc
-        return sparse.coo_matrix((A, (index, jndex)), shape=(nnodes, nnodes)).tocsr()
-
+        nnodes = self.mesh.nnodes
+        return sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
 # ------------------------------------- #
 
