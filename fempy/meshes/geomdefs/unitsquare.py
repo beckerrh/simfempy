@@ -5,32 +5,25 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
-if __name__ == '__main__' and __package__ is None:
-    from os import sys, path
-    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-
-
-def definition(geometry, h=0.2):
-    p0 =  geometry.add_point([-1.0, -1.0, 0.0], h)
-    p1 =  geometry.add_point([1.0, -1.0, 0.0], h)
-    p2 =  geometry.add_point([1.0, 1.0, 0.0], h)
-    p3 =  geometry.add_point([-1.0, 1.0, 0.0], h)
-    l0 =  geometry.add_line(p0, p1)
-    l1 =  geometry.add_line(p1, p2)
-    l2 =  geometry.add_line(p2, p3)
-    l3 =  geometry.add_line(p3, p0)
-    ll =  geometry.add_line_loop([l0, l1, l2, l3])
-    surf =  geometry.add_plane_surface(ll)
-    pl0 =  geometry.add_physical_line(l0, label=11)
-    pl1 =  geometry.add_physical_line(l1, label=22)
-    pl1 =  geometry.add_physical_line(l2, label=33)
-    pl4 =  geometry.add_physical_line(l3, label=44)
-    geometry.add_physical_surface(surf, label=99)
-    return 'unitsquare', geometry
+import pygmsh
 
 # ------------------------------------- #
+def define_geometry(h=1.):
+    geometry = pygmsh.built_in.Geometry()
+    a = 1.0
+    p = geometry.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
+    geometry.add_physical_surface(p.surface, label=111)
+    for i in range(4): geometry.add_physical_line(p.line_loop.lines[i], label=11*(1+i))
+    return geometry
 
+# ------------------------------------- #
 if __name__ == '__main__':
-    from . import geometry
-    geom = geometry.Geometry(definition=definition)
-    geom.show()
+    from os import sys, path
+    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    import plotmesh, simplexmesh
+    import matplotlib.pyplot as plt
+    geometry = define_geometry(h=1.0)
+    meshdata = pygmsh.generate_mesh(geometry)
+    mesh = simplexmesh.SimplexMesh(data=meshdata)
+    plotmesh.meshWithBoundaries(mesh)
+    plt.show()

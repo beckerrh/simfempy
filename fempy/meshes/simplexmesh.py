@@ -4,16 +4,16 @@ Created on Sun Dec  4 18:14:29 2016
 
 @author: becker
 """
-import os
+import os, sys, importlib
 import meshio
 import numpy as np
 from scipy import sparse
 # from scipy import spatial
 
 try:
-    import geometry
+    import geomdefs
 except ModuleNotFoundError:
-    from . import geometry
+    from . import geomdefs as geomdefs
 
 
 #=================================================================#
@@ -39,16 +39,32 @@ class SimplexMesh(object):
             self.geomname = 'own'
             data = kwargs.pop('data')
             self._initMeshPyGmsh(data[0], data[1], data[3])
-            return
+        else:
+            self._initFromGeometry(**kwargs)
+    def _initFromGeometry(self, **kwargs):
+        import pygmsh
         self.geomname = kwargs.pop('geomname')
-        hmean = None
-        if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
-        filenamemsh = self.geomname + '.msh'
-        if hmean is not None or not os.path.isfile(filenamemsh):
-            geom = geometry.Geometry(geomname=self.geomname, h=hmean)
-            geom.runGmsh(newgeometry=(hmean is not None))
-        mesh = meshio.read(filename=filenamemsh)
-        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
+        fempypath = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(fempypath)
+        try:
+            module = importlib.import_module('geomdefs.' + self.geomname)
+        except:
+            print("Could not import '{}'. Having:\n".format('geomdefs.' + self.geomname))
+            for module in sys.modules.keys():
+                if 'fempy' in module or 'geomdefs' in module:
+                    print(module)
+            sys.exit(1)
+        if 'hmean' in kwargs:
+            geometry = module.define_geometry(kwargs.pop('hmean'))
+        else:
+            geometry = module.define_geometry()
+        data = pygmsh.generate_mesh(geometry)
+        # filenamemsh = self.geomname + '.msh'
+        # if hmean is not None or not os.path.isfile(filenamemsh):
+        #     geom = geometry.Geometry(geomname=self.geomname, h=hmean)
+        #     geom.runGmsh(newgeometry=(hmean is not None))
+        # mesh = meshio.read(filename=filenamemsh)
+        self._initMeshPyGmsh(data[0], data[1], data[3])
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
             self.dimension = 3
@@ -295,15 +311,11 @@ class SimplexMesh(object):
 #=================================================================#
 if __name__ == '__main__':
     # tmesh = SimplexMesh(geomname="backwardfacingstep", hmean=0.7)
-    tmesh = SimplexMesh(geomname="unitsquare", hmean=0.7)
+    mesh = SimplexMesh(geomname="unitsquare", hmean=2)
     import plotmesh
     import matplotlib.pyplot as plt
     fig, axarr = plt.subplots(3, 1, sharex='col')
-    # plotdata = tmesh.x, tmesh.y, tmesh.triangles, tmesh.lines, tmesh.labels_lines
-    # plotmesh.meshWithBoundaries(plotdata, ax=axarr[0])
-    plotmesh.meshWithBoundaries(tmesh, ax=axarr[0])
-    # plotdata = tmesh.x, tmesh.y, tmesh.triangles, tmesh.centersx, tmesh.centersy
-    # plotmesh.meshWithNodesAndTriangles(plotdata, ax=axarr[1])
-    plotmesh.meshWithNodesAndTriangles(tmesh, ax=axarr[1])
-    plotmesh.meshWithNodesAndFaces(tmesh, ax=axarr[2])
+    plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
+    plotmesh.meshWithNodesAndTriangles(mesh, ax=axarr[1])
+    plotmesh.meshWithNodesAndFaces(mesh, ax=axarr[2])
     plt.show()

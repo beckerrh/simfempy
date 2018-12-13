@@ -72,9 +72,9 @@ def test_analytic3d():
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname="unitcube", hmean=0.1)
-    # fempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    # plt.show()
+    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname="unitcube", hmean=0.5)
+    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    plt.show()
     methods['p1'].setMesh(mesh)
     point_data, cell_data, info = methods['p1'].solvestatic()
     print("info", info)
@@ -85,33 +85,21 @@ def test_analytic3d():
     # result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
-def linelooprectangle(geometry, x0, y0, a, b, h, colors= 11*np.arange(1,5)):
-    p = []
-    for i in range(4):
-        s1 = 2* ( (i+1)//2 % 2 )-1
-        s2 = 2* (i//2)-1
-        p.append(geometry.add_point([x0+s1*a, y0+s2*b, 0.0], h))
-    l = []
-    for i in range(4):
-        l.append(geometry.add_line(p[i], p[(i+1)%4]))
-        if colors is not None: geometry.add_physical_line(l[i], label=int(colors[i]))
-    return geometry.add_line_loop(l)
-
 def geometryResistance():
     import pygmsh
     geometry = pygmsh.built_in.Geometry()
     h = 0.05
     a, b = 1.0, 2.0
-    ll = linelooprectangle(geometry, 0, 0, a, b, h)
     d, e = 0.5, 0.25
-    mm = linelooprectangle(geometry, 0, 1.0, d, e, h, colors=None)
-    nn = linelooprectangle(geometry, 0, 0.0, d, e, h, colors=None)
-    surf =  geometry.add_plane_surface(ll, [mm, nn])
-    geometry.add_physical_surface(surf, label=111)
-    hole1 =  geometry.add_plane_surface(mm)
-    geometry.add_physical_surface(hole1, label=222)
-    hole2 =  geometry.add_plane_surface(nn)
-    geometry.add_physical_surface(hole2, label=333)
+    h1 = geometry.add_rectangle(-d, d, -e, e, 0, lcar=h)
+    geometry.add_physical_surface(h1.surface, label=222)
+    h2 = geometry.add_rectangle(-d, d, -e+1, e+1, 0, lcar=h)
+    geometry.add_physical_surface(h2.surface, label=333)
+    p1 = geometry.add_rectangle(-a, a, -b, b, 0, lcar=h, holes=[h1,h2])
+    geometry.add_physical_surface(p1.surface, label=111)
+    for i in range(4): geometry.add_physical_line(p1.line_loop.lines[i], label=11*(1+i))
+    code = geometry.get_code()
+    print("code:\n", code)
     return pygmsh.generate_mesh(geometry)
 
 #----------------------------------------------------------------#
@@ -158,6 +146,6 @@ def test_coefs_stat():
 #================================================================#
 
 #test_analytic()
-#test_analytic3d()
+test_analytic3d()
 #test_flux()
-test_coefs_stat()
+#test_coefs_stat()
