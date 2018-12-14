@@ -9,10 +9,8 @@ import fempy.applications
 #----------------------------------------------------------------#
 def test_flux():
     import fempy.tools.comparerrors
-    problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    problem = 'Analytic_Sinus'
     geomname = "unitsquare"
+    geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     # bdrycond.type[11] = "Neumann"
     # bdrycond.type[22] = "Neumann"
@@ -20,44 +18,46 @@ def test_flux():
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[33] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
+    bdrycond.type[55] = "Dirichlet"
+    bdrycond.type[66] = "Dirichlet"
     bdrycond.fct[11] = lambda x,y,z: 0
-    bdrycond.fct[44] = bdrycond.fct[33] = bdrycond.fct[22] = bdrycond.fct[11]
+    bdrycond.fct[66] = bdrycond.fct[55] = bdrycond.fct[44] = bdrycond.fct[33] = bdrycond.fct[22] = bdrycond.fct[11]
     postproc = {}
     # postproc['mean'] = "11,22"
-    postproc['flux'] = "flux:11,22,33,44"
+    postproc['flux'] = "flux:11,22,33,44,55,66"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03])
+    result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06])
 
 #----------------------------------------------------------------#
 def test_analytic():
     import fempy.tools.comparerrors
-    # problem = 'Analytic_Linear'
+    problem = 'Analytic_Linear'
     # problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
-    bdrycond.type[22] = "Neumann"
-    bdrycond.type[33] = "Dirichlet"
+    bdrycond.type[33] = "Neumann"
+    bdrycond.type[22] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
     postproc = {}
-    postproc['mean'] = "mean:11,22"
-    postproc['flux'] = "flux:33,44"
+    postproc['mean'] = "mean:11,33"
+    postproc['flux'] = "flux:22,44"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.01]
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
 def test_analytic3d():
     import matplotlib.pyplot as plt
     import fempy.tools.comparerrors
-    problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    # problem = 'Analytic_Sinus'
+    problem = 'Analytic_Linear3d'
+    # problem = 'Analytic_Quadratic3d'
+    # problem = 'Analytic_Sinus3d'
 
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
@@ -68,21 +68,13 @@ def test_analytic3d():
     bdrycond.type[66] = "Dirichlet"
     postproc = {}
     postproc['mean'] = "mean:11,22"
-    postproc['flux'] = "flux:33,44"
+    postproc['flux'] = "flux:33,44,55,66"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname="unitcube", hmean=0.5)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    plt.show()
-    methods['p1'].setMesh(mesh)
-    point_data, cell_data, info = methods['p1'].solvestatic()
-    print("info", info)
-    # comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
-    h = [2.0, 1.0, 0.5, 0.25]
-    # h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.01]
-    # h = [2.0, 1.0]
-    # result = comp.compare(geomname=geomname, h=h)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
+    result = comp.compare(geomname="unitcube", h=h)
 
 #----------------------------------------------------------------#
 def geometryResistance():
@@ -145,7 +137,7 @@ def test_coefs_stat():
 
 #================================================================#
 
-#test_analytic()
-test_analytic3d()
+test_analytic()
+#test_analytic3d()
 #test_flux()
 #test_coefs_stat()

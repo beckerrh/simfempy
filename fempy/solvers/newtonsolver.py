@@ -10,6 +10,17 @@ import numpy as np
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 
+import pyamg
+#ml = pyamg.ruge_stuben_solver(A)
+#x = ml.solve(b, tol=1e-10)
+
+from scikits import umfpack
+#lu = umfpack.splu(A)
+#x = umfpack.spsolve(A, b)
+
+# https://github.com/bfroehle/pymumps
+#from mumps import DMumpsContext
+
 class NewtonSolver(object):
     def __init__(self):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0}

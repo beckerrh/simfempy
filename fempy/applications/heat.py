@@ -47,14 +47,20 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         function = problemsplit[1]
         if function == 'Linear':
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.7 * y')
+        elif function == 'Linear3d':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.2 * y + 0.4*z')
         elif function == 'Quadratic':
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
+        elif function == 'Quadratic3d':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y+3*z*z')
         elif function == 'Hubbel':
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
         elif function == 'Exponential':
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
         elif function == 'Sinus':
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
+        elif function == 'Sinus3d':
+            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y+0.5*z)')
         else:
             raise ValueError("unknown analytic solution: {}".format(function))
         class NeummannExact():
@@ -106,7 +112,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 edgesdir = self.mesh.bdrylabels[color]
-                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flat[:])))
+                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
 
 
         self.kheatcell = np.zeros(ncells)
@@ -150,8 +156,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                     d = linalg.norm(normal)
                     bn = neumann(pe[0], pe[1], pe[2], normal[0]/d, normal[1]/d, normal[2]/d, self.kheatcell[ic]) * d
                     b[self.mesh.faces[ie]] += scale * bn
-                    # b[iv0] += 0.5 * bn
-                    # b[iv1] += 0.5 * bn
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
         for color, nodes in self.nodesdir.items():
@@ -172,7 +176,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         t3 = time.time()
         for key, nodes in self.nodesdirflux.items():
             nb = nodes.shape[0]
-            help = sparse.dia_matrix((np.ones(nb),0), shape=(nb,nnodes))
+            # help = np.zeros((nnodes))
+            # help[nodes] = 1
+            # help = sparse.dia_matrix((help,0), shape=(nnodes,nnodes))
+            help = sparse.dok_matrix((nb,nnodes))
+            for i in range(nb): help[i, nodes[i]] = 1
             self.Asaved[key] = help.dot(Asp)
         # ndirs = self.nodedirall.shape[0]
         # help = sparse.dia_matrix((np.ones(ndirs), 0), shape=(ndirs, nnodes))
@@ -199,14 +207,14 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 normal = self.mesh.normals[ie]
                 d = linalg.norm(normal)
                 omega += d
-                mean += d*np.mean(u[self.mesh.faces[ie, :]])
+                mean += d*np.mean(u[self.mesh.faces[ie]])
         return mean
     def computeFlux(self, u, key, data):
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(self.bsaved[key] - self.Asaved[key]*u)
+        flux = np.sum(self.bsaved[key] - self.Asaved[key]*u )
         return flux
     def postProcess(self, u):
         info = {}

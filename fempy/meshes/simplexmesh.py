@@ -8,12 +8,11 @@ import os, sys, importlib
 import meshio
 import numpy as np
 from scipy import sparse
-# from scipy import spatial
 
 try:
     import geomdefs
 except ModuleNotFoundError:
-    from . import geomdefs as geomdefs
+    from . import geomdefs
 
 
 #=================================================================#
@@ -58,12 +57,7 @@ class SimplexMesh(object):
             geometry = module.define_geometry(kwargs.pop('hmean'))
         else:
             geometry = module.define_geometry()
-        data = pygmsh.generate_mesh(geometry)
-        # filenamemsh = self.geomname + '.msh'
-        # if hmean is not None or not os.path.isfile(filenamemsh):
-        #     geom = geometry.Geometry(geomname=self.geomname, h=hmean)
-        #     geom.runGmsh(newgeometry=(hmean is not None))
-        # mesh = meshio.read(filename=filenamemsh)
+        data = pygmsh.generate_mesh(geometry, verbose=False)
         self._initMeshPyGmsh(data[0], data[1], data[3])
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
@@ -72,26 +66,17 @@ class SimplexMesh(object):
             self.dimension = 2
         else:
             self.dimension = 1
-        # self.delaunay = spatial.Delaunay(points[:,:self.dimension])
         assert points.shape[1] ==3
-        # assert points.shape[0] == self.delaunay.points.shape[0]
         self.points = points
         self.nnodes = self.points.shape[0]
-        # self.simplices = self.delaunay.simplices
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
             self.cell_labels = celldata['triangle']['gmsh:physical']
-            # assert cells['triangle'].shape[0] == self.delaunay.simplices.shape[0]
-            # self._constructCellLabels(cells['triangle'], celldata['triangle']['gmsh:physical'])
-            # self._constructFaces(cells['line'], celldata['line']['gmsh:physical'])
         else:
             self.simplices = cells['tetra']
             self._constructFacesFromSimplices(cells['triangle'], celldata['triangle']['gmsh:physical'])
             self.cell_labels = celldata['tetra']['gmsh:physical']
-            # assert cells['tetra'].shape[0] == self.delaunay.simplices.shape[0]
-            # self._constructCellLabels(cells['tetra'], celldata['tetra']['gmsh:physical'])
-            # self._constructFaces(cells['triangle'], celldata['triangle']['gmsh:physical'])
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
@@ -106,24 +91,14 @@ class SimplexMesh(object):
             for ii in range(nnpc):
                 mask = np.array( [jj !=ii for jj in range(nnpc)] )
                 allfaces[i*nnpc+ii] = np.sort(simplices[i,mask])
-        # print("allfaces", allfaces)
         s = "{0}" + (nnpc-2)*", {0}"
         s = s.format(allfaces.dtype)
-        # print("s",s)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
-        # print("order",order)
         perm = np.argsort(allfaces.view(s), order=order, axis=0).flatten()
         allfacescorted = allfaces[perm]
-        # print("allfaces sorted",allfacescorted)
-        # permi = np.empty(perm.size, perm.dtype)
-        # permi[perm] = np.arange(perm.size)
-        # print("allfaces",allfacescorted[permi])
         self.faces, indices = np.unique(allfacescorted, return_inverse=True, axis=0)
-        # print("faces",self.faces)
-        # print("indices",indices)
         locindex = np.tile(np.arange(0,nnpc), ncells)
         cellindex = np.repeat(np.arange(0,ncells), nnpc)
-        # print("cellindex",cellindex)
         self.nfaces = self.faces.shape[0]
         self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
         self.facesOfCells = np.zeros(shape=(ncells, nnpc), dtype=int)
@@ -134,14 +109,7 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-        # for i in range(ncells):
-        #     print("cell={} faces={}".format(simplices[i], self.faces[self.facesOfCells[i]]))
-        # print("self.cellsOfFaces",self.cellsOfFaces)
         self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
-        # assert None
-    # dtf = "{0}, {0}".format(bdryfaces.dtype)
-    # bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0', 'f1')).flatten()
-
     def _constructCellLabels(self, simpgmsh, labelsgmsh):
         if self.simplices.shape != simpgmsh.shape:
             msg ="wrong shapes self.simplices={} simpgmsh={}".format(self.simplices.shape,simpgmsh.shape)
