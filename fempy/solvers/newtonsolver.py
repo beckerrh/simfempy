@@ -23,7 +23,7 @@ from scikits import umfpack
 
 class NewtonSolver(object):
     def __init__(self):
-        self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0}
+        self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'postproc':0.0}
         self.runinfo = {'niter':0}
 
     def solveLinear(self):
@@ -32,12 +32,21 @@ class NewtonSolver(object):
         t1 = time.time()
         A = self.matrix()
         t2 = time.time()
+
         u = splinalg.spsolve(A, b)
+        # ml = pyamg.ruge_stuben_solver(A)
+        # u = ml.solve(b, tol=1e-12)
+        # lu = umfpack.splu(A)
+        # u = umfpack.spsolve(A, b)
+
         t3 = time.time()
+        pp = self.postProcess(u)
+        t4 = time.time()
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
         self.timer['solve'] = t3-t2
-        return self.postProcess(u)
+        self.timer['postproc'] = t4-t3
+        return pp
 
     def residual(self, u):
         self.du[:]=0.0
@@ -113,10 +122,13 @@ class NewtonSolver(object):
         #     nit = -1
         # print 'nit=', nit
         t3 = time.time()
+        pp = self.postProcess(u)
+        t4 = time.time()
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
         self.timer['solve'] = t3-t2
-        return self.postProcess(u, self.timer, nit)
+        self.timer['postproc'] = t4-t3
+        return pp
 
 
 # ------------------------------------- #

@@ -56,7 +56,7 @@ def test_analytic3d():
     import matplotlib.pyplot as plt
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear3d'
-    # problem = 'Analytic_Quadratic3d'
+    problem = 'Analytic_Quadratic3d'
     # problem = 'Analytic_Sinus3d'
 
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
@@ -73,7 +73,8 @@ def test_analytic3d():
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
+    h = [np.power(i*1000,-1/3) for i in range(1,6)]
+    print("h", h)
     result = comp.compare(geomname="unitcube", h=h)
 
 #----------------------------------------------------------------#
@@ -137,7 +138,7 @@ def test_coefs_stat():
 
 #================================================================#
 
-test_analytic()
-#test_analytic3d()
+#test_analytic()
+test_analytic3d()
 #test_flux()
 #test_coefs_stat()

@@ -48,22 +48,23 @@ class CompareErrors(object):
         if self.paramname == "ncells":
             params = h
         else:
-            trimesh = SimplexMesh(geomname=geomname, hmean=self.hmean)
+            mesh = SimplexMesh(geomname=geomname, hmean=self.hmean)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
-                trimesh = SimplexMesh(geomname=geomname, hmean=param)
-                self.parameters.append(trimesh.ncells)
+                mesh = SimplexMesh(geomname=geomname, hmean=param)
+                self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)
             for name, method in self.methods.items():
-                method.setMesh(trimesh)
+                method.setMesh(mesh)
+                self.dim = mesh.dimension
                 point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.vtk:
                     filename = "{}_{}_{:02d}.vtk".format(self.problemname, name, iter)
-                    trimesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
+                    mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
-                    plotmesh.meshWithData(trimesh, point_data, cell_data)
+                    plotmesh.meshWithData(mesh, point_data, cell_data)
                     plt.suptitle("{}={}".format(self.paramname, self.parameters[-1]))
                     plt.show()
                 self.fillInfo(iter, name, info, len(params))
@@ -89,25 +90,29 @@ class CompareErrors(object):
                 # for name in self.methods.keys():
                 self.infos[key2][key3][name][iter] = info3
     def generateLatex(self, names, paramname, parameters, infos):
-        singleplots = ['timer', 'runinfo']
         latexwriter = LatexWriter(dirname=self.dirname)
         for key, val in infos.items():
             redrate = (key=="error") and (paramname=="ncells")
-            if key in singleplots:
+            if key == 'runinfo':
                 newdict={}
                 for key2, val2 in val.items():
                     for name in names:
                         newdict["{}:{}".format(key2, name)] = val2[name]
                 latexwriter.append(n=parameters, values=newdict, name='{}'.format(key))
+            elif key == 'timer':
+                for name in names:
+                    newdict={}
+                    for key2, val2 in val.items():
+                        newdict["{}".format(key2)] = val2[name]
+                    latexwriter.append(n=parameters, values=newdict, name='{}_{}'.format(name, key), percentage=True)
             else:
                 for key2, val2 in val.items():
-                    latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), redrate=redrate, diffandredrate=not redrate)
+                    latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), dim=self.dim, redrate=redrate, diffandredrate=not redrate)
         latexwriter.write()
         latexwriter.compile()
-    def computeOrder(self, ncells, values):
+    def computeOrder(self, ncells, values, dim):
         fnd = float(ncells[-1]) / float(ncells[0])
-        order = -2.0 * np.log(values[-1] / values[0]) / np.log(fnd)
-        dim = 2.0
+        order = -dim * np.log(values[-1] / values[0]) / np.log(fnd)
         return np.power(ncells, -order / dim), np.round(order,2)
     def plotPostprocs(self, names, paramname, parameters, infos):
         nmethods = len(names)
@@ -133,7 +138,7 @@ class CompareErrors(object):
                     if key == "error":
                         axs[cr,cc].loglog(parameters, val2[name], '-x', label="{}_{}".format(key2, name))
                         if self.paramname == "ncells":
-                            orders, order = self.computeOrder(parameters, val2[name])
+                            orders, order = self.computeOrder(parameters, val2[name], self.dim)
                             axs[cr, cc].loglog(parameters, orders, '-', label="order {}".format(order))
                     else:
                         axs[cr, cc].plot(parameters, val2[name], '-x', label="{}_{}".format(key2, name))

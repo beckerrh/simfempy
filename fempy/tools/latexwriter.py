@@ -30,6 +30,16 @@ class TableData(object):
             self.types[key] = type
         self.rotatenames = False
         self.nname = nname
+    def computePercentage(self):
+        for i in range(len(self.n)):
+            sum = 0
+            for key, value in self.values.items():
+                sum += self.values[key][i]
+            for key, value in self.values.items():
+                self.values[key][i] *= 100/sum
+        for key in self.values.keys():
+            self.precs[key] = 1
+            self.types[key] = 'ffloat'
     def computeDiffs(self):
         n, values, keys = self.n, self.values, list(self.values.keys())
         for key in keys:
@@ -40,7 +50,7 @@ class TableData(object):
             values[key2] = valorder
             self.precs[key2] = self.precs[key]
             self.types[key2] = self.types[key]
-    def computeReductionRate(self, diff=False):
+    def computeReductionRate(self, dim, diff=False):
         n, values, keys = self.n, self.values, list(self.values.keys())
         fi = 1+int(diff)
         for key in keys:
@@ -50,15 +60,15 @@ class TableData(object):
             valorder = np.zeros(len(n))
             for i in range(fi,len(n)):
                 if not values[key][i-1]:
-                    alpha = -1
+                    p = -1
                     continue
                 try:
                     fnd = float(n[i])/float(n[i-1])
-                    alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
+                    p = -dim* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
                     # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
                 except:
-                    alpha=-1
-                valorder[i] = alpha
+                    p=-1
+                valorder[i] = p
             values[key2] = valorder
             self.precs[key2] = 2
             self.types[key2] = 'ffloat'
@@ -77,44 +87,48 @@ class LatexWriter(object):
         self.countdata = 0
         print(self.dirname, self.latexfilename)
 
-    def computeReductionRate(self, tabledata):
-        n = tabledata.n
-        values = tabledata.values
-        keys = list(values.keys())
-        orders = {}
-        for key in keys:
-            key2 = key + '-o'
-            valorder = np.zeros(len(n))
-            for i in range(1,len(n)):
-                try:
-                    fnd = float(n[i])/float(n[i-1])
-                    alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
-                    # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
-                except:
-                    alpha=-1
-                valorder[i] = alpha
-            values[key2] = valorder
-            tabledata.precs[key2] = 2
-            tabledata.types[key2] = 'ffloat'
-            orders[key] = -1
-            fnd = float(n[-1]) / float(n[0])
-            if len(n)>1:
-                try:
-                    orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)
-                except:
-                    pass
-        return tabledata, orders
+    # def computeReductionRate(self, tabledata):
+    #     n = tabledata.n
+    #     values = tabledata.values
+    #     keys = list(values.keys())
+    #     orders = {}
+    #     for key in keys:
+    #         key2 = key + '-o'
+    #         valorder = np.zeros(len(n))
+    #         for i in range(1,len(n)):
+    #             try:
+    #                 fnd = float(n[i])/float(n[i-1])
+    #                 alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
+    #                 # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
+    #             except:
+    #                 alpha=-1
+    #             valorder[i] = alpha
+    #         values[key2] = valorder
+    #         tabledata.precs[key2] = 2
+    #         tabledata.types[key2] = 'ffloat'
+    #         orders[key] = -1
+    #         fnd = float(n[-1]) / float(n[0])
+    #         if len(n)>1:
+    #             try:
+    #                 orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)
+    #             except:
+    #                 pass
+    #     return tabledata, orders
 
-    def append(self, n, values, type='float', name= None, redrate=False, diffandredrate=False):
+    def append(self, n, values, dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
         if name is None:
             name = 'table%1d' %self.countdata
         self.countdata += 1
         tabledata = TableData(n=n, values=values, type=type)
         if diffandredrate:
+            assert dim
             tabledata.computeDiffs()
-            tabledata.computeReductionRate(diff=True)
+            tabledata.computeReductionRate(dim, diff=True)
         if redrate:
-            tabledata.computeReductionRate()
+            assert dim
+            tabledata.computeReductionRate(dim)
+        if percentage:
+            tabledata.computePercentage()
         self.data[name] = tabledata
     def write(self):
         self.latexfile = open(self.latexfilename, "w")

@@ -38,7 +38,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.method = kwargs.pop('method')
         else:
             self.method="trad"
-
     def defineProblem(self, problem):
         self.problem = problem
         problemsplit = problem.split('_')
@@ -90,7 +89,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         xc, yc, zc = self.mesh.pointsc[:,0], self.mesh.pointsc[:,1], self.mesh.pointsc[:,2]
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
-
         colorsdir = []
         self.nodedirall = np.empty(shape=(0), dtype=int)
         for color, type in self.bdrycond.type.items():
@@ -120,7 +118,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.rhocpcell = np.zeros(ncells)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
         # print("self.kheatcell", self.kheatcell)
-
     def solvestatic(self):
         return self.solveLinear()
     def solve(self, iter, dirname):
@@ -134,9 +131,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             bnodes *= self.kheat(0)
         else:
             bnodes = self.rhs(x, y, z)
-        t2 = time.time()
         b = self.massmatrix*bnodes
-        t3 = time.time()
+        t2 = time.time()
         normals =  self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond.type[color]
@@ -144,18 +140,42 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             if bdrycond == "Neumann":
                 neumann = self.bdrycond.fct[color]
                 scale = 1/self.mesh.dimension
-                for ie in edges:
-                    # iv0 =  self.mesh.faces[ie, 0]
-                    # iv1 =  self.mesh.faces[ie, 1]
-                    # sigma = 1-2*(self.mesh.cellsOfFaces[ie, 0]==-1)
-                    normal = normals[ie]
-                    # normal *= sigma
-                    ic = self.mesh.cellsOfFaces[ie,0]
-                    # if ic < 0: ic = self.mesh.cellsOfFaces[ie,1]
-                    pe = np.mean(self.mesh.points[self.mesh.faces[ie]], axis=0)
-                    d = linalg.norm(normal)
-                    bn = neumann(pe[0], pe[1], pe[2], normal[0]/d, normal[1]/d, normal[2]/d, self.kheatcell[ic]) * d
-                    b[self.mesh.faces[ie]] += scale * bn
+                normalsS = normals[edges]
+                dS = linalg.norm(normalsS,axis=1)
+                xS = np.mean(self.mesh.points[self.mesh.faces[edges]], axis=1)
+                kS = self.kheatcell[self.mesh.cellsOfFaces[edges,0]]
+                assert(dS.shape[0] == len(edges))
+                assert(xS.shape[0] == len(edges))
+                assert(kS.shape[0] == len(edges))
+                normalsS[:, 0] /= dS
+                normalsS[:, 1] /= dS
+                normalsS[:, 2] /= dS
+                x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
+                nx, ny, nz = normalsS[:,0], normalsS[:,1], normalsS[:,2]
+                bS =  scale * neumann(x1, y1, z1, nx, ny, nz, kS)*dS
+                # print("b[self.mesh.faces[edges].T].shape", b[self.mesh.faces[edges].T].shape, "bS.shape", bS.shape)
+                # b[self.mesh.faces[edges]] += bS
+                np.add.at(b, self.mesh.faces[edges].T, bS)
+                # for ii,ie in enumerate(edges):
+                #     b[self.mesh.faces[ie]] += bS[ii]
+                # btest = np.zeros((len(edges)))
+                # for ii,ie in enumerate(edges):
+                #     normal = normals[ie]
+                #     ic = self.mesh.cellsOfFaces[ie,0]
+                #     pe = np.mean(self.mesh.points[self.mesh.faces[ie]], axis=0)
+                #     d = linalg.norm(normal)
+                #     assert np.allclose(d, dS[ii])
+                #     assert np.allclose(self.kheatcell[ic], kS[ii])
+                #     assert np.allclose(pe, xS[ii])
+                #     assert np.allclose(normal/d, normalsS[ii])
+                #     bn = neumann(pe[0], pe[1], pe[2], normal[0]/d, normal[1]/d, normal[2]/d, self.kheatcell[ic]) * d
+                #     btest[ii] = scale * bn
+                #     # b[self.mesh.faces[ie]] += scale * bn
+                # if not np.allclose(bS, btest):
+                #     print("bS", bS)
+                #     print("btest", btest)
+                #     assert None
+        t3 = time.time()
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
         for color, nodes in self.nodesdir.items():
@@ -163,8 +183,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
         t4 = time.time()
         self.timer['rhs_fct'] = t2-t1
-        self.timer['rhs_mult'] = t3-t2
-        self.timer['rhs_bdry'] = t4-t3
+        self.timer['rhs_neum'] = t3-t2
+        self.timer['rhs_dir'] = t4-t3
         return b
     def matrix(self):
         import time
