@@ -84,10 +84,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             else:
                 raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
     def setMesh(self, mesh):
+        t0 = time.time()
         self.mesh = mesh
-        self.mesh.computeSimpOfVert(test=False)
-        nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
-        xc, yc, zc = self.mesh.pointsc[:,0], self.mesh.pointsc[:,1], self.mesh.pointsc[:,2]
         self.fem.setMesh(self.mesh)
         self.massmatrix = self.fem.massMatrix()
         colorsdir = []
@@ -114,11 +112,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             for color in colors:
                 edgesdir = self.mesh.bdrylabels[color]
                 self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
-        self.kheatcell = np.zeros(ncells)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
-        self.rhocpcell = np.zeros(ncells)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
         # print("self.kheatcell", self.kheatcell)
+        t1 = time.time()
+        self.timer['setmesh'] = t1-t0
     def solvestatic(self):
         return self.solveLinear()
     def solve(self, iter, dirname):

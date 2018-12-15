@@ -10,11 +10,9 @@ import numpy as np
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 
-import pyamg
 #ml = pyamg.ruge_stuben_solver(A)
 #x = ml.solve(b, tol=1e-10)
 
-from scikits import umfpack
 #lu = umfpack.splu(A)
 #x = umfpack.spsolve(A, b)
 
@@ -25,26 +23,41 @@ class NewtonSolver(object):
     def __init__(self):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
         self.runinfo = {'niter':0}
+        self.linearsolvers=[]
+        self.linearsolvers.append('scipy')
+        try:
+            import pyamg
+            self.linearsolvers.append('pyamg')
+        except: pass
+        try:
+            from scikits import umfpack
+            self.linearsolvers.append('umfpack')
+        except: pass
 
-    def linearSolver(self, A, b):
-        solve = 'pyamg'
-        if solve == 'scipy':
+    def linearSolver(self, A, b, solver = 'pyamg'):
+        if solver == 'scipy':
             return splinalg.spsolve(A, b)
-        elif solve == 'pyamg':
+        elif solver == 'pyamg':
+            import pyamg
             res=[]
             u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False)
-            for i, r in enumerate(res):
-                print("{:2d} {:8.2e}".format(i,r))
+            # msg=""
+            # for i, r in enumerate(res):
+            #     msg += "{1:8.2e}({0:3d})  ".format(i,r)
+            # print(msg)
             return u
+        elif solver == 'umfpack':
+            from scikits import umfpack
+            return umfpack.spsolve(A, b)
         else:
-            raise ValueError("unknown solve '{}'".format(solve))
+            raise ValueError("unknown solve '{}'".format(solver))
 
         # ml = pyamg.ruge_stuben_solver(A)
         # B = np.ones((A.shape[0], 1))
         # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
         # res = []
         # # u = ml.solve(b, tol=1e-10, residuals=res)
-        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False)
+        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False,accel='cg')
         # for i, r in enumerate(res):
         #     print("{:2d} {:8.2e}".format(i,r))
         # lu = umfpack.splu(A)

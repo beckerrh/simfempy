@@ -26,7 +26,7 @@ class SimplexMesh(object):
     facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]\setminus simplices[i,ii], sorted
     cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
     normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
-    dx: shape (ncells), volumes of simplices
+    dV: shape (ncells), volumes of simplices
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
 
     SimplexMesh can be initialized from the output of pygmsh
@@ -212,7 +212,7 @@ class SimplexMesh(object):
             dx2 = x[elem[:, 2]] - x[elem[:, 0]]
             dy1 = y[elem[:, 1]] - y[elem[:, 0]]
             dy2 = y[elem[:, 2]] - y[elem[:, 0]]
-            self.dx = 0.5 * np.abs(dx1*dy2-dx2*dy1)
+            self.dV = 0.5 * np.abs(dx1*dy2-dx2*dy1)
         else:
             x, y, z = self.points[:, 0], self.points[:, 1], self.points[:, 2]
             x1 = x[self.faces[:, 1]] - x[self.faces[:, 0]]
@@ -235,7 +235,7 @@ class SimplexMesh(object):
             dz1 = z[elem[:, 1]] - z[elem[:, 0]]
             dz2 = z[elem[:, 2]] - z[elem[:, 0]]
             dz3 = z[elem[:, 3]] - z[elem[:, 0]]
-            self.dx = (1/6) * np.abs(dx1*(dy2*dz3-dy3*dz2) - dx2*(dy1*dz3-dy3*dz1) + dx3*(dy1*dz2-dy2*dz1))
+            self.dV = (1/6) * np.abs(dx1*(dy2*dz3-dy3*dz2) - dx2*(dy1*dz3-dy3*dz1) + dx3*(dy1*dz2-dy2*dz1))
         for i in range(self.nfaces):
             i0, i1 = self.cellsOfFaces[i, 0], self.cellsOfFaces[i, 1]
             if i1 == -1:

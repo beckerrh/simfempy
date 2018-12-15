@@ -5,6 +5,7 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
+import time
 import numpy as np
 import scipy.sparse as sparse
 try:
@@ -26,25 +27,29 @@ class FemP1(object):
         self.locmatlap = np.zeros((nloc, nloc))
         self.nloc = nloc
         ncells, simps = self.mesh.ncells, self.mesh.simplices
-        self.rows = np.array([np.outer(simps[ic],np.ones(nloc, dtype=int)) for ic in range(ncells)]).flatten()
-        self.cols = np.array([np.outer(np.ones(nloc, dtype=int),simps[ic]) for ic in range(ncells)]).flatten()
+        npc = simps.shape[1]
+        self.cols = np.tile(simps, npc).flatten()
+        self.rows = np.repeat(simps, npc).flatten()
         self.computeFemMatrices()
+    def massMatrix(self):
+        nnodes = self.mesh.nnodes
+        return sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
     def assemble(self, k):
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        return ( (matxx+matyy+matzz).T*self.mesh.dx*k).T.flatten()
+        return ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
 
     def computeFemMatrices(self):
-        ncells, normals, cellsOfFaces, facesOfCells, dx = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dx
+        ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = 1/self.mesh.dimension
         sigma = np.array([ 1.0 - 2.0 * (cellsOfFaces[facesOfCells[ic,:], 0] == ic) for ic in range(ncells)])
-        self.cellgrads = scale*(normals[facesOfCells].T * sigma.T / dx.T).T
+        self.cellgrads = scale*(normals[facesOfCells].T * sigma.T / dV.T).T
         scalemass = 1 / self.nloc / (self.nloc+1);
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
-        self.mass = np.einsum('n,kl->nkl', dx, massloc).flatten()
+        self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
 
         # test gradients
         # for ic in range(ncells):
@@ -118,9 +123,6 @@ class FemP1(object):
                         if np.abs(phi) > 1e-14:
                             print('ic=', ic, 'grad=', grads)
                             raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
-    def massMatrix(self):
-        nnodes = self.mesh.nnodes
-        return sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
 # ------------------------------------- #
 

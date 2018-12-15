@@ -58,7 +58,6 @@ def test_analytic3d():
     problem = 'Analytic_Linear3d'
     problem = 'Analytic_Quadratic3d'
     # problem = 'Analytic_Sinus3d'
-
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
     bdrycond.type[22] = "Neumann"
@@ -71,12 +70,40 @@ def test_analytic3d():
     postproc['flux'] = "flux:33,44,55,66"
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
-
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     h = [np.power(i*20,-2/3) for i in range(1,6)]
-    h = [1.0, 0.5, 0.25, 0.13, 0.08, 0.05]
+    h = [1.0, 0.5, 0.25, 0.13, 0.08, 0.05, 0.03]
     print("h", h)
     result = comp.compare(geomname="unitcube", h=h)
+
+
+# ----------------------------------------------------------------#
+def test_solvers():
+    import time
+    problem = 'Analytic_Sinus3d'
+    bdrycond = fempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond.type[11] = "Neumann"
+    bdrycond.type[22] = "Neumann"
+    bdrycond.type[33] = "Dirichlet"
+    bdrycond.type[44] = "Dirichlet"
+    bdrycond.type[55] = "Dirichlet"
+    bdrycond.type[66] = "Dirichlet"
+    postproc = {}
+    postproc['mean'] = "mean:11,22"
+    postproc['flux'] = "flux:33,44,55,66"
+    heat  = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname='unitcube', hmean=0.05)
+    heat.setMesh(mesh)
+    print("heat.linearsolvers=", heat.linearsolvers)
+    b = heat.computeRhs()
+    A = heat.matrix()
+    A, b = heat.boundary(A, b)
+    for solver in heat.linearsolvers:
+        t0 = time.time()
+        u = heat.linearSolver(A, b, solver=solver)
+        t1 = time.time()
+        print("{:4d} {:12s} {:10.2e}".format(mesh.ncells, solver, t1-t0))
+
 
 #----------------------------------------------------------------#
 def geometryResistance():
@@ -140,6 +167,7 @@ def test_coefs_stat():
 #================================================================#
 
 #test_analytic()
-test_analytic3d()
+#test_analytic3d()
+test_solvers()
 #test_flux()
 #test_coefs_stat()
