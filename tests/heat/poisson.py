@@ -73,7 +73,8 @@ def test_analytic3d():
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [np.power(i*1000,-1/3) for i in range(1,6)]
+    h = [np.power(i*20,-2/3) for i in range(1,6)]
+    h = [1.0, 0.5, 0.25, 0.13, 0.08, 0.05]
     print("h", h)
     result = comp.compare(geomname="unitcube", h=h)
 

@@ -23,8 +23,32 @@ from scikits import umfpack
 
 class NewtonSolver(object):
     def __init__(self):
-        self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'postproc':0.0}
+        self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
         self.runinfo = {'niter':0}
+
+    def linearSolver(self, A, b):
+        solve = 'pyamg'
+        if solve == 'scipy':
+            return splinalg.spsolve(A, b)
+        elif solve == 'pyamg':
+            res=[]
+            u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False)
+            for i, r in enumerate(res):
+                print("{:2d} {:8.2e}".format(i,r))
+            return u
+        else:
+            raise ValueError("unknown solve '{}'".format(solve))
+
+        # ml = pyamg.ruge_stuben_solver(A)
+        # B = np.ones((A.shape[0], 1))
+        # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        # res = []
+        # # u = ml.solve(b, tol=1e-10, residuals=res)
+        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False)
+        # for i, r in enumerate(res):
+        #     print("{:2d} {:8.2e}".format(i,r))
+        # lu = umfpack.splu(A)
+        # u = umfpack.spsolve(A, b)
 
     def solveLinear(self):
         t0 = time.time()
@@ -32,20 +56,17 @@ class NewtonSolver(object):
         t1 = time.time()
         A = self.matrix()
         t2 = time.time()
-
-        u = splinalg.spsolve(A, b)
-        # ml = pyamg.ruge_stuben_solver(A)
-        # u = ml.solve(b, tol=1e-12)
-        # lu = umfpack.splu(A)
-        # u = umfpack.spsolve(A, b)
-
+        A,b = self.boundary(A, b)
         t3 = time.time()
-        pp = self.postProcess(u)
+        u = self.linearSolver(A, b)
         t4 = time.time()
+        pp = self.postProcess(u)
+        t5 = time.time()
         self.timer['rhs'] = t1-t0
         self.timer['matrix'] = t2-t1
-        self.timer['solve'] = t3-t2
-        self.timer['postproc'] = t4-t3
+        self.timer['bdry'] = t3-t2
+        self.timer['solve'] = t4-t3
+        self.timer['postp'] = t5-t4
         return pp
 
     def residual(self, u):

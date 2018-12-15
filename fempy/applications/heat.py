@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import scipy.linalg as linalg
 import fempy.tools.analyticalsolution
@@ -98,8 +99,10 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             edgesdir = self.mesh.bdrylabels[color]
             self.nodesdir[color] = np.unique(self.mesh.faces[edgesdir].flat[:])
             self.nodedirall = np.unique(np.union1d(self.nodedirall, self.nodesdir[color]))
+        self.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),self.nodedirall)
         # print("colorsdir", colorsdir)
         # print("nodesdir", self.nodesdir)
+        # print("self.nodesinner", self.nodesinner)
         self.bsaved={}
         self.Asaved={}
         self.nodesdirflux={}
@@ -111,8 +114,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             for color in colors:
                 edgesdir = self.mesh.bdrylabels[color]
                 self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
-
-
         self.kheatcell = np.zeros(ncells)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = np.zeros(ncells)
@@ -123,20 +124,16 @@ class Heat(solvers.newtonsolver.NewtonSolver):
     def solve(self, iter, dirname):
         return self.solveLinear()
     def computeRhs(self):
-        import time
         x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        t1 = time.time()
         if self.solexact:
             bnodes = -self.solexact.xx(x, y, z) - self.solexact.yy(x, y, z)- self.solexact.zz(x, y, z)
             bnodes *= self.kheat(0)
         else:
             bnodes = self.rhs(x, y, z)
         b = self.massmatrix*bnodes
-        t2 = time.time()
         normals =  self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             bdrycond = self.bdrycond.type[color]
-            # print("Boundary condition:", bdrycond)
             if bdrycond == "Neumann":
                 neumann = self.bdrycond.fct[color]
                 scale = 1/self.mesh.dimension
@@ -147,87 +144,48 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 assert(dS.shape[0] == len(edges))
                 assert(xS.shape[0] == len(edges))
                 assert(kS.shape[0] == len(edges))
-                normalsS[:, 0] /= dS
-                normalsS[:, 1] /= dS
-                normalsS[:, 2] /= dS
                 x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
-                nx, ny, nz = normalsS[:,0], normalsS[:,1], normalsS[:,2]
+                nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 bS =  scale * neumann(x1, y1, z1, nx, ny, nz, kS)*dS
-                # print("b[self.mesh.faces[edges].T].shape", b[self.mesh.faces[edges].T].shape, "bS.shape", bS.shape)
-                # b[self.mesh.faces[edges]] += bS
                 np.add.at(b, self.mesh.faces[edges].T, bS)
-                # for ii,ie in enumerate(edges):
-                #     b[self.mesh.faces[ie]] += bS[ii]
-                # btest = np.zeros((len(edges)))
-                # for ii,ie in enumerate(edges):
-                #     normal = normals[ie]
-                #     ic = self.mesh.cellsOfFaces[ie,0]
-                #     pe = np.mean(self.mesh.points[self.mesh.faces[ie]], axis=0)
-                #     d = linalg.norm(normal)
-                #     assert np.allclose(d, dS[ii])
-                #     assert np.allclose(self.kheatcell[ic], kS[ii])
-                #     assert np.allclose(pe, xS[ii])
-                #     assert np.allclose(normal/d, normalsS[ii])
-                #     bn = neumann(pe[0], pe[1], pe[2], normal[0]/d, normal[1]/d, normal[2]/d, self.kheatcell[ic]) * d
-                #     btest[ii] = scale * bn
-                #     # b[self.mesh.faces[ie]] += scale * bn
-                # if not np.allclose(bS, btest):
-                #     print("bS", bS)
-                #     print("btest", btest)
-                #     assert None
-        t3 = time.time()
+        return b
+    def matrix(self):
+        nnodes = self.mesh.nnodes
+        A = self.fem.assemble(self.kheatcell)
+        return sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
+    def boundary(self, A, b):
+        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
+        nnodes = self.mesh.nnodes
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
         for color, nodes in self.nodesdir.items():
             dirichlet = self.bdrycond.fct[color]
             b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-        t4 = time.time()
-        self.timer['rhs_fct'] = t2-t1
-        self.timer['rhs_neum'] = t3-t2
-        self.timer['rhs_dir'] = t4-t3
-        return b
-    def matrix(self):
-        import time
-        nnodes, ncells, normals = self.mesh.nnodes, self.mesh.ncells, self.mesh.normals
-        t1 = time.time()
-        A = self.fem.assemble(self.kheatcell)
-        t2 = time.time()
-        Asp = sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
-        t3 = time.time()
         for key, nodes in self.nodesdirflux.items():
             nb = nodes.shape[0]
-            # help = np.zeros((nnodes))
-            # help[nodes] = 1
-            # help = sparse.dia_matrix((help,0), shape=(nnodes,nnodes))
             help = sparse.dok_matrix((nb,nnodes))
             for i in range(nb): help[i, nodes[i]] = 1
-            self.Asaved[key] = help.dot(Asp)
-        # ndirs = self.nodedirall.shape[0]
-        # help = sparse.dia_matrix((np.ones(ndirs), 0), shape=(ndirs, nnodes))
-        # self.Asavedall = help.dot(Asp)
+            self.Asaved[key] = help.dot(A)
         help = np.ones((nnodes))
         help[self.nodedirall] = 0
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        Asp = help.dot(Asp)
+        # A = help.dot(A)
+        b[self.nodesinner] -= A[self.nodesinner,:][:,self.nodedirall]*b[self.nodedirall]
+        A = help.dot(A.dot(help))
         help = np.zeros((nnodes))
         help[self.nodedirall] = 1.0
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        Asp += help
-        t4 = time.time()
-        self.timer['mat_cells'] = t2-t1
-        self.timer['mat_coo'] = t3-t2
-        self.timer['mat_bdry'] = t4-t3
-        return Asp
+        A += help
+        return A,b
+
     def computeMean(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         mean, omega = 0, 0
         for color in colors:
             edges = self.mesh.bdrylabels[color]
-            for ie in edges:
-                normal = self.mesh.normals[ie]
-                d = linalg.norm(normal)
-                omega += d
-                mean += d*np.mean(u[self.mesh.faces[ie]])
+            normalsS = self.mesh.normals[edges]
+            dS = linalg.norm(normalsS, axis=1)
+            mean += np.sum(dS*np.mean(u[self.mesh.faces[edges]],axis=1))
         return mean
     def computeFlux(self, u, key, data):
         # colors = [int(x) for x in data.split(',')]
