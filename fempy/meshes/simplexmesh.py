@@ -21,11 +21,13 @@ class SimplexMesh(object):
     simplicial mesh
     dimension, nnodes, ncells, nfaces: dimension, number of nodes, simplices, faces
     points: coordinates of the vertices of shape (nnodes,3)
+    pointsc: coordinates of the barycenters (ncells,3)
     simplices: node ids of simplices of shape (ncells, dimension+1)
     faces: node ids of faces of shape (nfaces, dimension)
     facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]\setminus simplices[i,ii], sorted
     cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
     normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
+    sigma: orientation of normal per cell and face (ncells, dimension+1)
     dV: shape (ncells), volumes of simplices
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
 

@@ -12,8 +12,6 @@ def test_flux():
     geomname = "unitsquare"
     geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
-    # bdrycond.type[11] = "Neumann"
-    # bdrycond.type[22] = "Neumann"
     bdrycond.type[11] = "Dirichlet"
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[33] = "Dirichlet"
@@ -34,8 +32,8 @@ def test_flux():
 def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    problem = 'Analytic_Sinus'
+    problem = 'Analytic_Quadratic'
+    # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
@@ -48,7 +46,7 @@ def test_analytic():
     methods = {}
     methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03]
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
@@ -166,8 +164,8 @@ def test_coefs_stat():
 
 #================================================================#
 
-#test_analytic()
-test_analytic3d()
+test_analytic()
+#test_analytic3d()
 #test_solvers()
 #test_flux()
 #test_coefs_stat()

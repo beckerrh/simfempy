@@ -93,34 +93,12 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh)
-        self.massmatrix = self.fem.massMatrix()
         colorsdir = []
-        self.nodedirall = np.empty(shape=(0), dtype=int)
         for color, type in self.bdrycond.type.items():
             if type == "Dirichlet": colorsdir.append(color)
-        self.nodesdir={}
-        for color in colorsdir:
-            edgesdir = self.mesh.bdrylabels[color]
-            self.nodesdir[color] = np.unique(self.mesh.faces[edgesdir].flat[:])
-            self.nodedirall = np.unique(np.union1d(self.nodedirall, self.nodesdir[color]))
-        self.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),self.nodedirall)
-        # print("colorsdir", colorsdir)
-        # print("nodesdir", self.nodesdir)
-        # print("self.nodesinner", self.nodesinner)
-        self.bsaved={}
-        self.Asaved={}
-        self.nodesdirflux={}
-        for key, val in self.postproc.items():
-            type,data = val.split(":")
-            if type != "flux": continue
-            colors = [int(x) for x in data.split(',')]
-            self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
-            for color in colors:
-                edgesdir = self.mesh.bdrylabels[color]
-                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
+        self.fem.prepareBoundary(colorsdir, self.postproc)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
-        # print("self.kheatcell", self.kheatcell)
         t1 = time.time()
         self.timer['setmesh'] = t1-t0
     def solvestatic(self):
@@ -128,79 +106,11 @@ class Heat(solvers.newtonsolver.NewtonSolver):
     def solve(self, iter, dirname):
         return self.solveLinear()
     def computeRhs(self):
-        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        if self.solexact:
-            bnodes = -self.solexact.xx(x, y, z) - self.solexact.yy(x, y, z)- self.solexact.zz(x, y, z)
-            bnodes *= self.kheat(0)
-        else:
-            bnodes = self.rhs(x, y, z)
-        b = self.massmatrix*bnodes
-        normals =  self.mesh.normals
-        for color, edges in self.mesh.bdrylabels.items():
-            bdrycond = self.bdrycond.type[color]
-            if bdrycond == "Neumann":
-                neumann = self.bdrycond.fct[color]
-                scale = 1/self.mesh.dimension
-                normalsS = normals[edges]
-                dS = linalg.norm(normalsS,axis=1)
-                xS = np.mean(self.mesh.points[self.mesh.faces[edges]], axis=1)
-                kS = self.kheatcell[self.mesh.cellsOfFaces[edges,0]]
-                assert(dS.shape[0] == len(edges))
-                assert(xS.shape[0] == len(edges))
-                assert(kS.shape[0] == len(edges))
-                x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
-                nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                if self.solexact:
-                    bS = scale*dS*kS*(self.solexact.x(x1, y1, z1)*nx + self.solexact.y(x1, y1, z1)*ny + self.solexact.z(x1, y1, z1)*nz)
-                else:
-                    bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                np.add.at(b, self.mesh.faces[edges].T, bS)
-        return b
+        return self.fem.computeRhs(self.rhs, self.solexact, self.kheatcell, self.bdrycond)
     def matrix(self):
-        nnodes = self.mesh.nnodes
-        A = self.fem.assemble(self.kheatcell)
-        return sparse.coo_matrix((A, (self.fem.rows, self.fem.cols)), shape=(nnodes, nnodes)).tocsr()
+        return self.fem.matrixDiffusion(self.kheatcell)
     def boundary(self, A, b):
-        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        nnodes = self.mesh.nnodes
-        for key, nodes in self.nodesdirflux.items():
-            self.bsaved[key] = b[nodes]
-        for color, nodes in self.nodesdir.items():
-            dirichlet = self.bdrycond.fct[color]
-            b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-        for key, nodes in self.nodesdirflux.items():
-            nb = nodes.shape[0]
-            help = sparse.dok_matrix((nb,nnodes))
-            for i in range(nb): help[i, nodes[i]] = 1
-            self.Asaved[key] = help.dot(A)
-        help = np.ones((nnodes))
-        help[self.nodedirall] = 0
-        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        # A = help.dot(A)
-        b[self.nodesinner] -= A[self.nodesinner,:][:,self.nodedirall]*b[self.nodedirall]
-        A = help.dot(A.dot(help))
-        help = np.zeros((nnodes))
-        help[self.nodedirall] = 1.0
-        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        A += help
-        return A,b
-
-    def computeMean(self, u, key, data):
-        colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
-            edges = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[edges]
-            dS = linalg.norm(normalsS, axis=1)
-            mean += np.sum(dS*np.mean(u[self.mesh.faces[edges]],axis=1))
-        return mean
-    def computeFlux(self, u, key, data):
-        # colors = [int(x) for x in data.split(',')]
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(self.bsaved[key] - self.Asaved[key]*u )
-        return flux
+        return self.fem.boundary(A, b, self.bdrycond)
     def postProcess(self, u):
         info = {}
         cell_data = {}
@@ -215,9 +125,9 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         for key, val in self.postproc.items():
             type,data = val.split(":")
             if type == "mean":
-                info['postproc'][key] = self.computeMean(u, key, data)
+                info['postproc'][key] = self.fem.computeMean(u, key, data)
             elif type == "flux":
-                info['postproc'][key] = self.computeFlux(u, key, data)
+                info['postproc'][key] = self.fem.computeFlux(u, key, data)
             else:
                 raise ValueError("unknown postprocess {}".format(key))
         cell_data['k'] = self.kheatcell
