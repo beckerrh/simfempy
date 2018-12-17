@@ -167,7 +167,7 @@ def test_coefs_stat():
 #================================================================#
 
 #test_analytic()
-#test_analytic3d()
-test_solvers()
+test_analytic3d()
+#test_solvers()
 #test_flux()
 #test_coefs_stat()

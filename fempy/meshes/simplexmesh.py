@@ -110,27 +110,27 @@ class SimplexMesh(object):
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
         self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
-    def _constructCellLabels(self, simpgmsh, labelsgmsh):
-        if self.simplices.shape != simpgmsh.shape:
-            msg ="wrong shapes self.simplices={} simpgmsh={}".format(self.simplices.shape,simpgmsh.shape)
-            raise ValueError(msg)
-        simpsorted = np.sort(self.simplices, axis=1)
-        labelssorted = np.sort(simpgmsh, axis=1)
-        assert simpsorted.shape == labelssorted.shape
-        if self.dimension==2:
-            dts = "{0}, {0}, {0}".format(simpsorted.dtype)
-            dtl = "{0}, {0}, {0}".format(labelssorted.dtype)
-            sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2'), axis=0).flatten()
-            lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2'), axis=0).flatten()
-        else:
-            dts = "{0}, {0}, {0}, {0}".format(simpsorted.dtype)
-            dtl = "{0}, {0}, {0}, {0}".format(labelssorted.dtype)
-            sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2','f3'), axis=0).flatten()
-            lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2','f3'), axis=0).flatten()
-        spi = np.empty(sp.size, sp.dtype)
-        spi[sp] = np.arange(sp.size)
-        perm = lp[spi]
-        self.cell_labels = labelsgmsh[perm]
+    # def _constructCellLabels(self, simpgmsh, labelsgmsh):
+    #     if self.simplices.shape != simpgmsh.shape:
+    #         msg ="wrong shapes self.simplices={} simpgmsh={}".format(self.simplices.shape,simpgmsh.shape)
+    #         raise ValueError(msg)
+    #     simpsorted = np.sort(self.simplices, axis=1)
+    #     labelssorted = np.sort(simpgmsh, axis=1)
+    #     assert simpsorted.shape == labelssorted.shape
+    #     if self.dimension==2:
+    #         dts = "{0}, {0}, {0}".format(simpsorted.dtype)
+    #         dtl = "{0}, {0}, {0}".format(labelssorted.dtype)
+    #         sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2'), axis=0).flatten()
+    #         lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2'), axis=0).flatten()
+    #     else:
+    #         dts = "{0}, {0}, {0}, {0}".format(simpsorted.dtype)
+    #         dtl = "{0}, {0}, {0}, {0}".format(labelssorted.dtype)
+    #         sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2','f3'), axis=0).flatten()
+    #         lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2','f3'), axis=0).flatten()
+    #     spi = np.empty(sp.size, sp.dtype)
+    #     spi[sp] = np.arange(sp.size)
+    #     perm = lp[spi]
+    #     self.cell_labels = labelsgmsh[perm]
     def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
         simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
         count=0
@@ -244,6 +244,7 @@ class SimplexMesh(object):
             else:
                 xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
+        self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
     def write(self, filename, dirname = "out", point_data=None, cell_data=None):
         cell_data_meshio = {}
         if self.dimension ==2:

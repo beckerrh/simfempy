@@ -63,26 +63,32 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y+0.5*z)')
         else:
             raise ValueError("unknown analytic solution: {}".format(function))
-        class NeummannExact():
-            def __init__(self, ex):
-                self.ex = ex
-            def __call__(self, x, y, z, nx, ny, nz, k):
-                return k*(self.ex.x(x, y, z)*nx + self.ex.y(x, y, z)*ny + self.ex.z(x, y, z)*nz)
-        class RhsExact():
-            def __init__(self, ex, k):
-                self.ex = ex
-                self.k = k
-            def __call__(self, x, y, z):
-                return -self.k*(self.ex.xx(x, y, z) + self.ex.yy(x, y, z) + self.ex.zz(x, y, z))
-        neumannex = np.vectorize(NeummannExact(self.solexact).__call__)
-        self.rhs = np.vectorize(RhsExact(self.solexact, self.kheat).__call__)
-        for color, bc in self.bdrycond.type.items():
-            if bc == "Dirichlet":
-                self.bdrycond.fct[color] = self.solexact
-            elif bc == "Neumann":
-                self.bdrycond.fct[color] = neumannex
-            else:
-                raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
+        # class NeummannExact():
+        #     def __init__(self, ex):
+        #         self.ex = ex
+        #     def __call__(self, x, y, z, nx, ny, nz, k):
+        #         return k*(self.ex.x(x, y, z)*nx + self.ex.y(x, y, z)*ny + self.ex.z(x, y, z)*nz)
+        # class RhsExact():
+        #     def __init__(self, ex, k):
+        #         self.ex = ex
+        #         self.k = k
+        #     # def __call__(self, x, y, z):
+        #     #     return -self.k*(self.ex.xx(x, y, z) + self.ex.yy(x, y, z) + self.ex.zz(x, y, z))
+        # k0 = self.kheat(0)
+        # def rhs(x, y, z):
+        #     return -k0 * (self.solexact.xx(x, y, z) + self.solexact.yy(x, y, z) + self.solexact.zz(x, y, z))
+        #
+        # neumannex = np.vectorize(NeummannExact(self.solexact).__call__)
+        # rhsclass = RhsExact(self.solexact, self.kheat(0))
+        # self.rhs = np.vectorize(rhs)
+        if self.solexact:
+            for color, bc in self.bdrycond.type.items():
+                if bc == "Dirichlet":
+                    self.bdrycond.fct[color] = self.solexact
+                elif bc == "Neumann":
+                    self.bdrycond.fct[color] = None
+                else:
+                    raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
     def setMesh(self, mesh):
         t0 = time.time()
         self.mesh = mesh
@@ -144,7 +150,10 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 assert(kS.shape[0] == len(edges))
                 x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                bS =  scale * neumann(x1, y1, z1, nx, ny, nz, kS)*dS
+                if self.solexact:
+                    bS = scale*dS*kS*(self.solexact.x(x1, y1, z1)*nx + self.solexact.y(x1, y1, z1)*ny + self.solexact.z(x1, y1, z1)*nz)
+                else:
+                    bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
                 np.add.at(b, self.mesh.faces[edges].T, bS)
         return b
     def matrix(self):
@@ -198,7 +207,8 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         point_data = {}
         point_data['U'] = u
         if self.solexact:
-            info['error'], point_data['E'] = self.computeError(self.solexact, u)
+            info['error'] = {}
+            info['error']['L2'], point_data['E'] = self.fem.computeErrorL2(self.solexact, u)
         info['timer'] = self.timer
         info['runinfo'] = self.runinfo
         info['postproc'] = {}
@@ -212,12 +222,6 @@ class Heat(solvers.newtonsolver.NewtonSolver):
                 raise ValueError("unknown postprocess {}".format(key))
         cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
-    def computeError(self, solex, uh):
-        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        e = solex(x, y, z) - uh
-        errors = {}
-        errors['L2'] = np.sqrt( np.dot(e, self.massmatrix*e) )
-        return errors, e
 
 #=================================================================#
 if __name__ == '__main__':
