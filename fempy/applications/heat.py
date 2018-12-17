@@ -1,8 +1,6 @@
 import time
 import numpy as np
-import scipy.linalg as linalg
 import fempy.tools.analyticalsolution
-import scipy.sparse as sparse
 from fempy import solvers
 from fempy import fems
 
@@ -12,13 +10,20 @@ class Heat(solvers.newtonsolver.NewtonSolver):
     """
     def __init__(self, **kwargs):
         solvers.newtonsolver.NewtonSolver.__init__(self)
-        self.fem = fems.femp1.FemP1()
         self.dirichlet = None
         self.neumann = None
         self.rhs = None
         self.solexact = None
         self.bdrycond = kwargs.pop('bdrycond')
         self.kheat = None
+        fem = 'p1'
+        if 'fem' in kwargs: fem = kwargs.pop('fem')
+        if fem == 'p1':
+            self.fem = fems.femp1.FemP1()
+        elif fem == 'cr1':
+            self.fem = fems.femcr1.FemCR1()
+        else:
+            raise ValueError("unknown fem '{}'".format(fem))
         if 'rhocp' in kwargs:
             self.rhocp = np.vectorize(kwargs.pop('rhocp'))
         else:
@@ -111,14 +116,16 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         return self.fem.matrixDiffusion(self.kheatcell)
     def boundary(self, A, b):
         return self.fem.boundary(A, b, self.bdrycond)
+
     def postProcess(self, u):
         info = {}
         cell_data = {}
         point_data = {}
-        point_data['U'] = u
+        point_data['U'] = self.fem.tonode(u)
         if self.solexact:
             info['error'] = {}
-            info['error']['L2'], point_data['E'] = self.fem.computeErrorL2(self.solexact, u)
+            info['error']['L2'], e = self.fem.computeErrorL2(self.solexact, u)
+            point_data['E'] = self.fem.tonode(e)
         info['timer'] = self.timer
         info['runinfo'] = self.runinfo
         info['postproc'] = {}

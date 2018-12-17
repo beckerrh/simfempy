@@ -5,7 +5,6 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
-import time
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
@@ -22,14 +21,10 @@ class FemP1(object):
             self.setMesh(mesh)
     def setMesh(self, mesh):
         self.mesh = mesh
-        nloc = self.mesh.dimension+1
-        self.locmatmass = np.zeros((nloc, nloc))
-        self.locmatlap = np.zeros((nloc, nloc))
-        self.nloc = nloc
-        ncells, simps = self.mesh.ncells, self.mesh.simplices
-        npc = simps.shape[1]
-        self.cols = np.tile(simps, npc).flatten()
-        self.rows = np.repeat(simps, npc).flatten()
+        self.nloc = self.mesh.dimension+1
+        simps = self.mesh.simplices
+        self.cols = np.tile(simps, self.nloc).flatten()
+        self.rows = np.repeat(simps, self.nloc).flatten()
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
     def prepareBoundary(self, colorsdir, postproc):
@@ -125,6 +120,8 @@ class FemP1(object):
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
         A += help
         return A, b
+    def tonode(self, u):
+        return u
     def grad(self, ic):
         normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
         grads = 0.5*normals/self.mesh.dV[ic]

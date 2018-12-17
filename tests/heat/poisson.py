@@ -32,21 +32,25 @@ def test_flux():
 def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
-    problem = 'Analytic_Quadratic'
+    # problem = 'Analytic_Quadratic'
     # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
     bdrycond.type[33] = "Neumann"
+    bdrycond.type[11] = "Dirichlet"
+    bdrycond.type[33] = "Dirichlet"
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
     postproc = {}
     postproc['mean'] = "mean:11,33"
     postproc['flux'] = "flux:22,44"
     methods = {}
-    methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    fems = ['cr1']
+    for fem in fems:
+        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015]
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
@@ -67,7 +71,9 @@ def test_analytic3d():
     postproc['mean'] = "mean:11,22"
     postproc['flux'] = "flux:33,44,55,66"
     methods = {}
-    methods['p1'] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    fems = ['p1']
+    for fem in fems:
+        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     h = [np.power(i*20,-2/3) for i in range(1,6)]
     h = [1.0, 0.5, 0.25, 0.13, 0.08, 0.05, 0.03]
