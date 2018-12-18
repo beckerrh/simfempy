@@ -31,15 +31,19 @@ class TableData(object):
         self.rotatenames = False
         self.nname = nname
     def computePercentage(self):
+        self.values['sum'] = np.zeros(len(self.n))
         for i in range(len(self.n)):
             sum = 0
             for key, value in self.values.items():
                 sum += self.values[key][i]
+            self.values['sum'][i] = sum
             for key, value in self.values.items():
+                if key=='sum': continue
                 self.values[key][i] *= 100/sum
         for key in self.values.keys():
             self.precs[key] = 1
             self.types[key] = 'ffloat'
+        self.types['sum'] = 'float'
     def computeDiffs(self):
         n, values, keys = self.n, self.values, list(self.values.keys())
         for key in keys:
@@ -86,35 +90,6 @@ class LatexWriter(object):
         self.data = {}
         self.countdata = 0
         print(self.dirname, self.latexfilename)
-
-    # def computeReductionRate(self, tabledata):
-    #     n = tabledata.n
-    #     values = tabledata.values
-    #     keys = list(values.keys())
-    #     orders = {}
-    #     for key in keys:
-    #         key2 = key + '-o'
-    #         valorder = np.zeros(len(n))
-    #         for i in range(1,len(n)):
-    #             try:
-    #                 fnd = float(n[i])/float(n[i-1])
-    #                 alpha = -2.0* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
-    #                 # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
-    #             except:
-    #                 alpha=-1
-    #             valorder[i] = alpha
-    #         values[key2] = valorder
-    #         tabledata.precs[key2] = 2
-    #         tabledata.types[key2] = 'ffloat'
-    #         orders[key] = -1
-    #         fnd = float(n[-1]) / float(n[0])
-    #         if len(n)>1:
-    #             try:
-    #                 orders[key] = -2.0* np.log(values[key][-1]/values[key][0]) / np.log(fnd)
-    #             except:
-    #                 pass
-    #     return tabledata, orders
-
     def append(self, n, values, dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
         if name is None:
             name = 'table%1d' %self.countdata

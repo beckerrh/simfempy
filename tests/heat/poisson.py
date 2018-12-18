@@ -24,7 +24,8 @@ def test_flux():
     # postproc['mean'] = "11,22"
     postproc['flux'] = "flux:11,22,33,44,55,66"
     methods = {}
-    methods['p1'] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc)
+    for fem in ['p1', 'cr1']:
+        methods[fem] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06])
 
@@ -32,25 +33,23 @@ def test_flux():
 def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    # problem = 'Analytic_Sinus'
+    problem = 'Analytic_Quadratic'
+    problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
     bdrycond.type[33] = "Neumann"
-    bdrycond.type[11] = "Dirichlet"
-    bdrycond.type[33] = "Dirichlet"
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
     postproc = {}
     postproc['mean'] = "mean:11,33"
     postproc['flux'] = "flux:22,44"
     methods = {}
-    fems = ['cr1']
-    for fem in fems:
+    for fem in ['p1', 'cr1']:
         methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
+    h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015]
+    # h = [2.0, 1.0]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
@@ -59,7 +58,7 @@ def test_analytic3d():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear3d'
     problem = 'Analytic_Quadratic3d'
-    # problem = 'Analytic_Sinus3d'
+    problem = 'Analytic_Sinus3d'
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
     bdrycond.type[22] = "Neumann"
@@ -71,12 +70,11 @@ def test_analytic3d():
     postproc['mean'] = "mean:11,22"
     postproc['flux'] = "flux:33,44,55,66"
     methods = {}
-    fems = ['p1']
-    for fem in fems:
-        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    for fem in ['p1', 'cr1']:
+        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     h = [np.power(i*20,-2/3) for i in range(1,6)]
-    h = [1.0, 0.5, 0.25, 0.13, 0.08, 0.05, 0.03]
+    h = [1.0, 0.5, 0.25, 0.13, 0.08]
     print("h", h)
     result = comp.compare(geomname="unitcube", h=h)
 
@@ -95,7 +93,7 @@ def test_solvers():
     postproc = {}
     postproc['mean'] = "mean:11,22"
     postproc['flux'] = "flux:33,44,55,66"
-    heat  = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    heat  = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
     mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname='unitcube', hmean=0.05)
     heat.setMesh(mesh)
     print("heat.linearsolvers=", heat.linearsolvers)
@@ -158,20 +156,22 @@ def test_coefs_stat():
     postproc['mean33'] = "mean:33"
     postproc['flux22'] = "flux:22"
     postproc['flux44'] = "flux:44"
-    heat = fempy.applications.heat.Heat(rhs=rhs, bdrycond=bdrycond, kheat=kheat, postproc=postproc)
-    heat.setMesh(mesh)
-    point_data, cell_data, info = heat.solvestatic()
-    print("time: {}".format(info['timer']))
-    print("postproc: {}".format(info['postproc']))
-    fempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
-    plt.show()
+
+    for fem in ['p1', 'cr1']:
+        heat = fempy.applications.heat.Heat(rhs=rhs, bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem)
+        heat.setMesh(mesh)
+        point_data, cell_data, info = heat.solvestatic()
+        print("time: {}".format(info['timer']))
+        print("postproc: {}".format(info['postproc']))
+        fempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
+        plt.show()
 
 
 
 #================================================================#
 
-test_analytic()
-#test_analytic3d()
+#test_analytic()
+test_analytic3d()
 #test_solvers()
 #test_flux()
 #test_coefs_stat()

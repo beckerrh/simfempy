@@ -34,7 +34,7 @@ class NewtonSolver(object):
             self.linearsolvers.append('umfpack')
         except: pass
 
-    def linearSolver(self, A, b, solver = 'pyamg'):
+    def linearSolver(self, A, b, solver = 'scipy'):
         if solver == 'scipy':
             return splinalg.spsolve(A, b)
         elif solver == 'pyamg':

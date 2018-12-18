@@ -83,8 +83,9 @@ class CompareErrors(object):
                 for key3, info3 in info2.items():
                     self.infos[key2][key3] = {}
                     # print("key3", key3,"info3", info3)
-                    # for name in self.methods.keys():
-                    self.infos[key2][key3][name] = np.zeros(shape=(n), dtype=type(info3))
+                    for name2 in self.methods.keys():
+                        self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
+                    self.infos[key2][key3][name][iter] = info3
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
                 # for name in self.methods.keys():

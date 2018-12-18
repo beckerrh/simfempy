@@ -28,8 +28,8 @@ class FemCR1(object):
         self.massmatrix = self.massMatrix()
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
     def prepareBoundary(self, colorsdir, postproc):
-        self.facesdir={}
         self.facesdirall = np.empty(shape=(0), dtype=int)
+        self.colorsdir = colorsdir
         for color in colorsdir:
             facesdir = self.mesh.bdrylabels[color]
             self.facesdirall = np.unique(np.union1d(self.facesdirall, facesdir))
@@ -54,24 +54,23 @@ class FemCR1(object):
             bnodes = rhs(x, y, z)
         b = self.massmatrix*bnodes
         normals =  self.mesh.normals
-        for color, edges in self.mesh.bdrylabels.items():
+        for color, faces in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]
             if condition == "Neumann":
                 neumann = bdrycond.fct[color]
-                scale = 1/self.mesh.dimension
-                normalsS = normals[edges]
+                normalsS = normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
-                kS = kheatcell[self.mesh.cellsOfFaces[edges,0]]
-                assert(dS.shape[0] == len(edges))
-                assert(kS.shape[0] == len(edges))
-                x1, y1, z1 = self.pointsf[edges,0], self.pointsf[edges,1], self.pointsf[edges,2]
+                kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
+                assert(dS.shape[0] == len(faces))
+                assert(kS.shape[0] == len(faces))
+                x1, y1, z1 = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if solexact:
-                    bS = scale*dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
+                    bS = dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
                 else:
-                    bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                # b[self.mesh.faces[edges]] += bS
-                np.add.at(b, self.mesh.faces[edges].T, bS)
+                    bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                b[faces] += bS
+                # np.add.at(b, faces.T, bS)
         return b
     def massMatrix(self):
         nfaces = self.mesh.nfaces
@@ -88,16 +87,18 @@ class FemCR1(object):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1
         self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
-        scalemass = 1 / self.nloc / (self.nloc+1);
+        dim = self.mesh.dimension
+        scalemass = (2-dim) / (dim+1) / (dim+2)
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
+        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
         self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
     def boundary(self, A, b, bdrycond):
         x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
         nfaces = self.mesh.nfaces
-        for key, nodes in self.facesdirflux.items():
-            self.bsaved[key] = b[nodes]
-        for color, faces in self.facesdir.items():
+        for key, faces in self.facesdirflux.items():
+            self.bsaved[key] = b[faces]
+        for color in self.colorsdir:
+            faces = self.mesh.bdrylabels[color]
             dirichlet = bdrycond.fct[color]
             b[faces] = dirichlet(x[faces], y[faces], z[faces])
         for key, faces in self.facesdirflux.items():
@@ -156,7 +157,7 @@ class FemCR1(object):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            mean += np.sum(dS*np.mean(u[self.mesh.faces[faces]],axis=1))
+            mean += np.sum(dS*u[faces])
         return mean
     def computeFlux(self, u, key, data):
         # colors = [int(x) for x in data.split(',')]
