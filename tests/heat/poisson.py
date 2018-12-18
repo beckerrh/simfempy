@@ -33,8 +33,8 @@ def test_flux():
 def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
-    problem = 'Analytic_Quadratic'
-    problem = 'Analytic_Sinus'
+    # problem = 'Analytic_Quadratic'
+    # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
@@ -108,10 +108,9 @@ def test_solvers():
 
 
 #----------------------------------------------------------------#
-def geometryResistance():
+def geometryResistance(h=0.04):
     import pygmsh
     geometry = pygmsh.built_in.Geometry()
-    h = 0.05
     a, b = 1.0, 2.0
     d, e = 0.5, 0.25
     h1 = geometry.add_rectangle(-d, d, -e, e, 0, lcar=h)
@@ -128,7 +127,7 @@ def geometryResistance():
 #----------------------------------------------------------------#
 def test_coefs_stat():
     import matplotlib.pyplot as plt
-    data = geometryResistance()
+    data = geometryResistance(h=0.07)
     # points, cells, celldata = data[0], data[1], data[2]
     # plt.triplot(points[:,0], points[:,1], cells['triangle'])
     # plt.show()
@@ -149,7 +148,7 @@ def test_coefs_stat():
     rhs = lambda x, y, z: 0.
     def kheat(label):
         if label==111: return 0.1
-        return 100.0
+        return 10000.0
 
     postproc = {}
     postproc['mean11'] = "mean:11"
@@ -158,7 +157,7 @@ def test_coefs_stat():
     postproc['flux44'] = "flux:44"
 
     for fem in ['p1', 'cr1']:
-        heat = fempy.applications.heat.Heat(rhs=rhs, bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem)
+        heat = fempy.applications.heat.Heat(bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem)
         heat.setMesh(mesh)
         point_data, cell_data, info = heat.solvestatic()
         print("time: {}".format(info['timer']))
@@ -171,7 +170,7 @@ def test_coefs_stat():
 #================================================================#
 
 #test_analytic()
-test_analytic3d()
+#test_analytic3d()
 #test_solvers()
 #test_flux()
-#test_coefs_stat()
+test_coefs_stat()

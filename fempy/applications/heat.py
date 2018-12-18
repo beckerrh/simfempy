@@ -34,8 +34,10 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.kheat = np.vectorize(lambda i: 0.123)
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
-        else:
-            self.rhs = np.vectorize(kwargs.pop('rhs'))
+        if 'rhs' in kwargs:
+            rhs = kwargs.pop('rhs')
+            assert rhs is not None
+            self.rhs = np.vectorize(rhs)
         if 'postproc' in kwargs:
             self.postproc = kwargs.pop('postproc')
         else:

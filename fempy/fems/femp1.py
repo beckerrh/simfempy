@@ -50,13 +50,16 @@ class FemP1(object):
                 edgesdir = self.mesh.bdrylabels[color]
                 self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
     def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
-        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        if solexact:
-            bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
-            bnodes *= kheatcell[0]
+        if solexact or rhs:
+            x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
+            if solexact:
+                bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
+                bnodes *= kheatcell[0]
+            else:
+                bnodes = rhs(x, y, z)
+            b = self.massmatrix*bnodes
         else:
-            bnodes = rhs(x, y, z)
-        b = self.massmatrix*bnodes
+            b = np.zeros(self.mesh.nnodes)
         normals =  self.mesh.normals
         for color, edges in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]

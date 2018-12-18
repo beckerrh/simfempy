@@ -46,13 +46,16 @@ class FemCR1(object):
                 facesdir = self.mesh.bdrylabels[color]
                 self.facesdirflux[key] = np.unique(np.union1d(self.facesdirflux[key], facesdir).flatten())
     def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
-        x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
-        if solexact:
-            bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
-            bnodes *= kheatcell[0]
+        if solexact or rhs:
+            x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
+            if solexact:
+                bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
+                bnodes *= kheatcell[0]
+            else:
+                bnodes = rhs(x, y, z)
+            b = self.massmatrix*bnodes
         else:
-            bnodes = rhs(x, y, z)
-        b = self.massmatrix*bnodes
+            b = np.zeros(self.mesh.nfaces)
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]
@@ -70,7 +73,6 @@ class FemCR1(object):
                 else:
                     bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
                 b[faces] += bS
-                # np.add.at(b, faces.T, bS)
         return b
     def massMatrix(self):
         nfaces = self.mesh.nfaces
@@ -168,7 +170,12 @@ class FemCR1(object):
         return flux
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
-        np.add.at(unodes, self.mesh.faces.T, u)
+        scale = self.mesh.dimension
+        np.add.at(unodes, self.mesh.simplices.T, np.sum(u[self.mesh.facesOfCells], axis=1))
+        np.add.at(unodes, self.mesh.simplices.T, -scale*u[self.mesh.facesOfCells].T)
+        countnodes = np.zeros(self.mesh.nnodes, dtype=int)
+        np.add.at(countnodes, self.mesh.simplices.T, 1)
+        unodes /= countnodes
         return unodes
 
 
