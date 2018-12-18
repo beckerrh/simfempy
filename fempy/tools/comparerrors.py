@@ -83,8 +83,9 @@ class CompareErrors(object):
                 for key3, info3 in info2.items():
                     self.infos[key2][key3] = {}
                     # print("key3", key3,"info3", info3)
-                    # for name in self.methods.keys():
-                    self.infos[key2][key3][name] = np.zeros(shape=(n), dtype=type(info3))
+                    for name2 in self.methods.keys():
+                        self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
+                    self.infos[key2][key3][name][iter] = info3
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
                 # for name in self.methods.keys():
@@ -114,6 +115,8 @@ class CompareErrors(object):
         fnd = float(ncells[-1]) / float(ncells[0])
         order = -dim * np.log(values[-1] / values[0]) / np.log(fnd)
         return np.power(ncells, -order / dim), np.round(order,2)
+
+
     def plotPostprocs(self, names, paramname, parameters, infos):
         nmethods = len(names)
         self.reds = np.outer(np.linspace(0.2,0.8,nmethods),[0,1,1])
