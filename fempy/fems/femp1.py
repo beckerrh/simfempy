@@ -47,8 +47,8 @@ class FemP1(object):
             colors = [int(x) for x in data.split(',')]
             self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
-                edgesdir = self.mesh.bdrylabels[color]
-                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[edgesdir].flatten())))
+                facesdir = self.mesh.bdrylabels[color]
+                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
     def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
         if solexact or rhs:
             x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
@@ -61,25 +61,25 @@ class FemP1(object):
         else:
             b = np.zeros(self.mesh.nnodes)
         normals =  self.mesh.normals
-        for color, edges in self.mesh.bdrylabels.items():
+        for color, faces in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]
             if condition == "Neumann":
                 neumann = bdrycond.fct[color]
                 scale = 1/self.mesh.dimension
-                normalsS = normals[edges]
+                normalsS = normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
-                xS = np.mean(self.mesh.points[self.mesh.faces[edges]], axis=1)
-                kS = kheatcell[self.mesh.cellsOfFaces[edges,0]]
-                assert(dS.shape[0] == len(edges))
-                assert(xS.shape[0] == len(edges))
-                assert(kS.shape[0] == len(edges))
+                xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
+                kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
+                assert(dS.shape[0] == len(faces))
+                assert(xS.shape[0] == len(faces))
+                assert(kS.shape[0] == len(faces))
                 x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if solexact:
                     bS = scale*dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
                 else:
                     bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                np.add.at(b, self.mesh.faces[edges].T, bS)
+                np.add.at(b, self.mesh.faces[faces].T, bS)
         return b
     def massMatrix(self):
         nnodes = self.mesh.nnodes
@@ -100,29 +100,44 @@ class FemP1(object):
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
         self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
-    def boundary(self, A, b, bdrycond):
+    def boundary(self, A, b, u, bdrycond, method):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
         nnodes = self.mesh.nnodes
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
-        for color, nodes in self.nodesdir.items():
-            dirichlet = bdrycond.fct[color]
-            b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
         for key, nodes in self.nodesdirflux.items():
             nb = nodes.shape[0]
             help = sparse.dok_matrix((nb, nnodes))
             for i in range(nb): help[i, nodes[i]] = 1
             self.Asaved[key] = help.dot(A)
-        help = np.ones((nnodes))
-        help[self.nodedirall] = 0
-        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        b[self.nodesinner] -= A[self.nodesinner, :][:, self.nodedirall] * b[self.nodedirall]
-        A = help.dot(A.dot(help))
-        help = np.zeros((nnodes))
-        help[self.nodedirall] = 1.0
-        help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-        A += help
-        return A, b
+        if method == 'trad':
+            for color, nodes in self.nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                u[nodes] = b[nodes]
+            b[self.nodesinner] -= A[self.nodesinner, :][:, self.nodedirall] * b[self.nodedirall]
+            help = np.ones((nnodes))
+            help[self.nodedirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            A = help.dot(A.dot(help))
+            help = np.zeros((nnodes))
+            help[self.nodedirall] = 1.0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            A += help
+        else:
+            for color, nodes in self.nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                b[nodes] = 0
+            b -= A*u
+            help = np.ones((nnodes))
+            help[self.nodedirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            help2 = np.zeros((nnodes))
+            help2[self.nodedirall] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+        return A, b, u
     def tonode(self, u):
         return u
     def grad(self, ic):

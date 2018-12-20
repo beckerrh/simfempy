@@ -94,30 +94,46 @@ class FemCR1(object):
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
         self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
-    def boundary(self, A, b, bdrycond):
+    def boundary(self, A, b, u, bdrycond, method):
         x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
         nfaces = self.mesh.nfaces
         for key, faces in self.facesdirflux.items():
             self.bsaved[key] = b[faces]
-        for color in self.colorsdir:
-            faces = self.mesh.bdrylabels[color]
-            dirichlet = bdrycond.fct[color]
-            b[faces] = dirichlet(x[faces], y[faces], z[faces])
         for key, faces in self.facesdirflux.items():
             nb = faces.shape[0]
             help = sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
             self.Asaved[key] = help.dot(A)
-        help = np.ones((nfaces))
-        help[self.facesdirall] = 0
-        help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
-        b[self.facesinner] -= A[self.facesinner, :][:, self.facesdirall] * b[self.facesdirall]
-        A = help.dot(A.dot(help))
-        help = np.zeros((nfaces))
-        help[self.facesdirall] = 1.0
-        help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
-        A += help
-        return A, b
+        if method == 'trad':
+            for color in self.colorsdir:
+                faces = self.mesh.bdrylabels[color]
+                dirichlet = bdrycond.fct[color]
+                b[faces] = dirichlet(x[faces], y[faces], z[faces])
+                u[faces] = b[faces]
+            b[self.facesinner] -= A[self.facesinner, :][:, self.facesdirall] * b[self.facesdirall]
+            help = np.ones((nfaces))
+            help[self.facesdirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            A = help.dot(A.dot(help))
+            help = np.zeros((nfaces))
+            help[self.facesdirall] = 1.0
+            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            A += help
+        else:
+            for color in self.colorsdir:
+                faces = self.mesh.bdrylabels[color]
+                dirichlet = bdrycond.fct[color]
+                u[faces] = dirichlet(x[faces], y[faces], z[faces])
+                b[faces] = 0
+            b -= A * u
+            help = np.ones((nfaces))
+            help[self.facesdirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            help2 = np.zeros((nfaces))
+            help2[self.facesdirall] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+        return A, b, u
     def grad(self, ic):
         normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
         grads = -normals/self.mesh.dV[ic]

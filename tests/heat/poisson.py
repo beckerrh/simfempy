@@ -16,18 +16,21 @@ def test_flux():
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[33] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
-    bdrycond.type[55] = "Dirichlet"
-    bdrycond.type[66] = "Dirichlet"
     bdrycond.fct[11] = lambda x,y,z: 0
-    bdrycond.fct[66] = bdrycond.fct[55] = bdrycond.fct[44] = bdrycond.fct[33] = bdrycond.fct[22] = bdrycond.fct[11]
+    bdrycond.fct[44] = bdrycond.fct[33] = bdrycond.fct[22] = bdrycond.fct[11]
     postproc = {}
-    # postproc['mean'] = "11,22"
-    postproc['flux'] = "flux:11,22,33,44,55,66"
+    postproc['flux'] = "flux:11,22,33,44"
+    if geomname == "unitcube":
+        bdrycond.type[55] = "Dirichlet"
+        bdrycond.type[66] = "Dirichlet"
+        bdrycond.fct[66] = bdrycond.fct[55] = bdrycond.fct[44]
+        postproc['flux'] += ",55,66"
     methods = {}
-    for fem in ['p1', 'cr1']:
-        methods[fem] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem)
+    for method in ['cr1-trad', 'cr1-new']:
+        fem, meth  = method.split('-')
+        methods[method] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem, method=meth)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    result = comp.compare(geomname=geomname, h=[2.0, 1.0, 0.5, 0.25, 0.125, 0.06])
+    result = comp.compare(geomname=geomname, h=[2, 1, 0.5, 0.25, 0.125, 0.06, 0.03])
 
 #----------------------------------------------------------------#
 def test_analytic():
@@ -48,7 +51,7 @@ def test_analytic():
     for fem in ['p1', 'cr1']:
         methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015]
+    h = [0.5, 0.25, 0.125, 0.06, 0.03]
     # h = [2.0, 1.0]
     result = comp.compare(geomname=geomname, h=h)
 
@@ -172,5 +175,5 @@ def test_coefs_stat():
 #test_analytic()
 #test_analytic3d()
 #test_solvers()
-#test_flux()
-test_coefs_stat()
+test_flux()
+#test_coefs_stat()

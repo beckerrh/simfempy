@@ -34,17 +34,17 @@ class NewtonSolver(object):
             self.linearsolvers.append('umfpack')
         except: pass
 
-    def linearSolver(self, A, b, solver = 'scipy'):
+    def linearSolver(self, A, b, u, solver = 'pyamg'):
         if solver == 'scipy':
             return splinalg.spsolve(A, b)
         elif solver == 'pyamg':
             import pyamg
             res=[]
-            u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False)
-            # msg=""
-            # for i, r in enumerate(res):
-            #     msg += "{1:8.2e}({0:3d})  ".format(i,r)
-            # print(msg)
+            u = pyamg.solve(A, b, x0=u, tol=1e-10, residuals=res, verb=False)
+            msg=""
+            for i, r in enumerate(res):
+                msg += "{1:8.2e}({0:3d})  ".format(i,r)
+            print(msg)
             return u
         elif solver == 'umfpack':
             from scikits import umfpack
@@ -66,12 +66,13 @@ class NewtonSolver(object):
     def solveLinear(self):
         t0 = time.time()
         b = self.computeRhs()
+        u = np.zeros_like(b)
         t1 = time.time()
         A = self.matrix()
         t2 = time.time()
-        A,b = self.boundary(A, b)
+        A,b,u = self.boundary(A, b, u)
         t3 = time.time()
-        u = self.linearSolver(A, b)
+        u = self.linearSolver(A, b, u)
         t4 = time.time()
         pp = self.postProcess(u)
         t5 = time.time()
