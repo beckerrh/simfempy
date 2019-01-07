@@ -60,7 +60,7 @@ def meshWithNodesAndFaces(x, y, tris, xf, yf, faces, ax=plt):
     _settitle(ax, "Nodes and Faces")
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=False):
+def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=False, title=None):
     nplots = len(point_data)+len(cell_data)
     if nplots==0:
         print("meshWithData() no point_data")
@@ -88,4 +88,5 @@ def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=Fa
         plt.colorbar(cnt, ax=ax)
         _settitle(ax, cdn)
         count += 1
+    if title: fig.canvas.set_window_title(title)
     plt.tight_layout()

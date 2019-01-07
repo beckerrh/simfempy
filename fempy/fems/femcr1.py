@@ -125,7 +125,8 @@ class FemCR1(object):
                 dirichlet = bdrycond.fct[color]
                 u[faces] = dirichlet(x[faces], y[faces], z[faces])
                 b[faces] = 0
-            b -= A * u
+            b -= A*u
+            b[self.facesdirall] += 2*A[self.facesdirall, :][:, self.facesdirall] * u[self.facesdirall]
             help = np.ones((nfaces))
             help[self.facesdirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))

@@ -130,6 +130,7 @@ class FemP1(object):
                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 b[nodes] = 0
             b -= A*u
+            b[self.nodedirall] += 2*A[self.nodedirall, :][:, self.nodedirall] * u[self.nodedirall]
             help = np.ones((nnodes))
             help[self.nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))

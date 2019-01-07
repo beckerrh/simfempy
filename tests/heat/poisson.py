@@ -26,11 +26,12 @@ def test_flux():
         bdrycond.fct[66] = bdrycond.fct[55] = bdrycond.fct[44]
         postproc['flux'] += ",55,66"
     methods = {}
-    for method in ['cr1-trad', 'cr1-new']:
+    for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')
         methods[method] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem, method=meth)
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    result = comp.compare(geomname=geomname, h=[2, 1, 0.5, 0.25, 0.125, 0.06, 0.03])
+    h = [2, 1, 0.5, 0.25, 0.125]
+    result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
 def test_analytic():
@@ -49,10 +50,10 @@ def test_analytic():
     postproc['flux'] = "flux:22,44"
     methods = {}
     for fem in ['p1', 'cr1']:
-        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
+        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method='new')
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
-    # h = [2.0, 1.0]
+    h = [2.0, 1.0, 0.5]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
@@ -130,7 +131,7 @@ def geometryResistance(h=0.04):
 #----------------------------------------------------------------#
 def test_coefs_stat():
     import matplotlib.pyplot as plt
-    data = geometryResistance(h=0.07)
+    data = geometryResistance(h=0.005)
     # points, cells, celldata = data[0], data[1], data[2]
     # plt.triplot(points[:,0], points[:,1], cells['triangle'])
     # plt.show()
@@ -159,7 +160,9 @@ def test_coefs_stat():
     postproc['flux22'] = "flux:22"
     postproc['flux44'] = "flux:44"
 
-    for fem in ['p1', 'cr1']:
+    fems = ['p1', 'cr1']
+    fems = ['p1']
+    for fem in fems:
         heat = fempy.applications.heat.Heat(bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem)
         heat.setMesh(mesh)
         point_data, cell_data, info = heat.solvestatic()
@@ -172,8 +175,8 @@ def test_coefs_stat():
 
 #================================================================#
 
-#test_analytic()
+test_analytic()
 #test_analytic3d()
 #test_solvers()
-test_flux()
-#test_coefs_stat()
+# test_flux()
+# test_coefs_stat()
