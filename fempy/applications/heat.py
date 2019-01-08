@@ -46,6 +46,7 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.method = kwargs.pop('method')
         else:
             self.method="trad"
+            
     def defineProblem(self, problem):
         self.problem = problem
         problemsplit = problem.split('_')

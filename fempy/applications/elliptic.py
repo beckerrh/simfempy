@@ -26,6 +26,8 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
         if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
         self.bdrycond = kwargs.pop('bdrycond')
         assert len(self.bdrycond) == self.ncomp
+        if 'problemname' in kwargs:
+            self.problemname = kwargs.pop('problemname')
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
         if 'solexact' in kwargs:
@@ -64,32 +66,16 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
         else: self.method="trad"
         if 'show_diff' in kwargs: self.show_diff = kwargs.pop('show_diff')
         else: self.show_diff=False
+        
     def defineProblem(self, problem):
         self.problem = problem
+        print("self.problem",self.problem)
         problemsplit = problem.split('_')
         if problemsplit[0] != 'Analytic':
             raise ValueError("unownd problem {}".format(problem))
         function = problemsplit[1]
-        self.solexact = []
-        for i in range(self.ncomp):
-            p = (4 * np.random.rand() - 2) / 3
-            q = (4 * np.random.rand() - 2) / 3
-            r = (4 * np.random.rand() - 2) / 3
-            if function == 'Linear':
-                fct = '{:3.1f} * x + {:3.1f} * y'.format(p,q)
-            elif function == 'Linear3d':
-                fct = '{:3.1f}*x + {:3.1f}*y + {:3.1f}*z'.format(p, q, r)
-            elif function == 'Quadratic':
-                fct = '{:3.1f}*x*x + {:3.1f}*y*y'.format(p, q)
-            elif function == 'Quadratic3d':
-                fct = '{:3.1f}*x*x + {:3.1f}*y*y + {:3.1f}*z*z'.format(p, q, r)
-            elif function == 'Sinus':
-                fct = 'sin({:3.1f}*x + {:3.1f}*y)'.format(p, q)
-            elif function == 'Sinus3d':
-                fct = 'sin({:3.1f}*x + {:3.1f}*y + {:3.1f}*z)'.format(p, q, r)
-            else:
-                raise ValueError("unknown analytic solution: {}".format(function))
-            self.solexact.append(fempy.tools.analyticalsolution.AnalyticalSolution(fct))
+        self.solexact = fempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
+        
     def setMesh(self, mesh):
         t0 = time.time()
         self.mesh = mesh
@@ -104,14 +90,19 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
             self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
         t1 = time.time()
         self.timer['setmesh'] = t1-t0
+        
     def solvestatic(self):
         return self.solveLinear()
+        
     def solve(self, iter, dirname):
         return self.solveLinear()
+        
     def computeRhs(self):
         return self.fem.computeRhs(self.rhs, self.solexact, self.diffcell, self.bdrycond)
+        
     def matrix(self):
         return self.fem.matrixDiffusion(self.diffcell)
+        
     def boundary(self, A, b, u):
         return self.fem.boundary(A, b, u, self.bdrycond, self.bdrydata, self.method)
 

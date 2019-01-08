@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits import mplot3d
 from matplotlib import colors as mcolors
-from mayavi import mlab
 
 #----------------------------------------------------------------#
 def _settitle(ax, text):
@@ -52,6 +51,11 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
 
 #=================================================================#
 def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
+    return
+
+#=================================================================#
+def meshWithData3(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
+    from mayavi import mlab
     from tvtk.api import tvtk
     v = mlab.figure()
     ug = tvtk.UnstructuredGrid()

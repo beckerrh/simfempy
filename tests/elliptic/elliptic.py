@@ -13,7 +13,7 @@ def test_analytic():
     problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
     geomname = "unitsquare"
-    geomname = "unitcube"
+    # geomname = "unitcube"
     bdrycond0 =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond0.type[11] = "Neumann"
     bdrycond0.type[33] = "Neumann"
@@ -54,4 +54,3 @@ def test_analytic():
 #================================================================#
 
 test_analytic()
-#test_analytic3d()

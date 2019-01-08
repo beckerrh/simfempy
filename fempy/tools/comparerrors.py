@@ -20,11 +20,14 @@ class CompareErrors(object):
         self.problemname = "none"
         for name, method in self.methods.items():
             if self.problemname =="none":
+                print("method.problem=", method.problem)
                 try: self.problemname = method.problem
                 except: pass
             else:
                 assert self.problemname == method.problem
         self.dirname = "Results_" + self.problemname
+        import os
+        print("self.dirname=", self.dirname, "", os.getcwd())
         self.latex = True
         self.vtk = True
         self.plot = True
@@ -44,6 +47,7 @@ class CompareErrors(object):
             self.paramname = "ncells"
         self.parameters = []
         self.infos = None
+        
     def compare(self, geomname="unitsquare", h=None, params=None):
         if self.paramname == "ncells":
             params = h
