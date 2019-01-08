@@ -51,22 +51,18 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
 
 #=================================================================#
 def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
+    import vtki
+    import vtk
+    xyz = np.stack((x, y, z)).T
+    ntets = tets.shape[0]
+    cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
+    offset = 5*np.arange(ntets)
+    cells = np.insert(tets, 0, 4, axis=1).flatten()
+    grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
+    count=0
+    for pdn, pd in point_data.items():
+        grid.plot(scalars=pd, stitle=pdn)
     return
-
-#=================================================================#
-def meshWithData3(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
-    from mayavi import mlab
-    from tvtk.api import tvtk
-    v = mlab.figure()
-    ug = tvtk.UnstructuredGrid()
-    ug.points = np.stack((x,y,z)).T
-    tet_type = tvtk.Tetra().cell_type
-    ug.set_cells(tet_type, tets)
-    m = tvtk.PolyDataMapper()
-    m.input = ug.output
-    a = tvtk.Actor()
-    a.mapper = m
-    mlab.show()
 
 # =================================================================#
 def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, uptitle=None):
