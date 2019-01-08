@@ -40,11 +40,12 @@ class NewtonSolver(object):
         elif solver == 'pyamg':
             import pyamg
             res=[]
-            u = pyamg.solve(A, b, x0=u, tol=1e-10, residuals=res, verb=False)
-            msg=""
-            for i, r in enumerate(res):
-                msg += "{1:8.2e}({0:3d})  ".format(i,r)
-            print(msg)
+            u = pyamg.solve(A, b, x0=u, tol=1e-12, residuals=res, verb=False)
+            print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
+            # msg=""
+            # for i, r in enumerate(res):
+            #     msg += "{1:8.2e}({0:3d})  ".format(i,r)
+            # print(msg)
             return u
         elif solver == 'umfpack':
             from scikits import umfpack

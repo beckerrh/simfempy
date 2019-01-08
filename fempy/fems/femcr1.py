@@ -27,24 +27,7 @@ class FemCR1(object):
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
-    def prepareBoundary(self, colorsdir, postproc):
-        self.facesdirall = np.empty(shape=(0), dtype=int)
-        self.colorsdir = colorsdir
-        for color in colorsdir:
-            facesdir = self.mesh.bdrylabels[color]
-            self.facesdirall = np.unique(np.union1d(self.facesdirall, facesdir))
-        self.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int),self.facesdirall)
-        self.bsaved={}
-        self.Asaved={}
-        self.facesdirflux={}
-        for key, val in postproc.items():
-            type,data = val.split(":")
-            if type != "flux": continue
-            colors = [int(x) for x in data.split(',')]
-            self.facesdirflux[key] = np.empty(shape=(0), dtype=int)
-            for color in colors:
-                facesdir = self.mesh.bdrylabels[color]
-                self.facesdirflux[key] = np.unique(np.union1d(self.facesdirflux[key], facesdir).flatten())
+
     def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
         if solexact or rhs:
             x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
@@ -74,10 +57,12 @@ class FemCR1(object):
                     bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
                 b[faces] += bS
         return b
+
     def massMatrix(self):
         nfaces = self.mesh.nfaces
         self.massmatrix = sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
         return self.massmatrix
+
     def matrixDiffusion(self, k):
         nfaces = self.mesh.nfaces
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
@@ -85,6 +70,7 @@ class FemCR1(object):
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
         return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1
@@ -94,6 +80,26 @@ class FemCR1(object):
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
         self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
+
+    def prepareBoundary(self, colorsdir, postproc):
+        self.facesdirall = np.empty(shape=(0), dtype=int)
+        self.colorsdir = colorsdir
+        for color in colorsdir:
+            facesdir = self.mesh.bdrylabels[color]
+            self.facesdirall = np.unique(np.union1d(self.facesdirall, facesdir))
+        self.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int), self.facesdirall)
+        self.bsaved = {}
+        self.Asaved = {}
+        self.facesdirflux = {}
+        for key, val in postproc.items():
+            type, data = val.split(":")
+            if type != "flux": continue
+            colors = [int(x) for x in data.split(',')]
+            self.facesdirflux[key] = np.empty(shape=(0), dtype=int)
+            for color in colors:
+                facesdir = self.mesh.bdrylabels[color]
+                self.facesdirflux[key] = np.unique(np.union1d(self.facesdirflux[key], facesdir).flatten())
+
     def boundary(self, A, b, u, bdrycond, method):
         x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
         nfaces = self.mesh.nfaces

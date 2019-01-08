@@ -60,12 +60,14 @@ def meshWithNodesAndFaces(x, y, tris, xf, yf, faces, ax=plt):
     _settitle(ax, "Nodes and Faces")
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=False, title=None):
+def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
     nplots = len(point_data)+len(cell_data)
     if nplots==0:
         print("meshWithData() no point_data")
         return
     fig, axs = plt.subplots(1, nplots,figsize=(nplots*4.5,4), squeeze=False)
+    print("suptitle",suptitle)
+    if suptitle: fig.suptitle(suptitle)
     count=0
     for pdn, pd in point_data.items():
         assert x.shape == pd.shape
@@ -90,3 +92,4 @@ def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=Fa
         count += 1
     if title: fig.canvas.set_window_title(title)
     plt.tight_layout()
+    plt.show()

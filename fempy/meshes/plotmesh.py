@@ -65,18 +65,18 @@ def meshWithNodesAndFaces(meshdata, ax=plt):
         raise ValueError(msg)
 
 #=================================================================#
-def meshWithData(meshdata, point_data, cell_data, ax=plt, numbering=False, title=None):
+def meshWithData(meshdata, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
     dim, meshdataismesh = _getDim(meshdata)
     if dim==2:
         if meshdataismesh:
             x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
-            plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax, title=title)
+            plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax, title=title, suptitle=suptitle)
         else:
-            plotmesh2d.meshWithData(meshdata, point_data, cell_data, ax, title=title)
+            plotmesh2d.meshWithData(meshdata, point_data, cell_data, ax, title=title, suptitle=suptitle)
     else:
         if meshdataismesh:
             x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
             xc, yc, zc = meshdata.pointsc[:,0], meshdata.pointsc[:,1], meshdata.pointsc[:,2]
-            plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax, title=title)
+            plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax, title=title, suptitle=suptitle)
         else:
-            plotmesh3d.meshWithData(meshdata, point_data, cell_data, ax, title=title)
+            plotmesh3d.meshWithData(meshdata, point_data, cell_data, ax, title=title, suptitle=suptitle)

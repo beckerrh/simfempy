@@ -19,7 +19,7 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
         if fem == 'p1':
             self.fem = fems.femp1sys.FemP1()
         elif fem == 'cr1':
-            self.fem = fems.femcr1.FemCR1()
+            self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
         self.ncomp = 1

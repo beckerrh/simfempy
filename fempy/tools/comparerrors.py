@@ -64,9 +64,8 @@ class CompareErrors(object):
                     mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
-                    plotmesh.meshWithData(mesh, point_data, cell_data, title=name)
-                    plt.suptitle("{}={}".format(self.paramname, self.parameters[-1]))
-                    plt.show()
+                    suptitle = "{}={}".format(self.paramname, self.parameters[-1])
+                    plotmesh.meshWithData(mesh, point_data, cell_data, title=name, suptitle=suptitle)
                 self.fillInfo(iter, name, info, len(params))
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)

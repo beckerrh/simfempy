@@ -87,9 +87,6 @@ class FemP1(object):
                     dS = linalg.norm(normalsS, axis=1)
                     xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
                     kS = diff[icomp][self.mesh.cellsOfFaces[faces, 0]]
-                    assert (dS.shape[0] == len(faces))
-                    assert (xS.shape[0] == len(faces))
-                    assert (kS.shape[0] == len(faces))
                     x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
                     nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
                     if solexact:
@@ -115,21 +112,14 @@ class FemP1(object):
         return self.massmatrix
 
     def matrixDiffusion(self, k):
-        nnodes = self.mesh.nnodes
+        nnodes, ncells, ncomp = self.mesh.nnodes, self.mesh.ncells, self.ncomp
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        print("matxx.shape", matxx.shape)
-        print("matxx.T.shape", matxx.T.shape)
-        mat = np.zeros(shape=self.rows.shape, dtype=float).reshape(self.mesh.ncells, self.ncomp * self.nloc,
-                                                                   self.ncomp * self.nloc)
-        print("mat.shape", mat.shape)
-        for icomp in range(self.ncomp):
-            mat[:, icomp::self.ncomp, icomp::self.ncomp] = ((matxx + matyy + matzz).T * self.mesh.dV * k[icomp]).T
-        print("mat.shape", mat.shape)
-        print("self.rows.shape", self.rows.shape)
-        return sparse.coo_matrix((mat.flatten(), (self.rows, self.cols)),
-                                 shape=(self.ncomp * nnodes, self.ncomp * nnodes)).tocsr()
+        mat = np.zeros(shape=self.rows.shape, dtype=float).reshape(ncells, ncomp * self.nloc, ncomp * self.nloc)
+        for icomp in range(ncomp):
+            mat[:, icomp::ncomp, icomp::ncomp] = ((matxx + matyy + matzz).T * self.mesh.dV * k[icomp]).T
+        return sparse.coo_matrix((mat.flatten(), (self.rows, self.cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
 
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
@@ -142,57 +132,57 @@ class FemP1(object):
 
     def boundary(self, A, b, u, bdrycond, bdrydata, method):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        nnodes = self.mesh.nnodes
+        nnodes, ncomp = self.mesh.nnodes, self.ncomp
         self.bsaved = []
         self.Asaved = []
-        for icomp in range(self.ncomp):
+        for icomp in range(ncomp):
             nodedirall, nodesinner, nodesdir, nodesdirflux = bdrydata[icomp]
             self.bsaved.append({})
             self.Asaved.append({})
             for key, nodes in nodesdirflux.items():
-                self.bsaved[icomp][key] = b[icomp + self.ncomp * nodes]
+                self.bsaved[icomp][key] = b[icomp + ncomp * nodes]
             for key, nodes in nodesdirflux.items():
                 nb = nodes.shape[0]
-                help = sparse.dok_matrix((nb, self.ncomp * nnodes))
-                for i in range(nb): help[i, icomp + self.ncomp * nodes[i]] = 1
+                help = sparse.dok_matrix((nb, ncomp * nnodes))
+                for i in range(nb): help[i, icomp + ncomp * nodes[i]] = 1
                 self.Asaved[icomp][key] = help.dot(A)
             if method == 'trad':
                 for color, nodes in nodesdir.items():
                     dirichlet = bdrycond[icomp].fct[color]
-                    b[icomp + self.ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                    u[icomp + self.ncomp * nodes] = b[icomp + self.ncomp * nodes]
-                b[icomp + self.ncomp * nodesinner] -= A[icomp + self.ncomp * nodesinner, :][:,
-                                                      icomp + self.ncomp * nodedirall] * b[
-                                                          icomp + self.ncomp * nodedirall]
-                help = np.ones((self.ncomp * nnodes))
-                help[icomp + self.ncomp * nodedirall] = 0
-                help = sparse.dia_matrix((help, 0), shape=(self.ncomp * nnodes, self.ncomp * nnodes))
+                    b[icomp + ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                    u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+                indin = icomp + ncomp *nodesinner
+                inddir = icomp + ncomp *nodedirall
+                b[indin] -= A[indin, :][:,inddir] * b[inddir]
+                help = np.ones((ncomp * nnodes))
+                help[inddir] = 0
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
                 A = help.dot(A.dot(help))
-                help = np.zeros((self.ncomp * nnodes))
-                help[icomp + self.ncomp * nodedirall] = 1.0
-                help = sparse.dia_matrix((help, 0), shape=(self.ncomp * nnodes, self.ncomp * nnodes))
+                help = np.zeros((ncomp * nnodes))
+                help[inddir] = 1.0
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
                 A += help
             else:
                 for color, nodes in nodesdir.items():
                     dirichlet = bdrycond[icomp].fct[color]
-                    u[icomp + self.ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                    b[icomp + self.ncomp * nodes] = 0
+                    u[icomp + ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                    b[icomp + ncomp * nodes] = 0
                 # print("b", b)
                 # print("u", u)
                 # b -= A*u
-                indin = icomp + self.ncomp *nodesinner
-                inddir = icomp + self.ncomp *nodedirall
+                indin = icomp + ncomp *nodesinner
+                inddir = icomp + ncomp *nodedirall
                 b[indin] -= A[indin, :][:, inddir] * u[inddir]
                 b[inddir] = A[inddir, :][:, inddir] * u[inddir]
                 # print("b", b)
-                help = np.ones((self.ncomp * nnodes))
-                help[icomp + self.ncomp * nodedirall] = 0
+                help = np.ones((ncomp * nnodes))
+                help[inddir] = 0
                 # print("help", help)
-                help = sparse.dia_matrix((help, 0), shape=(self.ncomp * nnodes, self.ncomp * nnodes))
-                help2 = np.zeros((self.ncomp * nnodes))
-                help2[icomp + self.ncomp * nodedirall] = 1
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+                help2 = np.zeros((ncomp * nnodes))
+                help2[inddir] = 1
                 # print("help2", help2)
-                help2 = sparse.dia_matrix((help2, 0), shape=(self.ncomp * nnodes, self.ncomp * nnodes))
+                help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
                 A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
                 # print("A", A)
         return A, b, u
