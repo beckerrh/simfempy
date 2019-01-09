@@ -62,6 +62,7 @@ def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbe
     count=0
     for pdn, pd in point_data.items():
         grid.plot(scalars=pd, stitle=pdn)
+        count += 1
     return
 
 # =================================================================#
