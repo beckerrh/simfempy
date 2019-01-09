@@ -19,6 +19,7 @@ import scipy.optimize as optimize
 # https://github.com/bfroehle/pymumps
 #from mumps import DMumpsContext
 
+#=================================================================#
 class NewtonSolver(object):
     def __init__(self):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}

@@ -6,6 +6,7 @@
 import numpy as np
 import sympy
 
+#=================================================================#
 class AnalyticalSolution():
     """
     computes numpy vectorized functions for the function and its dericatives up to two
@@ -49,6 +50,31 @@ class AnalyticalSolution():
         return self.fct_yy(x,y,z)
     def zz(self, x, y, z):
         return self.fct_zz(x,y,z)
+
+#=================================================================#
+def randomAnalyticalSolution(function, ncomp):
+    solexact = []
+    for i in range(ncomp):
+        p = (4 * np.random.rand() - 2) / 3
+        q = (4 * np.random.rand() - 2) / 3
+        r = (4 * np.random.rand() - 2) / 3
+        if function == 'Linear':
+            fct = '{:3.1f} * x + {:3.1f} * y'.format(p,q)
+        elif function == 'Linear3d':
+            fct = '{:3.1f}*x + {:3.1f}*y + {:3.1f}*z'.format(p, q, r)
+        elif function == 'Quadratic':
+            fct = '{:3.1f}*x*x + {:3.1f}*y*y'.format(p, q)
+        elif function == 'Quadratic3d':
+            fct = '{:3.1f}*x*x + {:3.1f}*y*y + {:3.1f}*z*z'.format(p, q, r)
+        elif function == 'Sinus':
+            fct = 'sin({:3.1f}*x + {:3.1f}*y)'.format(p, q)
+        elif function == 'Sinus3d':
+            fct = 'sin({:3.1f}*x + {:3.1f}*y + {:3.1f}*z)'.format(p, q, r)
+        else:
+            raise ValueError("unknown analytic solution: {}".format(function))
+        solexact.append(AnalyticalSolution(fct))
+    return solexact
+        
 
 # ------------------------------------------------------------------- #
 if __name__ == '__main__':
