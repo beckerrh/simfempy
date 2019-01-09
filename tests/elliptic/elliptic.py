@@ -13,7 +13,7 @@ def test_analytic():
     problem = 'Analytic_Quadratic'
     problem = 'Analytic_Sinus'
     geomname = "unitsquare"
-    # geomname = "unitcube"
+    geomname = "unitcube"
     bdrycond0 =  fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond0.type[11] = "Neumann"
     bdrycond0.type[33] = "Neumann"
@@ -42,8 +42,8 @@ def test_analytic():
     app = fempy.applications.elliptic.Elliptic(problem=problem, bdrycond=bdrycond, ncomp=2)
     for fem in ['p1', 'cr1']:
         for bdry in ['trad','new']:
-            compares[fem+bdry] = fempy.applications.elliptic.Elliptic(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem, ncomp=2, method=bdry)
-    comp = fempy.tools.comparerrors.CompareErrors(compares, plot=True)
+            compares[fem+bdry] = fempy.applications.elliptic.Elliptic(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem, ncomp=2, method=bdry, problemname=app.problemname)
+    comp = fempy.tools.comparerrors.CompareErrors(compares, plot=False)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
     if geomname == "unitcube":
         h = [2, 1, 0.5, 0.25, 0.125]

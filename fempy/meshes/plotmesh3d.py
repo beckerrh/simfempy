@@ -59,9 +59,14 @@ def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbe
     offset = 5*np.arange(ntets)
     cells = np.insert(tets, 0, 4, axis=1).flatten()
     grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
+
     count=0
     for pdn, pd in point_data.items():
         grid.plot(scalars=pd, stitle=pdn)
+        # plotter = vtki.Plotter()
+        # plotter.add_axes()
+        # plotter.add_mesh(grid, scalars=pd, stitle=pdn,showedges=True,interpolatebeforemap=True)
+        # cpos = plotter.plot(autoclose=False)
         count += 1
     return
 

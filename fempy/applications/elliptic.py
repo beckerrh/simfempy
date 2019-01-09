@@ -68,8 +68,7 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
         else: self.show_diff=False
         
     def defineProblem(self, problem):
-        self.problem = problem
-        print("self.problem",self.problem)
+        self.problemname = problem
         problemsplit = problem.split('_')
         if problemsplit[0] != 'Analytic':
             raise ValueError("unownd problem {}".format(problem))

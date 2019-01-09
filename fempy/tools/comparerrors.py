@@ -20,11 +20,11 @@ class CompareErrors(object):
         self.problemname = "none"
         for name, method in self.methods.items():
             if self.problemname =="none":
-                print("method.problem=", method.problem)
-                try: self.problemname = method.problem
+                print("method.problem=", method.problemname)
+                try: self.problemname = method.problemname
                 except: pass
             else:
-                assert self.problemname == method.problem
+                assert self.problemname == method.problemname
         self.dirname = "Results_" + self.problemname
         import os
         print("self.dirname=", self.dirname, "", os.getcwd())
