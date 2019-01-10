@@ -90,11 +90,11 @@ class FemP1(object):
                     x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
                     nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
                     if solexact:
-                        bS = scale * dS * kS * (
-                                    solexact[icomp].x(x1, y1, z1) * nx + solexact[icomp].y(x1, y1, z1) * ny + solexact[
-                                icomp].z(x1, y1, z1) * nz)
+                        bS = scale * kS * solexact[icomp].d(0, x1, y1, z1) * normalsS[:, 0]
+                        for jcomp in range(1,self.ncomp):
+                            bS += scale * kS * solexact[icomp].d(jcomp, x1, y1, z1) * normalsS[:, jcomp]
                     else:
-                        bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                        bS = scale * dS * neumann(x1, y1, z1, nx, ny, nz, kS)
                     # print("self.mesh.faces[faces]",self.mesh.faces[faces])
                     indices = icomp + self.ncomp * self.mesh.faces[faces]
                     # print("indices",indices)

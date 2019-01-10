@@ -4,6 +4,7 @@ import fempy.tools.analyticalsolution
 from fempy import solvers
 from fempy import fems
 import scipy.sparse as sparse
+import scipy.linalg as linalg
 
 #=================================================================#
 class Elasticity(solvers.newtonsolver.NewtonSolver):
@@ -107,18 +108,53 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         return self.solveLinear()
         
     def computeRhs(self):
+        ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
         if self.solexact or self.rhs:
             x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-            for i in range(self.ncomp):
+            for i in range(ncomp):
                 if self.solexact:
                     bnodes = np.zeros(self.mesh.nnodes)
-                    for j in range(self.ncomp):
+                    for j in range(ncomp):
                         bnodes -= (self.lamcell[0]+self.mucell[0])*self.solexact[j].dd(i, j, x, y, z)
                         bnodes -= self.mucell[0]*self.solexact[i].dd(j, j, x, y, z)
                 else:
                     bnodes = rhs[i](x, y, z)
                 b[i::self.ncomp] = self.fem.massmatrix * bnodes
+        normals = self.mesh.normals
+        for color, faces in self.mesh.bdrylabels.items():
+            condition = self.bdrycond.type[color]
+            if condition == "Neumann":
+                scale = 1 / self.mesh.dimension
+                normalsS = normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
+                lamS = self.lamcell[self.mesh.cellsOfFaces[faces, 0]]
+                muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
+                x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
+                nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
+                if self.solexact:
+                    for i in range(self.ncomp):
+                        bS = np.zeros(xS.shape[0])
+                        for j in range(self.ncomp):
+                            bS += scale * lamS * self.solexact[j].d(j, x1, y1, z1) * normalsS[:, i]
+                            bS += scale * muS * self.solexact[i].d(j, x1, y1, z1) * normalsS[:, j]
+                            bS += scale * muS * self.solexact[j].d(i, x1, y1, z1) * normalsS[:, j]
+                        indices = i + self.ncomp * self.mesh.faces[faces]
+                        np.add.at(b, indices.T, bS)
+                else:
+                    if not color in self.bdrycond.fct.keys(): continue
+                    neumann = self.bdrycond.fct[color]
+                    print("neumann", neumann)
+                    print("neumann", neumann(x1, y1, z1, nx, ny, nz, lamS, muS))
+                    neumanns = neumann(x1, y1, z1, nx, ny, nz, lamS, muS)
+                    for i in range(ncomp):
+                        bS = scale*dS*neumanns[i]
+                        indices = i + self.ncomp * self.mesh.faces[faces]
+                        np.add.at(b, indices.T, bS)
+                # print("bS.shape", bS.shape)
+                # print("indices.shape", indices.shape)
+
         # from ..meshes import plotmesh
         # plotmesh.meshWithData(self.mesh, point_data={"b_{:1d}".format(i):b[i::self.ncomp] for i in range(self.ncomp)})
         return b
@@ -130,19 +166,20 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         for i in range(ncomp):
             for j in range(self.ncomp):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, i], cellgrads[:, :, j]).T * dV * self.lamcell).T
-                for k in range(self.ncomp):
-                    mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, k], cellgrads[:, :, k]).T * dV * self.mucell).T
-                    mat[:, i::ncomp, k::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, k], cellgrads[:, :, j]).T * dV * self.mucell).T
+                mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * self.mucell).T
+                mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * self.mucell).T
         return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
         
-    def boundary(self, A, b, u):
+    def boundary(self, A, b, u=None):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodedirall, nodesinner, nodesdir, nodesdirflux = self.bdrydata
+        # print("nodedirall", nodedirall)
+        # print("nodesinner", nodesinner)
         self.bsaved = {}
         self.Asaved = {}
         for key, nodes in nodesdirflux.items():
-            ind = np.tile(ncomp * nodes, ncomp)
+            ind = np.repeat(ncomp * nodes, ncomp)
             for icomp in range(ncomp):ind[icomp::ncomp] += icomp
             self.bsaved[key] = b[ind]
         for key, nodes in nodesdirflux.items():
@@ -153,15 +190,18 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             self.Asaved[key] = help.dot(A)
         if self.method == 'trad':
             for color, nodes in nodesdir.items():
-                dirichlet = self.bdrycond.fct[color]
-                dirichlets = dirichlet(x[nodes], y[nodes], z[nodes])
-                for icomp in range(ncomp):
-                    # b[icomp + ncomp * nodes] = dirichlets[icomp]
-                    b[icomp + ncomp * nodes] = self.solexact[icomp](x[nodes], y[nodes], z[nodes])
-                    u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-            indin = np.tile(ncomp * nodesinner, ncomp)
+                if color in self.bdrycond.fct.keys():
+                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                    for icomp in range(ncomp):
+                        b[icomp + ncomp * nodes] = dirichlets[icomp]
+                        # u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+                else:
+                    for icomp in range(ncomp):
+                        b[icomp + ncomp * nodes] = 0
+                        # u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+            indin = np.repeat(ncomp * nodesinner, ncomp)
             for icomp in range(ncomp): indin[icomp::ncomp] += icomp
-            inddir = np.tile(ncomp * nodedirall, ncomp)
+            inddir = np.repeat(ncomp * nodedirall, ncomp)
             for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
             b[indin] -= A[indin, :][:,inddir] * b[inddir]
             help = np.ones((ncomp * nnodes))
@@ -173,7 +213,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A += help
         else:
-            raise ValueError("not written !!")
+            raise NotImplementedError("not written !!")
         return A, b, u
 
     def postProcess(self, u):

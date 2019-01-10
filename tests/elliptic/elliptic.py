@@ -10,8 +10,8 @@ import fempy.applications
 def test_analytic():
     import fempy.tools.comparerrors
     problem = 'Analytic_Linear'
-    problem = 'Analytic_Quadratic'
-    problem = 'Analytic_Sinus'
+    # problem = 'Analytic_Quadratic'
+    # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
     geomname = "unitcube"
     bdrycond0 =  fempy.applications.boundaryconditions.BoundaryConditions()

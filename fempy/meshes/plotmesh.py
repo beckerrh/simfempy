@@ -33,6 +33,7 @@ def meshWithBoundaries(meshdata, ax=plt):
             plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, ax)
         else:
             plotmesh3d.meshWithBoundaries(meshdata, ax)
+    plt.show()
 
 #=================================================================#
 def meshWithNodesAndTriangles(meshdata, ax=plt):

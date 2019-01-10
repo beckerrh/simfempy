@@ -74,8 +74,10 @@ def randomAnalyticalSolution(function, ncomp):
         p = (4 * np.random.rand() - 2) / 3
         q = (4 * np.random.rand() - 2) / 3
         r = (4 * np.random.rand() - 2) / 3
-        if function == 'Linear':
-            fct = '{:3.1f} * x + {:3.1f} * y'.format(p,q)
+        if function == 'Constant':
+            fct = '{:3.1f}'.format(p)
+        elif function == 'Linear':
+            fct = '{:3.1f} * x + {:3.1f} * y'.format(p, q)
         elif function == 'Linear3d':
             fct = '{:3.1f}*x + {:3.1f}*y + {:3.1f}*z'.format(p, q, r)
         elif function == 'Quadratic':
