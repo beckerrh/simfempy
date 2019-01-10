@@ -35,6 +35,8 @@ def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
     colors = np.unique(bdrylabels)
     # print("colors", colors)
     ax.triplot(x, y, tris, color='k')
+    ax.set_xlabel(r'x')
+    ax.set_ylabel(r'y')
     pltcolors = 'bgrcmyk'
     patches=[]
     i=0

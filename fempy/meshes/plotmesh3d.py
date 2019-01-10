@@ -35,6 +35,9 @@ def _plotCellLabels(tets, xc, yc, zc, ax=plt):
 def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=plt):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel(r'x')
+    ax.set_ylabel(r'y')
+    ax.set_zlabel(r'z')
     # if nodelabels: _plotNodeLabels(x, y, z, ax=ax)
     _plotCells(x, y, z, tets, ax=ax)
     cmap = plt.get_cmap("tab10")

@@ -1,1 +1,4 @@
 gmsh refine
+
+MYSTERE
+elasticity 2d sym mais 3d non

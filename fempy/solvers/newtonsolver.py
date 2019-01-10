@@ -9,6 +9,7 @@ import time
 import numpy as np
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
+import scipy.sparse as sparse
 
 #ml = pyamg.ruge_stuben_solver(A)
 #x = ml.solve(b, tol=1e-10)
@@ -20,24 +21,96 @@ import scipy.optimize as optimize
 #from mumps import DMumpsContext
 
 #=================================================================#
+def is_symmetric(m):
+    """Check if a sparse matrix is symmetric
+        https://mail.python.org/pipermail/scipy-dev/2014-October/020117.html
+        Parameters
+        ----------
+        m : sparse matrix
+
+        Returns
+        -------
+        check : bool
+    """
+    if m.shape[0] != m.shape[1]:
+        raise ValueError('m must be a square matrix')
+
+    if not isinstance(m, sparse.coo_matrix):
+        m = sparse.coo_matrix(m)
+
+    r, c, v = m.row, m.col, m.data
+    tril_no_diag = r > c
+    triu_no_diag = c > r
+
+    if triu_no_diag.sum() != tril_no_diag.sum():
+        return False, "no_diag_sum", triu_no_diag.sum() - tril_no_diag.sum()
+
+    rl = r[tril_no_diag]
+    cl = c[tril_no_diag]
+    vl = v[tril_no_diag]
+    ru = r[triu_no_diag]
+    cu = c[triu_no_diag]
+    vu = v[triu_no_diag]
+
+    sortl = np.lexsort((cl, rl))
+    sortu = np.lexsort((ru, cu))
+    vl = vl[sortl]
+    vu = vu[sortu]
+
+    check = np.allclose(vl, vu)
+
+    return check
+
+#=================================================================#
+class IterationCounter(object):
+    def __init__(self, disp=20, name=""):
+        self.disp = disp
+        self.name = name
+        if name not in ['gmres']: self.disp = 0
+        self.niter = 0
+    def __call__(self, rk=None):
+        if self.disp and self.niter%self.disp==0:
+            print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
+        self.niter += 1
+    def __del__(self):
+        print('niter({}) {:4d}'.format(self.name, self.niter))
+
+
+#=================================================================#
 class NewtonSolver(object):
     def __init__(self):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
         self.runinfo = {'niter':0}
         self.linearsolvers=[]
-        self.linearsolvers.append('scipy')
+        # self.linearsolvers.append('scipy-umf_mmd')
+        self.linearsolvers.append('scipy-umf_colamd')
+        # self.linearsolvers.append('gmres')
+        self.linearsolvers.append('lgmres')
+        self.linearsolvers.append('bicgstab')
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
         except: pass
-        try:
-            from scikits import umfpack
-            self.linearsolvers.append('umfpack')
-        except: pass
 
-    def linearSolver(self, A, b, u=None, solver = 'scipy'):
-        if solver == 'scipy':
-            return splinalg.spsolve(A, b)
+    def linearSolver(self, A, b, u=None, solver = 'scipy-umf_colamd'):
+        # print("A is symmetric ? ", is_symmetric(A))
+        if solver == 'scipy-umf_mmd':
+            return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
+        elif solver == 'scipy-umf_colamd':
+            return splinalg.spsolve(A, b, permc_spec='COLAMD')
+        elif solver == 'umfpack':
+            from scikits import umfpack
+            return umfpack.spsolve(A, b)
+        elif solver in ['gmres','lgmres','bicgstab','cg']:
+            M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
+            M_x = lambda x: M2.solve(x)
+            M = splinalg.LinearOperator(A.shape, M_x)
+            counter = IterationCounter(name=solver)
+            args=""
+            if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
+            cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
+            exec(cmd)
+            return u
         elif solver == 'pyamg':
             import pyamg
             res=[]
@@ -48,9 +121,6 @@ class NewtonSolver(object):
             #     msg += "{1:8.2e}({0:3d})  ".format(i,r)
             # print(msg)
             return u
-        elif solver == 'umfpack':
-            from scikits import umfpack
-            return umfpack.spsolve(A, b)
         else:
             raise ValueError("unknown solve '{}'".format(solver))
 

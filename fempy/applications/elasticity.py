@@ -87,7 +87,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         self.problemname = problem
         problemsplit = problem.split('_')
         if problemsplit[0] != 'Analytic':
-            raise ValueError("unownd problem {}".format(problem))
+            raise ValueError("unknown problem {}".format(problem))
         function = problemsplit[1]
         self.solexact = fempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
         
@@ -145,8 +145,6 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
                 else:
                     if not color in self.bdrycond.fct.keys(): continue
                     neumann = self.bdrycond.fct[color]
-                    print("neumann", neumann)
-                    print("neumann", neumann(x1, y1, z1, nx, ny, nz, lamS, muS))
                     neumanns = neumann(x1, y1, z1, nx, ny, nz, lamS, muS)
                     for i in range(ncomp):
                         bS = scale*dS*neumanns[i]
@@ -168,7 +166,11 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, i], cellgrads[:, :, j]).T * dV * self.lamcell).T
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * self.mucell).T
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * self.mucell).T
-        return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
+        A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsc()
+        # if self.method == "sym":
+        # rows, cols = A.nonzero()
+        # A[cols, rows] = A[rows, cols]
+        return A
         
     def boundary(self, A, b, u=None):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
@@ -188,21 +190,23 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             for icomp in range(ncomp):
                 for i in range(nb): help[icomp + ncomp * i, icomp + ncomp * nodes[i]] = 1
             self.Asaved[key] = help.dot(A)
-        if self.method == 'trad':
+        if u is None: u = np.asarray(b)
+        indin = np.repeat(ncomp * nodesinner, ncomp)
+        for icomp in range(ncomp): indin[icomp::ncomp] += icomp
+        inddir = np.repeat(ncomp * nodedirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        meth = 'trad'
+        if meth == 'trad':
             for color, nodes in nodesdir.items():
                 if color in self.bdrycond.fct.keys():
                     dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         b[icomp + ncomp * nodes] = dirichlets[icomp]
-                        # u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
                 else:
                     for icomp in range(ncomp):
                         b[icomp + ncomp * nodes] = 0
-                        # u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-            indin = np.repeat(ncomp * nodesinner, ncomp)
-            for icomp in range(ncomp): indin[icomp::ncomp] += icomp
-            inddir = np.repeat(ncomp * nodedirall, ncomp)
-            for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
             b[indin] -= A[indin, :][:,inddir] * b[inddir]
             help = np.ones((ncomp * nnodes))
             help[inddir] = 0
@@ -213,8 +217,45 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A += help
         else:
-            raise NotImplementedError("not written !!")
+            for color, nodes in nodesdir.items():
+                dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                for icomp in range(ncomp):
+                    u[icomp + ncomp * nodes] = dirichlets[icomp]
+                    b[icomp + ncomp * nodes] = 0
+            b[indin] -= A[indin, :][:, inddir] * u[inddir]
+            b[inddir] = A[inddir, :][:, inddir] * u[inddir]
+            help = np.ones((ncomp * nnodes))
+            help[inddir] = 0
+            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            help2 = np.zeros((ncomp * nnodes))
+            help2[inddir] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, b, u
+
+    def computeBdryMean(self, u, key, data):
+        colors = [int(x) for x in data.split(',')]
+        mean, omega = [0 for i in range(self.ncomp)], 0
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            for i in range(self.ncomp):
+                mean[i] += np.sum(dS * np.mean(u[i + self.ncomp * self.mesh.faces[faces]], axis=1))
+        return mean
+
+    def computeBdryDn(self, u, key, data):
+        # colors = [int(x) for x in data.split(',')]
+        # omega = 0
+        # for color in colors:
+        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
+        # print("###",self.bsaved[key].shape)
+        # print("###",(self.Asaved[key] * u).shape)
+        res = self.bsaved[key] - self.Asaved[key] * u
+        flux  = []
+        for icomp in range(self.ncomp):
+            flux.append(np.sum(res[icomp::self.ncomp]))
+        return flux
 
     def postProcess(self, u):
         info = {}
@@ -231,16 +272,20 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         info['timer'] = self.timer
         info['runinfo'] = self.runinfo
         info['postproc'] = {}
-        for icomp, postproc in enumerate(self.postproc):
-            for key, val in postproc.items():
-                type,data = val.split(":")
-                if type == "bdrymean":
-                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryMean(u, key, data, icomp)
-                elif type == "bdrydn":
-                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryDn(u, key, data, icomp)
-                else:
-                    raise ValueError("unknown postprocess {}".format(key))
-            if self.show_diff: cell_data['diff_{:02d}'.format(icomp)] = self.diffcell[icomp]
+        for key, val in self.postproc.items():
+            type,data = val.split(":")
+            if type == "bdrymean":
+                mean = self.computeBdryMean(u, key, data)
+                assert len(mean) == self.ncomp
+                for icomp in range(self.ncomp):
+                    info['postproc']["{}_{:02d}".format(key, icomp)] = mean[icomp]
+            elif type == "bdrydn":
+                flux = self.computeBdryDn(u, key, data)
+                assert len(flux) == self.ncomp
+                for icomp in range(self.ncomp):
+                    info['postproc']["{}_{:02d}".format(key, icomp)] = flux[icomp]
+            else:
+                raise ValueError("unknown postprocess {}".format(key))
         return point_data, cell_data, info
 
 #=================================================================#
