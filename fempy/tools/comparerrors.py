@@ -76,6 +76,7 @@ class CompareErrors(object):
         if self.latex:
             self.generateLatex(self.methods.keys(), self.paramname, self.parameters, self.infos)
         return  self.methods.keys(), self.paramname, self.parameters, self.infos
+        
     def fillInfo(self, iter, name, info, n):
         if not self.infos:
             # print("info.keys", info.keys())
@@ -93,6 +94,7 @@ class CompareErrors(object):
             for key3, info3 in info2.items():
                 # for name in self.methods.keys():
                 self.infos[key2][key3][name][iter] = info3
+                
     def generateLatex(self, names, paramname, parameters, infos):
         latexwriter = LatexWriter(dirname=self.dirname)
         for key, val in infos.items():
@@ -114,6 +116,7 @@ class CompareErrors(object):
                     latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), dim=self.dim, redrate=redrate, diffandredrate=not redrate)
         latexwriter.write()
         latexwriter.compile()
+        
     def computeOrder(self, ncells, values, dim):
         fnd = float(ncells[-1]) / float(ncells[0])
         order = -dim * np.log(values[-1] / values[0]) / np.log(fnd)

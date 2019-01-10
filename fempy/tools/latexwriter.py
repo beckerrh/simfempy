@@ -89,7 +89,7 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-        print(self.dirname, self.latexfilename)
+        # print(self.dirname, self.latexfilename)
     def append(self, n, values, dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
         if name is None:
             name = 'table%1d' %self.countdata
@@ -181,7 +181,9 @@ class LatexWriter(object):
         os.chdir(self.dirname)
         filename = os.path.basename(self.latexfilename)
         command = "pdflatex " + filename
-        subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if result:
+            raise ValueError("command pdflatex not found")
         command = "open " + filename.replace('.tex', '.pdf')
         subprocess.call(command, shell=True)
 

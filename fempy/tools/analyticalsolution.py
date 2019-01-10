@@ -50,6 +50,22 @@ class AnalyticalSolution():
         return self.fct_yy(x,y,z)
     def zz(self, x, y, z):
         return self.fct_zz(x,y,z)
+    def d(self, i, x, y, z):
+        if i==2:    return self.fct_z(x,y,z)
+        elif i==1:  return self.fct_y(x,y,z)
+        return self.fct_x(x,y,z)
+    def dd(self, i, j, x, y, z):
+        if i==2:    
+            if j==2:    return self.fct_zz(x,y,z)
+            elif j==1:  return self.fct_yz(x,y,z)
+            return self.fct_xz(x,y,z)
+        if i==1:    
+            if j==2:    return self.fct_yz(x,y,z)
+            elif j==1:  return self.fct_yy(x,y,z)
+            return self.fct_xy(x,y,z)
+        if j==2:    return self.fct_xz(x,y,z)
+        elif j==1:  return self.fct_xy(x,y,z)
+        return self.fct_xx(x,y,z)
 
 #=================================================================#
 def randomAnalyticalSolution(function, ncomp):

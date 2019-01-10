@@ -65,8 +65,13 @@ def meshWithNodesAndFaces(meshdata, ax=plt):
         raise ValueError(msg)
 
 #=================================================================#
-def meshWithData(meshdata, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
+def meshWithData(meshdata, point_data=None, cell_data=None, ax=plt, numbering=False, title=None, suptitle=None):
     dim, meshdataismesh = _getDim(meshdata)
+    """
+    meshdata    : either mesh or coordinates and connectivity
+    point_data  : dictionary name->data
+    cell_data  : dictionary name->data
+    """
     if dim==2:
         if meshdataismesh:
             x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]

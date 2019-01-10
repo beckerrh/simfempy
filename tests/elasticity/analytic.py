@@ -6,6 +6,7 @@ sys.path.append(fempypath)
 
 import fempy.applications
 
+
 #----------------------------------------------------------------#
 def test_analytic():
     import fempy.tools.comparerrors
@@ -13,23 +14,33 @@ def test_analytic():
     # problem = 'Analytic_Quadratic'
     # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
+    # geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
-    bdrycond.type[11] = "Neumann"
-    bdrycond.type[33] = "Neumann"
+    bdrycond.type[11] = "Dirichlet"
+    bdrycond.type[33] = "Dirichlet"
     bdrycond.type[22] = "Dirichlet"
     bdrycond.type[44] = "Dirichlet"
     postproc = {}
-    postproc['mean'] = "mean:11,33"
-    postproc['flux'] = "flux:22,44"
-    methods = {}
+    ncomp = 2
+    if geomname == "unitcube":
+        ncomp = 3
+        bdrycond.type[55] = "Dirichlet"
+        bdrycond.type[66] = "Dirichlet"
+        bdrycond.type[55] = "Dirichlet"
+        bdrycond.type[66] = "Dirichlet"
+    compares = {}
+    app = fempy.applications.elasticity.Elasticity(problem=problem, bdrycond=bdrycond, ncomp=ncomp)
     for fem in ['p1']:
-        methods[fem] = fempy.applications.elasticity.Elasticity(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
-    h = [0.5, 0.25, 0.125]
-    # h = [2.0, 1.0]
+        for bdry in ['trad']:
+            compares[fem+bdry] = fempy.applications.elasticity.Elasticity(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem, ncomp=ncomp, method=bdry, problemname=app.problemname)
+    comp = fempy.tools.comparerrors.CompareErrors(compares, plot=False)
+    h = [0.5, 0.25, 0.125, 0.06, 0.03]
+    if geomname == "unitcube":
+        h = [2, 1, 0.5, 0.25, 0.125]
+    # h = [2.0, 1.0, 0.5, 0.25]
     result = comp.compare(geomname=geomname, h=h)
+
 
 #================================================================#
 
 test_analytic()
-

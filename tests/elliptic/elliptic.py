@@ -46,7 +46,7 @@ def test_analytic():
     comp = fempy.tools.comparerrors.CompareErrors(compares, plot=False)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
     if geomname == "unitcube":
-        h = [2, 1, 0.5, 0.25, 0.125]
+        h = [2, 1, 0.5, 0.25]
     # h = [2.0, 1.0, 0.5, 0.25]
     result = comp.compare(geomname=geomname, h=h)
 

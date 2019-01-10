@@ -60,8 +60,9 @@ def meshWithNodesAndFaces(x, y, tris, xf, yf, faces, ax=plt):
     _settitle(ax, "Nodes and Faces")
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
-    nplots = len(point_data)+len(cell_data)
+def meshWithData(x, y, tris, xc, yc, point_data, cell_data=None, ax=plt, numbering=False, title=None, suptitle=None):
+    nplots = len(point_data)
+    if cell_data: nplots += len(cell_data)
     if nplots==0:
         print("meshWithData() no point_data")
         return
@@ -80,16 +81,17 @@ def meshWithData(x, y, tris, xc, yc, point_data, cell_data, ax=plt, numbering=Fa
         plt.colorbar(cnt, ax=ax)
         _settitle(ax, pdn)
         count += 1
-    for cdn, cd in cell_data.items():
-        assert tris.shape[0] == cd.shape[0]
-        ax = axs[0,count]
-        cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
-        if numbering:
-            _plotVertices(x, y, tris, xc, yc, ax=ax)
-            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-        plt.colorbar(cnt, ax=ax)
-        _settitle(ax, cdn)
-        count += 1
+    if cell_data:
+        for cdn, cd in cell_data.items():
+            assert tris.shape[0] == cd.shape[0]
+            ax = axs[0,count]
+            cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
+            if numbering:
+                _plotVertices(x, y, tris, xc, yc, ax=ax)
+                _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+            plt.colorbar(cnt, ax=ax)
+            _settitle(ax, cdn)
+            count += 1
     if title: fig.canvas.set_window_title(title)
     plt.tight_layout()
     plt.show()
