@@ -18,10 +18,13 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
     YoungPoisson["Caoutchouc"] = (0.2, 0.5)
     YoungPoisson["Bois"] = (7, 0.2)
     YoungPoisson["Marbre"] = (26, 0.3)
+
     def toLame(self, E, nu):
         return 0.5*E/(1+nu), nu*E/(1+nu)/(1-2*nu)
+
     def __init__(self, **kwargs):
-        solvers.newtonsolver.NewtonSolver.__init__(self)
+        solvers.newtonsolver.NewtonSolver.__init__(self, **kwargs)
+        self.linearsolver = 'pyamg'
         self.dirichlet = None
         self.neumann = None
         self.rhs = None
@@ -40,8 +43,6 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         self.ncomp = 1
         if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
         self.bdrycond = kwargs.pop('bdrycond')
-        if 'problemname' in kwargs:
-            self.problemname = kwargs.pop('problemname')
         if 'problem' in kwargs:
             self.defineProblem(problem=kwargs.pop('problem'))
         if 'solexact' in kwargs:
@@ -166,7 +167,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, i], cellgrads[:, :, j]).T * dV * self.lamcell).T
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * self.mucell).T
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * self.mucell).T
-        A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsc()
+        A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
         # if self.method == "sym":
         # rows, cols = A.nonzero()
         # A[cols, rows] = A[rows, cols]
@@ -195,8 +196,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
         inddir = np.repeat(ncomp * nodedirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-        meth = 'trad'
-        if meth == 'trad':
+        if self.method == 'trad':
             for color, nodes in nodesdir.items():
                 if color in self.bdrycond.fct.keys():
                     dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
@@ -231,7 +231,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             help2[inddir] = 1
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, b, u
+        return A.tobsr(), b, u
 
     def computeBdryMean(self, u, key, data):
         colors = [int(x) for x in data.split(',')]

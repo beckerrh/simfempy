@@ -18,21 +18,26 @@ except ModuleNotFoundError:
 #=================================================================#
 class SimplexMesh(object):
     """
-    simplicial mesh
+    simplicial mesh, can be initialized from the output of pygmsh
+
     dimension, nnodes, ncells, nfaces: dimension, number of nodes, simplices, faces
     points: coordinates of the vertices of shape (nnodes,3)
     pointsc: coordinates of the barycenters (ncells,3)
+
     simplices: node ids of simplices of shape (ncells, dimension+1)
     faces: node ids of faces of shape (nfaces, dimension)
+
     facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]\setminus simplices[i,ii], sorted
     cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
+
     normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
+             normals on boundary are external
     sigma: orientation of normal per cell and face (ncells, dimension+1)
+
     dV: shape (ncells), volumes of simplices
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
-
-    SimplexMesh can be initialized from the output of pygmsh
     """
+
     def __str__(self):
         return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geomname, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
@@ -42,6 +47,7 @@ class SimplexMesh(object):
             self._initMeshPyGmsh(data[0], data[1], data[3])
         else:
             self._initFromGeometry(**kwargs)
+
     def _initFromGeometry(self, **kwargs):
         import pygmsh
         self.geomname = kwargs.pop('geomname')
@@ -61,6 +67,7 @@ class SimplexMesh(object):
             geometry = module.define_geometry()
         data = pygmsh.generate_mesh(geometry, verbose=False)
         self._initMeshPyGmsh(data[0], data[1], data[3])
+
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
             self.dimension = 3
@@ -84,6 +91,7 @@ class SimplexMesh(object):
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self._constructNormalsAndAreas()
         print(self)
+
     def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):
         simplices = self.simplices
         ncells = simplices.shape[0]
@@ -133,6 +141,7 @@ class SimplexMesh(object):
     #     spi[sp] = np.arange(sp.size)
     #     perm = lp[spi]
     #     self.cell_labels = labelsgmsh[perm]
+
     def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
         simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
         count=0
@@ -165,6 +174,7 @@ class SimplexMesh(object):
         #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
         # bdries
         self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+
     def _constructBoundaryLabels(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
@@ -203,6 +213,7 @@ class SimplexMesh(object):
             self.bdrylabels[color][counts[color]] = perm[i]
             counts[color] += 1
         # print ("self.bdrylabels", self.bdrylabels)
+
     def _constructNormalsAndAreas(self):
         if self.dimension==2:
             x,y = self.points[:,0], self.points[:,1]
@@ -246,7 +257,9 @@ class SimplexMesh(object):
             else:
                 xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
-        self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
+        # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
+        self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
+
     def write(self, filename, dirname = "out", point_data=None, cell_data=None):
         cell_data_meshio = {}
         if self.dimension ==2:
@@ -262,6 +275,7 @@ class SimplexMesh(object):
             os.makedirs(dirname)
         filename = os.path.join(dirname, filename)
         meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio)
+
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
         for ic in range(self.ncells):
@@ -285,8 +299,7 @@ if __name__ == '__main__':
     mesh = SimplexMesh(geomname="unitsquare", hmean=2)
     import plotmesh
     import matplotlib.pyplot as plt
-    fig, axarr = plt.subplots(3, 1, sharex='col')
+    fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
-    plotmesh.meshWithNodesAndTriangles(mesh, ax=axarr[1])
-    plotmesh.meshWithNodesAndFaces(mesh, ax=axarr[2])
-    plt.show()
+    plotmesh.plotmesh(mesh, ax=axarr[1])
+    plotmesh.plotmesh(mesh, localnumbering=True)

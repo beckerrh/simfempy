@@ -10,6 +10,7 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
     """
     def __init__(self, **kwargs):
         solvers.newtonsolver.NewtonSolver.__init__(self)
+        self.linearsolver = 'pyamg'
         self.dirichlet = None
         self.neumann = None
         self.rhs = None

@@ -202,8 +202,7 @@ class FemCR1(object):
         return unodes
 
 
-# ------------------------------------- #
-
+#=================================================================#
 if __name__ == '__main__':
     trimesh = SimplexMesh(geomname="backwardfacingstep", hmean=0.3)
     fem = FemCR1(trimesh)

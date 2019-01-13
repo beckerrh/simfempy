@@ -4,6 +4,9 @@ import tempfile
 import numpy
 import meshio
 
+
+stop
+
 def _get_gmsh_exe():
     macos_gmsh_location = "/Applications/Gmsh.app/Contents/MacOS/gmsh"
     return macos_gmsh_location if os.path.isfile(macos_gmsh_location) else "gmsh"

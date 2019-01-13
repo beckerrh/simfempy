@@ -33,37 +33,7 @@ def meshWithBoundaries(meshdata, ax=plt):
             plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, ax)
         else:
             plotmesh3d.meshWithBoundaries(meshdata, ax)
-    plt.show()
-
-#=================================================================#
-def meshWithNodesAndTriangles(meshdata, ax=plt):
-    dim, meshdataismesh = _getDim(meshdata)
-    if dim==2:
-        if meshdataismesh:
-            x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
-            plotmesh2d.meshWithNodesAndTriangles(x, y, tris, xc, yc, ax)
-        else:
-            plotmesh2d.meshWithNodesAndTriangles(meshdata, ax)
-    else:
-        msg = "Dimension is {} but plot is not written".format(dim)
-        raise ValueError(msg)
-
-#=================================================================#
-def meshWithNodesAndFaces(meshdata, ax=plt):
-    dim, meshdataismesh = _getDim(meshdata)
-    if dim==2:
-        if meshdataismesh:
-            x, y, tris, faces = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces
-            try:
-                xf, yf = meshdata.pointsf[:,0], meshdata.pointsf[:,1]
-            except:
-                pointsf = meshdata.points[faces].mean(axis=1)
-            plotmesh2d.meshWithNodesAndFaces(x, y, tris, pointsf[:,0], pointsf[:,1], faces, ax)
-        else:
-            plotmesh2d.meshWithNodesAndFaces(meshdata, ax)
-    else:
-        msg = "Dimension is {} but plot is not written".format(dim)
-        raise ValueError(msg)
+    if ax==plt: plt.show()
 
 #=================================================================#
 def meshWithData(meshdata, point_data=None, cell_data=None, ax=plt, numbering=False, title=None, suptitle=None):
@@ -86,3 +56,69 @@ def meshWithData(meshdata, point_data=None, cell_data=None, ax=plt, numbering=Fa
             plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax, title=title, suptitle=suptitle)
         else:
             plotmesh3d.meshWithData(meshdata, point_data, cell_data, ax, title=title, suptitle=suptitle)
+    if ax==plt: plt.show()
+
+
+#=================================================================#
+def plotmesh(meshdata, **kwargs):
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==3:
+        raise NotImplementedError("3d not yet implemented")
+    if meshdataismesh:
+        x, y, tris, faces = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces
+        kwargs['meshsides'] = faces
+    else:
+        x, y, tris = meshdata[0], meshdata[1], meshdata[2]
+
+    if 'localnumbering' in kwargs and kwargs.pop('localnumbering'):
+        fig, axs = plt.subplots(2, 3, figsize=(13.5, 8), squeeze=False)
+
+        newkwargs = {}
+        newkwargs['meshsides'] = faces
+        newkwargs['cellsofsides'] = meshdata.cellsOfFaces
+        newkwargs['sidesofcells'] = meshdata.facesOfCells
+        newkwargs['meshnormals'] = meshdata.normals
+        newkwargs['meshsigma'] = meshdata.sigma
+
+        newkwargs['ax']= axs[0,0]
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+        newkwargs['ax']= axs[0,1]
+        newkwargs['cellslocal']= True
+        newkwargs['sides']= False
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+        newkwargs['ax']= axs[0,2]
+        newkwargs['sideslocal']= True
+        newkwargs['sides']= True
+        newkwargs['cells']= False
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+        newkwargs['ax']= axs[1,0]
+        newkwargs['nodes']= False
+        newkwargs['sides']= False
+        newkwargs['cells']= False
+        newkwargs['cellsidelocal']= True
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+        newkwargs['ax']= axs[1,1]
+        newkwargs['cellsidelocal']= False
+        newkwargs['sidecelllocal']= True
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+        newkwargs['ax']= axs[1,2]
+        newkwargs['normals']= True
+        newkwargs['sidecelllocal']= False
+        plotmesh2d.mesh(x, y, tris, **newkwargs)
+
+    else:
+        kwargs['ax']= plt
+        plotmesh2d.mesh(x, y, tris, **kwargs)
+    plt.show()
+
+#=================================================================#
+#=================================================================#
+if __name__ == '__main__':
+    import simplexmesh
+    mesh = simplexmesh.SimplexMesh(geomname="unitsquare", hmean=1)
+    plotmesh(mesh, localnumbering=True)

@@ -41,25 +41,29 @@ def mesh_traction(hmean, geomname="unitcube"):
 #================================================================#
 import time
 import matplotlib.pyplot as plt
-hmeans = [0.3, 0.15, 0.12, 0.09, 0.07, 0.06]
+hmeans = [0.3, 0.15, 0.12, 0.09, 0.07, 0.05, 0.03]
 times = {}
 ns = np.empty(len(hmeans))
 for i,hmean in enumerate(hmeans):
     A, b, u, elasticity = mesh_traction(hmean)
+    n = elasticity.mesh.ncells
     solvers = elasticity.linearsolvers
-    solvers.remove('pyamg')
+    # solvers.remove('pyamg')
+    # solvers = ['pyamg']
     for solver in solvers:
+        if solver=='umf' and n > 140000: continue
         t0 = time.time()
         u = elasticity.linearSolver(A, b, u, solver=solver)
         t1 = time.time()
-        n = elasticity.mesh.ncells
         print("n={:4d} {:12s} {:10.2e}".format(n, solver, t1 - t0))
         if not solver in times.keys():
-            times[solver]=np.empty(len(hmeans))
+            # times[solver] = np.empty(len(hmeans))
+            times[solver] = []
         ns[i] = n
-        times[solver][i] = t1-t0
+        # times[solver][i] = t1-t0
+        times[solver].append(t1 - t0)
 #plotmesh.meshWithData(mesh, {"u0": u[::ncomp], "u1":u[1::ncomp]})
 for solver,data in times.items():
-    plt.plot(ns, data, '-x',label=solver)
+    plt.plot(ns[:len(data)], data, '-x', label=solver)
 plt.legend()
 plt.show()

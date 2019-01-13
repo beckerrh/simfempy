@@ -66,41 +66,40 @@ class IterationCounter(object):
     def __init__(self, disp=20, name=""):
         self.disp = disp
         self.name = name
-        if name not in ['gmres']: self.disp = 0
         self.niter = 0
     def __call__(self, rk=None):
-        if self.disp and self.niter%self.disp==0:
-            print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
+        # if self.disp and self.niter%self.disp==0:
+        #     print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
         self.niter += 1
     def __del__(self):
-        print('niter({}) {:4d}'.format(self.name, self.niter))
+        print('niter ({}) {:4d}'.format(self.name, self.niter))
 
 
 #=================================================================#
 class NewtonSolver(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
         self.runinfo = {'niter':0}
+        if 'problemname' in kwargs:
+            self.problemname = kwargs.pop('problemname')
         self.linearsolvers=[]
         # self.linearsolvers.append('scipy-umf_mmd')
-        self.linearsolvers.append('scipy-umf_colamd')
+        self.linearsolvers.append('umf')
         # self.linearsolvers.append('gmres')
         self.linearsolvers.append('lgmres')
-        self.linearsolvers.append('bicgstab')
+        # self.linearsolvers.append('bicgstab')
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
         except: pass
+        self.linearsolver = 'umf'
 
-    def linearSolver(self, A, b, u=None, solver = 'scipy-umf_colamd'):
+    def linearSolver(self, A, b, u=None, solver = 'umf'):
         # print("A is symmetric ? ", is_symmetric(A))
-        if solver == 'scipy-umf_mmd':
-            return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
-        elif solver == 'scipy-umf_colamd':
+        if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')
-        elif solver == 'umfpack':
-            from scikits import umfpack
-            return umfpack.spsolve(A, b)
+        # elif solver == 'scipy-umf_mmd':
+        #     return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
         elif solver in ['gmres','lgmres','bicgstab','cg']:
             M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
             M_x = lambda x: M2.solve(x)
@@ -113,13 +112,14 @@ class NewtonSolver(object):
             return u
         elif solver == 'pyamg':
             import pyamg
+            config = pyamg.solver_configuration(A, verb=False)
+            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
+            ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+            # print("ml", ml)
             res=[]
-            u = pyamg.solve(A, b, x0=u, tol=1e-12, residuals=res, verb=False)
+            u = ml.solve(b, tol=1e-12, residuals=res, accel = 'gmres')
             print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
-            # msg=""
-            # for i, r in enumerate(res):
-            #     msg += "{1:8.2e}({0:3d})  ".format(i,r)
-            # print(msg)
             return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))
@@ -144,7 +144,7 @@ class NewtonSolver(object):
         t2 = time.time()
         A,b,u = self.boundary(A, b, u)
         t3 = time.time()
-        u = self.linearSolver(A, b, u)
+        u = self.linearSolver(A, b, u, solver=self.linearsolver)
         t4 = time.time()
         pp = self.postProcess(u)
         t5 = time.time()
