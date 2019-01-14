@@ -1,13 +1,12 @@
 import time
 import numpy as np
-import fempy.tools.analyticalsolution
 from fempy import solvers
 from fempy import fems
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 
 #=================================================================#
-class Elasticity(solvers.newtonsolver.NewtonSolver):
+class Elasticity(solvers.solver.Solver):
     """
     """
     YoungPoisson = {}
@@ -23,51 +22,17 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
         return 0.5*E/(1+nu), nu*E/(1+nu)/(1-2*nu)
 
     def __init__(self, **kwargs):
-        solvers.newtonsolver.NewtonSolver.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.linearsolver = 'pyamg'
-        self.dirichlet = None
-        self.neumann = None
-        self.rhs = None
-        self.solexact = None
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
         if fem == 'p1':
             self.fem = fems.femp1sys.FemP1()
         elif fem == 'cr1':
-            print("cr1 not ready")
-            import sys
-            sys.exit(1)
+            raise NotImplementedError("cr1 not ready")
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))            
-        self.ncomp = 1
-        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
-        self.bdrycond = kwargs.pop('bdrycond')
-        if 'problem' in kwargs:
-            self.defineProblem(problem=kwargs.pop('problem'))
-        if 'solexact' in kwargs:
-            self.solexact = kwargs.pop('solexact')
-        if self.solexact:
-            for color, bc in self.bdrycond.type.items():
-                def solexactall(x,y,z):
-                    return [self.solexact[icomp](x,y,z) for icomp in range(self.ncomp)]
-                if bc == "Dirichlet":
-                    self.bdrycond.fct[color] = solexactall
-                elif bc == "Neumann":
-                    self.bdrycond.fct[color] = None
-                else:
-                    raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
-        if 'rhs' in kwargs:
-            rhs = kwargs.pop('rhs')
-            assert rhs is not None
-            assert len(rhs == self.ncomp)
-            self.rhs = []
-            for i in range(self.ncomp):
-                self.rhs[i] = np.vectorize(rhs[i])
-        if 'postproc' in kwargs:
-            self.postproc = kwargs.pop('postproc')
-        else:
-            self.postproc=None
         if 'mu' in kwargs:
             self.mu = kwargs.pop('mu')
             self.mu = np.vectorize(self.mu)
@@ -81,17 +46,7 @@ class Elasticity(solvers.newtonsolver.NewtonSolver):
             self.lam = np.vectorize(lambda j: lam)
         if 'method' in kwargs: self.method = kwargs.pop('method')
         else: self.method="trad"
-        if 'show_diff' in kwargs: self.show_diff = kwargs.pop('show_diff')
-        else: self.show_diff=False
-        
-    def defineProblem(self, problem):
-        self.problemname = problem
-        problemsplit = problem.split('_')
-        if problemsplit[0] != 'Analytic':
-            raise ValueError("unknown problem {}".format(problem))
-        function = problemsplit[1]
-        self.solexact = fempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
-        
+
     def setMesh(self, mesh):
         t0 = time.time()
         self.mesh = mesh

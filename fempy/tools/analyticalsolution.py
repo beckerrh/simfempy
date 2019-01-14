@@ -68,12 +68,28 @@ class AnalyticalSolution():
         return self.fct_xx(x,y,z)
 
 #=================================================================#
-def randomAnalyticalSolution(function, ncomp):
+def analyticalSolution(function, ncomp=1, random=True):
+    """
+    defines some analytical functions to be used in validation
+
+    returns analytical function (if ncomp==1) or list of analytical functions (if ncomp>1)
+
+    parameters:
+        function: name of function
+        ncomp: size of list
+        random: use random coefficients
+    """
     solexact = []
+    if not random:
+        from itertools import permutations
+        perm = list(permutations((3.3, 2.2, 1.1)))
     for i in range(ncomp):
-        p = (4 * np.random.rand() - 2) / 3
-        q = (4 * np.random.rand() - 2) / 3
-        r = (4 * np.random.rand() - 2) / 3
+        if random:
+            p = (4 * np.random.rand() - 2) / 3
+            q = (4 * np.random.rand() - 2) / 3
+            r = (4 * np.random.rand() - 2) / 3
+        else:
+            p, q, r = perm[i%ncomp]
         if function == 'Constant':
             fct = '{:3.1f}'.format(p)
         elif function == 'Linear':
@@ -91,6 +107,7 @@ def randomAnalyticalSolution(function, ncomp):
         else:
             raise ValueError("unknown analytic solution: {}".format(function))
         solexact.append(AnalyticalSolution(fct))
+    if ncomp==1: return solexact[0]
     return solexact
         
 

@@ -43,7 +43,7 @@ class FemP1(object):
         self.nodesdirflux={}
         for key, val in postproc.items():
             type,data = val.split(":")
-            if type != "flux": continue
+            if type != "bdrydn": continue
             colors = [int(x) for x in data.split(',')]
             self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:

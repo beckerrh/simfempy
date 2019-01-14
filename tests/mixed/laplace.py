@@ -19,7 +19,7 @@ import fempy.tools.analyticalsolution
 import fempy.fems.femrt0
 
 # class Laplace(RaviartThomas):
-class Laplace(solvers.newtonsolver.NewtonSolver):
+class Laplace(solvers.solver.NewtonSolver):
     """
     Fct de base de RT0 = sigma * 0.5 * |S|/|K| (x-x_N)
     """
@@ -75,7 +75,7 @@ class Laplace(solvers.newtonsolver.NewtonSolver):
             err, pe, vexx = self.computeError(self.solexact, u[nfaces:], vc)
             cell_data['perr'] = np.abs(pe - u[nfaces:])
             for i in range(dim):
-                cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[0])
+                cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
             # cell_data['verry'] = np.abs(vey - vc[1])
             info['error'] = err
         info['timer'] = self.timer
@@ -136,117 +136,8 @@ class Laplace(solvers.newtonsolver.NewtonSolver):
 
     def boundary(self, A, b, u):
         return A,b,u
-    #
-    # def matrixInterior(self):
-    #     ncells =  self.mesh.ncells
-    #     nfaces =  self.mesh.nfaces
-    #     elem =  self.mesh.simplices
-    #     xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
-    #     xn, yn, zn = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-    #     nlocal = 15
-    #     index = np.zeros(nlocal*ncells, dtype=int)
-    #     jndex = np.zeros(nlocal*ncells, dtype=int)
-    #     A = np.zeros(nlocal*ncells, dtype=np.float64)
-    #     edges = np.zeros(3, dtype=int)
-    #     sigma = np.zeros(3, dtype=np.float64)
-    #     scale = np.zeros(3, dtype=np.float64)
-    #     rt = np.zeros((3,2), dtype=np.float64)
-    #     count = 0
-    #     for ic in range(ncells):
-    #         # v-psi
-    #         edges =  self.mesh.facesOfCells[ic]
-    #         for ii in range(3):
-    #             iei = edges[ii]
-    #             sigma[ii] = self.mesh.sigma[ic,ii]
-    #             scale[ii] = 0.5*linalg.norm( self.mesh.normals[iei])/ self.mesh.dV[ic]
-    #         for ii in range(3):
-    #             for jj in range(3):
-    #                 index[count+3*ii+jj] = edges[ii]
-    #                 jndex[count+3*ii+jj] = edges[jj]
-    #         for kk in range(3):
-    #             iek =  self.mesh.facesOfCells[ic, kk]
-    #             for ii in range(3):
-    #                 rt[ii,0] = sigma[ii] * scale[ii] * (xf[iek] -  xn[elem[ic, ii]])
-    #                 rt[ii,1] = sigma[ii] * scale[ii] * (yf[iek] -  yn[elem[ic, ii]])
-    #             for ii in range(3):
-    #                 for jj in range(3):
-    #                     A[count+3*ii+jj] +=  self.mesh.dV[ic]* np.dot(rt[ii], rt[jj])/3.0
-    #         # p-psi v-chi
-    #         index[count + 9] = ic + nfaces
-    #         index[count + 10] = ic + nfaces
-    #         index[count + 11] = ic + nfaces
-    #         jndex[count + 12] = ic + nfaces
-    #         jndex[count + 13] = ic + nfaces
-    #         jndex[count + 14] = ic + nfaces
-    #         for ii in range(3):
-    #             ie = edges[ii]
-    #             jndex[count+9+ii] = ie
-    #             index[count+12+ii] = ie
-    #             adiv = linalg.norm( self.mesh.normals[ie])* sigma[ii]
-    #             A[count+9+ii] = adiv
-    #             A[count+12+ii] = adiv
-    #         count += nlocal
-    #     return scipy.sparse.coo_matrix((A, (index, jndex)), shape=(nfaces+ncells, nfaces+ncells))
-    #
-    # def matrixA(self):
-    #     ncells =  self.mesh.ncells
-    #     nfaces =  self.mesh.nfaces
-    #     elem =  self.mesh.simplices
-    #     xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
-    #     xn, yn, zn = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-    #     nlocal = 9
-    #     index = np.zeros(nlocal*ncells, dtype=int)
-    #     jndex = np.zeros(nlocal*ncells, dtype=int)
-    #     A = np.zeros(nlocal*ncells, dtype=np.float64)
-    #     sigma = np.zeros(3, dtype=np.float64)
-    #     scale = np.zeros(3, dtype=np.float64)
-    #     rt = np.zeros((3,2), dtype=np.float64)
-    #     count = 0
-    #     for ic in range(ncells):
-    #         # v-psi
-    #         edges =  self.mesh.facesOfCells[ic]
-    #         for ii in range(3):
-    #             iei = edges[ii]
-    #             sigma[ii] = self.mesh.sigma[ic,ii]
-    #             scale[ii] = 0.5*linalg.norm( self.mesh.normals[iei])/ self.mesh.dV[ic]
-    #         for ii in range(3):
-    #             for jj in range(3):
-    #                 index[count+3*ii+jj] = edges[ii]
-    #                 jndex[count+3*ii+jj] = edges[jj]
-    #         for kk in range(3):
-    #             iek =  self.mesh.facesOfCells[ic, kk]
-    #             for ii in range(3):
-    #                 rt[ii,0] = sigma[ii] * scale[ii] * (xf[iek] -  xn[elem[ic, ii]])
-    #                 rt[ii,1] = sigma[ii] * scale[ii] * (yf[iek] -  yn[elem[ic, ii]])
-    #             for ii in range(3):
-    #                 for jj in range(3):
-    #                     A[count+3*ii+jj] +=  self.mesh.dV[ic]* np.dot(rt[ii], rt[jj])/3.0
-    #         count += nlocal
-    #     return scipy.sparse.coo_matrix((A, (index, jndex)), shape=(nfaces, nfaces))
-    #
-    # def matrixB(self):
-    #     ncells =  self.mesh.ncells
-    #     nfaces =  self.mesh.nfaces
-    #     nlocal = 3
-    #     index = np.zeros(nlocal*ncells, dtype=int)
-    #     jndex = np.zeros(nlocal*ncells, dtype=int)
-    #     A = np.zeros(nlocal*ncells, dtype=np.float64)
-    #     count = 0
-    #     for ic in range(ncells):
-    #         for ii in range(3):
-    #             ie = self.mesh.facesOfCells[ic,ii]
-    #             index[count+ii] = ic
-    #             jndex[count+ii] = ie
-    #             adiv = linalg.norm( self.mesh.normals[ie])* self.mesh.sigma[ic,ii]
-    #             A[count+ii] = adiv
-    #         count += nlocal
-    #     print("*** A.shape", A.shape)
-    #     A= scipy.sparse.coo_matrix((A, (index, jndex)), shape=(ncells, nfaces))
-    #     # print("A",A.todense())
-    #     return A
 
 # ------------------------------------- #
-
 if __name__ == '__main__':
     import fempy.tools.comparerrors
     import sys
@@ -258,6 +149,6 @@ if __name__ == '__main__':
     methods = {}
     methods['poisson'] = Laplace(problem=problem)
 
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=False)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
     h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
     comp.compare(h=h)

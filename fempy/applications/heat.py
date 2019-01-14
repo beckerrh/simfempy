@@ -1,21 +1,14 @@
 import time
 import numpy as np
-import fempy.tools.analyticalsolution
 from fempy import solvers
 from fempy import fems
 
 #=================================================================#
-class Heat(solvers.newtonsolver.NewtonSolver):
+class Heat(solvers.solver.Solver):
     """
     """
     def __init__(self, **kwargs):
-        solvers.newtonsolver.NewtonSolver.__init__(self)
-        self.dirichlet = None
-        self.neumann = None
-        self.rhs = None
-        self.solexact = None
-        self.bdrycond = kwargs.pop('bdrycond')
-        self.kheat = None
+        super().__init__(**kwargs)
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
@@ -32,70 +25,15 @@ class Heat(solvers.newtonsolver.NewtonSolver):
             self.kheat = np.vectorize(kwargs.pop('kheat'))
         else:
             self.kheat = np.vectorize(lambda i: 0.123)
-        if 'problem' in kwargs:
-            self.defineProblem(problem=kwargs.pop('problem'))
-        if 'rhs' in kwargs:
-            rhs = kwargs.pop('rhs')
-            assert rhs is not None
-            self.rhs = np.vectorize(rhs)
-        if 'postproc' in kwargs:
-            self.postproc = kwargs.pop('postproc')
-        else:
-            self.postproc={}
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
             self.method="trad"
-            
-    def defineProblem(self, problem):
-        self.problem = problem
-        problemsplit = problem.split('_')
-        if problemsplit[0] != 'Analytic':
-            raise ValueError("unownd problem {}".format(problem))
-        function = problemsplit[1]
-        if function == 'Linear':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.7 * y')
-        elif function == 'Linear3d':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('0.3 * x + 0.2 * y + 0.4*z')
-        elif function == 'Quadratic':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
-        elif function == 'Quadratic3d':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y+3*z*z')
-        elif function == 'Hubbel':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
-        elif function == 'Exponential':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
-        elif function == 'Sinus':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
-        elif function == 'Sinus3d':
-            self.solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y+0.5*z)')
+        if 'plotk' in kwargs:
+            self.plotk = kwargs.pop('plotk')
         else:
-            raise ValueError("unknown analytic solution: {}".format(function))
-        # class NeummannExact():
-        #     def __init__(self, ex):
-        #         self.ex = ex
-        #     def __call__(self, x, y, z, nx, ny, nz, k):
-        #         return k*(self.ex.x(x, y, z)*nx + self.ex.y(x, y, z)*ny + self.ex.z(x, y, z)*nz)
-        # class RhsExact():
-        #     def __init__(self, ex, k):
-        #         self.ex = ex
-        #         self.k = k
-        #     # def __call__(self, x, y, z):
-        #     #     return -self.k*(self.ex.xx(x, y, z) + self.ex.yy(x, y, z) + self.ex.zz(x, y, z))
-        # k0 = self.kheat(0)
-        # def rhs(x, y, z):
-        #     return -k0 * (self.solexact.xx(x, y, z) + self.solexact.yy(x, y, z) + self.solexact.zz(x, y, z))
-        #
-        # neumannex = np.vectorize(NeummannExact(self.solexact).__call__)
-        # rhsclass = RhsExact(self.solexact, self.kheat(0))
-        # self.rhs = np.vectorize(rhs)
-        for color, bc in self.bdrycond.type.items():
-            if bc == "Dirichlet":
-                self.bdrycond.fct[color] = self.solexact
-            elif bc == "Neumann":
-                self.bdrycond.fct[color] = None
-            else:
-                raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
+            self.plotk = False
+
     def setMesh(self, mesh):
         t0 = time.time()
         self.mesh = mesh
@@ -108,15 +46,15 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
         t1 = time.time()
         self.timer['setmesh'] = t1-t0
-    def solvestatic(self):
-        return self.solveLinear()
+
     def solve(self, iter, dirname):
         return self.solveLinear()
     def computeRhs(self):
         return self.fem.computeRhs(self.rhs, self.solexact, self.kheatcell, self.bdrycond)
     def matrix(self):
         return self.fem.matrixDiffusion(self.kheatcell)
-    def boundary(self, A, b, u):
+    def boundary(self, A, b, u=None):
+        if u is None: u = np.asarray(b)
         return self.fem.boundary(A, b, u, self.bdrycond, self.method)
 
     def postProcess(self, u):
@@ -133,13 +71,13 @@ class Heat(solvers.newtonsolver.NewtonSolver):
         info['postproc'] = {}
         for key, val in self.postproc.items():
             type,data = val.split(":")
-            if type == "mean":
+            if type == "bdrymean":
                 info['postproc'][key] = self.fem.computeMean(u, key, data)
-            elif type == "flux":
+            elif type == "bdrydn":
                 info['postproc'][key] = self.fem.computeFlux(u, key, data)
             else:
                 raise ValueError("unknown postprocess {}".format(key))
-        cell_data['k'] = self.kheatcell
+        if self.plotk: cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
 
 #=================================================================#

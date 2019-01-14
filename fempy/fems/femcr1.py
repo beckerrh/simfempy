@@ -93,7 +93,7 @@ class FemCR1(object):
         self.facesdirflux = {}
         for key, val in postproc.items():
             type, data = val.split(":")
-            if type != "flux": continue
+            if type != "bdrydn": continue
             colors = [int(x) for x in data.split(',')]
             self.facesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:

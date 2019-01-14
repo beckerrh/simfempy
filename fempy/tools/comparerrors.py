@@ -20,7 +20,6 @@ class CompareErrors(object):
         self.problemname = "none"
         for name, method in self.methods.items():
             if self.problemname =="none":
-                print("method.problem=", method.problemname)
                 try: self.problemname = method.problemname
                 except: pass
             else:

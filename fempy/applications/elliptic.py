@@ -5,16 +5,16 @@ from fempy import solvers
 from fempy import fems
 
 #=================================================================#
-class Elliptic(solvers.newtonsolver.NewtonSolver):
+class Elliptic(solvers.solver.Solver):
     """
     """
     def __init__(self, **kwargs):
-        solvers.newtonsolver.NewtonSolver.__init__(self)
+        super().__init__(**kwargs)
         self.linearsolver = 'pyamg'
-        self.dirichlet = None
-        self.neumann = None
-        self.rhs = None
-        self.solexact = None
+        # self.dirichlet = None
+        # self.neumann = None
+        # self.rhs = None
+        # self.solexact = None
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
         if fem == 'p1':
@@ -23,25 +23,25 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        self.ncomp = 1
-        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
-        self.bdrycond = kwargs.pop('bdrycond')
-        assert len(self.bdrycond) == self.ncomp
-        if 'problemname' in kwargs:
-            self.problemname = kwargs.pop('problemname')
-        if 'problem' in kwargs:
-            self.defineProblem(problem=kwargs.pop('problem'))
-        if 'solexact' in kwargs:
-            self.solexact = kwargs.pop('solexact')
-        if self.solexact:
-            for icomp,bdrycond in enumerate(self.bdrycond):
-                for color, bc in bdrycond.type.items():
-                    if bc == "Dirichlet":
-                        bdrycond.fct[color] = self.solexact[icomp]
-                    elif bc == "Neumann":
-                        bdrycond.fct[color] = None
-                    else:
-                        raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
+        # self.ncomp = 1
+        # if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
+        # self.bdrycond = kwargs.pop('bdrycond')
+        # assert len(self.bdrycond) == self.ncomp
+        # if 'problemname' in kwargs:
+        #     self.problemname = kwargs.pop('problemname')
+        # if 'problem' in kwargs:
+        #     self.defineProblem(problem=kwargs.pop('problem'))
+        # if 'solexact' in kwargs:
+        #     self.solexact = kwargs.pop('solexact')
+        # if self.solexact:
+        #     for icomp,bdrycond in enumerate(self.bdrycond):
+        #         for color, bc in bdrycond.type.items():
+        #             if bc == "Dirichlet":
+        #                 bdrycond.fct[color] = self.solexact[icomp]
+        #             elif bc == "Neumann":
+        #                 bdrycond.fct[color] = None
+        #             else:
+        #                 raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
         if 'rhs' in kwargs:
             rhs = kwargs.pop('rhs')
             assert rhs is not None
@@ -49,11 +49,14 @@ class Elliptic(solvers.newtonsolver.NewtonSolver):
             self.rhs = []
             for i in range(self.ncomp):
                 self.rhs[i] = np.vectorize(rhs[i])
-        if 'postproc' in kwargs:
-            self.postproc = kwargs.pop('postproc')
+        # if 'postproc' in kwargs:
+        #     self.postproc = kwargs.pop('postproc')
+        #     assert len(self.postproc) == self.ncomp
+        # else:
+        #     self.postproc=None
+        if self.postproc:
+            print("self.postproc", self.postproc, len(self.postproc), self.ncomp)
             assert len(self.postproc) == self.ncomp
-        else:
-            self.postproc=None
         if 'diff' in kwargs:
             self.diff = kwargs.pop('diff')
             assert len(self.diff) == self.ncomp

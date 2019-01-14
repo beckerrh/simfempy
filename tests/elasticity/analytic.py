@@ -15,7 +15,7 @@ def test_analytic():
     # problem = 'Analytic_Quadratic'
     # problem = 'Analytic_Sinus'
     geomname = "unitsquare"
-    # geomname = "unitcube"
+    geomname = "unitcube"
     postproc = {}
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":

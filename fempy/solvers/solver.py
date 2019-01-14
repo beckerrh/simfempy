@@ -11,55 +11,10 @@ import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 
-#ml = pyamg.ruge_stuben_solver(A)
-#x = ml.solve(b, tol=1e-10)
-
-#lu = umfpack.splu(A)
-#x = umfpack.spsolve(A, b)
+import fempy.tools.analyticalsolution
 
 # https://github.com/bfroehle/pymumps
 #from mumps import DMumpsContext
-
-#=================================================================#
-def is_symmetric(m):
-    """Check if a sparse matrix is symmetric
-        https://mail.python.org/pipermail/scipy-dev/2014-October/020117.html
-        Parameters
-        ----------
-        m : sparse matrix
-
-        Returns
-        -------
-        check : bool
-    """
-    if m.shape[0] != m.shape[1]:
-        raise ValueError('m must be a square matrix')
-
-    if not isinstance(m, sparse.coo_matrix):
-        m = sparse.coo_matrix(m)
-
-    r, c, v = m.row, m.col, m.data
-    tril_no_diag = r > c
-    triu_no_diag = c > r
-
-    if triu_no_diag.sum() != tril_no_diag.sum():
-        return False, "no_diag_sum", triu_no_diag.sum() - tril_no_diag.sum()
-
-    rl = r[tril_no_diag]
-    cl = c[tril_no_diag]
-    vl = v[tril_no_diag]
-    ru = r[triu_no_diag]
-    cu = c[triu_no_diag]
-    vu = v[triu_no_diag]
-
-    sortl = np.lexsort((cl, rl))
-    sortu = np.lexsort((ru, cu))
-    vl = vl[sortl]
-    vu = vu[sortu]
-
-    check = np.allclose(vl, vu)
-
-    return check
 
 #=================================================================#
 class IterationCounter(object):
@@ -76,12 +31,10 @@ class IterationCounter(object):
 
 
 #=================================================================#
-class NewtonSolver(object):
+class Solver(object):
     def __init__(self, **kwargs):
         self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
         self.runinfo = {'niter':0}
-        if 'problemname' in kwargs:
-            self.problemname = kwargs.pop('problemname')
         self.linearsolvers=[]
         # self.linearsolvers.append('scipy-umf_mmd')
         self.linearsolvers.append('umf')
@@ -93,6 +46,70 @@ class NewtonSolver(object):
             self.linearsolvers.append('pyamg')
         except: pass
         self.linearsolver = 'umf'
+
+        self.ncomp = 1
+        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
+        if 'problem' in kwargs:
+            if 'solexact' in kwargs: raise ValueError("not both 'problem' and 'solexact' can be specified")
+            if 'problemname' in kwargs: raise ValueError("not both 'problem' and 'problemname' can be specified")
+            random=True
+            if 'random' in kwargs: random = kwargs.pop('random')
+            self.solexact = self.defineAnalyticalSolution(problem=kwargs.pop('problem'), random=random)
+        elif 'solexact' in kwargs:
+            self.solexact = kwargs.pop('solexact')
+        else:
+            self.solexact = None
+            self.bdrycond = kwargs.pop('bdrycond')
+        if self.solexact:
+            self.bdrycond = self.setAnalyticalBoundaryCondition(bdrycond=kwargs.pop('bdrycond'))
+        if 'problemname' in kwargs: self.problemname = kwargs.pop('problemname')
+        else: self.problemname="none"
+        if 'postproc' in kwargs:
+            self.postproc = kwargs.pop('postproc')
+        else:
+            self.postproc = None
+        if 'rhs' in kwargs:
+            rhs = kwargs.pop('rhs')
+            assert rhs is not None
+            self.rhs = np.vectorize(rhs)
+        else:
+            self.rhs = None
+
+
+    def defineAnalyticalSolution(self, problem, random=True):
+        self.problemname = problem
+        problemsplit = problem.split('_')
+        if problemsplit[0] != 'Analytic':
+            raise ValueError("unknown problem {}".format(problem))
+        function = problemsplit[1]
+        solexact = fempy.tools.analyticalsolution.analyticalSolution(function, self.ncomp, random)
+        return solexact
+
+    def setAnalyticalBoundaryCondition(self, bdrycond):
+        if isinstance(bdrycond, (list, tuple)):
+            if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
+            for icomp,bcs in enumerate(bdrycond):
+                for color, bc in bcs.type.items():
+                    if bc == "Dirichlet":
+                        bcs.fct[color] = self.solexact[icomp]
+                    elif bc == "Neumann":
+                        bcs.fct[color] = None
+                    else:
+                        raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
+        else:
+            def solexactall(x, y, z):
+                return [self.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+            for color, bc in bdrycond.type.items():
+                if bc == "Dirichlet":
+                    if self.ncomp == 1:
+                        bdrycond.fct[color] = self.solexact
+                    else:
+                        bdrycond.fct[color] = solexactall
+                elif bc == "Neumann":
+                    bdrycond.fct[color] = None
+                else:
+                    raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
+        return bdrycond
 
     def linearSolver(self, A, b, u=None, solver = 'umf'):
         # print("A is symmetric ? ", is_symmetric(A))

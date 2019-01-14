@@ -1,2 +1,2 @@
-from . import newtonsolver
+from . import solver
 from . import newton
