@@ -110,6 +110,7 @@ class FemP1(object):
             help = sparse.dok_matrix((nb, nnodes))
             for i in range(nb): help[i, nodes[i]] = 1
             self.Asaved[key] = help.dot(A)
+        self.A_inner_dir = A[self.nodesinner, :][:, self.nodedirall]
         if method == 'trad':
             for color, nodes in self.nodesdir.items():
                 dirichlet = bdrycond.fct[color]
@@ -139,6 +140,25 @@ class FemP1(object):
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, b, u
+    def boundaryvec(self, b, u, bdrycond, method):
+        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        nnodes = self.mesh.nnodes
+        for key, nodes in self.nodesdirflux.items():
+            self.bsaved[key] = b[nodes]
+        if method == 'trad':
+            for color, nodes in self.nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                u[nodes] = b[nodes]
+            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
+        else:
+            for color, nodes in self.nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                b[nodes] = 0
+            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
+            b[self.nodedirall] += A[self.nodedirall, :][:, self.nodedirall] * u[self.nodedirall]
+        return b, u
     def tonode(self, u):
         return u
     def grad(self, ic):
@@ -191,7 +211,20 @@ class FemP1(object):
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
         flux = np.sum(self.bsaved[key] - self.Asaved[key]*u )
         return flux
-
+    def computeBdryFct(self, u, key, data):
+        colors = [int(x) for x in data.split(',')]
+        nodes = np.empty(shape=(0), dtype=int)
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            nodes = np.unique(np.union1d(nodes, self.mesh.faces[faces].ravel()))
+        return self.mesh.points[nodes], u[nodes]
+    def computePointValues(self, u, key, data):
+        colors = [int(x) for x in data.split(',')]
+        up = np.empty(len(colors))
+        for i,color in enumerate(colors):
+            nodes = self.mesh.vertices[self.mesh.vertex_labels==color]
+            up[i] = u[nodes]
+        return up
 # ------------------------------------- #
 
 if __name__ == '__main__':

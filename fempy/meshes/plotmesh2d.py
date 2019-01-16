@@ -67,8 +67,12 @@ def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
     colors = np.unique(bdrylabels)
     # print("colors", colors)
     ax.triplot(x, y, tris, color='k')
-    ax.set_xlabel(r'x')
-    ax.set_ylabel(r'y')
+    if ax ==plt:
+        ax.xlabel(r'x')
+        ax.ylabel(r'y')
+    else:
+        ax.set_xlabel(r'x')
+        ax.set_ylabel(r'y')
     pltcolors = 'bgrcmyk'
     patches=[]
     i=0
@@ -145,8 +149,9 @@ def mesh(x, y, tris, **kwargs):
     _settitle(ax, title)
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data, cell_data=None, ax=plt, numbering=False, title=None, suptitle=None):
-    nplots = len(point_data)
+def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None):
+    nplots=0
+    if point_data: nplots += len(point_data)
     if cell_data: nplots += len(cell_data)
     if nplots==0:
         print("meshWithData() no point_data")
@@ -157,17 +162,18 @@ def meshWithData(x, y, tris, xc, yc, point_data, cell_data=None, ax=plt, numberi
     fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
     if suptitle: fig.suptitle(suptitle)
     count=0
-    for pdn, pd in point_data.items():
-        assert x.shape == pd.shape
-        ax = axs[count//3,count%3]
-        ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
-        cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
-        if numbering:
-            _plotVertices(x, y, tris, xc, yc, ax=ax)
-            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-        plt.colorbar(cnt, ax=ax)
-        _settitle(ax, pdn)
-        count += 1
+    if point_data:
+        for pdn, pd in point_data.items():
+            assert x.shape == pd.shape
+            ax = axs[count//3,count%3]
+            ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
+            cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
+            if numbering:
+                _plotVertices(x, y, tris, xc, yc, ax=ax)
+                _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+            plt.colorbar(cnt, ax=ax)
+            _settitle(ax, pdn)
+            count += 1
     if cell_data:
         for cdn, cd in cell_data.items():
             assert tris.shape[0] == cd.shape[0]
@@ -180,5 +186,5 @@ def meshWithData(x, y, tris, xc, yc, point_data, cell_data=None, ax=plt, numberi
             _settitle(ax, cdn)
             count += 1
     if title: fig.canvas.set_window_title(title)
+    return fig, axs
     # plt.tight_layout()
-    plt.show()

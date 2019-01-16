@@ -78,6 +78,10 @@ class SimplexMesh(object):
         assert points.shape[1] ==3
         self.points = points
         self.nnodes = self.points.shape[0]
+        if 'vertex' in cells.keys():
+            self.vertices = cells['vertex']
+            self.vertex_labels = celldata['vertex']['gmsh:physical']
+
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])

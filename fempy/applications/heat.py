@@ -47,7 +47,7 @@ class Heat(solvers.solver.Solver):
         t1 = time.time()
         self.timer['setmesh'] = t1-t0
 
-    def solve(self, iter, dirname):
+    def solve(self, iter=0, dirname=None):
         return self.solveLinear()
     def computeRhs(self):
         return self.fem.computeRhs(self.rhs, self.solexact, self.kheatcell, self.bdrycond)
@@ -56,6 +56,9 @@ class Heat(solvers.solver.Solver):
     def boundary(self, A, b, u=None):
         if u is None: u = np.asarray(b)
         return self.fem.boundary(A, b, u, self.bdrycond, self.method)
+    def boundaryvec(self, b, u=None):
+        if u is None: u = np.asarray(b)
+        return self.fem.boundaryvec(b, u, self.bdrycond, self.method)
 
     def postProcess(self, u):
         info = {}
@@ -73,10 +76,15 @@ class Heat(solvers.solver.Solver):
             type,data = val.split(":")
             if type == "bdrymean":
                 info['postproc'][key] = self.fem.computeMean(u, key, data)
+            elif type == "bdryfct":
+                info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
             elif type == "bdrydn":
                 info['postproc'][key] = self.fem.computeFlux(u, key, data)
+            elif type == "pointvalues":
+                info['postproc'][key] = self.fem.computePointValues(u, key, data)
             else:
-                raise ValueError("unknown postprocess {}".format(key))
+                raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+        assert self.kheatcell.shape[0] == self.mesh.ncells
         if self.plotk: cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
 
