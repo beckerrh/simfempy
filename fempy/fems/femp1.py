@@ -95,6 +95,7 @@ class FemP1(object):
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = 1/self.mesh.dimension
+        # print("dV", np.where(dV<0.001))
         self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
         scalemass = 1 / self.nloc / (self.nloc+1);
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
@@ -131,7 +132,8 @@ class FemP1(object):
                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 b[nodes] = 0
             b -= A*u
-            b[self.nodedirall] += 2*A[self.nodedirall, :][:, self.nodedirall] * u[self.nodedirall]
+            self.A_dir_dir = A[self.nodedirall, :][:, self.nodedirall]
+            b[self.nodedirall] += 2*self.A_dir_dir * u[self.nodedirall]
             help = np.ones((nnodes))
             help[self.nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
@@ -142,22 +144,27 @@ class FemP1(object):
         return A, b, u
     def boundaryvec(self, b, u, bdrycond, method):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        nnodes = self.mesh.nnodes
         for key, nodes in self.nodesdirflux.items():
             self.bsaved[key] = b[nodes]
         if method == 'trad':
             for color, nodes in self.nodesdir.items():
                 dirichlet = bdrycond.fct[color]
-                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                if dirichlet:
+                    b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                else:
+                    b[nodes] = 0
                 u[nodes] = b[nodes]
             b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
         else:
             for color, nodes in self.nodesdir.items():
                 dirichlet = bdrycond.fct[color]
-                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                if dirichlet:
+                    u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                else:
+                    u[nodes] = 0
                 b[nodes] = 0
             b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
-            b[self.nodedirall] += A[self.nodedirall, :][:, self.nodedirall] * u[self.nodedirall]
+            b[self.nodedirall] += self.A_dir_dir * u[self.nodedirall]
         return b, u
     def tonode(self, u):
         return u

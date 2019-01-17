@@ -189,7 +189,6 @@ class LatexWriter(object):
 
 
 # ------------------------------------- #
-
 if __name__ == '__main__':
     n = [i**2 for i in range(1, 5)]
     values={}
