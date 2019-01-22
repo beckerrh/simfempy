@@ -96,6 +96,6 @@ def test_solvers():
 
 #================================================================#
 
-# test_analytic()
-test_solvers()
+test_analytic()
+#test_solvers()
 # test_flux()
