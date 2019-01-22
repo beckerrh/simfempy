@@ -1,21 +1,14 @@
-assert __name__ == '__main__'
 from os import sys, path
 import numpy as np
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import fempy.applications
+from fempy.applications.elasticity import Elasticity
 
 
 #----------------------------------------------------------------#
-def test_analytic():
+def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     import fempy.tools.comparerrors
-    # problem = 'Analytic_Constant'
-    problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    # problem = 'Analytic_Sinus'
-    geomname = "unitsquare"
-    geomname = "unitcube"
     postproc = {}
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":
@@ -37,19 +30,21 @@ def test_analytic():
         postproc['bdrymean'] = "bdrymean:11,66"
         postproc['bdrydn'] = "bdrydn:22,33,44,55"
     compares = {}
-    app = fempy.applications.elasticity.Elasticity(problem=problem, bdrycond=bdrycond, ncomp=ncomp)
+    app = Elasticity(problem=problem, bdrycond=bdrycond, ncomp=ncomp)
     for fem in ['p1']:
         for bdry in ['trad','new']:
-            compares[fem+bdry] = fempy.applications.elasticity.Elasticity(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem, ncomp=ncomp, method=bdry, problemname=app.problemname)
-    comp = fempy.tools.comparerrors.CompareErrors(compares, plot=False)
+            compares[fem+bdry] = Elasticity(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc,\
+                                            fem=fem, ncomp=ncomp, method=bdry, problemname=app.problemname)
+    comp = fempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
     if geomname == "unitcube":
         h = [2, 1, 0.5, 0.25, 0.125, 0.08]
     if problem == 'Analytic_Linear':
         h = [1, 0.5, 0.25, 0.125]
     result = comp.compare(geomname=geomname, h=h)
+    return result[3]['error']['L2']
 
 
 #================================================================#
-
-test_analytic()
+if __name__ == '__main__':
+    test_analytic()

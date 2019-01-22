@@ -56,13 +56,14 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=5)
         postproc['bdrydn'] = "bdrydn:22,33,44,55"
 
     methods = {}
-    for fem in ['cr1', 'p1']:
-        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method='new', random=False)
+    for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
+        fem, meth  = method.split('-')
+        methods[method] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
     comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
     h = [2.0, 1.0, 0.5]
     result = comp.compare(geomname=geomname, h=h)
-    return result[3]['error']
+    return result[3]['error']['L2']
 
 # ----------------------------------------------------------------#
 def test_solvers():
