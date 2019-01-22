@@ -110,6 +110,7 @@ class FemCR1(object):
             help = sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
             self.Asaved[key] = help.dot(A)
+        self.A_inner_dir = A[self.facesinner, :][:, self.facesdirall]
         if method == 'trad':
             for color in self.colorsdir:
                 faces = self.mesh.bdrylabels[color]
@@ -131,6 +132,9 @@ class FemCR1(object):
                 dirichlet = bdrycond.fct[color]
                 u[faces] = dirichlet(x[faces], y[faces], z[faces])
                 b[faces] = 0
+            self.A_dir_dir = A[self.facesdirall, :][:, self.facesdirall]
+            b[self.facesinner] -= self.A_inner_dir * u[self.facesdirall]
+            b[self.facesdirall] += self.A_dir_dir * u[self.facesdirall]
             b -= A*u
             b[self.facesdirall] += 2*A[self.facesdirall, :][:, self.facesdirall] * u[self.facesdirall]
             help = np.ones((nfaces))

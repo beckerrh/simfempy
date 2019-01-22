@@ -74,7 +74,7 @@ def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbe
     return
 
 # =================================================================#
-def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, uptitle=None):
+def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None,addplots=[]):
     nplots = len(point_data)+len(cell_data)
     if nplots==0:
         print("meshWithData() no point_data")

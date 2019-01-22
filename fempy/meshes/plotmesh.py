@@ -36,7 +36,7 @@ def meshWithBoundaries(meshdata, ax=plt):
     if ax==plt: plt.show()
 
 #=================================================================#
-def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None):
+def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
     dim, meshdataismesh = _getDim(meshdata)
     """
     meshdata    : either mesh or coordinates and connectivity
@@ -46,16 +46,16 @@ def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, tit
     if dim==2:
         if meshdataismesh:
             x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
-            return plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, title=title, suptitle=suptitle)
+            return plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
         else:
-            return plotmesh2d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle)
+            return plotmesh2d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
     else:
         if meshdataismesh:
             x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
             xc, yc, zc = meshdata.pointsc[:,0], meshdata.pointsc[:,1], meshdata.pointsc[:,2]
-            return plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, title=title, suptitle=suptitle)
+            return plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
         else:
-            return plotmesh3d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle)
+            return plotmesh3d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
 
 
 #=================================================================#

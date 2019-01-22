@@ -135,7 +135,8 @@ class Solver(object):
             ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
             # print("ml", ml)
             res=[]
-            u = ml.solve(b, tol=1e-12, residuals=res, accel = 'gmres')
+            # if u is not None: print("u norm", np.linalg.norm(u))
+            u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
             print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
             return u
         else:

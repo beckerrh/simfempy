@@ -131,9 +131,9 @@ class FemP1(object):
                 dirichlet = bdrycond.fct[color]
                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 b[nodes] = 0
-            b -= A*u
             self.A_dir_dir = A[self.nodedirall, :][:, self.nodedirall]
-            b[self.nodedirall] += 2*self.A_dir_dir * u[self.nodedirall]
+            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
+            b[self.nodedirall] += self.A_dir_dir * u[self.nodedirall]
             help = np.ones((nnodes))
             help[self.nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))

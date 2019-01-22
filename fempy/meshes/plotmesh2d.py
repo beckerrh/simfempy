@@ -149,10 +149,12 @@ def mesh(x, y, tris, **kwargs):
     _settitle(ax, title)
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None):
+def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None,\
+                 addplots=[]):
     nplots=0
     if point_data: nplots += len(point_data)
     if cell_data: nplots += len(cell_data)
+    nplots += len(addplots)
     if nplots==0:
         print("meshWithData() no point_data")
         return
@@ -161,30 +163,40 @@ def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=
     # print("nrows, ncols", nrows, ncols)
     fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
     if suptitle: fig.suptitle(suptitle)
+    # aspect = (np.max(x)-np.mean(x))/(np.max(y)-np.mean(y))
     count=0
     if point_data:
         for pdn, pd in point_data.items():
             assert x.shape == pd.shape
-            ax = axs[count//3,count%3]
+            ax = axs[count//nplots,count%nplots]
             ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
             cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
+            ax.set_aspect(aspect='equal')
             if numbering:
                 _plotVertices(x, y, tris, xc, yc, ax=ax)
                 _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-            plt.colorbar(cnt, ax=ax)
+            clb = plt.colorbar(cnt, ax=ax)
+            # clb.set_label(pdn)
             _settitle(ax, pdn)
             count += 1
     if cell_data:
         for cdn, cd in cell_data.items():
             assert tris.shape[0] == cd.shape[0]
-            ax = axs[count//3,count%3]
+            # ax = axs[count//3,count%3]
+            ax = axs[count//nplots,count%nplots]
             cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
+            ax.set_aspect(aspect='equal')
             if numbering:
                 _plotVertices(x, y, tris, xc, yc, ax=ax)
                 _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-            plt.colorbar(cnt, ax=ax)
+            clb = plt.colorbar(cnt, ax=ax)
+            # clb.ax.set_title(cdn)
+            clb.set_label(cdn)
             _settitle(ax, cdn)
             count += 1
+    for addplot in addplots:
+        ax = axs[count // nplots, count % nplots]
+        addplot(ax)
     if title: fig.canvas.set_window_title(title)
     return fig, axs
     # plt.tight_layout()
