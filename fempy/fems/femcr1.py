@@ -135,8 +135,8 @@ class FemCR1(object):
             self.A_dir_dir = A[self.facesdirall, :][:, self.facesdirall]
             b[self.facesinner] -= self.A_inner_dir * u[self.facesdirall]
             b[self.facesdirall] += self.A_dir_dir * u[self.facesdirall]
-            b -= A*u
-            b[self.facesdirall] += 2*A[self.facesdirall, :][:, self.facesdirall] * u[self.facesdirall]
+            # b -= A*u
+            # b[self.facesdirall] += 2*A[self.facesdirall, :][:, self.facesdirall] * u[self.facesdirall]
             help = np.ones((nfaces))
             help[self.facesdirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))

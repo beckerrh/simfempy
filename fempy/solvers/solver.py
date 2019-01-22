@@ -67,7 +67,7 @@ class Solver(object):
         if 'postproc' in kwargs:
             self.postproc = kwargs.pop('postproc')
         else:
-            self.postproc = None
+            self.postproc = {}
         if 'rhs' in kwargs:
             rhs = kwargs.pop('rhs')
             assert rhs is not None
