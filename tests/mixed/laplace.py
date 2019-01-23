@@ -8,29 +8,31 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
+import scipy.sparse.linalg as splinalg
 
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
     sys.path.append(fempypath)
-from raviartthomas import RaviartThomas
-from fempy import solvers
 import fempy.tools.analyticalsolution
 import fempy.fems.femrt0
 import fempy.applications
+from fempy import solvers
+from fempy.tools.timer import Timer
 
-# class Laplace(RaviartThomas):
+
 # ------------------------------------- #
 class Laplace(solvers.solver.Solver):
     """
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dirichlet = None
-        self.rhs = None
-        self.solexact = None
-        if 'problem' in kwargs:
-            self.defineProblem(problem=kwargs.pop('problem'))
+        # self.dirichlet = None
+        # self.rhs = None
+        # self.solexact = None
+        # if 'problem' in kwargs:
+        #     self.defineProblem(problem=kwargs.pop('problem'))
+        print("self.solexact", self.solexact)
         self.femv = fempy.fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
@@ -103,7 +105,8 @@ class Laplace(solvers.solver.Solver):
     def computeRhs(self):
         xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
         xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
-        solexact, dirichlet, rhs = self.solexact, self.dirichlet, self.rhs
+        # solexact, dirichlet, rhs = self.solexact, self.dirichlet, self.rhs
+        solexact, rhs = self.solexact, self.rhs
         if solexact:
             assert rhs is None
             bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc))* self.mesh.dV
@@ -112,31 +115,86 @@ class Laplace(solvers.solver.Solver):
             bcells = rhs(xc, yc, zc) *  self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
         for color, faces in self.mesh.bdrylabels.items():
+            condition = self.bdrycond.type[color]
+            assert condition=="Dirichlet"
+            dirichlet = self.bdrycond.fct[color]
             ud = dirichlet(xf[faces], yf[faces], zf[faces])
             bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
         return np.concatenate((bsides, bcells))
 
     def matrix(self):
-        import time
-        t0 = time.time()
         A = self.femv.constructMass()
-        t1 = time.time()
         B = self.femv.constructDiv()
-        t2 = time.time()
-        A1 = scipy.sparse.hstack([A,B.T])
-        ncells = self.mesh.ncells
-        help = np.zeros((ncells))
-        help = scipy.sparse.dia_matrix((help, 0), shape=(ncells, ncells))
-        A2 = scipy.sparse.hstack([B, help])
-        A = scipy.sparse.vstack([A1,A2])
-        t3 = time.time()
-        A = A.tocsr()
-        t4 = time.time()
-        print("A", t1-t0, "B", t2-t1, "stack", t3-t2, "csr", t4-t3)
-        return A
+        return A,B
 
     def boundary(self, A, b, u):
         return A,b,u
+
+    def _to_single_matrix(self, Ain):
+        A, B = Ain
+        ncells = self.mesh.ncells
+        help = np.zeros((ncells))
+        help = scipy.sparse.dia_matrix((help, 0), shape=(ncells, ncells))
+        A1 = scipy.sparse.hstack([A, B.T])
+        A2 = scipy.sparse.hstack([B, help])
+        Aall = scipy.sparse.vstack([A1, A2])
+        return Aall.tocsr()
+
+    def linearSolver(self, Ain, bin, u=None, solver = 'umf'):
+        solvers = ['umf', 'gmres2']
+        solvers = ['umf']
+        t = Timer("solve")
+        for solver in solvers:
+            u=self._linearSolver(Ain, bin, u, solver)
+            t.add(solver)
+        return u
+
+    def _linearSolver(self, Ain, bin, u=None, solver = 'umf'):
+        if solver == 'umf':
+            Aall = self._to_single_matrix(Ain)
+            return splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
+        elif solver == 'gmres':
+            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            Aall = self._to_single_matrix(Ain)
+            u,info = splinalg.lgmres(Aall, bin, callback=counter, inner_m=20, outer_k=4, atol=1e-10)
+            if info: raise ValueError("no convergence info={}".format(info))
+            return u
+        elif solver == 'gmres2':
+            nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
+            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            # Aall = self._to_single_matrix(Ain)
+            # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
+            # M_x = lambda x: M2.solve(x)
+            # M = splinalg.LinearOperator(Aall.shape, M_x)
+            A, B = Ain
+            A, B = A.tocsr(), B.tocsr()
+            D = scipy.sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces,nfaces))
+            S = -B*D*B.T
+            import pyamg
+            config = pyamg.solver_configuration(S, verb=False)
+            ml = pyamg.rootnode_solver(S, B=config['B'], smooth='energy')
+            # Silu = splinalg.spilu(S)
+            # Ailu = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
+            def amult(x):
+                v,p = x[:nfaces],x[nfaces:]
+                return np.hstack( [A.dot(v) + B.T.dot(p), B.dot(v)])
+            Amult = splinalg.LinearOperator(shape=(nfaces+ncells,nfaces+ncells), matvec=amult)
+            def pmult(x):
+                v,p = x[:nfaces],x[nfaces:]
+                w = D.dot(v)
+                # w = Ailu.solve(v)
+                q = ml.solve(p - B.dot(w), maxiter=1, tol=1e-16)
+                w = w - D.dot(B.T.dot(q))
+                # w = w - Ailu.solve(B.T.dot(q))
+                return np.hstack( [w, q] )
+            P = splinalg.LinearOperator(shape=(nfaces+ncells,nfaces+ncells), matvec=pmult)
+            # u,info = splinalg.gmres(Amult, bin, M=P, callback=counter, atol=1e-10, restart=5)
+            u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-10, inner_m=10, outer_k=4)
+            # u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, inner_m=20, outer_k=4, atol=1e-10)
+            if info: raise ValueError("no convergence info={}".format(info))
+            return u
+        else:
+            raise NotImplementedError("solver '{}' ".format(solver))
 
 # ------------------------------------- #
 if __name__ == '__main__':
@@ -147,30 +205,36 @@ if __name__ == '__main__':
     # problem = 'Analytic_Linear'
     # problem = 'Analytic_Constant'
     geomname = "unitsquare"
-    # geomname = "unitcube"
+    geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
-        bdrycond.type[11] = "Neumann"
-        bdrycond.type[33] = "Neumann"
+        # bdrycond.type[11] = "Neumann"
+        # bdrycond.type[33] = "Neumann"
+        bdrycond.type[11] = "Dirichlet"
+        bdrycond.type[33] = "Dirichlet"
         bdrycond.type[22] = "Dirichlet"
         bdrycond.type[44] = "Dirichlet"
         postproc['bdrymean'] = "bdrymean:11,33"
         postproc['bdrydn'] = "bdrydn:22,44"
     if geomname == "unitcube":
         problem += "3d"
-        bdrycond.type[11] = "Neumann"
+        # bdrycond.type[11] = "Neumann"
+        bdrycond.type[11] = "Dirichlet"
         bdrycond.type[33] = "Dirichlet"
         bdrycond.type[22] = "Dirichlet"
         bdrycond.type[44] = "Dirichlet"
         bdrycond.type[55] = "Dirichlet"
-        bdrycond.type[66] = "Neumann"
+        # bdrycond.type[66] = "Neumann"
+        bdrycond.type[66] = "Dirichlet"
         postproc['bdrymean'] = "bdrymean:11,66"
         postproc['bdrydn'] = "bdrydn:22,33,44,55"
 
     methods = {}
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True, verbose=2)
     h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
+    if geomname=='unitcube':
+        h = [0.8, 0.4, 0.2, 0.1]
     comp.compare(geomname=geomname, h=h)

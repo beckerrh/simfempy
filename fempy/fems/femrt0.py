@@ -79,6 +79,7 @@ class FemRT0(object):
         return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
 
     def toCell(self, v):
+        # print("self.Mtocell.shape", self.Mtocell.shape, "v.shape", v.shape)
         return self.Mtocell.dot(v)
 
     def constructMass(self):

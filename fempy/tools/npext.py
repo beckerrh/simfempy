@@ -1,5 +1,6 @@
 import numpy as np
 
+# ------------------------------------- #
 def unique_all(a):
     """
     https://stackoverflow.com/questions/30003068/get-a-list-of-all-indices-of-repeated-elements-in-a-numpy-array
