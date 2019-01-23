@@ -17,11 +17,12 @@ from raviartthomas import RaviartThomas
 from fempy import solvers
 import fempy.tools.analyticalsolution
 import fempy.fems.femrt0
+import fempy.applications
 
 # class Laplace(RaviartThomas):
-class Laplace(solvers.solver.NewtonSolver):
+# ------------------------------------- #
+class Laplace(solvers.solver.Solver):
     """
-    Fct de base de RT0 = sigma * 0.5 * |S|/|K| (x-x_N)
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -145,10 +146,31 @@ if __name__ == '__main__':
     problem = 'Analytic_Sinus'
     # problem = 'Analytic_Linear'
     # problem = 'Analytic_Constant'
+    geomname = "unitsquare"
+    # geomname = "unitcube"
+    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    postproc = {}
+    if geomname == "unitsquare":
+        bdrycond.type[11] = "Neumann"
+        bdrycond.type[33] = "Neumann"
+        bdrycond.type[22] = "Dirichlet"
+        bdrycond.type[44] = "Dirichlet"
+        postproc['bdrymean'] = "bdrymean:11,33"
+        postproc['bdrydn'] = "bdrydn:22,44"
+    if geomname == "unitcube":
+        problem += "3d"
+        bdrycond.type[11] = "Neumann"
+        bdrycond.type[33] = "Dirichlet"
+        bdrycond.type[22] = "Dirichlet"
+        bdrycond.type[44] = "Dirichlet"
+        bdrycond.type[55] = "Dirichlet"
+        bdrycond.type[66] = "Neumann"
+        postproc['bdrymean'] = "bdrymean:11,66"
+        postproc['bdrydn'] = "bdrydn:22,33,44,55"
 
     methods = {}
-    methods['poisson'] = Laplace(problem=problem)
+    methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
     comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
     h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
-    comp.compare(h=h)
+    comp.compare(geomname=geomname, h=h)

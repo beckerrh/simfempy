@@ -11,12 +11,12 @@ import scipy.linalg as linalg
 from fempy import solvers
 
 
-class RaviartThomas(solvers.solver.NewtonSolver):
+class RaviartThomas(solvers.solver.Solver):
     """
     Fct de base de RT0 = sigma * 0.5 * |S|/|K| (x-x_N)
     """
     def __init__(self, **kwargs):
-        solvers.solver.NewtonSolver.__init__(self, **kwargs)
+        super().__init__(self, **kwargs)
 
     def setMesh(self, mesh):
         self.mesh = mesh

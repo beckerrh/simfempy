@@ -60,7 +60,6 @@ def test_analytic():
         bdrycond.type[66] = "Neumann"
         postproc['bdrymean'] = "bdrymean:11,66"
         postproc['bdrydn'] = "bdrydn:22,33,44,55"
-
     methods = {}
     for fem in ['p1', 'cr1']:
         methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method='new', random=False)
