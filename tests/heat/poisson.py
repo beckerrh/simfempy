@@ -1,4 +1,3 @@
-assert __name__ == '__main__'
 from os import sys, path
 import numpy as np
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
@@ -34,13 +33,8 @@ def test_flux():
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
-def test_analytic():
+def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=5):
     import fempy.tools.comparerrors
-    problem = 'Analytic_Linear'
-    # problem = 'Analytic_Quadratic'
-    # problem = 'Analytic_Sinus'
-    geomname = "unitsquare"
-    # geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
@@ -62,12 +56,14 @@ def test_analytic():
         postproc['bdrydn'] = "bdrydn:22,33,44,55"
 
     methods = {}
-    for fem in ['p1', 'cr1']:
-        methods[fem] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method='new', random=False)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True)
+    for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
+        fem, meth  = method.split('-')
+        methods[method] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
     h = [2.0, 1.0, 0.5]
     result = comp.compare(geomname=geomname, h=h)
+    return result[3]['error']['L2']
 
 # ----------------------------------------------------------------#
 def test_solvers():
@@ -95,7 +91,9 @@ def test_solvers():
         print("{:4d} {:12s} {:10.2e}".format(mesh.ncells, solver, t1-t0))
 
 #================================================================#
-
-test_analytic()
-#test_solvers()
-# test_flux()
+if __name__ == '__main__':
+    # test_analytic(problem = 'Analytic_Linear', geomname = "unitsquare")
+    # test_analytic(problem = 'Analytic_Quadratic', geomname = "unitsquare")
+    # test_analytic(problem = 'Analytic_Sinus', geomname = "unitcube")
+    test_solvers()
+    # test_flux()
