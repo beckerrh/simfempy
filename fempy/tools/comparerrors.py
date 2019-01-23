@@ -14,6 +14,15 @@ from fempy.meshes.simplexmesh import SimplexMesh
 
 #=================================================================#
 class CompareErrors(object):
+    """
+    Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes)
+    possible parameters:
+      latex
+      vtk
+      plot
+      plotpostprocs
+      verb: in [0,5]
+    """
     def __init__(self, methods, **kwargs):
         self.methods = methods
         # check that every method solves the same problem
@@ -39,6 +48,15 @@ class CompareErrors(object):
         if 'vtk' in kwargs: self.vtk = kwargs.pop("vtk")
         if 'plot' in kwargs: self.plot = kwargs.pop("plot")
         if 'plotpostprocs' in kwargs: self.plotpostprocs = kwargs.pop("plotpostprocs")
+
+        if 'verbose' in kwargs:
+            verbose = int(kwargs.pop("verbose"))
+            self.latex, self.vtk, self.plot, self.plotpostprocs = False, False, False, False
+            if verbose > 1: self.latex = True
+            if verbose > 2: self.vtk = True
+            if verbose > 3: self.plot = True
+            if verbose > 4: self.plotpostprocs = True
+
         if 'hmean' in kwargs:
             self.hmean = kwargs.pop("hmean")
             self.paramname = kwargs.pop("paramname")
