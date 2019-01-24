@@ -4,6 +4,7 @@ from fempy import solvers
 from fempy import fems
 import scipy.sparse as sparse
 import scipy.linalg as linalg
+import scipy.sparse.linalg as splinalg
 
 #=================================================================#
 class Elasticity(solvers.solver.Solver):
@@ -23,6 +24,7 @@ class Elasticity(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.linearsolvers.remove('gmres')
         self.linearsolver = 'pyamg'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
@@ -242,6 +244,48 @@ class Elasticity(solvers.solver.Solver):
             else:
                 raise ValueError("unknown postprocess {}".format(key))
         return point_data, cell_data, info
+
+    def linearSolver(self, A, b, u=None, solver = 'umf'):
+        # print("A is symmetric ? ", is_symmetric(A))
+        if solver == 'umf':
+            return splinalg.spsolve(A, b, permc_spec='COLAMD')
+        # elif solver == 'scipy-umf_mmd':
+        #     return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
+        elif solver in ['gmres','lgmres','bicgstab','cg']:
+            M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
+            M_x = lambda x: M2.solve(x)
+            M = splinalg.LinearOperator(A.shape, M_x)
+            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            args=""
+            if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
+            cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
+            exec(cmd)
+            return u
+        elif solver == 'pyamg':
+            import pyamg
+            config = pyamg.solver_configuration(A, verb=False)
+            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
+            ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+            # print("ml", ml)
+            res=[]
+            # if u is not None: print("u norm", np.linalg.norm(u))
+            u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
+            print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
+            return u
+        else:
+            raise ValueError("unknown solve '{}'".format(solver))
+
+        # ml = pyamg.ruge_stuben_solver(A)
+        # B = np.ones((A.shape[0], 1))
+        # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        # res = []
+        # # u = ml.solve(b, tol=1e-10, residuals=res)
+        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False,accel='cg')
+        # for i, r in enumerate(res):
+        #     print("{:2d} {:8.2e}".format(i,r))
+        # lu = umfpack.splu(A)
+        # u = umfpack.spsolve(A, b)
 
 #=================================================================#
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ def define_geometry(h=0.1, rect = [-1, 1, -1, 1], holes = [ \
     # outer rectangle
     p1 = geometry.add_rectangle(rect[0], rect[1], rect[2], rect[3], 0, lcar=h, holes=holes)
     geometry.add_physical_surface(p1.surface, label=100)
-    for i in range(4): geometry.add_physical_line(p1.line_loop.lines[i], label=11*(1+i))
+    for i in range(4): geometry.add_physical_line(p1.line_loop.lines[i], label=1000+i)
     return geometry
 
 # ------------------------------------- #

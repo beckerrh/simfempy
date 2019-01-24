@@ -5,7 +5,6 @@ fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
 import fempy.applications
-from fempy.meshes import plotmesh
 
 #================================================================#
 def mesh_traction(hmean, geomname="unitcube"):
@@ -13,11 +12,11 @@ def mesh_traction(hmean, geomname="unitcube"):
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":
         ncomp = 2
-        bdrycond.type[11] = "Neumann"
-        bdrycond.type[22] = "Neumann"
-        bdrycond.fct[22] = lambda x, y, z, nx, ny, nz, lam, mu: np.array([1,0])
-        bdrycond.type[33] = "Neumann"
-        bdrycond.type[44] = "Dirichlet"
+        bdrycond.type[1000] = "Neumann"
+        bdrycond.type[1001] = "Neumann"
+        bdrycond.type[1002] = "Neumann"
+        bdrycond.type[1003] = "Dirichlet"
+        bdrycond.fct[1001] = lambda x, y, z, nx, ny, nz, lam, mu: np.array([10,0])
     elif geomname == "unitcube":
         ncomp = 3
         bdrycond.type[11] = "Neumann"
@@ -39,30 +38,30 @@ def mesh_traction(hmean, geomname="unitcube"):
     return A, b, u, elasticity
 
 #================================================================#
-import time
+import fempy.tools.timer
 import matplotlib.pyplot as plt
 hmeans = [0.3, 0.15, 0.12, 0.09, 0.07, 0.05, 0.03]
 times = {}
 ns = np.empty(len(hmeans))
 for i,hmean in enumerate(hmeans):
-    A, b, u, elasticity = mesh_traction(hmean)
-    n = elasticity.mesh.ncells
+    A, b, u, elasticity = mesh_traction(hmean, geomname="unitsquare")
+    n, ncomp = elasticity.mesh.ncells, elasticity.ncomp
     solvers = elasticity.linearsolvers
     # solvers.remove('pyamg')
     # solvers = ['pyamg']
+    timer = fempy.tools.timer.Timer(name="elasticity n={}".format(n))
     for solver in solvers:
         if solver=='umf' and n > 140000: continue
-        t0 = time.time()
+        if not solver in times.keys(): times[solver] = []
         u = elasticity.linearSolver(A, b, u, solver=solver)
-        t1 = time.time()
-        print("n={:4d} {:12s} {:10.2e}".format(n, solver, t1 - t0))
-        if not solver in times.keys():
-            # times[solver] = np.empty(len(hmeans))
-            times[solver] = []
+        timer.add(solver)
         ns[i] = n
-        # times[solver][i] = t1-t0
-        times[solver].append(t1 - t0)
-#plotmesh.meshWithData(mesh, {"u0": u[::ncomp], "u1":u[1::ncomp]})
+        times[solver].append(timer.data[solver])
+    point_data={}
+    for icomp in range(ncomp):
+        point_data["u{:1d}".format(icomp)] = u[icomp::ncomp]
+    elasticity.mesh.plotWithData(point_data=point_data)
+    plt.show()
 for solver,data in times.items():
     plt.plot(ns[:len(data)], data, '-x', label=solver)
 plt.legend()

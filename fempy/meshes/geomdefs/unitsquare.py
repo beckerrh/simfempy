@@ -12,8 +12,8 @@ def define_geometry(h=1.):
     geometry = pygmsh.built_in.Geometry()
     a = 1.0
     p = geometry.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
-    geometry.add_physical_surface(p.surface, label=111)
-    for i in range(4): geometry.add_physical_line(p.line_loop.lines[i], label=11*(1+i))
+    geometry.add_physical_surface(p.surface, label=100)
+    for i in range(4): geometry.add_physical_line(p.line_loop.lines[i], label=1000+i)
     return geometry
 
 # ------------------------------------- #

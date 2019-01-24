@@ -209,26 +209,21 @@ if __name__ == '__main__':
     postproc = {}
     if geomname == "unitsquare":
         problem += "_2d"
-        # bdrycond.type[11] = "Neumann"
-        # bdrycond.type[33] = "Neumann"
-        bdrycond.type[11] = "Dirichlet"
-        bdrycond.type[33] = "Dirichlet"
-        bdrycond.type[22] = "Dirichlet"
-        bdrycond.type[44] = "Dirichlet"
-        postproc['bdrymean'] = "bdrymean:11,33"
-        postproc['bdrydn'] = "bdrydn:22,44"
-    if geomname == "unitcube":
+        problem += '_2d'
+        bdrycond.type[1000] = "Dirichlet"
+        bdrycond.type[1001] = "Dirichlet"
+        bdrycond.type[1002] = "Dirichlet"
+        bdrycond.type[1003] = "Dirichlet"
+        postproc['bdrydn'] = "bdrydn:1000,1001"
+    elif geomname == "unitcube":
         problem += "_3d"
-        # bdrycond.type[11] = "Neumann"
-        bdrycond.type[11] = "Dirichlet"
-        bdrycond.type[33] = "Dirichlet"
-        bdrycond.type[22] = "Dirichlet"
-        bdrycond.type[44] = "Dirichlet"
-        bdrycond.type[55] = "Dirichlet"
-        # bdrycond.type[66] = "Neumann"
-        bdrycond.type[66] = "Dirichlet"
-        postproc['bdrymean'] = "bdrymean:11,66"
-        postproc['bdrydn'] = "bdrydn:22,33,44,55"
+        bdrycond.type[100] = "Dirichlet"
+        bdrycond.type[105] = "Dirichlet"
+        bdrycond.type[101] = "Dirichlet"
+        bdrycond.type[102] = "Dirichlet"
+        bdrycond.type[103] = "Dirichlet"
+        bdrycond.type[104] = "Dirichlet"
+        postproc['bdrydn'] = "bdrydn:100,105"
 
     methods = {}
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)

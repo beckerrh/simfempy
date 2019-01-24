@@ -23,10 +23,10 @@ def define_geometry(h=1.):
     l5 = geometry.add_line(p5, p0)
     ll = geometry.add_line_loop([l0, l1, l2, l3, l4, l5])
     surf = geometry.add_plane_surface(ll)
-    pl0 = geometry.add_physical_line(l0, label=11)
-    pl1 = geometry.add_physical_line( [l1,l2,l3,l5], label=22)
-    pl4 = geometry.add_physical_line(l4, label=0)
-    geometry.add_physical_surface(surf, label=99)
+    pl0 = geometry.add_physical_line(l0, label=1001)
+    pl1 = geometry.add_physical_line( [l1,l2,l3,l5], label=1002)
+    pl4 = geometry.add_physical_line(l4, label=1000)
+    geometry.add_physical_surface(surf, label=100)
     return geometry
 
 

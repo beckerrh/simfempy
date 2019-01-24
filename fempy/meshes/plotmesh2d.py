@@ -68,9 +68,11 @@ def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
     # print("colors", colors)
     ax.triplot(x, y, tris, color='k')
     if ax ==plt:
+        plt.gca().set_aspect(aspect='equal')
         ax.xlabel(r'x')
         ax.ylabel(r'y')
     else:
+        ax.set_aspect(aspect='equal')
         ax.set_xlabel(r'x')
         ax.set_ylabel(r'y')
     pltcolors = 'bgrcmyk'

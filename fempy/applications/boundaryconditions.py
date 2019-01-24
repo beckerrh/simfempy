@@ -12,10 +12,12 @@ class BoundaryConditions():
         if colors is None:
             self.type = {}
             self.fct = {}
+            self.param = {}
         else:
             self.type = {color: None for color in colors}
             self.fct = {color: None for color in colors}
+            self.param = {color: None for color in colors}
     def __str__(self):
-        return "types={} fct={}".format(self.type, self.fct)
+        return "types={} fct={} param={}".format(self.type, self.fct, self.param)
     def colors(self):
         return self.type.keys()

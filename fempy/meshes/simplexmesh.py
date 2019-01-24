@@ -296,6 +296,15 @@ class SimplexMesh(object):
             plotmesh.meshWithNodesAndTriangles(meshdata)
             plt.show()
 
+    def plotWithBoundaries(self):
+        import plotmesh
+        import matplotlib.pyplot as plt
+        plotmesh.meshWithBoundaries(self)
+    def plotWithData(self, **kwargs):
+        import plotmesh
+        import matplotlib.pyplot as plt
+        plotmesh.meshWithData(self, **kwargs)
+
 
 #=================================================================#
 if __name__ == '__main__':

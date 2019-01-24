@@ -21,25 +21,23 @@ def test():
     fempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
-    bdrycond.type[11] = "Neumann"
-    bdrycond.type[22] = "Dirichlet"
-    bdrycond.type[33] = "Neumann"
-    bdrycond.type[44] = "Dirichlet"
-    bdrycond.fct[11] = lambda x,y,z, nx, ny, nz, k: 0
-    bdrycond.fct[33] = lambda x,y,z, nx, ny, nz, k: 100
-    bdrycond.fct[22] = lambda x,y,z: 120
-    bdrycond.fct[44] = bdrycond.fct[22]
+    postproc = {}
+    bdrycond.type[1000] = "Neumann"
+    bdrycond.type[1001] = "Dirichlet"
+    bdrycond.type[1002] = "Neumann"
+    bdrycond.type[1003] = "Dirichlet"
+    postproc['bdrymean_low'] = "bdrymean:1000"
+    postproc['bdrymean_up'] = "bdrymean:1002"
+    postproc['bdrydn_left'] = "bdrydn:1003"
+    postproc['bdrydn_right'] = "bdrydn:1001"
+    bdrycond.fct[1000] = lambda x,y,z, nx, ny, nz, k: 0
+    bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz, k: 100
+    bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
     # print("bdrycond", bdrycond)
     rhs = lambda x, y, z: 0.
     def kheat(label):
         if label==100: return 0.1
         return 10000.0
-
-    postproc = {}
-    postproc['mean11'] = "bdrymean:11"
-    postproc['mean33'] = "bdrymean:33"
-    postproc['flux22'] = "bdrydn:22"
-    postproc['flux44'] = "bdrydn:44"
 
     fems = ['p1', 'cr1']
     fems = ['p1']
