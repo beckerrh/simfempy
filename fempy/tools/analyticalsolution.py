@@ -68,7 +68,7 @@ class AnalyticalSolution():
         return self.fct_xx(x,y,z)
 
 #=================================================================#
-def analyticalSolution(function, ncomp=1, random=True):
+def analyticalSolution(function, dim, ncomp=1, random=True):
     """
     defines some analytical functions to be used in validation
 
@@ -90,22 +90,30 @@ def analyticalSolution(function, ncomp=1, random=True):
             r = (4 * np.random.rand() - 2) / 3
         else:
             p, q, r = perm[i%ncomp]
-        if function == 'Constant':
-            fct = '{:3.1f}'.format(p)
-        elif function == 'Linear':
-            fct = '{:3.1f} * x + {:3.1f} * y'.format(p, q)
-        elif function == 'Linear3d':
-            fct = '{:3.1f}*x + {:3.1f}*y + {:3.1f}*z'.format(p, q, r)
-        elif function == 'Quadratic':
-            fct = '{:3.1f}*x*x + {:3.1f}*y*y'.format(p, q)
-        elif function == 'Quadratic3d':
-            fct = '{:3.1f}*x*x + {:3.1f}*y*y + {:3.1f}*z*z'.format(p, q, r)
-        elif function == 'Sinus':
-            fct = 'sin({:3.1f}*x + {:3.1f}*y)'.format(p, q)
-        elif function == 'Sinus3d':
-            fct = 'sin({:3.1f}*x + {:3.1f}*y + {:3.1f}*z)'.format(p, q, r)
+        if dim==2:
+            if function == 'Constant':
+                fct = '{:3.1f}'.format(p)
+            elif function == 'Linear':
+                fct = '{:3.1f} * x + {:3.1f} * y'.format(p, q)
+            elif function == 'Quadratic':
+                fct = '{:3.1f}*x*x + {:3.1f}*y*y'.format(p, q)
+            elif function == 'Sinus':
+                fct = 'sin({:3.1f}*x + {:3.1f}*y)'.format(p, q)
+            else:
+                raise NotImplementedError("unknown analytic solution: {}".format(function))
+        elif dim==3:
+            if function == 'Constant':
+                fct = '{:3.1f}'.format(p)
+            elif function == 'Linear':
+                fct = '{:3.1f}*x + {:3.1f}*y + {:3.1f}*z'.format(p, q, r)
+            elif function == 'Quadratic':
+                fct = '{:3.1f}*x*x + {:3.1f}*y*y + {:3.1f}*z*z'.format(p, q, r)
+            elif function == 'Sinus':
+                fct = 'sin({:3.1f}*x + {:3.1f}*y + {:3.1f}*z)'.format(p, q, r)
+            else:
+                raise NotImplementedError("unknown analytic solution: {}".format(function))
         else:
-            raise ValueError("unknown analytic solution: {}".format(function))
+            raise NotImplementedError("dim: {}".format(dim))
         solexact.append(AnalyticalSolution(fct))
     if ncomp==1: return solexact[0]
     return solexact

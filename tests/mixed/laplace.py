@@ -109,7 +109,7 @@ class Laplace(solvers.solver.Solver):
         solexact, rhs = self.solexact, self.rhs
         if solexact:
             assert rhs is None
-            bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc))* self.mesh.dV
+            bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc) + solexact.zz(xc, yc, zc))* self.mesh.dV
         elif rhs:
             assert solexact is None
             bcells = rhs(xc, yc, zc) *  self.mesh.dV
@@ -142,7 +142,7 @@ class Laplace(solvers.solver.Solver):
 
     def linearSolver(self, Ain, bin, u=None, solver = 'umf'):
         solvers = ['umf', 'gmres2']
-        solvers = ['umf']
+        solvers = ['gmres2']
         t = Timer("solve")
         for solver in solvers:
             u=self._linearSolver(Ain, bin, u, solver)
@@ -189,8 +189,7 @@ class Laplace(solvers.solver.Solver):
                 return np.hstack( [w, q] )
             P = splinalg.LinearOperator(shape=(nfaces+ncells,nfaces+ncells), matvec=pmult)
             # u,info = splinalg.gmres(Amult, bin, M=P, callback=counter, atol=1e-10, restart=5)
-            u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-10, inner_m=10, outer_k=4)
-            # u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, inner_m=20, outer_k=4, atol=1e-10)
+            u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-12, tol=1e-12, inner_m=10, outer_k=4)
             if info: raise ValueError("no convergence info={}".format(info))
             return u
         else:
@@ -209,6 +208,7 @@ if __name__ == '__main__':
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
+        problem += "_2d"
         # bdrycond.type[11] = "Neumann"
         # bdrycond.type[33] = "Neumann"
         bdrycond.type[11] = "Dirichlet"
@@ -218,7 +218,7 @@ if __name__ == '__main__':
         postproc['bdrymean'] = "bdrymean:11,33"
         postproc['bdrydn'] = "bdrydn:22,44"
     if geomname == "unitcube":
-        problem += "3d"
+        problem += "_3d"
         # bdrycond.type[11] = "Neumann"
         bdrycond.type[11] = "Dirichlet"
         bdrycond.type[33] = "Dirichlet"
@@ -233,8 +233,9 @@ if __name__ == '__main__':
     methods = {}
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
 
-    comp = fempy.tools.comparerrors.CompareErrors(methods, plot=True, verbose=2)
+    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=5)
     h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
     if geomname=='unitcube':
         h = [0.8, 0.4, 0.2, 0.1]
+        h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
     comp.compare(geomname=geomname, h=h)

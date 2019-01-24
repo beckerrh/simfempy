@@ -53,7 +53,8 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
     _settitle(ax, "Mesh and Boundary Labels")
 
 #=================================================================#
-def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None):
+def meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None\
+                 ,addplots=[]):
     import vtki
     import vtk
     xyz = np.stack((x, y, z)).T

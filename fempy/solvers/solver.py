@@ -81,8 +81,11 @@ class Solver(object):
         problemsplit = problem.split('_')
         if problemsplit[0] != 'Analytic':
             raise ValueError("unknown problem {}".format(problem))
+        if len(problemsplit) != 3:
+            raise ValueError("need three parts {}".format(problem))
         function = problemsplit[1]
-        solexact = fempy.tools.analyticalsolution.analyticalSolution(function, self.ncomp, random)
+        dim = int(problemsplit[2][0])
+        solexact = fempy.tools.analyticalsolution.analyticalSolution(function, dim, self.ncomp, random)
         return solexact
 
     def setAnalyticalBoundaryCondition(self, bdrycond):

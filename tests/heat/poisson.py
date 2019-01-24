@@ -38,6 +38,7 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=5)
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
+        problem += "_2d"
         bdrycond.type[11] = "Neumann"
         bdrycond.type[33] = "Neumann"
         bdrycond.type[22] = "Dirichlet"
@@ -45,7 +46,7 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=5)
         postproc['bdrymean'] = "bdrymean:11,33"
         postproc['bdrydn'] = "bdrydn:22,44"
     if geomname == "unitcube":
-        problem += "3d"
+        problem += "_3d"
         bdrycond.type[11] = "Neumann"
         bdrycond.type[33] = "Dirichlet"
         bdrycond.type[22] = "Dirichlet"
@@ -60,14 +61,14 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=5)
         methods[method] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
     comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     h = [0.5, 0.25, 0.125, 0.06, 0.03]
-    h = [2.0, 1.0, 0.5]
+    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2']
 
 # ----------------------------------------------------------------#
 def test_solvers():
     import time
-    problem = 'Analytic_Sinus3d'
+    problem = 'Analytic_Sinus_3d'
     bdrycond = fempy.applications.boundaryconditions.BoundaryConditions()
     bdrycond.type[11] = "Neumann"
     bdrycond.type[22] = "Neumann"
@@ -93,6 +94,6 @@ def test_solvers():
 if __name__ == '__main__':
     # test_analytic(problem = 'Analytic_Linear', geomname = "unitsquare")
     # test_analytic(problem = 'Analytic_Quadratic', geomname = "unitsquare")
-    # test_analytic(problem = 'Analytic_Sinus', geomname = "unitcube")
-    test_solvers()
+    test_analytic(problem = 'Analytic_Sinus', geomname = "unitcube")
+    # test_solvers()
     # test_flux()
