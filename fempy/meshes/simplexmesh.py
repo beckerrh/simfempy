@@ -38,7 +38,7 @@ class SimplexMesh(object):
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
     """
 
-    def __str__(self):
+    def __repr__(self):
         return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geomname, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
         if 'data' in kwargs:

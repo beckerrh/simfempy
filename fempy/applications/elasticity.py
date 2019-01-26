@@ -76,7 +76,7 @@ class Elasticity(solvers.solver.Solver):
                         bnodes -= (self.lamcell[0]+self.mucell[0])*self.solexact[j].dd(i, j, x, y, z)
                         bnodes -= self.mucell[0]*self.solexact[i].dd(j, j, x, y, z)
                 else:
-                    bnodes = rhs[i](x, y, z)
+                    bnodes = self.rhs[i](x, y, z)
                 b[i::self.ncomp] = self.fem.massmatrix * bnodes
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
