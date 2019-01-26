@@ -18,16 +18,17 @@ import fempy.tools.analyticalsolution
 
 #=================================================================#
 class IterationCounter(object):
-    def __init__(self, disp=20, name=""):
+    def __init__(self, disp=20, name="", verbose=1):
         self.disp = disp
         self.name = name
+        self.verbose = verbose
         self.niter = 0
     def __call__(self, rk=None):
         # if self.disp and self.niter%self.disp==0:
         #     print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
         self.niter += 1
     def __del__(self):
-        print('niter ({}) {:4d}'.format(self.name, self.niter))
+        if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
 
 
 #=================================================================#
@@ -112,7 +113,7 @@ class Solver(object):
                     raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
         return bdrycond
 
-    def linearSolver(self, A, b, u=None, solver = 'umf'):
+    def linearSolver(self, A, b, u=None, solver = 'umf', verbose=1):
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')
         # elif solver == 'scipy-umf_mmd':
@@ -122,7 +123,7 @@ class Solver(object):
             M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
             M_x = lambda x: M2.solve(x)
             M = splinalg.LinearOperator(A.shape, M_x)
-            counter = IterationCounter(name=solver)
+            counter = IterationCounter(name=solver, verbose=verbose)
             args=""
             cmd = "u = splinalg.{}(A, b, M=M, tol=1e-12, callback=counter {})".format(solver,args)
             exec(cmd)
@@ -137,7 +138,7 @@ class Solver(object):
             res=[]
             # if u is not None: print("u norm", np.linalg.norm(u))
             u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
-            print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
+            if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))

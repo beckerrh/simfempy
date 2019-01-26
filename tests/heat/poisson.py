@@ -40,6 +40,8 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2)
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
+        h = [0.5, 0.25, 0.125, 0.06, 0.03]
+        if problem=="Analytic_Linear": h = h[:-2]
         problem += '_2d'
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
@@ -48,6 +50,8 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2)
         postproc['bdrymean'] = "bdrymean:1000,1002"
         postproc['bdrydn'] = "bdrydn:1001,1003"
     elif geomname == "unitcube":
+        h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
+        if problem=="Analytic_Linear": h = h[:-2]
         problem += "_3d"
         bdrycond.type[100] = "Neumann"
         bdrycond.type[105] = "Neumann"
@@ -62,8 +66,6 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2)
         fem, meth  = method.split('-')
         methods[method] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
     comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
-    h = [0.5, 0.25, 0.125, 0.06, 0.03]
-    h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2']
 

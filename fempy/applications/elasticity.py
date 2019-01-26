@@ -24,7 +24,6 @@ class Elasticity(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolvers.remove('gmres')
         self.linearsolver = 'pyamg'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
