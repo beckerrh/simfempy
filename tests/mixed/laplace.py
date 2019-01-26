@@ -196,26 +196,20 @@ class Laplace(solvers.solver.Solver):
             raise NotImplementedError("solver '{}' ".format(solver))
 
 # ------------------------------------- #
-if __name__ == '__main__':
+def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
     import fempy.tools.comparerrors
-    import sys
-    problem = 'Analytic_Quadratic'
-    problem = 'Analytic_Sinus'
-    # problem = 'Analytic_Linear'
-    # problem = 'Analytic_Constant'
-    geomname = "unitsquare"
-    geomname = "unitcube"
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
+        h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
         problem += "_2d"
-        problem += '_2d'
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Dirichlet"
         bdrycond.type[1003] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:1000,1001"
     elif geomname == "unitcube":
+        h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
         problem += "_3d"
         bdrycond.type[100] = "Dirichlet"
         bdrycond.type[105] = "Dirichlet"
@@ -224,13 +218,14 @@ if __name__ == '__main__':
         bdrycond.type[103] = "Dirichlet"
         bdrycond.type[104] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:100,105"
-
     methods = {}
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
+    if problem.split('_')[1] == "Linear":
+        h = [2, 1, 0.5, 0.25]
+    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
+    result = comp.compare(geomname=geomname, h=h)
+    return result[3]['error']['pcL2']
 
-    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=5)
-    h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
-    if geomname=='unitcube':
-        h = [0.8, 0.4, 0.2, 0.1]
-        h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
-    comp.compare(geomname=geomname, h=h)
+# ------------------------------------- #
+if __name__ == '__main__':
+    test_analytic()

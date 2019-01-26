@@ -40,8 +40,10 @@ class FemP1(object):
         self.rows = np.repeat(ncomp * simps, ncomp).reshape(ncells * self.nloc, ncomp) + np.arange(ncomp)
         self.rows = self.rows.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
         self.cols = self.rows.swapaxes(1, 2)
-        self.cols = self.cols.flatten()
-        self.rows = self.rows.flatten()
+        # self.cols = self.cols.flatten()
+        # self.rows = self.rows.flatten()
+        self.cols = self.cols.reshape(-1)
+        self.rows = self.rows.reshape(-1)
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
 

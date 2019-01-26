@@ -142,14 +142,14 @@ class Heat(fempy.applications.heat.Heat):
         # dn20, dn40, up = infopp['flux20'], infopp['flux40'], infopp['measured']
         # return np.concatenate( [np.array([dn20,dn40]), up], axis=0)
         return np.concatenate([np.array([infopp[f] for f in self.fluxes]), infopp['measured']], axis=0)
-    def setinitial(self, param):
-        self.param = param
-        self.kheatcell = self.kheat(self.mesh.cell_labels)
-        # self.setMesh(mesh)
-        point_data, cell_data, info = self.solve()
-        self.data0 = self.getData(info['postproc'])
-        # self.plot(point_data, cell_data, info)
-        # print("self.data0", self.data0)
+    # def setinitial(self, param):
+    #     self.param = param
+    #     self.kheatcell = self.kheat(self.mesh.cell_labels)
+    #     # self.setMesh(mesh)
+    #     point_data, cell_data, info = self.solve()
+    #     self.data0 = self.getData(info['postproc'])
+    #     # self.plot(point_data, cell_data, info)
+    #     # print("self.data0", self.data0)
     def solvestate(self, param):
         # print("#")
         assert param.shape == self.param.shape
@@ -197,12 +197,14 @@ class Heat(fempy.applications.heat.Heat):
 
 #----------------------------------------------------------------#
 def compute_j(diffglobal):
-    h = 0.05
+    h = 0.2
+    nmeasurepoints = 2
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
     fempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
+    heat.data0 = np.zeros(nmeasurepoints)
 
     param = np.ones(2, dtype=float)
     n = 100
@@ -210,10 +212,10 @@ def compute_j(diffglobal):
     ps = np.linspace(0.1*diffglobal, 100*diffglobal, n)
     for i in range(n):
         param[:] = ps[i]
-        heat.setinitial(param)
+        data = heat.solvestate(param)
         # print("{} --> {}".format(p, heat.data0))
-        j[0, i] = heat.data0[0]
-        j[1, i] = heat.data0[1]
+        j[0, i] = data[0]
+        j[1, i] = data[1]
     plt.plot(ps/diffglobal, j[0])
     plt.plot(ps/diffglobal, j[1])
     plt.show()
@@ -223,12 +225,13 @@ def compute_j(diffglobal):
 #----------------------------------------------------------------#
 def compute_j2d(diffglobal):
     h = 0.05
+    nmeasurepoints = 2
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
     fempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
-    heat.data0 = np.zeros(len(hole_labels))
+    heat.data0 = np.zeros(nmeasurepoints)
 
     param = np.ones(2, dtype=float)
     n = 40
@@ -238,9 +241,8 @@ def compute_j2d(diffglobal):
         for j in range(n):
             param[0] = ps[i]
             param[1] = ps[j]
-            # heat.setinitial(param)
             data = heat.solvestate(param)
-            # print("data", data)
+            print("data", data)
             # print("param", param, "data",data)
             cost[0, i, j] = data[0]
             cost[1, i, j] = data[1]
@@ -268,20 +270,19 @@ def compute_j2d(diffglobal):
 
 #----------------------------------------------------------------#
 def test(diffglobal):
-    mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(nmeasurepoints=6)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    plt.show()
+    nmeasurepoints = 6
+    mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(nmeasurepoints=nmeasurepoints)
+    # fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    # plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
 
-    param = np.ones(2, dtype=float)
+    heat.data0 = np.zeros(nmeasurepoints)
+    param = np.zeros(len(hole_labels), dtype=float)
     param[0] = 101*diffglobal
     param[1] = diffglobal
-    heat.setinitial(param)
-    print("heat.data0", heat.data0)
-    data = np.array([295.98519248, 298.56446172, 300.3286268,  300.85077675, 299.75786434,
- 296.96542054])
-    heat.data0 =  data + 0.005*np.mean(data)*np.random.rand(data.shape[0])
+    data = heat.solvestate(param)
+    heat.data0[:] =  data[:]*(1+0.001* ( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
     import time
