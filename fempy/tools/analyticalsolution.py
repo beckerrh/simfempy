@@ -34,7 +34,7 @@ class AnalyticalSolution():
         self.fct_yy = np.vectorize(sympy.lambdify('x,y,z', fyy),otypes=[float])
         self.fct_yz = np.vectorize(sympy.lambdify('x,y,z', fyz),otypes=[float])
         self.fct_zz = np.vectorize(sympy.lambdify('x,y,z', fzz),otypes=[float])
-    def __str__(self):
+    def __repr__(self):
         return str(self.expr)
     def __call__(self, x, y, z):
         return self.fct(x,y, z)

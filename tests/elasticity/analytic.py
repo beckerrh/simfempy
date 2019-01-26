@@ -40,6 +40,8 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
             compares[fem+bdry] = Elasticity(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc,\
                                             fem=fem, ncomp=ncomp, method=bdry, problemname=app.problemname)
     comp = fempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    if problem.split('_')[1] == "Linear":
+        h = [2, 1, 0.5, 0.25]
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2']
 

@@ -11,7 +11,6 @@ def test_flux(geomname = "unitcube"):
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname=='unitsquare':
-        problem += '_2d'
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Dirichlet"

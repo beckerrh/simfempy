@@ -28,8 +28,10 @@ class FemCR1(object):
         self.rows = np.repeat(ncomp * facesOfCells, ncomp).reshape(ncells * self.nloc, ncomp) + np.arange(ncomp)
         self.rows = self.rows.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
         self.cols = self.rows.swapaxes(1, 2)
-        self.cols = self.cols.flatten()
-        self.rows = self.rows.flatten()
+        # self.cols = self.cols.flatten()
+        # self.rows = self.rows.flatten()
+        self.cols = self.cols.reshape(-1)
+        self.rows = self.rows.reshape(-1)
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
@@ -40,11 +42,11 @@ class FemCR1(object):
             x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
             for icomp in range(self.ncomp):
                 if solexact:
-                    bnodes = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
-                    bnodes *= diff[icomp][0]
+                    bfaces = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
+                    bfaces *= diff[icomp][0]
                 else:
-                    bnodes = rhs(x, y, z)
-                b[icomp::self.ncomp] = self.massmatrix * bnodes
+                    bfaces = rhs(x, y, z)
+                b[icomp::self.ncomp] = self.massmatrix * bfaces
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             for icomp in range(self.ncomp):
