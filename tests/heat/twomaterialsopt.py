@@ -34,15 +34,12 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
     xmeas = np.linspace(1,-1,nmeasurepoints+2)[1:-1]
     # print("xmeas", xmeas)
     outer = []
-    outer.append([[-1, -1, 0], 10, h])
-    outer.append([[1, -1, 0], 20, h])
-    outer.append([[1, 1, 0], 30, h])
+    outer.append([[-1, -1, 0], 1000, h])
+    outer.append([[1, -1, 0], 1001, h])
+    outer.append([[1, 1, 0], 1002, h])
     for xm in xmeas:
-        outer.append([[xm, 1, 0], 30, hmeas])
-    # outer.append([[0.5, 1, 0], 30, hmeas])
-    # outer.append([[0, 1, 0], 30, hmeas])
-    # outer.append([[-0.5, 1, 0], 30, hmeas])
-    outer.append([[-1, 1, 0], 40, h])
+        outer.append([[xm, 1, 0], 1002, hmeas])
+    outer.append([[-1, 1, 0], 1003, h])
     xouter = [out[0] for out in outer]
     labels = [out[1] for out in outer]
     lcars = [out[2] for out in outer]
@@ -53,29 +50,33 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
 
     mnum = range(2, 2+nmeasurepoints)
     mpoints = [p1.line_loop.lines[i].points[1] for i in mnum]
+    pointlabels = []
     for m, mpoint in zip(mnum, mpoints):
-        geometry.add_physical_point(mpoint, label=m - 1)
+        label = 9998+m
+        geometry.add_physical_point(mpoint, label=label)
+        pointlabels.append(label)
+
     geometry.add_physical_surface(p1.surface, label=100)
 
     # print("code", geometry.get_code())
     data = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = fempy.meshes.simplexmesh.SimplexMesh(data=data)
     bdrycond = fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
-    bdrycond.type[30] = "Neumann"
-    bdrycond.type[10] = "Dirichlet"
-    bdrycond.type[20] = "Dirichlet"
-    bdrycond.type[40] = "Dirichlet"
-    bdrycond.fct[30] = lambda x, y, z, nx, ny, nz, k: 0
-    bdrycond.fct[10] = lambda x, y, z: 333
-    bdrycond.fct[20] = lambda x, y, z: 293
-    bdrycond.fct[40] = bdrycond.fct[20]
+    bdrycond.type[1002] = "Neumann"
+    bdrycond.type[1000] = "Dirichlet"
+    bdrycond.type[1001] = "Dirichlet"
+    bdrycond.type[1003] = "Dirichlet"
+    bdrycond.fct[1002] = lambda x, y, z, nx, ny, nz, k: 0
+    bdrycond.fct[1000] = lambda x, y, z: 333
+    bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x, y, z: 293
     postproc = {}
-    postproc['measured'] = "pointvalues:{}".format(','.join(f"{i}" for i in range(1,nmeasurepoints+1)))
-    postproc['bdryfct'] = "bdryfct:30"
-    postproc['mean30'] = "bdrymean:30"
-    postproc['flux1'] = "bdrydn:20"
-    postproc['flux2'] = "bdrydn:40"
-    fluxes = ['flux1', 'flux2', 'mean30']
+    postproc['measured'] = "pointvalues:{}".format(','.join( [str(l) for l in pointlabels]))
+    print("postproc['measured']",postproc['measured'])
+    postproc['bdryfct'] = "bdryfct:1002"
+    postproc['meanout'] = "bdrymean:1002"
+    postproc['flux1'] = "bdrydn:1001"
+    postproc['flux2'] = "bdrydn:1003"
+    fluxes = ['flux1', 'flux2', 'meanout']
     fluxes = []
     return mesh, bdrycond, postproc, hole_labels, fluxes
 
@@ -161,7 +162,7 @@ class Heat(fempy.applications.heat.Heat):
         A = self.matrix()
         A,b,self.ustate = self.boundary(A, b, self.ustate)
         self.A = A
-        self.ustate = self.linearSolver(A, b, self.ustate, solver=self.linearsolver)
+        self.ustate = self.linearSolver(A, b, self.ustate, solver=self.linearsolver, verbose=0)
         self.point_data, self.cell_data, self.info = self.postProcess(self.ustate)
         data = self.getData(self.info['postproc'])
         # self.plotter.plot()
@@ -184,7 +185,7 @@ class Heat(fempy.applications.heat.Heat):
             du = np.zeros_like(b)
             self.kheatcell = self.kheat(self.mesh.cell_labels)
             b,du = self.boundaryvec(b, du)
-            du = self.linearSolver(self.A, b, du, solver=self.linearsolver)
+            du = self.linearSolver(self.A, b, du, solver=self.linearsolver, verbose=0)
             point_data, cell_data, info = self.postProcess(du)
             # self.plot(point_data, cell_data, info)
             jac[:,i] = self.getData(info['postproc'])
@@ -290,12 +291,12 @@ def test(diffglobal):
         info = scipy.optimize.least_squares(heat.solvestate, jac=heat.solveDstate, x0=param, method=method, verbose=0)
         dt = time.time()-t0
         print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} {:10.2f} s".format(method, info.x, info.cost, info.nfev, info.njev, dt))
-        heat.plot()
+        heat.plotter.plot()
 
 
 #================================================================#
 
 diffglobal = 1e-3
-# test(diffglobal)
-compute_j2d(diffglobal)
 # compute_j(diffglobal)
+# compute_j2d(diffglobal)
+test(diffglobal)

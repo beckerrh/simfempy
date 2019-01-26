@@ -12,9 +12,10 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     postproc = {}
     bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":
+        h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
+        if problem=="Analytic_Linear": h = h[:-2]
         problem += "_2d"
         ncomp = 2
-        h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Neumann"
@@ -22,9 +23,10 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         postproc['bdrymean'] = "bdrymean:1000,1002"
         postproc['bdrydn'] = "bdrydn:1001,1003"
     if geomname == "unitcube":
+        h = [2, 1, 0.5, 0.25, 0.125, 0.08]
+        if problem=="Analytic_Linear": h = h[:-2]
         problem += "_3d"
         ncomp = 3
-        h = [2, 1, 0.5, 0.25, 0.125, 0.08]
         bdrycond.type[100] = "Neumann"
         bdrycond.type[105] = "Neumann"
         bdrycond.type[101] = "Dirichlet"
