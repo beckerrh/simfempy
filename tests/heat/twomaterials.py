@@ -3,13 +3,13 @@ from os import sys, path
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import fempy.applications
+import simfempy.applications
 import pygmsh
 import matplotlib.pyplot as plt
 
 #----------------------------------------------------------------#
 def test():
-    from fempy.meshes.geomdefs import unitsquareholes
+    from simfempy.meshes.geomdefs import unitsquareholes
     holes = []
     holes.append([[-0.5, -0.25], [-0.5, 0.25], [0.5, 0.25], [0.5, -0.25]])
     holes.append([[-0.5, 0.75], [-0.5, 1.25], [0.5, 1.25], [0.5, 0.75]])
@@ -17,10 +17,10 @@ def test():
     geometry = unitsquareholes.define_geometry(rect=(-1,1,-2,2), holes=holes, h=0.2)
     data = pygmsh.generate_mesh(geometry)
 
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(data=data)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
     postproc = {}
     bdrycond.type[1000] = "Neumann"
     bdrycond.type[1001] = "Dirichlet"
@@ -42,12 +42,12 @@ def test():
     fems = ['p1', 'cr1']
     fems = ['p1']
     for fem in fems:
-        heat = fempy.applications.heat.Heat(bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem, plotk=True)
+        heat = simfempy.applications.heat.Heat(bdrycond=bdrycond, kheat=kheat, postproc=postproc, fem=fem, plotk=True)
         heat.setMesh(mesh)
         point_data, cell_data, info = heat.solve()
         print("time: {}".format(info['timer']))
         print("postproc: {}".format(info['postproc']))
-        fempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
+        simfempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
         plt.show()
 
 #================================================================#

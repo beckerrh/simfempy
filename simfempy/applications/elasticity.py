@@ -1,7 +1,7 @@
 import time
 import numpy as np
-from fempy import solvers
-from fempy import fems
+from simfempy import solvers
+from simfempy import fems
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg

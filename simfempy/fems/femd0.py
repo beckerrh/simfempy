@@ -7,7 +7,7 @@ Created on Sun Dec  4 18:14:29 2016
 
 import numpy as np
 try:
-    from fempy.meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
 

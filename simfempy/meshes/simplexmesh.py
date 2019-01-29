@@ -58,7 +58,7 @@ class SimplexMesh(object):
         except:
             print("Could not import '{}'. Having:\n".format('geomdefs.' + self.geomname))
             for module in sys.modules.keys():
-                if 'fempy' in module or 'geomdefs' in module:
+                if 'simfempy' in module or 'geomdefs' in module:
                     print(module)
             sys.exit(1)
         if 'hmean' in kwargs:

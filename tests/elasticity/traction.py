@@ -4,12 +4,12 @@ import numpy as np
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import fempy.applications
+import simfempy.applications
 
 #================================================================#
 def mesh_traction(hmean, geomname="unitcube"):
     postproc = {}
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":
         ncomp = 2
         bdrycond.type[1000] = "Neumann"
@@ -28,9 +28,9 @@ def mesh_traction(hmean, geomname="unitcube"):
         bdrycond.type[66] = "Neumann"
     else:
         raise ValueError("unknown geomname={}".format(geomname))
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
     # plotmesh.meshWithBoundaries(mesh)
-    elasticity = fempy.applications.elasticity.Elasticity(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
+    elasticity = simfempy.applications.elasticity.Elasticity(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
     elasticity.setMesh(mesh)
     b = elasticity.computeRhs()
     A = elasticity.matrix()
@@ -38,7 +38,7 @@ def mesh_traction(hmean, geomname="unitcube"):
     return A, b, u, elasticity
 
 #================================================================#
-import fempy.tools.timer
+import simfempy.tools.timer
 import matplotlib.pyplot as plt
 hmeans = [0.3, 0.15, 0.12, 0.09, 0.07, 0.05, 0.03]
 times = {}
@@ -49,7 +49,7 @@ for i,hmean in enumerate(hmeans):
     solvers = elasticity.linearsolvers
     # solvers.remove('pyamg')
     # solvers = ['pyamg']
-    timer = fempy.tools.timer.Timer(name="elasticity n={}".format(n))
+    timer = simfempy.tools.timer.Timer(name="elasticity n={}".format(n))
     for solver in solvers:
         if solver=='umf' and n > 140000: continue
         if not solver in times.keys(): times[solver] = []

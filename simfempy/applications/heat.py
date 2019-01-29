@@ -1,7 +1,7 @@
 import time
 import numpy as np
-from fempy import solvers
-from fempy import fems
+from simfempy import solvers
+from simfempy import fems
 
 #=================================================================#
 class Heat(solvers.solver.Solver):

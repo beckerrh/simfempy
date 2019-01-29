@@ -8,8 +8,8 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fempy.tools.latexwriter import LatexWriter
-from fempy.meshes.simplexmesh import SimplexMesh
+from simfempy.tools.latexwriter import LatexWriter
+from simfempy.meshes.simplexmesh import SimplexMesh
 
 
 #=================================================================#

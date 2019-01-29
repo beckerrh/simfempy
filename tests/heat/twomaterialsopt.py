@@ -3,14 +3,14 @@ from os import sys, path
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import fempy.applications
+import simfempy.applications
 import pygmsh
 import numpy as np
 import scipy.interpolate
 import scipy.optimize
 import matplotlib.pyplot as plt
-from fempy.tools import npext
-from fempy.meshes import pygmshext
+from simfempy.tools import npext
+from simfempy.meshes import pygmshext
 
 
 
@@ -60,8 +60,8 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
 
     # print("code", geometry.get_code())
     data = pygmsh.generate_mesh(geometry, verbose=False)
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(data=data)
-    bdrycond = fempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    bdrycond = simfempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
     bdrycond.type[1002] = "Neumann"
     bdrycond.type[1000] = "Dirichlet"
     bdrycond.type[1001] = "Dirichlet"
@@ -106,12 +106,12 @@ class Plotter:
             self.point_data, self.cell_data, self.info = self.heat.point_data, self.heat.cell_data, self.heat.info
         else:
             self.point_data, self.cell_data, self.info = point_data, cell_data, info
-        fig, axs = fempy.meshes.plotmesh.meshWithData(self.heat.mesh, self.point_data, self.cell_data, addplots=self.addplots)
+        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, self.point_data, self.cell_data, addplots=self.addplots)
         plt.show()
 
 
 #----------------------------------------------------------------#
-class Heat(fempy.applications.heat.Heat):
+class Heat(simfempy.applications.heat.Heat):
     def __init__(self, **kwargs):
         kwargs['fem'] = 'p1'
         kwargs['plotk'] = True
@@ -200,7 +200,7 @@ def compute_j(diffglobal):
     h = 0.2
     nmeasurepoints = 2
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
@@ -227,7 +227,7 @@ def compute_j2d(diffglobal):
     h = 0.05
     nmeasurepoints = 2
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
-    fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
@@ -272,7 +272,7 @@ def compute_j2d(diffglobal):
 def test(diffglobal):
     nmeasurepoints = 6
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(nmeasurepoints=nmeasurepoints)
-    # fempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
     heat = Heat(bdrycond=bdrycond, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)

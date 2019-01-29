@@ -14,11 +14,11 @@ if __name__ == '__main__' and __package__ is None:
     from os import sys, path
     fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
     sys.path.append(fempypath)
-import fempy.tools.analyticalsolution
-import fempy.fems.femrt0
-import fempy.applications
-from fempy import solvers
-from fempy.tools.timer import Timer
+import simfempy.tools.analyticalsolution
+import simfempy.fems.femrt0
+import simfempy.applications
+from simfempy import solvers
+from simfempy.tools.timer import Timer
 
 
 # ------------------------------------- #
@@ -33,7 +33,7 @@ class Laplace(solvers.solver.Solver):
         # if 'problem' in kwargs:
         #     self.defineProblem(problem=kwargs.pop('problem'))
         print("self.solexact", self.solexact)
-        self.femv = fempy.fems.femrt0.FemRT0()
+        self.femv = simfempy.fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
         # super().setMesh(mesh)
@@ -45,17 +45,17 @@ class Laplace(solvers.solver.Solver):
         problemsplit = problem.split('_')
         if problemsplit[0] == 'Analytic':
             if problemsplit[1] == 'Constant':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('7')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('7')
             elif problemsplit[1] == 'Linear':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x+2*y')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x+2*y')
             elif problemsplit[1] == 'Quadratic':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
             elif problemsplit[1] == 'Hubbel':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
             elif problemsplit[1] == 'Exponential':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
             elif problemsplit[1] == 'Sinus':
-                solexact = fempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
+                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
             else:
                 raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
             self.dirichlet = solexact
@@ -154,14 +154,14 @@ class Laplace(solvers.solver.Solver):
             Aall = self._to_single_matrix(Ain)
             return splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
         elif solver == 'gmres':
-            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            counter = simfempy.solvers.solver.IterationCounter(name=solver)
             Aall = self._to_single_matrix(Ain)
             u,info = splinalg.lgmres(Aall, bin, callback=counter, inner_m=20, outer_k=4, atol=1e-10)
             if info: raise ValueError("no convergence info={}".format(info))
             return u
         elif solver == 'gmres2':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
-            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            counter = simfempy.solvers.solver.IterationCounter(name=solver)
             # Aall = self._to_single_matrix(Ain)
             # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
             # M_x = lambda x: M2.solve(x)
@@ -197,8 +197,8 @@ class Laplace(solvers.solver.Solver):
 
 # ------------------------------------- #
 def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
-    import fempy.tools.comparerrors
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    import simfempy.tools.comparerrors
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
         h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
@@ -222,7 +222,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
     if problem.split('_')[1] == "Linear":
         h = [2, 1, 0.5, 0.25]
-    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
+    comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['pcL2']
 

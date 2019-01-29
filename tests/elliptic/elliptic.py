@@ -3,14 +3,14 @@ from os import sys, path
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-from fempy.applications.elliptic import Elliptic
+from simfempy.applications.elliptic import Elliptic
 
 
 # ----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
-    import fempy.tools.comparerrors
-    bdrycond0 = fempy.applications.boundaryconditions.BoundaryConditions()
-    bdrycond1 = fempy.applications.boundaryconditions.BoundaryConditions()
+    import simfempy.tools.comparerrors
+    bdrycond0 = simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond1 = simfempy.applications.boundaryconditions.BoundaryConditions()
     postproc0 = {}
     postproc1 = {}
     if geomname == "unitsquare":
@@ -58,7 +58,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         for bdry in ['trad', 'new']:
             compares[fem + bdry] = Elliptic(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem,\
                                             ncomp=2, method=bdry, problemname=app.problemname)
-    comp = fempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     if problem.split('_')[1] == "Linear":
         h = [2, 1, 0.5, 0.25]
     result = comp.compare(geomname=geomname, h=h)

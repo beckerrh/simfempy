@@ -1,8 +1,8 @@
 import time
 import numpy as np
-import fempy.tools.analyticalsolution
-from fempy import solvers
-from fempy import fems
+import simfempy.tools.analyticalsolution
+from simfempy import solvers
+from simfempy import fems
 
 #=================================================================#
 class Elliptic(solvers.solver.Solver):
@@ -77,7 +77,7 @@ class Elliptic(solvers.solver.Solver):
         if problemsplit[0] != 'Analytic':
             raise ValueError("unownd problem {}".format(problem))
         function = problemsplit[1]
-        self.solexact = fempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
+        self.solexact = simfempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
         
     def setMesh(self, mesh):
         t0 = time.time()

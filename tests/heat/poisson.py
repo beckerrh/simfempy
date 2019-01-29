@@ -3,12 +3,12 @@ import numpy as np
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import fempy
+import simfempy
 
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitcube"):
-    import fempy.tools.comparerrors
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    import simfempy.tools.comparerrors
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname=='unitsquare':
         bdrycond.type[1000] = "Dirichlet"
@@ -28,15 +28,15 @@ def test_flux(geomname = "unitcube"):
     methods = {}
     for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')
-        methods[method] = fempy.applications.heat.Heat(rhs=lambda x,y,z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem, method=meth)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=2)
+        methods[method] = simfempy.applications.heat.Heat(rhs=lambda x, y, z:1, bdrycond=bdrycond, kheat=lambda id:1, postproc=postproc, fem=fem, method=meth)
+    comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=2)
     h = [2, 1, 0.5, 0.25, 0.125]
     result = comp.compare(geomname=geomname, h=h)
 
 #----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2):
-    import fempy.tools.comparerrors
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    import simfempy.tools.comparerrors
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03]
@@ -63,16 +63,16 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2)
     methods = {}
     for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')
-        methods[method] = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
-    comp = fempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
+        methods[method] = simfempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, postproc=postproc, fem=fem, method=meth, random=False)
+    comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2']
 
 # ----------------------------------------------------------------#
 def test_solvers(geomname='unitcube', fem = 'p1'):
     problem = 'Analytic_Sinus'
-    import fempy
-    bdrycond = fempy.applications.boundaryconditions.BoundaryConditions()
+    import simfempy
+    bdrycond = simfempy.applications.boundaryconditions.BoundaryConditions()
     if geomname=='unitsquare':
         problem += '_2d'
         bdrycond.type[1000] = "Neumann"
@@ -89,16 +89,16 @@ def test_solvers(geomname='unitcube', fem = 'p1'):
         bdrycond.type[103] = "Dirichlet"
         bdrycond.type[104] = "Dirichlet"
         hmean = 0.05
-    heat  = fempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, fem=fem)
-    mesh = fempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
+    heat  = simfempy.applications.heat.Heat(problem=problem, bdrycond=bdrycond, fem=fem)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
     # mesh.plotWithBoundaries()
     heat.setMesh(mesh)
     print("heat.linearsolvers=", heat.linearsolvers)
     b = heat.computeRhs()
     A = heat.matrix()
     A, b, u = heat.boundary(A, b)
-    import fempy.tools.timer
-    timer = fempy.tools.timer.Timer(name=fem+'_'+geomname+'_'+str(mesh.ncells))
+    import simfempy.tools.timer
+    timer = simfempy.tools.timer.Timer(name=fem + '_' + geomname + '_' + str(mesh.ncells))
     for solver in heat.linearsolvers:
         u = heat.linearSolver(A, b, solver=solver)
         timer.add(solver)

@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 try:
-    from fempy.meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
 

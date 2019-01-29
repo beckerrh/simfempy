@@ -8,7 +8,7 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 
-from fempy import solvers
+from simfempy import solvers
 
 
 class RaviartThomas(solvers.solver.Solver):
@@ -21,7 +21,7 @@ class RaviartThomas(solvers.solver.Solver):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
-        from fempy import meshes
+        from simfempy import meshes
         # meshes.plotmesh.plotmesh(self.mesh, localnumbering=True)
 
     def solve(self):

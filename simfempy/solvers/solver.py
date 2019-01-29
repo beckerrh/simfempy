@@ -11,7 +11,7 @@ import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 
-import fempy.tools.analyticalsolution
+import simfempy.tools.analyticalsolution
 
 # https://github.com/bfroehle/pymumps
 #from mumps import DMumpsContext
@@ -84,7 +84,7 @@ class Solver(object):
             raise ValueError("need three parts {}".format(problem))
         function = problemsplit[1]
         dim = int(problemsplit[2][0])
-        solexact = fempy.tools.analyticalsolution.analyticalSolution(function, dim, self.ncomp, random)
+        solexact = simfempy.tools.analyticalsolution.analyticalSolution(function, dim, self.ncomp, random)
         return solexact
 
     def setAnalyticalBoundaryCondition(self, bdrycond):

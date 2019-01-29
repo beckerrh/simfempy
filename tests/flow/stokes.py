@@ -4,9 +4,9 @@ sys.path.append(fempypath)
 
 import time
 import numpy as np
-from fempy import solvers
-from fempy import fems
-import fempy.tools.analyticalsolution
+from simfempy import solvers
+from simfempy import fems
+import simfempy.tools.analyticalsolution
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
@@ -21,9 +21,9 @@ class Stokes(solvers.solver.Solver):
         if 'problem' in kwargs:
             function = kwargs.pop('problem').split('_')[1]
             if function == 'Linear':
-                self.solexact.append(fempy.tools.analyticalsolution.AnalyticalSolution('0'))
+                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
             elif function == 'Quadratic':
-                self.solexact.append(fempy.tools.analyticalsolution.AnalyticalSolution('x'))
+                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x'))
             else:
                 raise NotImplementedError("unknown function '{}'".format(function))
         if 'fem' in kwargs:
@@ -373,9 +373,9 @@ class Stokes(solvers.solver.Solver):
 
 #----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
-    import fempy.tools.comparerrors
+    import simfempy.tools.comparerrors
     postproc = {}
-    bdrycond =  fempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
     if geomname == "unitsquare":
         problem += "_2d"
         ncomp = 2
@@ -401,7 +401,7 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     compares = {}
     for fem in ['cr1']:
         compares[fem] = Stokes(problem=problem, bdrycond=bdrycond, postproc=postproc,fem=fem, ncomp=ncomp)
-    comp = fempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2-V']
 
