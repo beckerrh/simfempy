@@ -33,18 +33,22 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         h = [0.5, 0.25, 0.125, 0.06]
         if problem=="Analytic_Linear": h = h[:-2]
         problem += '_3d'
-        bdrycond0.type[100] = "Dirichlet"
+        bdrycond0.type[100] = "Neumann"
         bdrycond0.type[101] = "Dirichlet"
         bdrycond0.type[102] = "Dirichlet"
         bdrycond0.type[103] = "Dirichlet"
         bdrycond0.type[104] = "Dirichlet"
-        bdrycond0.type[105] = "Dirichlet"
-        bdrycond1.type[100] = "Neumann"
-        bdrycond1.type[101] = "Dirichlet"
+        bdrycond0.type[105] = "Neumann"
+        postproc0['bdrymean'] = "bdrymean:100,105"
+        postproc0['bdrydn'] = "bdrydn:101,102,103,104"
+        bdrycond1.type[100] = "Dirichlet"
+        bdrycond1.type[101] = "Neumann"
         bdrycond1.type[102] = "Dirichlet"
-        bdrycond1.type[103] = "Dirichlet"
+        bdrycond1.type[103] = "Neumann"
         bdrycond1.type[104] = "Dirichlet"
         bdrycond1.type[105] = "Dirichlet"
+        postproc1['bdrymean'] = "bdrymean:101,103"
+        postproc1['bdrydn'] = "bdrydn:100,102,104,105"
 
     bdrycond = [bdrycond0, bdrycond1]
     postproc = [postproc0, postproc1]
@@ -55,6 +59,8 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
             compares[fem + bdry] = Elliptic(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc, fem=fem,\
                                             ncomp=2, method=bdry, problemname=app.problemname)
     comp = fempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    if problem.split('_')[1] == "Linear":
+        h = [2, 1, 0.5, 0.25]
     result = comp.compare(geomname=geomname, h=h)
     return result[3]['error']['L2']
 
