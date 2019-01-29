@@ -34,6 +34,13 @@ class TestAnalytical(unittest.TestCase):
     def test_mixedlaplace3d(self):
         from mixed.laplace import test_analytic
         self._check(test_analytic(problem = 'Analytic_Linear', geomname = "unitcube", verbose=0))
+    # ---------------------------
+    def test_stokes2d(self):
+        from flow.stokes import test_analytic
+        self._check(test_analytic(problem = 'Analytic_Linear', geomname = "unitsquare", verbose=0))
+    def test_stokes3d(self):
+        from flow.stokess import test_analytic
+        self._check(test_analytic(problem = 'Analytic_Linear', geomname = "unitcube", verbose=0))
 
 
 #================================================================#
