@@ -126,7 +126,7 @@ class FemP1(object):
 
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
-        scale = 1 / self.mesh.dimension
+        scale = -1 / self.mesh.dimension
         self.cellgrads = scale * (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
         scalemass = 1 / self.nloc / (self.nloc + 1);
         massloc = np.tile(scalemass, (self.nloc, self.nloc))

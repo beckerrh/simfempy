@@ -73,9 +73,9 @@ class FemCR1(object):
 
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
-        scale = -1
-        self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
         dim = self.mesh.dimension
+        scale = 1
+        self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
         scalemass = (2-dim) / (dim+1) / (dim+2)
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)

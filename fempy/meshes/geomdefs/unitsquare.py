@@ -22,8 +22,10 @@ if __name__ == '__main__':
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
     import plotmesh, simplexmesh
     import matplotlib.pyplot as plt
-    geometry = define_geometry(h=1.0)
+    geometry = define_geometry(h=2)
     meshdata = pygmsh.generate_mesh(geometry)
     mesh = simplexmesh.SimplexMesh(data=meshdata)
-    plotmesh.meshWithBoundaries(mesh)
+    mesh.plotWithBoundaries()
+    plt.show()
+    mesh.plot(localnumbering=True)
     plt.show()

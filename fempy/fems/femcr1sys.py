@@ -82,7 +82,7 @@ class FemCR1(object):
 
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
-        scale = -1
+        scale = 1
         self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
         dim = self.mesh.dimension
         scalemass = (2-dim) / (dim+1) / (dim+2)
