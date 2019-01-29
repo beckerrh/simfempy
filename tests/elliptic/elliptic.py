@@ -33,23 +33,6 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         h = [0.5, 0.25, 0.125, 0.06]
         if problem=="Analytic_Linear": h = h[:-2]
         problem += '_3d'
-        # bdrycond0.type[100] = "Neumann"
-        # bdrycond0.type[101] = "Dirichlet"
-        # bdrycond0.type[102] = "Dirichlet"
-        # bdrycond0.type[103] = "Dirichlet"
-        # bdrycond0.type[104] = "Dirichlet"
-        # bdrycond0.type[105] = "Neumann"
-        # postproc0['bdrymean'] = "bdrymean:100,105"
-        # postproc0['bdrydn'] = "bdrydn:101,102,103,104"
-        # bdrycond1.type[100] = "Dirichlet"
-        # bdrycond1.type[101] = "Neumann"
-        # bdrycond1.type[102] = "Dirichlet"
-        # bdrycond1.type[103] = "Neumann"
-        # bdrycond1.type[104] = "Dirichlet"
-        # bdrycond1.type[105] = "Dirichlet"
-        # postproc1['bdrymean'] = "bdrymean:101,103"
-        # postproc1['bdrydn'] = "bdrydn:100,102,104,105"
-
         bdrycond0.type[100] = "Dirichlet"
         bdrycond0.type[101] = "Dirichlet"
         bdrycond0.type[102] = "Dirichlet"

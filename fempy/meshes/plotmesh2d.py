@@ -183,7 +183,8 @@ def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=
             count += 1
     if cell_data:
         for cdn, cd in cell_data.items():
-            assert tris.shape[0] == cd.shape[0]
+            if tris.shape[0] != cd.shape[0]:
+                raise ValueError("wrong length in '{}' {}!={}".format(cdn,tris.shape[0],cd.shape[0]))
             # ax = axs[count//3,count%3]
             ax = axs[count//ncols,count%ncols]
             cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')

@@ -298,11 +298,12 @@ class SimplexMesh(object):
 
     def plotWithBoundaries(self):
         import plotmesh
-        import matplotlib.pyplot as plt
         plotmesh.meshWithBoundaries(self)
+    def plot(self, **kwargs):
+        import plotmesh
+        plotmesh.plotmesh(self, **kwargs)
     def plotWithData(self, **kwargs):
         import plotmesh
-        import matplotlib.pyplot as plt
         plotmesh.meshWithData(self, **kwargs)
 
 
