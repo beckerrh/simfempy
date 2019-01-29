@@ -350,23 +350,8 @@ class Stokes(solvers.solver.Solver):
 
     def linearSolver(self, Ain, b, u=None, solver='umf'):
         if solver == 'umf':
-            # print("Ain", Ain)
             Aall = self._to_single_matrix(Ain)
-            # print("self.pstart", self.pstart)
-            # Adense = Aall.todense()
-            # print("Adense", Adense)
-            # np.savetxt("Adense", Adense, fmt='%4.1f')
-            # np.savetxt("b", b, fmt='%8.4f')
-            # import numpy.linalg
-            # print("Ainv", numpy.linalg.inv(Adense))
-            # B = Adense[self.pstart:,:self.pstart]
-            # BT = Adense[:self.pstart,self.pstart:]
-            # print("B", B)
-            # print("BT", BT)
-            # print("B*BT", numpy.linalg.inv(B*BT))
-            # raise ValueError
             u =  splinalg.spsolve(Aall, b, permc_spec='COLAMD')
-            # np.savetxt("u", u, fmt='%8.4f')
             return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))
@@ -403,10 +388,14 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         compares[fem] = Stokes(problem=problem, bdrycond=bdrycond, postproc=postproc,fem=fem, ncomp=ncomp)
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     result = comp.compare(geomname=geomname, h=h)
-    return result[3]['error']['L2-V']
+    res = {}
+    res['L2-V-cr1'] = result[3]['error']['L2-V']['cr1']
+    res['L2-P-cr1'] = result[3]['error']['L2-P']['cr1']
+    return res
 
 
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(problem="Analytic_Linear", geomname = "unitcube")
-    test_analytic(problem="Analytic_Quadratic")
+    result = test_analytic(problem="Analytic_Quadratic")
+    print("result", result)

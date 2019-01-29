@@ -3,8 +3,8 @@ import numpy as np
 
 #================================================================#
 class TestAnalytical(unittest.TestCase):
-    def _check(self, result):
-        for meth,err in result.items():
+    def _check(self, results):
+        for meth,err in results.items():
             if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
 #---------------------------
     def test_poisson2d(self):
@@ -39,7 +39,7 @@ class TestAnalytical(unittest.TestCase):
         from flow.stokes import test_analytic
         self._check(test_analytic(problem = 'Analytic_Linear', geomname = "unitsquare", verbose=0))
     def test_stokes3d(self):
-        from flow.stokess import test_analytic
+        from flow.stokes import test_analytic
         self._check(test_analytic(problem = 'Analytic_Linear', geomname = "unitcube", verbose=0))
 
 
