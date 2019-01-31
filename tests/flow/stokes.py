@@ -7,7 +7,7 @@ import numpy as np
 from simfempy import solvers
 from simfempy import fems
 import simfempy.tools.analyticalsolution
-import scipy.sparse as sparse
+import scipy.sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
 
@@ -18,6 +18,7 @@ class Stokes(solvers.solver.Solver):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.linearsolver = 'gmres'
         if 'problem' in kwargs:
             function = kwargs.pop('problem').split('_')[1]
             if function == 'Linear':
@@ -136,7 +137,7 @@ class Stokes(solvers.solver.Solver):
         rows = cols.swapaxes(1, 2)
         # print("matA.shape", matA.shape)
         # print("cols.shape", cols.shape)
-        A = sparse.coo_matrix((matA, (rows.reshape(-1), cols.reshape(-1))), shape=(nfaces, nfaces)).tocsr()
+        A = scipy.sparse.coo_matrix((matA, (rows.reshape(-1), cols.reshape(-1))), shape=(nfaces, nfaces)).tocsr()
 
         rowsB = np.repeat(np.arange(ncells), ncomp*nloc).reshape(ncells * nloc, ncomp)
         # print("rowsB", rowsB)
@@ -148,12 +149,20 @@ class Stokes(solvers.solver.Solver):
         # matB = np.zeros(ncells*nloc*ncomp, dtype=float).reshape(ncells, nloc, ncomp)
         matB = (cellgrads[:,:,:ncomp].T*dV).T
         # print("matB", matB[0])
-        B = sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))), shape=(ncells, nfaces*ncomp)).tocsr()
+        B = scipy.sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))), shape=(ncells, nfaces*ncomp)).tocsr()
         # print("B", B[0])
+        if self.pmean:
+            rows = np.zeros(ncells, dtype=int)
+            cols = np.arange(0, ncells)
+            C = scipy.sparse.coo_matrix((dV, (rows, cols)), shape=(1, ncells)).tocsr()
+            return (A,B,C)
         return (A,B)
 
     def boundary(self, Aall, b, u):
-        A, B = Aall
+        if self.pmean:
+            A, B, C = Aall
+        else:
+            A, B = Aall
         # print("A", A.todense())
         # print("B", B.todense())
         x, y, z = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
@@ -164,13 +173,13 @@ class Stokes(solvers.solver.Solver):
         self.Bsaved = {}
         for key, faces in facesdirflux.items():
             nb = faces.shape[0]
-            help = sparse.dok_matrix((nb, nfaces))
+            help = scipy.sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
             self.Asaved[key] = help.dot(A)
             helpB = np.zeros((ncomp*nfaces))
             for icomp in range(ncomp):
                 helpB[icomp*nfaces + facesdirall] = 0
-            helpB = sparse.dia_matrix((helpB, 0), shape=(ncomp*nfaces, ncomp*nfaces))
+            helpB = scipy.sparse.dia_matrix((helpB, 0), shape=(ncomp*nfaces, ncomp*nfaces))
             self.Bsaved[key] = B.dot(helpB)
         self.A_inner_dir = A[facesinner, :][:, facesdirall]
         for icomp in range(ncomp):
@@ -198,11 +207,11 @@ class Stokes(solvers.solver.Solver):
 
             help = np.ones((nfaces))
             help[facesdirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
             A = help.dot(A.dot(help))
             help = np.zeros((nfaces))
             help[facesdirall] = 1.0
-            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
             A += help
         else:
             for color in colorsdir:
@@ -229,11 +238,13 @@ class Stokes(solvers.solver.Solver):
         help = np.ones((ncomp * nfaces))
         for icomp in range(ncomp):
             help[icomp*nfaces + facesdirall] = 0
-        help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+        help = scipy.sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
         B = B.dot(help)
         # print("B", B[0])
         # print("after A", A.todense())
         # print("after B", B.todense())
+        if self.pmean:
+            return (A, B, C), b, u
         return (A,B), b, u
 
     def computeBdryMean(self, u, key, data):
@@ -312,7 +323,10 @@ class Stokes(solvers.solver.Solver):
     def _to_single_matrix(self, Ain):
         import scipy.sparse
         # print("Ain", Ain)
-        A, B = Ain
+        if self.pmean:
+            A, B, C = Ain
+        else:
+            A, B = Ain
         ncells, nfaces, = self.mesh.ncells, self.mesh.nfaces
         nullV = scipy.sparse.dia_matrix((np.zeros(nfaces), 0), shape=(nfaces, nfaces))
         nullP = scipy.sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
@@ -330,10 +344,6 @@ class Stokes(solvers.solver.Solver):
         Aall = scipy.sparse.vstack([A1, A2])
 
         if self.pmean:
-            rows = np.zeros(ncells, dtype=int)
-            cols = np.arange(0, ncells)
-            C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
-            # print("C", C)
             rows = np.zeros(nfaces, dtype=int)
             cols = np.arange(0, nfaces)
             nullV = sparse.coo_matrix((np.zeros(nfaces), (rows, cols)), shape=(1, nfaces)).tocsr()
@@ -348,11 +358,65 @@ class Stokes(solvers.solver.Solver):
 
         return Aall.tocsr()
 
-    def linearSolver(self, Ain, b, u=None, solver='umf'):
+    def linearSolver(self, Ain, bin, u=None, solver='umf'):
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
-            u =  splinalg.spsolve(Aall, b, permc_spec='COLAMD')
+            u =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             return u
+        elif solver == 'gmres':
+            nfaces, ncells, ncomp, pstart = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.pstart
+            counter = simfempy.solvers.solver.IterationCounter(name=solver)
+            if self.pmean:
+                A, B, C = Ain
+                nall = ncomp*nfaces + ncells + 1
+                BP = scipy.sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+                CP = splinalg.inv(C*BP*C.T)
+                import pyamg
+                config = pyamg.solver_configuration(A, verb=False)
+                API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+
+                # DA = 1 / A.diagonal()
+                # D = scipy.sparse.diags(np.tile(DA,ncomp), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
+                # S = B * D * B.T
+                # import pyamg
+                # config = pyamg.solver_configuration(S, verb=False)
+                # ml = pyamg.rootnode_solver(S, B=config['B'], smooth='energy')
+
+                def amult(x):
+                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
+                    w = -B.T.dot(p)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] += A.dot(v[i*nfaces: (i+1)*nfaces])
+                    q = B.dot(v)+C.T.dot(lam).ravel()
+                    return np.hstack([w, q, C.dot(p)])
+                nall = ncomp*nfaces + ncells+1
+                Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
+                def pmults(x):
+                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
+                    w = np.zeros_like(v)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    q = BP.dot(p)
+                    mu = CP.dot(lam).ravel()
+                    return np.hstack([w, q, mu])
+                def pmult(x):
+                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
+                    w = np.zeros_like(v)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    q = BP.dot(p-B.dot(w))
+                    mu = CP.dot(lam-C.dot(q)).ravel()
+                    q += BP.dot(C.T.dot(mu).ravel())
+                    h = B.T.dot(q)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] += API.solve(h[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    return np.hstack([w, q, mu])
+                P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
+                u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-12, tol=1e-12, inner_m=10, outer_k=4)
+                if info: raise ValueError("no convergence info={}".format(info))
+                return u
+            else:
+                raise NotImplementedError
         else:
             raise ValueError("unknown solve '{}'".format(solver))
 
@@ -364,7 +428,7 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     if geomname == "unitsquare":
         problem += "_2d"
         ncomp = 2
-        h = [2, 1, 0.5, 0.25, 0.125]
+        h = [2, 1, 0.5, 0.25, 0.125, 0.06]
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Dirichlet"
@@ -374,7 +438,7 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     if geomname == "unitcube":
         problem += "_3d"
         ncomp = 3
-        h = [2]
+        h = [2, 1, 0.5, 0.25, 0.125, 0.06]
         bdrycond.type[100] = "Dirichlet"
         bdrycond.type[105] = "Dirichlet"
         bdrycond.type[101] = "Dirichlet"
@@ -396,6 +460,6 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
 
 #================================================================#
 if __name__ == '__main__':
-    # test_analytic(problem="Analytic_Linear", geomname = "unitcube")
-    result = test_analytic(problem="Analytic_Quadratic")
+    result = test_analytic(problem="Analytic_Linear", geomname = "unitcube", verbose=2)
+    # result = test_analytic(problem="Analytic_Quadratic")
     print("result", result)
