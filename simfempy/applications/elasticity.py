@@ -33,7 +33,7 @@ class Elasticity(solvers.solver.Solver):
             raise NotImplementedError("cr1 not ready")
             self.fem = fems.femcr1sys.FemCR1()
         else:
-            raise ValueError("unknown fem '{}'".format(fem))            
+            raise ValueError("unknown fem '{}'".format(fem))
         if 'mu' in kwargs:
             self.mu = kwargs.pop('mu')
             self.mu = np.vectorize(self.mu)
@@ -60,7 +60,7 @@ class Elasticity(solvers.solver.Solver):
 
     def solve(self, iter, dirname):
         return self.solveLinear()
-        
+
     def computeRhs(self):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
@@ -110,7 +110,7 @@ class Elasticity(solvers.solver.Solver):
         # from ..meshes import plotmesh
         # plotmesh.meshWithData(self.mesh, point_data={"b_{:1d}".format(i):b[i::self.ncomp] for i in range(self.ncomp)})
         return b
-        
+
     def matrix(self):
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.fem.rows, self.fem.cols, self.fem.cellgrads
@@ -125,7 +125,7 @@ class Elasticity(solvers.solver.Solver):
         # rows, cols = A.nonzero()
         # A[cols, rows] = A[rows, cols]
         return A
-        
+
     def boundary(self, A, b, u=None):
         x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
@@ -222,8 +222,8 @@ class Elasticity(solvers.solver.Solver):
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        info['timer'] = self.timer
-        info['runinfo'] = self.runinfo
+        # info['timer'] = self.timer
+        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for key, val in self.postproc.items():
             type,data = val.split(":")

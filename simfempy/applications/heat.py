@@ -35,7 +35,7 @@ class Heat(solvers.solver.Solver):
             self.plotk = False
 
     def setMesh(self, mesh):
-        t0 = time.time()
+        # t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh)
         colorsdir = []
@@ -44,8 +44,8 @@ class Heat(solvers.solver.Solver):
         self.fem.prepareBoundary(colorsdir, self.postproc)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
-        t1 = time.time()
-        self.timer['setmesh'] = t1-t0
+        # t1 = time.time()
+        # self.timer['setmesh'] = t1-t0
 
     def solve(self, iter=0, dirname=None):
         return self.solveLinear()
@@ -69,8 +69,8 @@ class Heat(solvers.solver.Solver):
             info['error'] = {}
             info['error']['L2'], e = self.fem.computeErrorL2(self.solexact, u)
             point_data['E'] = self.fem.tonode(e)
-        info['timer'] = self.timer
-        info['runinfo'] = self.runinfo
+        # info['timer'] = self.timer
+        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for key, val in self.postproc.items():
             type,data = val.split(":")

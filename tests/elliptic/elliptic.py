@@ -9,8 +9,8 @@ from simfempy.meshes import geomdefs
 # ----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
     import simfempy.tools.comparerrors
-    bdrycond0 = simfempy.applications.boundaryconditions.BoundaryConditions()
-    bdrycond1 = simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond0 = simfempy.applications.problemdata.BoundaryConditions()
+    bdrycond1 = simfempy.applications.problemdata.BoundaryConditions()
     postproc0 = {}
     postproc1 = {}
     if geomname == "unitsquare":

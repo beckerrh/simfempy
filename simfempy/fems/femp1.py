@@ -175,29 +175,6 @@ class FemP1(object):
         # print("### chsg", chsg, "normals", normals)
         grads[chsg] *= -1.
         return grads
-    def phi(self, ic, x, y, z, grad):
-        return 1./3. + np.dot(grad, np.array([x-self.mesh.pointsc[ic,0], y-self.mesh.pointsc[ic,1], z-self.mesh.pointsc[ic,2]]))
-    def testgrad(self):
-        for ic in range(fem.mesh.ncells):
-            grads = fem.grad(ic)
-            for ii in range(3):
-                x = self.mesh.points[self.mesh.simplices[ic,ii], 0]
-                y = self.mesh.points[self.mesh.simplices[ic,ii], 1]
-                z = self.mesh.points[self.mesh.simplices[ic,ii], 2]
-                for jj in range(3):
-                    phi = self.phi(ic, x, y, z, grads[jj])
-                    if ii == jj:
-                        test = np.abs(phi-1.0)
-                        if test > 1e-14:
-                            print('ic=', ic, 'grad=', grads)
-                            print('x,y', x, y)
-                            print('x-xc,y-yc', x-self.mesh.pointsc[ic,0], y-self.mesh.pointsc[ic,1])
-                            raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
-                    else:
-                        test = np.abs(phi)
-                        if np.abs(phi) > 1e-14:
-                            print('ic=', ic, 'grad=', grads)
-                            raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
     def computeErrorL2(self, solex, uh):
         x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         e = solex(x, y, z) - uh

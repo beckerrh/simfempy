@@ -10,7 +10,7 @@ from simfempy.meshes import geomdefs
 #================================================================#
 def mesh_traction(hmean, geomname="unitcube"):
     postproc = {}
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         ncomp = 2
         bdrycond.type[1000] = "Neumann"

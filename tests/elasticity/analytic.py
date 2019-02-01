@@ -10,7 +10,7 @@ from simfempy.meshes import geomdefs
 def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
     import simfempy.tools.comparerrors
     postproc = {}
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
         if problem=="Analytic_Linear": h = h[:-2]
