@@ -2,15 +2,18 @@ import time
 
 #=================================================================#
 class Timer():
-    def __init__(self, name=''):
+    def __init__(self, name='', verbose=1):
         self.name = name
+        self.verbose = verbose
         self.tlast = time.time()
         self.data = {}
     def add(self, name):
         t = time.time()
-        self.data[name] = t - self.tlast
+        if name not in self.data: self.data[name] = 0
+        self.data[name] += t - self.tlast
         self.tlast = t
     def __del__(self):
+        if self.verbose == 0 : return
         tall = sum(self.data.values())
         print("Timer {:12s} {:12.2e}".format(self.name, tall))
         for name, t in self.data.items():

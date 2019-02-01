@@ -81,8 +81,8 @@ class Laplace(solvers.solver.Solver):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
             # cell_data['verry'] = np.abs(vey - vc[1])
             info['error'] = err
-        info['timer'] = self.timer
-        info['runinfo'] = self.runinfo
+        # info['timer'] = self.timer
+        # info['runinfo'] = self.runinfo
         return point_data, cell_data, info
 
     def computeError(self, solexact, p, vc):
@@ -161,7 +161,8 @@ class Laplace(solvers.solver.Solver):
             return u
         elif solver == 'gmres2':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
-            counter = simfempy.solvers.solver.IterationCounter(name=solver)
+            import simfempy.tools.iterationcounter
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
             # Aall = self._to_single_matrix(Ain)
             # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
             # M_x = lambda x: M2.solve(x)
@@ -198,7 +199,7 @@ class Laplace(solvers.solver.Solver):
 # ------------------------------------- #
 def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
     import simfempy.tools.comparerrors
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
         h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]

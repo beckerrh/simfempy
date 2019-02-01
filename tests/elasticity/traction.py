@@ -9,7 +9,7 @@ import simfempy.applications
 #================================================================#
 def mesh_traction(hmean, geomname="unitcube"):
     postproc = {}
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         ncomp = 2
         bdrycond.type[1000] = "Neumann"
@@ -29,7 +29,6 @@ def mesh_traction(hmean, geomname="unitcube"):
     else:
         raise ValueError("unknown geomname={}".format(geomname))
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
-    # plotmesh.meshWithBoundaries(mesh)
     elasticity = simfempy.applications.elasticity.Elasticity(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
     elasticity.setMesh(mesh)
     b = elasticity.computeRhs()

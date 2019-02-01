@@ -98,7 +98,7 @@ class Euler(RaviartThomas):
             cell_data['verrx'] =np.abs(vex - v0)
             cell_data['verry'] =np.abs(vey - v1)
             info['error'] = err
-        info['timer'] = self.timer
+        # info['timer'] = self.timer
         if nit: info['nit'] = nit
         return point_data, cell_data, info
 

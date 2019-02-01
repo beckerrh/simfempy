@@ -8,7 +8,7 @@ import simfempy
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitcube"):
     import simfempy.tools.comparerrors
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     if geomname=='unitsquare':
         bdrycond.type[1000] = "Dirichlet"
@@ -36,7 +36,7 @@ def test_flux(geomname = "unitcube"):
 #----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2):
     import simfempy.tools.comparerrors
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03]
@@ -72,7 +72,7 @@ def test_analytic(problem="Analytic_Linear", geomname = "unitsquare", verbose=2)
 def test_solvers(geomname='unitcube', fem = 'p1'):
     problem = 'Analytic_Sinus'
     import simfempy
-    bdrycond = simfempy.applications.boundaryconditions.BoundaryConditions()
+    bdrycond = simfempy.applications.problemdata.BoundaryConditions()
     if geomname=='unitsquare':
         problem += '_2d'
         bdrycond.type[1000] = "Neumann"

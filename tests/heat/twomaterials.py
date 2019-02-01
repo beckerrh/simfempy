@@ -20,7 +20,7 @@ def test():
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
     simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    bdrycond =  simfempy.applications.boundaryconditions.BoundaryConditions(mesh.bdrylabels.keys())
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions(mesh.bdrylabels.keys())
     postproc = {}
     bdrycond.type[1000] = "Neumann"
     bdrycond.type[1001] = "Dirichlet"

@@ -1,4 +1,4 @@
-from . import boundaryconditions
+from . import problemdata
 from . import elliptic
 from . import heat
 from . import elasticity

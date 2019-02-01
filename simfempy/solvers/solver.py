@@ -12,29 +12,17 @@ import scipy.optimize as optimize
 import scipy.sparse as sparse
 
 import simfempy.tools.analyticalsolution
+import simfempy.tools.timer
+import simfempy.tools.iterationcounter
 
 # https://github.com/bfroehle/pymumps
 #from mumps import DMumpsContext
 
 #=================================================================#
-class IterationCounter(object):
-    def __init__(self, disp=20, name="", verbose=1):
-        self.disp = disp
-        self.name = name
-        self.verbose = verbose
-        self.niter = 0
-    def __call__(self, rk=None):
-        # if self.disp and self.niter%self.disp==0:
-        #     print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
-        self.niter += 1
-    def __del__(self):
-        if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
-
-
-#=================================================================#
 class Solver(object):
     def __init__(self, **kwargs):
-        self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
+        # self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
+        self.timer = simfempy.tools.timer.Timer(verbose=0)
         self.runinfo = {'niter':0}
         self.linearsolvers=[]
         self.linearsolvers.append('umf')
@@ -58,21 +46,19 @@ class Solver(object):
             self.solexact = kwargs.pop('solexact')
         else:
             self.solexact = None
-            self.bdrycond = kwargs.pop('bdrycond')
         if self.solexact:
             self.bdrycond = self.setAnalyticalBoundaryCondition(bdrycond=kwargs.pop('bdrycond'))
         if 'problemname' in kwargs: self.problemname = kwargs.pop('problemname')
+        self.rhs = None
+        if 'problemdata' in kwargs:
+            problemdata = kwargs.pop('problemdata')
+            self.bdrycond = problemdata.boundaryconditions
+            self.rhs = np.vectorize(problemdata.righthandsides)
         else: self.problemname="none"
         if 'postproc' in kwargs:
             self.postproc = kwargs.pop('postproc')
         else:
             self.postproc = {}
-        if 'rhs' in kwargs:
-            rhs = kwargs.pop('rhs')
-            assert rhs is not None
-            self.rhs = np.vectorize(rhs)
-        else:
-            self.rhs = None
 
 
     def defineAnalyticalSolution(self, problem, random=True):
@@ -113,6 +99,22 @@ class Solver(object):
                     raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
         return bdrycond
 
+    def solveLinear(self):
+        self.timer.add('init')
+        A = self.matrix()
+        self.timer.add('matrix')
+        b = self.computeRhs()
+        self.timer.add('rhs')
+        u = np.zeros_like(b)
+        A,b,u = self.boundary(A, b, u)
+        self.timer.add('boundary')
+        u = self.linearSolver(A, b, u, solver=self.linearsolver)
+        self.timer.add('solve')
+        point_data, cell_data, info = self.postProcess(u)
+        self.timer.add('postp')
+        info['timer'] = self.timer.data
+        return point_data, cell_data, info
+
     def linearSolver(self, A, b, u=None, solver = 'umf', verbose=1):
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')
@@ -123,9 +125,10 @@ class Solver(object):
             M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
             M_x = lambda x: M2.solve(x)
             M = splinalg.LinearOperator(A.shape, M_x)
-            counter = IterationCounter(name=solver, verbose=verbose)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
+            self.info['runinfo'] = counter.niter
             args=""
-            cmd = "u = splinalg.{}(A, b, M=M, tol=1e-12, callback=counter {})".format(solver,args)
+            cmd = "u = splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(solver,args)
             exec(cmd)
             return u
         elif solver == 'pyamg':
@@ -137,31 +140,11 @@ class Solver(object):
             # print("ml", ml)
             res=[]
             # if u is not None: print("u norm", np.linalg.norm(u))
-            u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
+            u = ml.solve(b, x0=u, tol=1e-14, residuals=res, accel='gmres')
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))
-
-    def solveLinear(self):
-        t0 = time.time()
-        b = self.computeRhs()
-        u = np.zeros_like(b)
-        t1 = time.time()
-        A = self.matrix()
-        t2 = time.time()
-        A,b,u = self.boundary(A, b, u)
-        t3 = time.time()
-        u = self.linearSolver(A, b, u, solver=self.linearsolver)
-        t4 = time.time()
-        pp = self.postProcess(u)
-        t5 = time.time()
-        self.timer['rhs'] = t1-t0
-        self.timer['matrix'] = t2-t1
-        self.timer['bdry'] = t3-t2
-        self.timer['solve'] = t4-t3
-        self.timer['postp'] = t5-t4
-        return pp
 
     def residual(self, u):
         self.du[:]=0.0

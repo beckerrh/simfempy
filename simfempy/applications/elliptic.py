@@ -80,7 +80,7 @@ class Elliptic(solvers.solver.Solver):
         self.solexact = simfempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
         
     def setMesh(self, mesh):
-        t0 = time.time()
+        # t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh, self.ncomp)
         self.bdrydata = []
@@ -91,8 +91,8 @@ class Elliptic(solvers.solver.Solver):
                 if type == "Dirichlet": colorsdir.append(color)
             self.bdrydata.append(self.fem.prepareBoundary(colorsdir, self.postproc[icomp]))
             self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
-        t1 = time.time()
-        self.timer['setmesh'] = t1-t0
+        # t1 = time.time()
+        # self.timer['setmesh'] = t1-t0
         
     def solvestatic(self):
         return self.solveLinear()
@@ -121,8 +121,8 @@ class Elliptic(solvers.solver.Solver):
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        info['timer'] = self.timer
-        info['runinfo'] = self.runinfo
+        # info['timer'] = self.timer
+        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for icomp, postproc in enumerate(self.postproc):
             for key, val in postproc.items():

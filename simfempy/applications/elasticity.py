@@ -49,7 +49,7 @@ class Elasticity(solvers.solver.Solver):
         else: self.method="trad"
 
     def setMesh(self, mesh):
-        t0 = time.time()
+        # t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh, self.ncomp)
         colorsdir = []
@@ -58,8 +58,8 @@ class Elasticity(solvers.solver.Solver):
         self.bdrydata = self.fem.prepareBoundary(colorsdir, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.lamcell = self.lam(self.mesh.cell_labels)
-        t1 = time.time()
-        self.timer['setmesh'] = t1-t0
+        # t1 = time.time()
+        # self.timer['setmesh'] = t1-t0
         
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -225,8 +225,8 @@ class Elasticity(solvers.solver.Solver):
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        info['timer'] = self.timer
-        info['runinfo'] = self.runinfo
+        # info['timer'] = self.timer
+        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for key, val in self.postproc.items():
             type,data = val.split(":")
