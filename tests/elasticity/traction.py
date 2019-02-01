@@ -4,7 +4,7 @@ import numpy as np
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import simfempy.applications
+from simfempy.applications.elasticity import Elasticity
 from simfempy.meshes import geomdefs
 
 #================================================================#
@@ -33,7 +33,8 @@ def mesh_traction(hmean, geomname="unitcube"):
         raise ValueError("unknown geomname={}".format(geomname))
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=hmean)
     # plotmesh.meshWithBoundaries(mesh)
-    elasticity = simfempy.applications.elasticity.Elasticity(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
+    elasticity = Elasticity(problemdata=problemdata, postproc=postproc, ncomp=ncomp)
     elasticity.setMesh(mesh)
     b = elasticity.computeRhs()
     A = elasticity.matrix()

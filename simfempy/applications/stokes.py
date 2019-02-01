@@ -7,7 +7,6 @@ from simfempy import fems
 import simfempy.tools.analyticalsolution
 import simfempy.tools.iterationcounter
 
-
 # =================================================================#
 class Stokes(solvers.solver.Solver):
     """

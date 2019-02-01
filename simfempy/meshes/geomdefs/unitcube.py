@@ -13,6 +13,7 @@ except:
 # ------------------------------------- #
 class Unitcube(geometry.Geometry):
     def define(self, h=1.):
+        self.reset()
         a = 1
         p = self.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=-a, lcar=h)
         self.add_physical_surface(p.surface, label=100)

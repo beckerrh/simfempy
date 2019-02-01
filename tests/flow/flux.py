@@ -2,15 +2,14 @@ from os import sys, path
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import numpy as np
 from simfempy import applications
+from simfempy.meshes import geomdefs
+import simfempy.tools.comparerrors
 
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitsquare", verbose=5):
-    import simfempy.tools.comparerrors
     postproc = {}
-    problemdata = simfempy.applications.problemdata.ProblemData()
-    bdrycond =  problemdata.boundaryconditions
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         ncomp = 2
         h = [0.5, 0.25, 0.126, 0.06]
@@ -20,7 +19,8 @@ def test_flux(geomname = "unitsquare", verbose=5):
         bdrycond.type[1003] = "Dirichlet"
         bdrycond.fct[1000] = bdrycond.fct[1001] = bdrycond.fct[1002] = bdrycond.fct[1003] = lambda x,y,z: (0,0)
         postproc['bdrydn'] = "bdrydn:1000,1002,1001,1003"
-        problemdata.righthandsides = lambda x,y,z: (10,10)
+        rhs = lambda x,y,z: (10,10)
+        geometry = geomdefs.unitsquare.Unitsquare()
     if geomname == "unitcube":
         ncomp = 3
         h = [2, 1, 0.5, 0.25]
@@ -31,11 +31,13 @@ def test_flux(geomname = "unitsquare", verbose=5):
         bdrycond.type[103] = "Dirichlet"
         bdrycond.type[104] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:100,105,101,102,103,104"
+        geometry = geomdefs.unitcube.Unitcube()
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, rhs=rhs)
     compares = {}
     for fem in ['cr1']:
         compares[fem] = applications.stokes.Stokes(problemdata=problemdata, postproc=postproc,fem=fem, ncomp=ncomp)
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
-    result = comp.compare(geomname=geomname, h=h)
+    result = comp.compare(geometry=geometry, h=h)
     print("result", result)
 
 

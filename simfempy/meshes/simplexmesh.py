@@ -307,13 +307,13 @@ class SimplexMesh(object):
             plt.show()
 
     def plotWithBoundaries(self):
-        import plotmesh
+        from . import plotmesh
         plotmesh.meshWithBoundaries(self)
     def plot(self, **kwargs):
-        import plotmesh
+        from . import plotmesh
         plotmesh.plotmesh(self, **kwargs)
     def plotWithData(self, **kwargs):
-        import plotmesh
+        from . import plotmesh
         plotmesh.meshWithData(self, **kwargs)
 
 

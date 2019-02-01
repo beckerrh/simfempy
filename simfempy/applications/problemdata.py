@@ -43,6 +43,8 @@ class ProblemData(object):
     """
     Contains all (?) data: boundary conditions and right-hand sides
     """
-    def __init__(self):
-        self.boundaryconditions = BoundaryConditions()
-        self.righthandsides = None
+    def __init__(self, bdrycond=None, rhs=None):
+        if bdrycond: self.bdrycond = bdrycond
+        else: self.bdrycond = BoundaryConditions()
+        if rhs: self.rhs = rhs
+        else: self.rhs = None

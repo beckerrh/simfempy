@@ -64,17 +64,19 @@ class Elasticity(solvers.solver.Solver):
     def computeRhs(self):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
-        if self.solexact or self.rhs:
+        if self.solexact:
             x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
             for i in range(ncomp):
-                if self.solexact:
-                    bnodes = np.zeros(self.mesh.nnodes)
-                    for j in range(ncomp):
-                        bnodes -= (self.lamcell[0]+self.mucell[0])*self.solexact[j].dd(i, j, x, y, z)
-                        bnodes -= self.mucell[0]*self.solexact[i].dd(j, j, x, y, z)
-                else:
-                    bnodes = self.rhs[i](x, y, z)
+                bnodes = np.zeros(self.mesh.nnodes)
+                for j in range(ncomp):
+                    bnodes -= (self.lamcell[0]+self.mucell[0])*self.solexact[j].dd(i, j, x, y, z)
+                    bnodes -= self.mucell[0]*self.solexact[i].dd(j, j, x, y, z)
                 b[i::self.ncomp] = self.fem.massmatrix * bnodes
+        elif self.rhs:
+            x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+            rhss = self.rhs(x, y, z)
+            for i in range(ncomp):
+                b[i::self.ncomp] = self.fem.massmatrix * rhss[i]
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = self.bdrycond.type[color]

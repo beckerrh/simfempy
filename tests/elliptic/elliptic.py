@@ -29,6 +29,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         bdrycond1.type[1003] = "Neumann"
         postproc1['bdrymean'] = "bdrymean:1001,1003"
         postproc1['bdrydn'] = "bdrydn:1000,1002"
+        geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         h = [0.5, 0.25, 0.125, 0.06]
         if problem=="Analytic_Linear": h = h[:-2]
@@ -49,6 +50,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         bdrycond1.type[105] = "Dirichlet"
         postproc1['bdrymean'] = "bdrymean:101,103"
         postproc1['bdrydn'] = "bdrydn:100,102,104,105"
+        geometry = geomdefs.unitcube.Unitcube()
 
     bdrycond = [bdrycond0, bdrycond1]
     postproc = [postproc0, postproc1]
@@ -61,7 +63,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     if problem.split('_')[1] == "Linear":
         h = [2, 1, 0.5, 0.25]
-    result = comp.compare(geomname=geomname, h=h)
+    result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['L2']
 
 

@@ -9,6 +9,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
 import scipy.sparse.linalg as splinalg
+from simfempy.meshes import geomdefs
 
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
@@ -210,6 +211,7 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         bdrycond.type[1002] = "Dirichlet"
         bdrycond.type[1003] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:1000,1001"
+        geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
         problem += "_3d"
@@ -220,12 +222,13 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         bdrycond.type[103] = "Dirichlet"
         bdrycond.type[104] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:100,105"
+        geometry = geomdefs.unitcube.Unitcube()
     methods = {}
     methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
     if problem.split('_')[1] == "Linear":
         h = [2, 1, 0.5, 0.25]
     comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
-    result = comp.compare(geomname=geomname, h=h)
+    result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['pcL2']
 
 # ------------------------------------- #

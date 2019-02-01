@@ -52,8 +52,8 @@ class Solver(object):
         self.rhs = None
         if 'problemdata' in kwargs:
             problemdata = kwargs.pop('problemdata')
-            self.bdrycond = problemdata.boundaryconditions
-            self.rhs = np.vectorize(problemdata.righthandsides)
+            self.bdrycond = problemdata.bdrycond
+            if problemdata.rhs: self.rhs = np.vectorize(problemdata.rhs)
         else: self.problemname="none"
         if 'postproc' in kwargs:
             self.postproc = kwargs.pop('postproc')
@@ -116,6 +116,7 @@ class Solver(object):
         return point_data, cell_data, info
 
     def linearSolver(self, A, b, u=None, solver = 'umf', verbose=1):
+        if not hasattr(self, 'info'): self.info={}
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')
         # elif solver == 'scipy-umf_mmd':
@@ -142,6 +143,7 @@ class Solver(object):
             # if u is not None: print("u norm", np.linalg.norm(u))
             u = ml.solve(b, x0=u, tol=1e-14, residuals=res, accel='gmres')
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
+            self.info['runinfo'] = len(res)
             return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))
