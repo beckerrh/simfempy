@@ -1,10 +1,10 @@
-import time
 import numpy as np
-from simfempy import solvers
-from simfempy import fems
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
+from simfempy import solvers
+from simfempy import fems
+from simfempy import tools
 
 #=================================================================#
 class Elasticity(solvers.solver.Solver):
@@ -49,7 +49,6 @@ class Elasticity(solvers.solver.Solver):
         else: self.method="trad"
 
     def setMesh(self, mesh):
-        t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh, self.ncomp)
         colorsdir = []
@@ -58,9 +57,7 @@ class Elasticity(solvers.solver.Solver):
         self.bdrydata = self.fem.prepareBoundary(colorsdir, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.lamcell = self.lam(self.mesh.cell_labels)
-        t1 = time.time()
-        self.timer['setmesh'] = t1-t0
-        
+
     def solve(self, iter, dirname):
         return self.solveLinear()
         
@@ -254,7 +251,7 @@ class Elasticity(solvers.solver.Solver):
             M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
             M_x = lambda x: M2.solve(x)
             M = splinalg.LinearOperator(A.shape, M_x)
-            counter = fempy.solvers.solver.IterationCounter(name=solver)
+            counter = tools.iterationcounter.IterationCounter(name=solver)
             args=""
             if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
             cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)

@@ -5,6 +5,7 @@ fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
 import simfempy.applications
+from simfempy.meshes import geomdefs
 
 #================================================================#
 def mesh_traction(hmean, geomname="unitcube"):
@@ -17,6 +18,7 @@ def mesh_traction(hmean, geomname="unitcube"):
         bdrycond.type[1002] = "Neumann"
         bdrycond.type[1003] = "Dirichlet"
         bdrycond.fct[1001] = lambda x, y, z, nx, ny, nz, lam, mu: np.array([10,0])
+        geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         ncomp = 3
         bdrycond.type[11] = "Neumann"
@@ -26,9 +28,10 @@ def mesh_traction(hmean, geomname="unitcube"):
         bdrycond.type[44] = "Neumann"
         bdrycond.type[55] = "Dirichlet"
         bdrycond.type[66] = "Neumann"
+        geometry = geomdefs.unitcube.Unitcube()
     else:
         raise ValueError("unknown geomname={}".format(geomname))
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(geomname=geomname, hmean=hmean)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=hmean)
     # plotmesh.meshWithBoundaries(mesh)
     elasticity = simfempy.applications.elasticity.Elasticity(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
     elasticity.setMesh(mesh)

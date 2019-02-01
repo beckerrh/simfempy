@@ -4,6 +4,7 @@ fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
 import simfempy
+from simfempy.meshes import geomdefs
 
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitcube"):

@@ -4,7 +4,7 @@ fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
 from simfempy.applications.elliptic import Elliptic
-
+from simfempy.meshes import geomdefs
 
 # ----------------------------------------------------------------#
 def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):

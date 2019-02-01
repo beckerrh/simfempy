@@ -11,7 +11,7 @@ except:
     import geometry
 
 # ------------------------------------- #
-class Backwardfacingstep(geometry.Geometry):
+class Backwardfacingstep3d(geometry.Geometry):
     def define(self, h=1.):
         X = []
         X.append([-1.0,  1.0])
@@ -20,10 +20,15 @@ class Backwardfacingstep(geometry.Geometry):
         X.append([ 0.0, -1.0])
         X.append([ 3.0, -1.0])
         X.append([ 3.0,  1.0])
-        p = self.add_polygon(X=np.insert(np.array(X), 2, 0, axis=1), lcar=h)
+        p = self.add_polygon(X=np.insert(np.array(X), 2, -1.0, axis=1), lcar=h)
         self.add_physical_surface(p.surface, label=100)
-        ll = p.line_loop
-        for i in range(len(ll.lines)): self.add_physical_line(ll.lines[i], label=1000+i)
+        axis = [0, 0, 2]
+        top, vol, ext = self.extrude(p.surface, axis)
+        next = len(ext)
+        self.add_physical_surface(top, label=101+next)
+        for i in range(next):
+            self.add_physical_surface(ext[i], label=101+i)
+        self.add_physical_volume(vol, label=10)
         return self
 
 # ------------------------------------- #
@@ -32,7 +37,7 @@ if __name__ == '__main__':
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
-    geometry = Backwardfacingstep(h=2)
+    geometry = Backwardfacingstep3d(h=2)
     meshdata = pygmsh.generate_mesh(geometry)
     mesh = simplexmesh.SimplexMesh(data=meshdata)
     mesh.plotWithBoundaries()

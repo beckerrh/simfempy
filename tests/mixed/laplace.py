@@ -19,6 +19,7 @@ import simfempy.fems.femrt0
 import simfempy.applications
 from simfempy import solvers
 from simfempy.tools.timer import Timer
+from simfempy.meshes import geomdefs
 
 
 # ------------------------------------- #

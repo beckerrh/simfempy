@@ -9,10 +9,10 @@ import meshio
 import numpy as np
 from scipy import sparse
 
-try:
-    import geomdefs
-except ModuleNotFoundError:
-    from . import geomdefs
+# try:
+#     import geomdefs
+# except ModuleNotFoundError:
+#     from . import geomdefs
 
 
 #=================================================================#
@@ -39,34 +39,44 @@ class SimplexMesh(object):
     """
 
     def __repr__(self):
-        return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geomname, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
+        return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
         if 'data' in kwargs:
             self.geomname = 'own'
             data = kwargs.pop('data')
-            self._initMeshPyGmsh(data[0], data[1], data[3])
+            # self._initMeshPyGmsh(data[0], data[1], data[3])
         else:
-            self._initFromGeometry(**kwargs)
-
-    def _initFromGeometry(self, **kwargs):
-        import pygmsh
-        self.geomname = kwargs.pop('geomname')
-        fempypath = os.path.dirname(os.path.abspath(__file__))
-        sys.path.append(fempypath)
-        try:
-            module = importlib.import_module('geomdefs.' + self.geomname)
-        except:
-            print("Could not import '{}'. Having:\n".format('geomdefs.' + self.geomname))
-            for module in sys.modules.keys():
-                if 'simfempy' in module or 'geomdefs' in module:
-                    print(module)
-            sys.exit(1)
-        if 'hmean' in kwargs:
-            geometry = module.define_geometry(kwargs.pop('hmean'))
-        else:
-            geometry = module.define_geometry()
-        data = pygmsh.generate_mesh(geometry, verbose=False)
+            import pygmsh
+            self.geometry = kwargs.pop('geometry')
+            if 'hmean' in kwargs:
+                self.geometry.define(kwargs.pop('hmean'))
+                data = pygmsh.generate_mesh(self.geometry, verbose=False)
+            # self._initFromGeometry(**kwargs)
         self._initMeshPyGmsh(data[0], data[1], data[3])
+
+    # def _initFromGeometry(self, **kwargs):
+    #     import pygmsh
+    #     self.geomname = kwargs.pop('geomname')
+    #     fempypath = os.path.dirname(os.path.abspath(__file__))
+    #     sys.path.append(fempypath)
+    #     try:
+    #         module = importlib.import_module('geomdefs.' + self.geomname)
+    #     except:
+    #         print("Could not import '{}'. Having:\n".format('geomdefs.' + self.geomname))
+    #         for module in sys.modules.keys():
+    #             if 'simfempy' in module or 'geomdefs' in module:
+    #                 print(module)
+    #         sys.exit(1)
+    #     cmd = 'module.' + self.geomname.capitalize() + '()'
+    #     geometry = eval(cmd)
+    #     if 'hmean' in kwargs:
+    #         geometry.define(kwargs.pop('hmean'))
+    #         # geometry = module.define_geometry(kwargs.pop('hmean'))
+    #     # else:
+    #     #     geometry.define()
+    #         # geometry = module.define_geometry()
+    #     data = pygmsh.generate_mesh(geometry, verbose=False)
+    #     self._initMeshPyGmsh(data[0], data[1], data[3])
 
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
@@ -309,8 +319,9 @@ class SimplexMesh(object):
 
 #=================================================================#
 if __name__ == '__main__':
-    # tmesh = SimplexMesh(geomname="backwardfacingstep", hmean=0.7)
-    mesh = SimplexMesh(geomname="unitsquare", hmean=2)
+    import geomdefs
+    geometry = geomdefs.unitsquare.Unitsquare()
+    mesh = SimplexMesh(geometry=geometry, hmean=2)
     import plotmesh
     import matplotlib.pyplot as plt
     fig, axarr = plt.subplots(2, 1, sharex='col')

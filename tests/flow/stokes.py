@@ -2,14 +2,14 @@ from os import sys, path
 fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(fempypath)
 
-import time
 import numpy as np
-from simfempy import solvers
-from simfempy import fems
-import simfempy.tools.analyticalsolution
 import scipy.sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
+from simfempy import solvers
+from simfempy import fems
+import simfempy.tools.analyticalsolution
+from simfempy.meshes import geomdefs
 
 
 # =================================================================#

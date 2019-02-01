@@ -65,14 +65,14 @@ class CompareErrors(object):
         self.parameters = []
         self.infos = None
         
-    def compare(self, geomname="unitsquare", h=None, params=None):
+    def compare(self, geometry, h=None, params=None):
         if self.paramname == "ncells":
             params = h
         else:
-            mesh = SimplexMesh(geomname=geomname, hmean=self.hmean)
+            mesh = SimplexMesh(geometry=geometry, hmean=self.hmean)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
-                mesh = SimplexMesh(geomname=geomname, hmean=param)
+                mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)
