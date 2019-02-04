@@ -9,6 +9,9 @@ import numpy as np
 
 #=================================================================#
 class IterationCounter(object):
+    """
+    Simple class for information on iterative solver
+    """
     def __init__(self, disp=20, name="", verbose=1):
         self.disp = disp
         self.name = name

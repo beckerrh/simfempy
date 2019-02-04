@@ -42,7 +42,7 @@ class SimplexMesh(object):
         return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
         if 'data' in kwargs:
-            self.geomname = 'own'
+            self.geometry = 'own'
             data = kwargs.pop('data')
             # self._initMeshPyGmsh(data[0], data[1], data[3])
         else:
@@ -53,30 +53,6 @@ class SimplexMesh(object):
                 data = pygmsh.generate_mesh(self.geometry, verbose=False)
             # self._initFromGeometry(**kwargs)
         self._initMeshPyGmsh(data[0], data[1], data[3])
-
-    # def _initFromGeometry(self, **kwargs):
-    #     import pygmsh
-    #     self.geomname = kwargs.pop('geomname')
-    #     fempypath = os.path.dirname(os.path.abspath(__file__))
-    #     sys.path.append(fempypath)
-    #     try:
-    #         module = importlib.import_module('geomdefs.' + self.geomname)
-    #     except:
-    #         print("Could not import '{}'. Having:\n".format('geomdefs.' + self.geomname))
-    #         for module in sys.modules.keys():
-    #             if 'simfempy' in module or 'geomdefs' in module:
-    #                 print(module)
-    #         sys.exit(1)
-    #     cmd = 'module.' + self.geomname.capitalize() + '()'
-    #     geometry = eval(cmd)
-    #     if 'hmean' in kwargs:
-    #         geometry.define(kwargs.pop('hmean'))
-    #         # geometry = module.define_geometry(kwargs.pop('hmean'))
-    #     # else:
-    #     #     geometry.define()
-    #         # geometry = module.define_geometry()
-    #     data = pygmsh.generate_mesh(geometry, verbose=False)
-    #     self._initMeshPyGmsh(data[0], data[1], data[3])
 
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
@@ -91,7 +67,6 @@ class SimplexMesh(object):
         if 'vertex' in cells.keys():
             self.vertices = cells['vertex']
             self.vertex_labels = celldata['vertex']['gmsh:physical']
-
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
@@ -104,6 +79,11 @@ class SimplexMesh(object):
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self._constructNormalsAndAreas()
+        from ..tools import npext
+        self.cellloflabel = npext.unique_all(self.cell_labels)
+        # for color, ind in zip(self.cellloflabel[0], self.cellloflabel[1]):
+        #     print("color", color)
+        #     print("split", self.cell_labels[ind])
         print(self)
 
     def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):

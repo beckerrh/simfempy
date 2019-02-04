@@ -11,9 +11,10 @@ except:
     import geometry
 
 # ------------------------------------- #
-class Unitsquarewithholes(geometry.Geometry):
+class Unitsquareholes(geometry.Geometry):
     def define(self, h=0.1, rect = [-1, 1, -1, 1], holes = [ \
             [[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5] ]]):
+        self.reset()
         xholes = []
         for hole in holes:
             xholes.append(np.insert(np.array(hole), 2, 0, axis=1))

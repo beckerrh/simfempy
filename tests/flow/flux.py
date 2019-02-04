@@ -19,7 +19,8 @@ def test_flux(geomname = "unitsquare", verbose=5):
         bdrycond.type[1003] = "Dirichlet"
         bdrycond.fct[1000] = bdrycond.fct[1001] = bdrycond.fct[1002] = bdrycond.fct[1003] = lambda x,y,z: (0,0)
         postproc['bdrydn'] = "bdrydn:1000,1002,1001,1003"
-        rhs = lambda x,y,z: (10,10)
+        rhsv = lambda x,y,z: (y,x)
+        # def rhs(x,y,z): return (y,x)
         geometry = geomdefs.unitsquare.Unitsquare()
     if geomname == "unitcube":
         ncomp = 3
@@ -32,10 +33,10 @@ def test_flux(geomname = "unitsquare", verbose=5):
         bdrycond.type[104] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:100,105,101,102,103,104"
         geometry = geomdefs.unitcube.Unitcube()
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, rhs=rhs)
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, rhs=(rhsv,None))
     compares = {}
-    for fem in ['cr1']:
-        compares[fem] = applications.stokes.Stokes(problemdata=problemdata, postproc=postproc,fem=fem, ncomp=ncomp)
+    for rhsmethod in ['cr,rt']:
+        compares[rhsmethod] = applications.stokes.Stokes(problemdata=problemdata, postproc=postproc,rhsmethod=rhsmethod, ncomp=ncomp)
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     print("result", result)

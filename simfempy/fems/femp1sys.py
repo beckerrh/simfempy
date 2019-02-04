@@ -26,22 +26,10 @@ class FemP1(object):
         self.ncomp = ncomp
         self.nloc = self.mesh.dimension + 1
         ncells, simps = self.mesh.ncells, self.mesh.simplices
-        # plus rapide pour ncells petit mais plus lent pour ncells grand (?!)
-        # self.cols = np.tile(simps, self.nloc).flatten()
-        # self.rows2 = np.repeat(simps, self.nloc).flatten()
-        #
-        # self.cols = np.tile(simps, self.nloc).reshape(self.mesh.ncells, self.nloc*ncomp, self.nloc*ncomp)
-        # self.rows = self.cols.swapaxes(1,2)
-        # self.cols = self.cols.flatten()
-        # self.rows = self.rows.flatten()
-
-        # print("simps", simps)
         nlocncomp = ncomp * self.nloc
         self.rows = np.repeat(ncomp * simps, ncomp).reshape(ncells * self.nloc, ncomp) + np.arange(ncomp)
         self.rows = self.rows.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
         self.cols = self.rows.swapaxes(1, 2)
-        # self.cols = self.cols.flatten()
-        # self.rows = self.rows.flatten()
         self.cols = self.cols.reshape(-1)
         self.rows = self.rows.reshape(-1)
         self.computeFemMatrices()

@@ -53,7 +53,14 @@ class Solver(object):
         if 'problemdata' in kwargs:
             problemdata = kwargs.pop('problemdata')
             self.bdrycond = problemdata.bdrycond
-            if problemdata.rhs: self.rhs = np.vectorize(problemdata.rhs)
+            if problemdata.rhs:
+                if isinstance(problemdata.rhs, (list, tuple)):
+                    self.rhs = []
+                    for r in problemdata.rhs:
+                        if r: self.rhs.append(np.vectorize(r))
+                        else: self.rhs.append(r)
+                else:
+                    self.rhs = np.vectorize(problemdata.rhs)
         else: self.problemname="none"
         if 'postproc' in kwargs:
             self.postproc = kwargs.pop('postproc')

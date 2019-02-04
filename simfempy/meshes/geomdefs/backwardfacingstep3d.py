@@ -13,6 +13,7 @@ except:
 # ------------------------------------- #
 class Backwardfacingstep3d(geometry.Geometry):
     def define(self, h=1.):
+        self.reset()
         X = []
         X.append([-1.0,  1.0])
         X.append([-1.0,  0.0])

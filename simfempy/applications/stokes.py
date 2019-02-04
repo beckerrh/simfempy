@@ -17,9 +17,12 @@ class Stokes(solvers.solver.Solver):
         if 'problem' in kwargs:
             function = kwargs.pop('problem').split('_')[1]
             if function == 'Linear':
+                # self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
                 self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
             elif function == 'Quadratic':
-                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x'))
+                self.solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
+                self.solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
+                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
             else:
                 raise NotImplementedError("unknown function '{}'".format(function))
         if 'fem' in kwargs:
@@ -43,6 +46,9 @@ class Stokes(solvers.solver.Solver):
             self.method = kwargs.pop('method')
         else:
             self.method = "trad"
+        self.rhsmethod = kwargs.pop('rhsmethod')
+        if self.rhsmethod == "rt":
+            self.femrt = fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
         # t0 = time.time()
@@ -59,6 +65,23 @@ class Stokes(solvers.solver.Solver):
         # t1 = time.time()
         # self.timer['setmesh'] = t1 - t0
         self.pstart = self.ncomp*self.mesh.nfaces
+        if self.rhsmethod == "rt":
+            self.femrt.setMesh(self.mesh)
+            self.massrt = self.femrt.constructMass()
+        if self.solexact:
+            def fctv(x,y,z):
+                rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+                for i in range(self.ncomp):
+                    for j in range(self.ncomp):
+                        rhs[i] -= self.mucell[0] * self.solexact[i].dd(j, j, x, y, z)
+                    rhs[i] += self.solexact[self.ncomp].d(i, x, y, z)
+                return rhs
+            def fctp(x,y,z):
+                rhs = np.zeros(x.shape[0])
+                for i in range(self.ncomp):
+                    rhs += self.solexact[i].d(i, x, y, z)
+                return rhs
+            self.rhs = fctv, fctp
 
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -68,54 +91,97 @@ class Stokes(solvers.solver.Solver):
         if self.pmean: nall = nfaces * ncomp + self.mesh.ncells +1
         else: nall = nfaces * ncomp + self.mesh.ncells
         b = np.zeros(nall)
-        if self.solexact:
-            x, y, z = self.femv.pointsf[:,0], self.femv.pointsf[:,1], self.femv.pointsf[:,2]
+        rhsv, rhsp = self.rhs
+        if self.rhsmethod=='rt':
+            xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
+            rhsall = np.array(rhsv(xf, yf, zf))
+            normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
+            dS = linalg.norm(normals, axis=1)
+            rhsn = np.zeros(nfaces)
             for i in range(ncomp):
-                bfaces = np.zeros(self.mesh.nfaces)
-                for j in range(ncomp):
-                    bfaces -= self.mucell[0] * self.solexact[i].dd(j, j, x, y, z)
-                bfaces += self.solexact[ncomp].d(i, x, y, z)
-                b[i*nfaces:(i+1)*nfaces] = self.femv.massmatrix * bfaces
-            xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
-            bcells = np.zeros(self.mesh.ncells)
+                rhsn += rhsall[i] * normals[:,i] / dS
+            rhsn = self.massrt*rhsn
             for i in range(ncomp):
-                bcells += self.solexact[i].d(i, xc, yc, zc)
-            b[self.pstart:self.pstart+ncells] = self.mesh.dV*bcells
-        elif self.rhs:
-            x, y, z = self.femv.pointsf[:,0], self.femv.pointsf[:,1], self.femv.pointsf[:,2]
-            rhsall = self.rhs(x, y, z)
-            print("rhsall.shape", rhsall[0].shape)
+                b[i * nfaces:(i + 1) * nfaces] = rhsn*normals[:,i]/dS
+
+            # xc, yc, zc = self.mesh.pointsc.T
+            # rhsall = np.array(rhsv(xc, yc, zc))
+            # ncells, nfaces, facesOfCells = self.mesh.ncells, self.mesh.nfaces, self.mesh.facesOfCells
+            # normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
+            # scale = 1/self.mesh.dimension
+            # dfaces = np.zeros(nfaces)
+            # for icell in range(ncells):
+            #     for ii, iface in enumerate(facesOfCells[icell]):
+            #         inode = self.mesh.simplices[icell, ii]
+            #         for j in range(ncomp):
+            #             dfaces[iface] += sigma[icell, ii] * rhsall[j][icell] * (
+            #                         self.mesh.pointsc[icell, j] - self.mesh.points[inode, j]) * scale
+            # for i in range(ncomp):
+            #     b[i * nfaces:(i + 1) * nfaces][:] += normals[:, i] * dfaces
+            if rhsp:
+                xc, yc, zc = self.mesh.pointsc.T
+                b[self.pstart:self.pstart+ncells] = self.mesh.dV*np.array(rhsp(xc, yc, zc))
+        elif self.rhsmethod=='cr':
+            x, y, z = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
+            bfaces = rhsv(x,y,z)
             for i in range(ncomp):
-                bfaces = rhsall[i]
-                b[i*nfaces:(i+1)*nfaces] = self.femv.massmatrix * bfaces
+                b[i * nfaces:(i + 1) * nfaces] = self.femv.massmatrix * bfaces[i]
+            if rhsp:
+                xc, yc, zc = self.mesh.pointsc.T
+                b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
+        else:
+            raise ValueError("don't know rhsmethod='{}'".format(self.rhsmethod))
+
+        # elif self.solexact:
+        #     x, y, z = self.femv.pointsf[:,0], self.femv.pointsf[:,1], self.femv.pointsf[:,2]
+        #     bfaces2 = self.rhs(x,y,z)
+        #     for i in range(ncomp):
+        #         bfaces = np.zeros(self.mesh.nfaces)
+        #         for j in range(ncomp):
+        #             bfaces -= self.mucell[0] * self.solexact[i].dd(j, j, x, y, z)
+        #         bfaces += self.solexact[ncomp].d(i, x, y, z)
+        #         assert np.allclose(bfaces, bfaces2[i])
+        #         b[i*nfaces:(i+1)*nfaces] = self.femv.massmatrix * bfaces
+        #     xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
+        #     bcells = np.zeros(self.mesh.ncells)
+        #     for i in range(ncomp):
+        #         bcells += self.solexact[i].d(i, xc, yc, zc)
+        #     b[self.pstart:self.pstart+ncells] = self.mesh.dV*bcells
+
+            # for i in range(ncomp):
+            #     for icell in range(ncells):
+            #         for ii, iface in enumerate(facesOfCells[icell]):
+            #             inode = self.mesh.simplices[icell,ii]
+            #             d=0
+            #             for j in range(ncomp):
+            #                 d += sigma[icell,ii]*rhsall[j][icell]*(self.mesh.pointsc[icell,j] - self.mesh.points[inode,j])*scale
+            #             b[i*nfaces:(i+1)*nfaces][iface] += normals[iface,i]*d
 
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = self.bdrycond.type[color]
             if condition == "Neumann":
-                scale = 1 / self.mesh.dimension
                 normalsS = normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
+                dS = linalg.norm(normalsS,axis=1)
                 muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
-                x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
-                nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
+                xf, yf, zf = self.femv.pointsf[faces,0], self.femv.pointsf[faces,1], self.femv.pointsf[faces,2]
+                nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if self.solexact:
                     for i in range(ncomp):
-                        bS = np.zeros(xS.shape[0])
+                        bS = np.zeros(faces.shape[0])
                         for j in range(ncomp):
-                            bS += scale * muS * self.solexact[i].d(j, x1, y1, z1) * normalsS[:, j]
-                            bS += scale * muS * self.solexact[j].d(i, x1, y1, z1) * normalsS[:, j]
-                        indices = i*nfaces + self.mesh.faces[faces]
-                        np.add.at(b, indices.T, bS)
+                            bS += muS * self.solexact[i].d(j, xf, yf, zf) * normalsS[:, j]
+                        # bS -= scale * muS * self.solexact[ncomp](xf, yf, zf) * normalsS[:, i]
+                        indices = i*nfaces + faces
+                        b[indices] += bS
                 else:
                     if not color in self.bdrycond.fct.keys(): continue
                     neumann = self.bdrycond.fct[color]
-                    neumanns = neumann(x1, y1, z1, nx, ny, nz, lamS, muS)
+                    neumanns = neumann(xf, yf, zf, nx, ny, nz, lamS, muS)
                     for i in range(ncomp):
-                        bS = scale * dS * neumanns[i]
-                        indices = i*nfaces + self.mesh.faces[faces]
-                        np.add.at(b, indices.T, bS)
+                        bS = dS * neumanns[i]
+                        indices = i*nfaces + faces
+                        b[indices] += bS
                 # print("bS.shape", bS.shape)
                 # print("indices.shape", indices.shape)
 
@@ -381,14 +447,6 @@ class Stokes(solvers.solver.Solver):
                 import pyamg
                 config = pyamg.solver_configuration(A, verb=False)
                 API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-
-                # DA = 1 / A.diagonal()
-                # D = scipy.sparse.diags(np.tile(DA,ncomp), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
-                # S = B * D * B.T
-                # import pyamg
-                # config = pyamg.solver_configuration(S, verb=False)
-                # ml = pyamg.rootnode_solver(S, B=config['B'], smooth='energy')
-
                 def amult(x):
                     v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
                     w = -B.T.dot(p)
@@ -396,16 +454,7 @@ class Stokes(solvers.solver.Solver):
                         w[i*nfaces: (i+1)*nfaces] += A.dot(v[i*nfaces: (i+1)*nfaces])
                     q = B.dot(v)+C.T.dot(lam).ravel()
                     return np.hstack([w, q, C.dot(p)])
-                nall = ncomp*nfaces + ncells+1
                 Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
-                def pmults(x):
-                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
-                    w = np.zeros_like(v)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
-                    q = BP.dot(p)
-                    mu = CP.dot(lam).ravel()
-                    return np.hstack([w, q, mu])
                 def pmult(x):
                     v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
                     w = np.zeros_like(v)
@@ -423,6 +472,33 @@ class Stokes(solvers.solver.Solver):
                 if info: raise ValueError("no convergence info={}".format(info))
                 return u
             else:
-                raise NotImplementedError
+                A, B = Ain
+                nall = ncomp*nfaces + ncells
+                BP = scipy.sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+                import pyamg
+                config = pyamg.solver_configuration(A, verb=False)
+                API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+                def amult(x):
+                    v, p= x[:pstart], x[pstart:pstart+ncells]
+                    w = -B.T.dot(p)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] += A.dot(v[i*nfaces: (i+1)*nfaces])
+                    q = B.dot(v)
+                    return np.hstack([w, q])
+                Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
+                def pmult(x):
+                    v, p = x[:pstart], x[pstart:pstart+ncells]
+                    w = np.zeros_like(v)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    q = BP.dot(p-B.dot(w))
+                    h = B.T.dot(q)
+                    for i in range(ncomp):
+                        w[i*nfaces: (i+1)*nfaces] += API.solve(h[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    return np.hstack([w, q])
+                P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
+                u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
+                if info: raise ValueError("no convergence info={}".format(info))
+                return u
         else:
             raise ValueError("unknown solve '{}'".format(solver))

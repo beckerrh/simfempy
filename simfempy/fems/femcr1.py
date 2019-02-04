@@ -49,12 +49,12 @@ class FemCR1(object):
                 kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
                 assert(dS.shape[0] == len(faces))
                 assert(kS.shape[0] == len(faces))
-                x1, y1, z1 = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
+                xf, yf, zf = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if solexact:
-                    bS = dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
+                    bS = dS*kS*(solexact.x(xf, yf, zf)*nx + solexact.y(xf, yf, zf)*ny + solexact.z(xf, yf, zf)*nz)
                 else:
-                    bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                    bS = neumann(xf, yf, zf, nx, ny, nz, kS) * dS
                 b[faces] += bS
         return b
 
