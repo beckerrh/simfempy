@@ -48,6 +48,6 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
 #================================================================#
 if __name__ == '__main__':
     # result = test_analytic(problem="Analytic_Quadratic", geomname = "unitcube", verbose=2)
-    # result = test_analytic(problem="Analytic_Quadratic", verbose=2)
-    result = test_analytic(problem="Analytic_Linear", verbose=2)
+    result = test_analytic(problem="Analytic_Quadratic", verbose=2)
+    # result = test_analytic(problem="Analytic_Linear", verbose=2)
     print("result", result)

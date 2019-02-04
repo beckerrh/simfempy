@@ -171,7 +171,7 @@ class Stokes(solvers.solver.Solver):
                         bS = np.zeros(faces.shape[0])
                         for j in range(ncomp):
                             bS += muS * self.solexact[i].d(j, xf, yf, zf) * normalsS[:, j]
-                        # bS -= scale * muS * self.solexact[ncomp](xf, yf, zf) * normalsS[:, i]
+                        bS -= muS * self.solexact[ncomp](xf, yf, zf) * normalsS[:, i]
                         indices = i*nfaces + faces
                         b[indices] += bS
                 else:
