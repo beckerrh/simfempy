@@ -200,8 +200,8 @@ def compute_j(diffglobal):
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
     simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
-    heat = Heat(problemdata=problemdata, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
     heat.data0 = np.zeros(nmeasurepoints)
 
@@ -228,8 +228,8 @@ def compute_j2d(diffglobal):
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(h=h, hhole=0.5*h, hmeas=0.2*h)
     simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
-    heat = Heat(problemdata=problemdata, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
     heat.data0 = np.zeros(nmeasurepoints)
 
@@ -274,8 +274,8 @@ def test(diffglobal):
     mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(nmeasurepoints=nmeasurepoints)
     # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
-    heat = Heat(problemdata=problemdata, postproc=postproc, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
     heat.setMesh(mesh)
 
     heat.data0 = np.zeros(nmeasurepoints)
@@ -283,7 +283,7 @@ def test(diffglobal):
     param[0] = 101*diffglobal
     param[1] = diffglobal
     data = heat.solvestate(param)
-    heat.data0[:] =  data[:]*(1+0.001* ( 2*np.random.rand()-1))
+    heat.data0[:] =  data[:]*(1+0.01* ( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
     import time
@@ -300,5 +300,5 @@ def test(diffglobal):
 
 diffglobal = 1e-3
 # compute_j(diffglobal)
-compute_j2d(diffglobal)
-# test(diffglobal)
+# compute_j2d(diffglobal)
+test(diffglobal)

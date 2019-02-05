@@ -41,6 +41,7 @@ class FemP1(object):
         self.bsaved={}
         self.Asaved={}
         self.nodesdirflux={}
+        if not postproc: return
         for key, val in postproc.items():
             type,data = val.split(":")
             if type != "bdrydn": continue
@@ -49,10 +50,13 @@ class FemP1(object):
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
                 self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
+
     def computeRhs(self, rhs, kheatcell, bdrycond):
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        bnodes = rhs(x, y, z, kheatcell[0])
-        b = self.massmatrix * bnodes
+        b = np.zeros(self.mesh.nnodes)
+        if rhs:
+            x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+            bnodes = rhs(x, y, z, kheatcell[0])
+            b += self.massmatrix * bnodes
         # if solexact or rhs:
         #     x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         #     if solexact:

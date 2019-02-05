@@ -89,18 +89,19 @@ class Heat(solvers.solver.Solver):
         # info['timer'] = self.timer
         # info['runinfo'] = self.runinfo
         info['postproc'] = {}
-        for key, val in self.postproc.items():
-            type,data = val.split(":")
-            if type == "bdrymean":
-                info['postproc'][key] = self.fem.computeMean(u, key, data)
-            elif type == "bdryfct":
-                info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
-            elif type == "bdrydn":
-                info['postproc'][key] = self.fem.computeFlux(u, key, data)
-            elif type == "pointvalues":
-                info['postproc'][key] = self.fem.computePointValues(u, key, data)
-            else:
-                raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+        if self.postproc:
+            for key, val in self.postproc.items():
+                type,data = val.split(":")
+                if type == "bdrymean":
+                    info['postproc'][key] = self.fem.computeMean(u, key, data)
+                elif type == "bdryfct":
+                    info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
+                elif type == "bdrydn":
+                    info['postproc'][key] = self.fem.computeFlux(u, key, data)
+                elif type == "pointvalues":
+                    info['postproc'][key] = self.fem.computePointValues(u, key, data)
+                else:
+                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         assert self.kheatcell.shape[0] == self.mesh.ncells
         if self.plotk: cell_data['k'] = self.kheatcell
         return point_data, cell_data, info

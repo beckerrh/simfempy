@@ -38,12 +38,12 @@ def test():
     def kheat(label):
         if label==100: return 0.1
         return 10000.0
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
 
     fems = ['p1', 'cr1']
     fems = ['p1']
     for fem in fems:
-        heat = simfempy.applications.heat.Heat(problemdata=problemdata, kheat=kheat, postproc=postproc, fem=fem, plotk=True)
+        heat = simfempy.applications.heat.Heat(problemdata=problemdata, kheat=kheat, fem=fem, plotk=True)
         heat.setMesh(mesh)
         point_data, cell_data, info = heat.solve()
         print("time: {}".format(info['timer']))
