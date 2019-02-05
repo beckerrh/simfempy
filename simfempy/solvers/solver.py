@@ -14,14 +14,90 @@ import scipy.sparse as sparse
 import simfempy.tools.analyticalsolution
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
+import simfempy.applications.problemdata
 
 # https://github.com/bfroehle/pymumps
 #from mumps import DMumpsContext
 
 #=================================================================#
 class Solver(object):
+    def generatePoblemData(self, exactsolution, bdrycond, postproc=None, random=True):
+        problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+        problemdata.ncomp = self.ncomp
+        problemdata.solexact = self.defineAnalyticalSolution(exactsolution=exactsolution, random=random)
+        problemdata.rhs = self.defineRhsAnalyticalSolution(problemdata.solexact)
+        if isinstance(bdrycond, (list, tuple)):
+            if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
+            for color in self.mesh.bdrylabels:
+                for icomp,bcs in enumerate(problemdata.bdrycond):
+                    if bcs.type[color] == "Dirichlet":
+                        bcs.fct[color] = problemdata.solexact[icomp]
+                    else:
+                        bcs.fct[color] = eval("self.define{}AnalyticalSolution_{:d}(problemdata.solexact)".format(bcs.type[color],icomp))
+        else:
+            if self.ncomp>1:
+                def _solexactdir(x, y, z):
+                    return [problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+            else:
+                def _solexactdir(x, y, z):
+                    return problemdata.solexact(x, y, z)
+            for color in self.mesh.bdrylabels:
+                if problemdata.bdrycond.type[color] == "Dirichlet":
+                    problemdata.bdrycond.fct[color] = _solexactdir
+                else:
+                    problemdata.bdrycond.fct[color] = eval("self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color]))
+        return problemdata
+
+    def defineAnalyticalSolution(self, exactsolution, random=True):
+        dim = self.mesh.dimension
+        return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
+
+    # def setAnalyticalBoundaryCondition(self, bdrycond):
+    #     if isinstance(bdrycond, (list, tuple)):
+    #         if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
+    #         for icomp,bcs in enumerate(bdrycond):
+    #             for color, bc in bcs.type.items():
+    #                 if bc == "Dirichlet":
+    #                     bcs.fct[color] = self.solexact[icomp]
+    #                 elif bc == "Neumann":
+    #                     bcs.fct[color] = None
+    #                 else:
+    #                     raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
+    #     else:
+    #         def solexactall(x, y, z):
+    #             return [self.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+    #         for color, bc in bdrycond.type.items():
+    #             if bc == "Dirichlet":
+    #                 if self.ncomp == 1:
+    #                     bdrycond.fct[color] = self.solexact
+    #                 else:
+    #                     bdrycond.fct[color] = solexactall
+    #             elif bc == "Neumann":
+    #                 bdrycond.fct[color] = None
+    #             else:
+    #                 raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
+    #     return bdrycond
+
     def __init__(self, **kwargs):
-        # self.timer = {'rhs':0.0, 'matrix':0.0, 'solve':0.0, 'bdry':0.0, 'postp':0.0}
+        self.ncomp = 1
+        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
+        if 'geometry' in kwargs:
+            geometry = kwargs.pop('geometry')
+            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
+            showmesh = True
+            if 'showmesh' in kwargs: showmesh = kwargs.pop('showmesh')
+            if showmesh:
+                self.mesh.plotWithBoundaries()
+            return
+        self.problemdata = kwargs.pop('problemdata')
+        self.ncomp = self.problemdata.ncomp
+
+        # temporary
+        self.bdrycond = self.problemdata.bdrycond
+        self.postproc = self.problemdata.postproc
+        self.rhs = self.problemdata.rhs
+        # temporary
+
         self.timer = simfempy.tools.timer.Timer(verbose=0)
         self.runinfo = {'niter':0}
         self.linearsolvers=[]
@@ -34,77 +110,38 @@ class Solver(object):
         except: pass
         self.linearsolver = 'umf'
 
-        self.ncomp = 1
-        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
-        if 'problem' in kwargs:
-            if 'solexact' in kwargs: raise ValueError("not both 'problem' and 'solexact' can be specified")
-            if 'problemname' in kwargs: raise ValueError("not both 'problem' and 'problemname' can be specified")
-            random=True
-            if 'random' in kwargs: random = kwargs.pop('random')
-            self.solexact = self.defineAnalyticalSolution(problem=kwargs.pop('problem'), random=random)
-        elif 'solexact' in kwargs:
-            self.solexact = kwargs.pop('solexact')
-        else:
-            self.solexact = None
-        if self.solexact:
-            self.bdrycond = self.setAnalyticalBoundaryCondition(bdrycond=kwargs.pop('bdrycond'))
-        if 'problemname' in kwargs: self.problemname = kwargs.pop('problemname')
-        self.rhs = None
-        if 'problemdata' in kwargs:
-            problemdata = kwargs.pop('problemdata')
-            self.bdrycond = problemdata.bdrycond
-            if problemdata.rhs:
-                if isinstance(problemdata.rhs, (list, tuple)):
-                    self.rhs = []
-                    for r in problemdata.rhs:
-                        if r: self.rhs.append(np.vectorize(r))
-                        else: self.rhs.append(r)
-                else:
-                    self.rhs = np.vectorize(problemdata.rhs)
-        else: self.problemname="none"
-        if 'postproc' in kwargs:
-            self.postproc = kwargs.pop('postproc')
-        else:
-            self.postproc = {}
+        # if 'problem' in kwargs:
+        #     if 'solexact' in kwargs: raise ValueError("not both 'problem' and 'solexact' can be specified")
+        #     if 'problemname' in kwargs: raise ValueError("not both 'problem' and 'problemname' can be specified")
+        #     random=True
+        #     if 'random' in kwargs: random = kwargs.pop('random')
+        #     self.solexact = self.defineAnalyticalSolution(problem=kwargs.pop('problem'), random=random)
+        # elif 'solexact' in kwargs:
+        #     self.solexact = kwargs.pop('solexact')
+        # else:
+        #     self.solexact = None
+        # if self.solexact:
+        #     self.bdrycond = self.setAnalyticalBoundaryCondition(bdrycond=kwargs.pop('bdrycond'))
+        # if 'problemname' in kwargs: self.problemname = kwargs.pop('problemname')
+        # self.rhs = None
+        # if 'problemdata' in kwargs:
+        #     problemdata = kwargs.pop('problemdata')
+        #     self.bdrycond = problemdata.bdrycond
+        #     if problemdata.rhs:
+        #         if isinstance(problemdata.rhs, (list, tuple)):
+        #             self.rhs = []
+        #             for r in problemdata.rhs:
+        #                 if r: self.rhs.append(np.vectorize(r))
+        #                 else: self.rhs.append(r)
+        #         else:
+        #             self.rhs = np.vectorize(problemdata.rhs)
+        # else: self.problemname="none"
+        # if 'postproc' in kwargs:
+        #     self.postproc = kwargs.pop('postproc')
+        # else:
+        #     self.postproc = {}
 
 
-    def defineAnalyticalSolution(self, problem, random=True):
-        self.problemname = problem
-        problemsplit = problem.split('_')
-        if problemsplit[0] != 'Analytic':
-            raise ValueError("unknown problem {}".format(problem))
-        if len(problemsplit) != 3:
-            raise ValueError("need three parts {}".format(problem))
-        function = problemsplit[1]
-        dim = int(problemsplit[2][0])
-        solexact = simfempy.tools.analyticalsolution.analyticalSolution(function, dim, self.ncomp, random)
-        return solexact
-
-    def setAnalyticalBoundaryCondition(self, bdrycond):
-        if isinstance(bdrycond, (list, tuple)):
-            if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
-            for icomp,bcs in enumerate(bdrycond):
-                for color, bc in bcs.type.items():
-                    if bc == "Dirichlet":
-                        bcs.fct[color] = self.solexact[icomp]
-                    elif bc == "Neumann":
-                        bcs.fct[color] = None
-                    else:
-                        raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
-        else:
-            def solexactall(x, y, z):
-                return [self.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
-            for color, bc in bdrycond.type.items():
-                if bc == "Dirichlet":
-                    if self.ncomp == 1:
-                        bdrycond.fct[color] = self.solexact
-                    else:
-                        bdrycond.fct[color] = solexactall
-                elif bc == "Neumann":
-                    bdrycond.fct[color] = None
-                else:
-                    raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
-        return bdrycond
 
     def solveLinear(self):
         self.timer.add('init')

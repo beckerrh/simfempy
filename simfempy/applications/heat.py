@@ -7,6 +7,23 @@ from simfempy import fems
 class Heat(solvers.solver.Solver):
     """
     """
+    def defineRhsAnalyticalSolution(self, solexact):
+        def _fctu(x, y, z, diff):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.mesh.dimension):
+                rhs -= diff * solexact.dd(i, i, x, y, z)
+            return rhs
+        return _fctu
+
+    def defineNeumannAnalyticalSolution(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz, diff):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += diff * solexact.d(i, x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         fem = 'p1'
@@ -50,7 +67,7 @@ class Heat(solvers.solver.Solver):
     def solve(self, iter=0, dirname=None):
         return self.solveLinear()
     def computeRhs(self):
-        return self.fem.computeRhs(self.rhs, self.solexact, self.kheatcell, self.bdrycond)
+        return self.fem.computeRhs(self.rhs, self.kheatcell, self.bdrycond)
     def matrix(self):
         return self.fem.matrixDiffusion(self.kheatcell)
     def boundary(self, A, b, u=None):
@@ -65,9 +82,9 @@ class Heat(solvers.solver.Solver):
         cell_data = {}
         point_data = {}
         point_data['U'] = self.fem.tonode(u)
-        if self.solexact:
+        if self.problemdata.solexact:
             info['error'] = {}
-            info['error']['L2'], e = self.fem.computeErrorL2(self.solexact, u)
+            info['error']['L2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
             point_data['E'] = self.fem.tonode(e)
         # info['timer'] = self.timer
         # info['runinfo'] = self.runinfo

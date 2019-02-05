@@ -34,17 +34,21 @@ class FemCR1(object):
         self.massmatrix = self.massMatrix()
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
 
-    def computeRhs(self, rhs, solexact, diff, bdrycond):
+    def computeRhs(self, rhs, diff, bdrycond):
         b = np.zeros(self.mesh.nfaces * self.ncomp)
-        if solexact or rhs:
-            x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
-            for icomp in range(self.ncomp):
-                if solexact:
-                    bfaces = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
-                    bfaces *= diff[icomp][0]
-                else:
-                    bfaces = rhs(x, y, z)
-                b[icomp::self.ncomp] = self.massmatrix * bfaces
+        x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
+        for icomp in range(self.ncomp):
+            bfaces = rhs[icomp](x, y, z, diff[icomp][0])
+            b[icomp::self.ncomp] = self.massmatrix * bfaces
+        # if solexact or rhs:
+        #     x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
+        #     for icomp in range(self.ncomp):
+        #         if solexact:
+        #             bfaces = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
+        #             bfaces *= diff[icomp][0]
+        #         else:
+        #             bfaces = rhs(x, y, z)
+        #         b[icomp::self.ncomp] = self.massmatrix * bfaces
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             for icomp in range(self.ncomp):
@@ -56,10 +60,11 @@ class FemCR1(object):
                     kS = diff[icomp][self.mesh.cellsOfFaces[faces,0]]
                     x1, y1, z1 = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
                     nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                    if solexact:
-                        bS = dS*kS*(solexact[icomp].x(x1, y1, z1)*nx + solexact[icomp].y(x1, y1, z1)*ny + solexact[icomp].z(x1, y1, z1)*nz)
-                    else:
-                        bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                    bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                    # if solexact:
+                    #     bS = dS*kS*(solexact[icomp].x(x1, y1, z1)*nx + solexact[icomp].y(x1, y1, z1)*ny + solexact[icomp].z(x1, y1, z1)*nz)
+                    # else:
+                    #     bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
                     b[icomp+self.ncomp*faces] += bS
         return b
 

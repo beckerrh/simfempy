@@ -13,18 +13,9 @@ class Stokes(solvers.solver.Solver):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if 'geometry' in kwargs:
+            return
         self.linearsolver = 'gmres'
-        if 'problem' in kwargs:
-            function = kwargs.pop('problem').split('_')[1]
-            if function == 'Linear':
-                # self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
-            elif function == 'Quadratic':
-                self.solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
-                self.solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
-                self.solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-            else:
-                raise NotImplementedError("unknown function '{}'".format(function))
         if 'fem' in kwargs:
             fem = kwargs.pop('fem')
         else:
@@ -50,6 +41,49 @@ class Stokes(solvers.solver.Solver):
         if self.rhsmethod == "rt":
             self.femrt = fems.femrt0.FemRT0()
 
+    def generatePoblemData(self, **kwargs):
+        self.ncomp = self.mesh.dimension
+        return super().generatePoblemData(**kwargs)
+
+    def defineAnalyticalSolution(self, exactsolution, random=True):
+        solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
+        if exactsolution == 'Linear':
+            # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
+        elif exactsolution == 'Quadratic':
+            # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
+            # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
+        else:
+            raise NotImplementedError("unknown function '{}'".format(exactsolution))
+        return solexact
+
+    def defineRhsAnalyticalSolution(self, solexact):
+        def _fctv(x, y, z, mu):
+            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs[i] -= mu* solexact[i].dd(j, j, x, y, z)
+                rhs[i] += solexact[self.ncomp].d(i, x, y, z)
+            return rhs
+        def _fctp(x, y, z):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.ncomp):
+                rhs += solexact[i].d(i, x, y, z)
+            return rhs
+        return _fctv, _fctp
+
+    def defineNeumannAnalyticalSolution(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz, mu):
+            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs[i] += mu * solexact[i].d(j, x, y, z) * normals[j]
+                rhs[i] -= solexact[self.ncomp](x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
     def setMesh(self, mesh):
         # t0 = time.time()
         self.mesh = mesh
@@ -62,26 +96,10 @@ class Stokes(solvers.solver.Solver):
             else: self.pmean = False
         self.bdrydata = self.femv.prepareBoundary(colorsdir, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
-        # t1 = time.time()
-        # self.timer['setmesh'] = t1 - t0
         self.pstart = self.ncomp*self.mesh.nfaces
         if self.rhsmethod == "rt":
             self.femrt.setMesh(self.mesh)
             self.massrt = self.femrt.constructMass()
-        if self.solexact:
-            def fctv(x,y,z):
-                rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-                for i in range(self.ncomp):
-                    for j in range(self.ncomp):
-                        rhs[i] -= self.mucell[0] * self.solexact[i].dd(j, j, x, y, z)
-                    rhs[i] += self.solexact[self.ncomp].d(i, x, y, z)
-                return rhs
-            def fctp(x,y,z):
-                rhs = np.zeros(x.shape[0])
-                for i in range(self.ncomp):
-                    rhs += self.solexact[i].d(i, x, y, z)
-                return rhs
-            self.rhs = fctv, fctp
 
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -92,9 +110,12 @@ class Stokes(solvers.solver.Solver):
         else: nall = nfaces * ncomp + self.mesh.ncells
         b = np.zeros(nall)
         rhsv, rhsp = self.rhs
+        xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
+        xc, yc, zc = self.mesh.pointsc.T
+        if rhsp:
+            b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
+        rhsall = np.array(rhsv(xf, yf, zf, self.mucell[0]))
         if self.rhsmethod=='rt':
-            xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
-            rhsall = np.array(rhsv(xf, yf, zf))
             normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
             dS = linalg.norm(normals, axis=1)
             rhsn = np.zeros(nfaces)
@@ -103,60 +124,11 @@ class Stokes(solvers.solver.Solver):
             rhsn = self.massrt*rhsn
             for i in range(ncomp):
                 b[i * nfaces:(i + 1) * nfaces] = rhsn*normals[:,i]/dS
-
-            # xc, yc, zc = self.mesh.pointsc.T
-            # rhsall = np.array(rhsv(xc, yc, zc))
-            # ncells, nfaces, facesOfCells = self.mesh.ncells, self.mesh.nfaces, self.mesh.facesOfCells
-            # normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
-            # scale = 1/self.mesh.dimension
-            # dfaces = np.zeros(nfaces)
-            # for icell in range(ncells):
-            #     for ii, iface in enumerate(facesOfCells[icell]):
-            #         inode = self.mesh.simplices[icell, ii]
-            #         for j in range(ncomp):
-            #             dfaces[iface] += sigma[icell, ii] * rhsall[j][icell] * (
-            #                         self.mesh.pointsc[icell, j] - self.mesh.points[inode, j]) * scale
-            # for i in range(ncomp):
-            #     b[i * nfaces:(i + 1) * nfaces][:] += normals[:, i] * dfaces
-            if rhsp:
-                xc, yc, zc = self.mesh.pointsc.T
-                b[self.pstart:self.pstart+ncells] = self.mesh.dV*np.array(rhsp(xc, yc, zc))
         elif self.rhsmethod=='cr':
-            x, y, z = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
-            bfaces = rhsv(x,y,z)
             for i in range(ncomp):
-                b[i * nfaces:(i + 1) * nfaces] = self.femv.massmatrix * bfaces[i]
-            if rhsp:
-                xc, yc, zc = self.mesh.pointsc.T
-                b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
+                b[i * nfaces:(i + 1) * nfaces] = self.femv.massmatrix * rhsall[i]
         else:
             raise ValueError("don't know rhsmethod='{}'".format(self.rhsmethod))
-
-        # elif self.solexact:
-        #     x, y, z = self.femv.pointsf[:,0], self.femv.pointsf[:,1], self.femv.pointsf[:,2]
-        #     bfaces2 = self.rhs(x,y,z)
-        #     for i in range(ncomp):
-        #         bfaces = np.zeros(self.mesh.nfaces)
-        #         for j in range(ncomp):
-        #             bfaces -= self.mucell[0] * self.solexact[i].dd(j, j, x, y, z)
-        #         bfaces += self.solexact[ncomp].d(i, x, y, z)
-        #         assert np.allclose(bfaces, bfaces2[i])
-        #         b[i*nfaces:(i+1)*nfaces] = self.femv.massmatrix * bfaces
-        #     xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
-        #     bcells = np.zeros(self.mesh.ncells)
-        #     for i in range(ncomp):
-        #         bcells += self.solexact[i].d(i, xc, yc, zc)
-        #     b[self.pstart:self.pstart+ncells] = self.mesh.dV*bcells
-
-            # for i in range(ncomp):
-            #     for icell in range(ncells):
-            #         for ii, iface in enumerate(facesOfCells[icell]):
-            #             inode = self.mesh.simplices[icell,ii]
-            #             d=0
-            #             for j in range(ncomp):
-            #                 d += sigma[icell,ii]*rhsall[j][icell]*(self.mesh.pointsc[icell,j] - self.mesh.points[inode,j])*scale
-            #             b[i*nfaces:(i+1)*nfaces][iface] += normals[iface,i]*d
-
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = self.bdrycond.type[color]
@@ -166,27 +138,12 @@ class Stokes(solvers.solver.Solver):
                 muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
                 xf, yf, zf = self.femv.pointsf[faces,0], self.femv.pointsf[faces,1], self.femv.pointsf[faces,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                if self.solexact:
-                    for i in range(ncomp):
-                        bS = np.zeros(faces.shape[0])
-                        for j in range(ncomp):
-                            bS += muS * self.solexact[i].d(j, xf, yf, zf) * normalsS[:, j]
-                        bS -= muS * self.solexact[ncomp](xf, yf, zf) * normalsS[:, i]
-                        indices = i*nfaces + faces
-                        b[indices] += bS
-                else:
-                    if not color in self.bdrycond.fct.keys(): continue
-                    neumann = self.bdrycond.fct[color]
-                    neumanns = neumann(xf, yf, zf, nx, ny, nz, lamS, muS)
-                    for i in range(ncomp):
-                        bS = dS * neumanns[i]
-                        indices = i*nfaces + faces
-                        b[indices] += bS
-                # print("bS.shape", bS.shape)
-                # print("indices.shape", indices.shape)
-
-        # from ..meshes import plotmesh
-        # plotmesh.meshWithData(self.mesh, point_data={"b_{:1d}".format(i):b[i::self.ncomp] for i in range(self.ncomp)})
+                if not color in self.bdrycond.fct.keys(): continue
+                neumanns = self.bdrycond.fct[color](xf, yf, zf, nx, ny, nz, self.mucell[0])
+                for i in range(ncomp):
+                    bS = dS * neumanns[i]
+                    indices = i*nfaces + faces
+                    b[indices] += bS
         return b
 
     def matrix(self):
@@ -199,24 +156,11 @@ class Stokes(solvers.solver.Solver):
         matA = ( matA.T*dV*self.mucell).T.flatten()
         cols = np.tile(facesOfCells, nloc).reshape(ncells, nloc, nloc)
         rows = cols.swapaxes(1, 2)
-        # print("matA.shape", matA.shape)
-        # print("cols.shape", cols.shape)
         A = scipy.sparse.coo_matrix((matA, (rows.reshape(-1), cols.reshape(-1))), shape=(nfaces, nfaces)).tocsr()
-
         rowsB = np.repeat(np.arange(ncells), ncomp*nloc).reshape(ncells * nloc, ncomp)
-        # print("rowsB", rowsB)
-
-        # colsB = np.repeat( ncomp*facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
         colsB = np.repeat( facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + nfaces*np.arange(ncomp)
-        # print("colsB", colsB.reshape(ncells, nloc, ncomp)[0])
-
-        # matB = np.zeros(ncells*nloc*ncomp, dtype=float).reshape(ncells, nloc, ncomp)
         matB = (cellgrads[:,:,:ncomp].T*dV).T
-        # print("matB", matB[0])
         B = scipy.sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))), shape=(ncells, nfaces*ncomp)).tocsr()
-        print("A=", A)
-        raise NotImplementedError
-        # print("B", B[0])
         if self.pmean:
             rows = np.zeros(ncells, dtype=int)
             cols = np.arange(0, ncells)
@@ -268,12 +212,7 @@ class Stokes(solvers.solver.Solver):
                 indin = icomp*nfaces + facesinner
                 inddir = icomp*nfaces + facesdirall
                 b[indin] -= self.A_inner_dir * b[inddir]
-                # print("B.indices", B.indices)
-                # print("b[self.pstart:]", b[self.pstart:])
-                # print("inddir", inddir)
-                # print("B[:,:][:,inddir]", B[:,:][:,inddir])
                 b[self.pstart:self.pstart+ncells] -= B[:,:][:,inddir] * b[inddir]
-
             help = np.ones((nfaces))
             help[facesdirall] = 0
             help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
@@ -325,28 +264,16 @@ class Stokes(solvers.solver.Solver):
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             for i in range(ncomp):
-                mean[i] += np.sum(dS * np.mean(u[i*nfaces + self.mesh.faces[faces]], axis=1))
+                mean[i] += np.sum(dS * u[i*nfaces + faces])
         return mean
 
     def computeBdryDn(self, u, key, data):
         nfaces, ncells, ncomp, pstart  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.pstart
-        # colors = [int(x) for x in data.split(',')]
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        # print("###",self.bsaved[key].shape)
-        # print("###",(self.Asaved[key] * u).shape)
         flux = []
         pcontrib = self.Bsaved[key].T*u[pstart: pstart+ncells]
         nb = self.Bsaved[key].shape[1]//ncomp
         for icomp in range(ncomp):
             res = self.bsaved[icomp][key] - self.Asaved[key] * u[icomp*nfaces:(icomp+1)*nfaces]
-            # print("self.Asaved.shape", self.Asaved[key].shape)
-            # print("self.Bsaved.shape", self.Bsaved[key].shape)
-            # print("self.bsaved[icomp][key].shape", self.bsaved[icomp][key].shape)
-            # print("res.shape", res.shape)
-            # print("pcontrib.shape", pcontrib.shape)
-            # print("nfaces", nfaces)
             flux.append(np.sum(res+pcontrib[icomp*nb:(icomp+1)*nb]))
         return flux
 
@@ -369,10 +296,10 @@ class Stokes(solvers.solver.Solver):
             point_data['V_{:02d}'.format(icomp)] = self.femv.tonode(u[icomp*nfaces:(icomp+1)*nfaces])
         p = u[self.pstart:self.pstart+self.mesh.ncells]
         cell_data['P'] = p
-        if self.solexact:
+        if self.problemdata.solexact:
             info['error'] = {}
-            errv, ev = self.computeErrorL2V(self.solexact, u[:self.pstart])
-            errp, ep = self.femp.computeErrorL2(self.solexact[-1], p)
+            errv, ev = self.computeErrorL2V(self.problemdata.solexact, u[:self.pstart])
+            errp, ep = self.femp.computeErrorL2(self.problemdata.solexact[-1], p)
             info['error']['L2-V'] = np.sum(errv)
             info['error']['L2-P'] = np.sum(errp)
             for icomp in range(self.ncomp):

@@ -27,14 +27,25 @@ from simfempy.meshes import geomdefs
 class Laplace(solvers.solver.Solver):
     """
     """
+    def defineRhsAnalyticalSolution(self, solexact):
+        def _fctu(x, y, z):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.mesh.dimension):
+                rhs += solexact.dd(i, i, x, y, z)
+            return rhs
+        return _fctu
+
+    def defineNeumannAnalyticalSolution(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += solexact.d(i, x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # self.dirichlet = None
-        # self.rhs = None
-        # self.solexact = None
-        # if 'problem' in kwargs:
-        #     self.defineProblem(problem=kwargs.pop('problem'))
-        print("self.solexact", self.solexact)
         self.femv = simfempy.fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
@@ -42,28 +53,28 @@ class Laplace(solvers.solver.Solver):
         self.mesh = mesh
         self.femv.setMesh(mesh)
 
-    def defineProblem(self, problem):
-        self.problemname = problem
-        problemsplit = problem.split('_')
-        if problemsplit[0] == 'Analytic':
-            if problemsplit[1] == 'Constant':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('7')
-            elif problemsplit[1] == 'Linear':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x+2*y')
-            elif problemsplit[1] == 'Quadratic':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
-            elif problemsplit[1] == 'Hubbel':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
-            elif problemsplit[1] == 'Exponential':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
-            elif problemsplit[1] == 'Sinus':
-                solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
-            else:
-                raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
-            self.dirichlet = solexact
-            self.solexact = solexact
-        else:
-            raise ValueError("unownd problem {}".format(problem))
+    # def defineProblem(self, problem):
+    #     self.problemname = problem
+    #     problemsplit = problem.split('_')
+    #     if problemsplit[0] == 'Analytic':
+    #         if problemsplit[1] == 'Constant':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('7')
+    #         elif problemsplit[1] == 'Linear':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x+2*y')
+    #         elif problemsplit[1] == 'Quadratic':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
+    #         elif problemsplit[1] == 'Hubbel':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
+    #         elif problemsplit[1] == 'Exponential':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
+    #         elif problemsplit[1] == 'Sinus':
+    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
+    #         else:
+    #             raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
+    #         self.dirichlet = solexact
+    #         self.solexact = solexact
+    #     else:
+    #         raise ValueError("unownd problem {}".format(problem))
 
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -76,8 +87,8 @@ class Laplace(solvers.solver.Solver):
         for i in range(dim):
             cell_data['v{:1d}'.format(i)] = vc[i::dim]
         point_data = {}
-        if self.solexact:
-            err, pe, vexx = self.computeError(self.solexact, u[nfaces:], vc)
+        if self.problemdata.solexact:
+            err, pe, vexx = self.computeError(self.problemdata.solexact, u[nfaces:], vc)
             cell_data['perr'] = np.abs(pe - u[nfaces:])
             for i in range(dim):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
@@ -108,19 +119,21 @@ class Laplace(solvers.solver.Solver):
         xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
         xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
         # solexact, dirichlet, rhs = self.solexact, self.dirichlet, self.rhs
-        solexact, rhs = self.solexact, self.rhs
-        if solexact:
-            assert rhs is None
-            bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc) + solexact.zz(xc, yc, zc))* self.mesh.dV
-        elif rhs:
-            assert solexact is None
-            bcells = rhs(xc, yc, zc) *  self.mesh.dV
+        # solexact, rhs = self.solexact, self.rhs
+        bcells = self.rhs(xc, yc, zc) * self.mesh.dV
+        # if solexact:
+        #     assert rhs is None
+        #     bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc) + solexact.zz(xc, yc, zc))* self.mesh.dV
+        # elif rhs:
+        #     assert solexact is None
+        #     bcells = rhs(xc, yc, zc) *  self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
         for color, faces in self.mesh.bdrylabels.items():
             condition = self.bdrycond.type[color]
             assert condition=="Dirichlet"
             dirichlet = self.bdrycond.fct[color]
             ud = dirichlet(xf[faces], yf[faces], zf[faces])
+            # print("ud.shape", ud)
             bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
         return np.concatenate((bsides, bcells))
 
@@ -199,13 +212,12 @@ class Laplace(solvers.solver.Solver):
             raise NotImplementedError("solver '{}' ".format(solver))
 
 # ------------------------------------- #
-def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2):
+def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     import simfempy.tools.comparerrors
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
         h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
-        problem += "_2d"
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Dirichlet"
@@ -214,7 +226,6 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
-        problem += "_3d"
         bdrycond.type[100] = "Dirichlet"
         bdrycond.type[105] = "Dirichlet"
         bdrycond.type[101] = "Dirichlet"
@@ -223,10 +234,11 @@ def test_analytic(problem="Analytic_Quadratic", geomname="unitsquare", verbose=2
         bdrycond.type[104] = "Dirichlet"
         postproc['bdrydn'] = "bdrydn:100,105"
         geometry = geomdefs.unitcube.Unitcube()
+    laplace = Laplace(geometry=geometry, showmesh=False)
+    problemdata = laplace.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
     methods = {}
-    methods['poisson'] = Laplace(problem=problem, bdrycond=bdrycond, postproc=postproc)
-    if problem.split('_')[1] == "Linear":
-        h = [2, 1, 0.5, 0.25]
+    methods['poisson'] = Laplace(problemdata=problemdata)
+    if exactsolution == "Linear": h = h[:-3]
     comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['pcL2']
