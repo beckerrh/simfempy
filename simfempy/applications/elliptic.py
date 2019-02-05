@@ -8,13 +8,42 @@ from simfempy import fems
 class Elliptic(solvers.solver.Solver):
     """
     """
+    def defineRhsAnalyticalSolution(self, solexact):
+        def _fctu0(x, y, z, diff):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.mesh.dimension):
+                rhs -= diff * solexact[0].dd(i, i, x, y, z)
+            return rhs
+        def _fctu1(x, y, z, diff):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.mesh.dimension):
+                rhs -= diff * solexact[1].dd(i, i, x, y, z)
+            return rhs
+        return [_fctu0, _fctu1]
+
+    def defineNeumannAnalyticalSolution_0(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz, diff):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += diff * solexact[0].d(i, x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
+    def defineNeumannAnalyticalSolution_1(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz, diff):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += diff * solexact[1].d(i, x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if 'geometry' in kwargs:
+            return
         self.linearsolver = 'pyamg'
-        # self.dirichlet = None
-        # self.neumann = None
-        # self.rhs = None
-        # self.solexact = None
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
         if fem == 'p1':
@@ -23,37 +52,6 @@ class Elliptic(solvers.solver.Solver):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        # self.ncomp = 1
-        # if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
-        # self.bdrycond = kwargs.pop('bdrycond')
-        # assert len(self.bdrycond) == self.ncomp
-        # if 'problemname' in kwargs:
-        #     self.problemname = kwargs.pop('problemname')
-        # if 'problem' in kwargs:
-        #     self.defineProblem(problem=kwargs.pop('problem'))
-        # if 'solexact' in kwargs:
-        #     self.solexact = kwargs.pop('solexact')
-        # if self.solexact:
-        #     for icomp,bdrycond in enumerate(self.bdrycond):
-        #         for color, bc in bdrycond.type.items():
-        #             if bc == "Dirichlet":
-        #                 bdrycond.fct[color] = self.solexact[icomp]
-        #             elif bc == "Neumann":
-        #                 bdrycond.fct[color] = None
-        #             else:
-        #                 raise ValueError("unownd boundary condition {} for color {}".format(bc,color))
-        if 'rhs' in kwargs:
-            rhs = kwargs.pop('rhs')
-            assert rhs is not None
-            assert len(rhs == self.ncomp)
-            self.rhs = []
-            for i in range(self.ncomp):
-                self.rhs[i] = np.vectorize(rhs[i])
-        # if 'postproc' in kwargs:
-        #     self.postproc = kwargs.pop('postproc')
-        #     assert len(self.postproc) == self.ncomp
-        # else:
-        #     self.postproc=None
         if self.postproc:
             print("self.postproc", self.postproc, len(self.postproc), self.ncomp)
             assert len(self.postproc) == self.ncomp
@@ -101,7 +99,7 @@ class Elliptic(solvers.solver.Solver):
         return self.solveLinear()
         
     def computeRhs(self):
-        return self.fem.computeRhs(self.rhs, self.solexact, self.diffcell, self.bdrycond)
+        return self.fem.computeRhs(self.rhs, self.diffcell, self.bdrycond)
         
     def matrix(self):
         return self.fem.matrixDiffusion(self.diffcell)
@@ -115,9 +113,9 @@ class Elliptic(solvers.solver.Solver):
         point_data = {}
         for icomp in range(self.ncomp):
             point_data['U_{:02d}'.format(icomp)] = self.fem.tonode(u[icomp::self.ncomp])
-        if self.solexact:
+        if self.problemdata.solexact:
             info['error'] = {}
-            err, e = self.fem.computeErrorL2(self.solexact, u)
+            err, e = self.fem.computeErrorL2(self.problemdata.solexact, u)
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])

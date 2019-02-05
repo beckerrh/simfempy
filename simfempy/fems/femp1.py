@@ -49,17 +49,20 @@ class FemP1(object):
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
                 self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
-    def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
-        if solexact or rhs:
-            x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-            if solexact:
-                bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
-                bnodes *= kheatcell[0]
-            else:
-                bnodes = rhs(x, y, z)
-            b = self.massmatrix*bnodes
-        else:
-            b = np.zeros(self.mesh.nnodes)
+    def computeRhs(self, rhs, kheatcell, bdrycond):
+        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        bnodes = rhs(x, y, z, kheatcell[0])
+        b = self.massmatrix * bnodes
+        # if solexact or rhs:
+        #     x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
+        #     if solexact:
+        #         bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
+        #         bnodes *= kheatcell[0]
+        #     else:
+        #         bnodes = rhs(x, y, z)
+        #     b = self.massmatrix*bnodes
+        # else:
+        #     b = np.zeros(self.mesh.nnodes)
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]
@@ -75,10 +78,11 @@ class FemP1(object):
                 assert(kS.shape[0] == len(faces))
                 x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                if solexact:
-                    bS = scale*dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
-                else:
-                    bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
+                # if solexact:
+                #     bS = scale*dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
+                # else:
+                #     bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
                 np.add.at(b, self.mesh.faces[faces].T, bS)
         return b
     def massMatrix(self):

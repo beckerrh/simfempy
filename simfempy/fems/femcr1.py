@@ -28,17 +28,20 @@ class FemCR1(object):
         self.massmatrix = self.massMatrix()
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
 
-    def computeRhs(self, rhs, solexact, kheatcell, bdrycond):
-        if solexact or rhs:
-            x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
-            if solexact:
-                bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
-                bnodes *= kheatcell[0]
-            else:
-                bnodes = rhs(x, y, z)
-            b = self.massmatrix*bnodes
-        else:
-            b = np.zeros(self.mesh.nfaces)
+    def computeRhs(self, rhs, kheatcell, bdrycond):
+        x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
+        bnodes = rhs(x, y, z, kheatcell[0])
+        b = self.massmatrix * bnodes
+        # if solexact or rhs:
+        #     x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
+        #     if solexact:
+        #         bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
+        #         bnodes *= kheatcell[0]
+        #     else:
+        #         bnodes = rhs(x, y, z)
+        #     b = self.massmatrix*bnodes
+        # else:
+        #     b = np.zeros(self.mesh.nfaces)
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             condition = bdrycond.type[color]
@@ -51,10 +54,11 @@ class FemCR1(object):
                 assert(kS.shape[0] == len(faces))
                 xf, yf, zf = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                if solexact:
-                    bS = dS*kS*(solexact.x(xf, yf, zf)*nx + solexact.y(xf, yf, zf)*ny + solexact.z(xf, yf, zf)*nz)
-                else:
-                    bS = neumann(xf, yf, zf, nx, ny, nz, kS) * dS
+                bS = neumann(xf, yf, zf, nx, ny, nz, kS) * dS
+                # if solexact:
+                #     bS = dS*kS*(solexact.x(xf, yf, zf)*nx + solexact.y(xf, yf, zf)*ny + solexact.z(xf, yf, zf)*nz)
+                # else:
+                #     bS = neumann(xf, yf, zf, nx, ny, nz, kS) * dS
                 b[faces] += bS
         return b
 

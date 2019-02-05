@@ -7,15 +7,13 @@ from simfempy.applications.elasticity import Elasticity
 from simfempy.meshes import geomdefs
 
 #----------------------------------------------------------------#
-def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
+def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     import simfempy.tools.comparerrors
     postproc = {}
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
-        if problem=="Analytic_Linear": h = h[:-2]
-        problem += "_2d"
-        ncomp = 2
+        if exactsolution=="Linear": h = h[:-2]
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Neumann"
@@ -25,9 +23,7 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         geometry = geomdefs.unitsquare.Unitsquare()
     if geomname == "unitcube":
         h = [2, 1, 0.5, 0.25, 0.125, 0.08]
-        if problem=="Analytic_Linear": h = h[:-2]
-        problem += "_3d"
-        ncomp = 3
+        if exactsolution=="Linear": h = h[:-2]
         bdrycond.type[100] = "Neumann"
         bdrycond.type[105] = "Neumann"
         bdrycond.type[101] = "Dirichlet"
@@ -38,14 +34,13 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         postproc['bdrydn'] = "bdrydn:101,102,103,104"
         geometry = geomdefs.unitcube.Unitcube()
     compares = {}
-    app = Elasticity(problem=problem, bdrycond=bdrycond, ncomp=ncomp)
+    elasticity = Elasticity(geometry=geometry, showmesh=False)
+    problemdata = elasticity.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
     for fem in ['p1']:
         for bdry in ['trad','new']:
-            compares[fem+bdry] = Elasticity(solexact=app.solexact, bdrycond=bdrycond, postproc=postproc,\
-                                            fem=fem, ncomp=ncomp, method=bdry, problemname=app.problemname)
+            compares[fem+bdry] = Elasticity(problemdata=problemdata, fem=fem, method=bdry)
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
-    if problem.split('_')[1] == "Linear":
-        h = [2, 1, 0.5, 0.25]
+    if exactsolution == "Linear":  h = [2, 1, 0.5, 0.25]
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['L2']
 

@@ -55,17 +55,21 @@ class FemP1(object):
                     np.union1d(nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
         return nodedirall, nodesinner, nodesdir, nodesdirflux
 
-    def computeRhs(self, rhs, solexact, diff, bdrycond):
+    def computeRhs(self, rhs, diff, bdrycond):
         b = np.zeros(self.mesh.nnodes * self.ncomp)
-        if solexact or rhs:
-            x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-            for icomp in range(self.ncomp):
-                if solexact:
-                    bnodes = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
-                    bnodes *= diff[icomp][0]
-                else:
-                    bnodes = rhs[icomp](x, y, z)
-                b[icomp::self.ncomp] = self.massmatrix * bnodes
+        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        for icomp in range(self.ncomp):
+            bnodes = rhs[icomp](x, y, z, diff[icomp][0])
+            b[icomp::self.ncomp] = self.massmatrix * bnodes
+        # if solexact or rhs:
+        #     x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        #     for icomp in range(self.ncomp):
+        #         if solexact:
+        #             bnodes = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
+        #             bnodes *= diff[icomp][0]
+        #         else:
+        #             bnodes = rhs[icomp](x, y, z)
+        #         b[icomp::self.ncomp] = self.massmatrix * bnodes
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             for icomp in range(self.ncomp):
@@ -79,13 +83,14 @@ class FemP1(object):
                     kS = diff[icomp][self.mesh.cellsOfFaces[faces, 0]]
                     x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
                     nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
-                    if solexact:
-                        bS = scale*dS*kS*(solexact[icomp].x(x1, y1, z1)*nx + solexact[icomp].y(x1, y1, z1)*ny + solexact[icomp].z(x1, y1, z1)*nz)
-                        # bS = scale * kS * solexact[icomp].d(0, x1, y1, z1) * normalsS[:, 0]
-                        # for jcomp in range(1,self.ncomp):
-                        #     bS += scale * kS * solexact[icomp].d(jcomp, x1, y1, z1) * normalsS[:, jcomp]
-                    else:
-                        bS = scale * dS * neumann(x1, y1, z1, nx, ny, nz, kS)
+                    bS = scale * dS * neumann(x1, y1, z1, nx, ny, nz, kS)
+                    # if solexact:
+                    #     bS = scale*dS*kS*(solexact[icomp].x(x1, y1, z1)*nx + solexact[icomp].y(x1, y1, z1)*ny + solexact[icomp].z(x1, y1, z1)*nz)
+                    #     # bS = scale * kS * solexact[icomp].d(0, x1, y1, z1) * normalsS[:, 0]
+                    #     # for jcomp in range(1,self.ncomp):
+                    #     #     bS += scale * kS * solexact[icomp].d(jcomp, x1, y1, z1) * normalsS[:, jcomp]
+                    # else:
+                    #     bS = scale * dS * neumann(x1, y1, z1, nx, ny, nz, kS)
                     # print("self.mesh.faces[faces]",self.mesh.faces[faces])
                     indices = icomp + self.ncomp * self.mesh.faces[faces]
                     # print("indices",indices)

@@ -6,14 +6,12 @@ from simfempy.meshes import geomdefs
 from simfempy.applications.stokes import Stokes
 
 #----------------------------------------------------------------#
-def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
+def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     import simfempy.tools.comparerrors
     postproc = {}
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
-        problem += "_2d"
-        ncomp = 2
-        h = [2, 1, 0.5, 0.25]
+        h = [2, 1, 0.5, 0.25, 0.12, 0.06]
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Neumann"
@@ -22,8 +20,6 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         postproc['bdrydn'] = "bdrydn:1001,1003"
         geometry = geomdefs.unitsquare.Unitsquare()
     if geomname == "unitcube":
-        problem += "_3d"
-        ncomp = 3
         h = [2, 1, 0.5, 0.25]
         bdrycond.type[100] = "Dirichlet"
         bdrycond.type[105] = "Dirichlet"
@@ -34,10 +30,13 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
         postproc['bdrymean'] = "bdrymean:100,105"
         postproc['bdrydn'] = "bdrydn:101,102,103,104"
         geometry = geomdefs.unitcube.Unitcube()
-    compares = {}
+    stokes = Stokes(geometry=geometry, showmesh=False)
+    problemdata = stokes.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc, random=False)
+    print("problemdata", problemdata)
+    methods = {}
     for rhsmethod in ['cr','rt']:
-        compares[rhsmethod] = Stokes(problem=problem, bdrycond=bdrycond, postproc=postproc,rhsmethod=rhsmethod, ncomp=ncomp, random=False)
-    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+        methods[rhsmethod] = Stokes(problemdata=problemdata, rhsmethod=rhsmethod)
+    comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     res = {}
     res['L2-V-cr'] = result[3]['error']['L2-V']['cr']
@@ -47,7 +46,7 @@ def test_analytic(problem="Analytic_Sinus", geomname = "unitsquare", verbose=5):
 
 #================================================================#
 if __name__ == '__main__':
-    # result = test_analytic(problem="Analytic_Quadratic", geomname = "unitcube", verbose=2)
-    result = test_analytic(problem="Analytic_Quadratic", verbose=2)
-    # result = test_analytic(problem="Analytic_Linear", verbose=2)
+    # result = test_analytic(exactsolution="Quadratic", geomname = "unitcube", verbose=2)
+    result = test_analytic(exactsolution="Quadratic", verbose=2)
+    # result = test_analytic(exactsolution="Linear", verbose=2)
     print("result", result)
