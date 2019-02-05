@@ -214,6 +214,8 @@ class Stokes(solvers.solver.Solver):
         matB = (cellgrads[:,:,:ncomp].T*dV).T
         # print("matB", matB[0])
         B = scipy.sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))), shape=(ncells, nfaces*ncomp)).tocsr()
+        print("A=", A)
+        raise NotImplementedError
         # print("B", B[0])
         if self.pmean:
             rows = np.zeros(ncells, dtype=int)
