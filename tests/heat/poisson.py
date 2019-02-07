@@ -59,7 +59,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=2):
         h = [2.0, 1.0, 0.5, 0.25, 0.125]
     if exactsolution == "Linear":  h = [2, 1, 0.5, 0.25]
     heat = Heat(geometry=geometry, showmesh=False)
-    problemdata = heat.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
+    problemdata = heat.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc, random=False)
     methods = {}
     for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')

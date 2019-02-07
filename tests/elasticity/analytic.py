@@ -36,7 +36,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
         geometry = geomdefs.unitcube.Unitcube()
     compares = {}
     elasticity = Elasticity(geometry=geometry, showmesh=False)
-    problemdata = elasticity.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
+    problemdata = elasticity.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc, random=False)
     for fem in ['p1']:
         for bdry in ['trad','new']:
             compares[fem+bdry] = Elasticity(problemdata=problemdata, fem=fem, method=bdry)

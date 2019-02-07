@@ -128,7 +128,7 @@ class Elasticity(solvers.solver.Solver):
         # if self.method == "sym":
         # rows, cols = A.nonzero()
         # A[cols, rows] = A[rows, cols]
-        return self.matrixDirichlet(A)
+        return self.matrixDirichlet(A).tobsr()
 
     def matrixDirichlet(self, A):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
@@ -321,7 +321,12 @@ class Elasticity(solvers.solver.Solver):
         return point_data, cell_data, info
 
     def linearSolver(self, A, b, u=None, solver = 'umf'):
-        np.savetxt("A_{}".format(self.method),A.todense(), fmt='%6.2f',)
+        # np.savetxt("A_{}".format(self.method),A.todense(), fmt='%6.2f',)
+        # np.savetxt("b_{}".format(self.method),b, fmt='%.10e',)
+        # print("A", A)
+        # print("b", b)
+        # print("u", u)
+        # raise NotImplementedError
         # print("A is symmetric ? ", is_symmetric(A))
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')

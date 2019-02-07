@@ -44,6 +44,7 @@ def mesh_traction(hmean, geomname="unitcube"):
 import simfempy.tools.timer
 import matplotlib.pyplot as plt
 hmeans = [0.3, 0.15, 0.12, 0.09, 0.07, 0.05, 0.03]
+hmeans = [0.3, 0.15, 0.12]
 times = {}
 ns = np.empty(len(hmeans))
 for i,hmean in enumerate(hmeans):

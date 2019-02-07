@@ -230,7 +230,7 @@ class FemP1(object):
         return grads
 
     def computeErrorL2(self, solex, uh):
-        x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
+        x, y, z = self.mesh.points.T
         e = solex(x, y, z) - uh
         return np.sqrt( np.dot(e, self.massmatrix*e) ), e
 

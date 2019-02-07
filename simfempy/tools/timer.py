@@ -14,6 +14,8 @@ class Timer():
         self.tlast = t
     def __del__(self):
         if self.verbose == 0 : return
+        self.print()
+    def print(self):
         tall = sum(self.data.values())
         print("Timer {:12s} {:12.2e}".format(self.name, tall))
         for name, t in self.data.items():
