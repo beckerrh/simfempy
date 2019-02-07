@@ -8,112 +8,129 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
+from simfempy.fems import femcr1
 try:
     from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
 
-
 #=================================================================#
-class FemCR1(object):
+class FemCR1(femcr1.FemCR1):
     def __init__(self, mesh=None):
-        if mesh is not None:
-            self.setMesh(mesh)
+        super().__init__(mesh)
     def setMesh(self, mesh, ncomp):
-        self.mesh = mesh
+        super().setMesh(mesh)
         self.ncomp = ncomp
-        self.nloc = self.mesh.dimension+1
         ncells, facesOfCells = self.mesh.ncells, self.mesh.facesOfCells
         nlocncomp = ncomp * self.nloc
-        self.rows = np.repeat(ncomp * facesOfCells, ncomp).reshape(ncells * self.nloc, ncomp) + np.arange(ncomp)
-        self.rows = self.rows.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
-        self.cols = self.rows.swapaxes(1, 2)
-        self.cols = self.cols.reshape(-1)
-        self.rows = self.rows.reshape(-1)
-        self.computeFemMatrices()
-        self.massmatrix = self.massMatrix()
-        self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
+        self.rowssys = np.repeat(ncomp * facesOfCells, ncomp).reshape(ncells * self.nloc, ncomp) + np.arange(ncomp)
+        self.rowssys = self.rowssys.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
+        self.colssys = self.rowssys.swapaxes(1, 2)
+        self.colssys = self.colssys.reshape(-1)
+        self.rowssys = self.rowssys.reshape(-1)
 
-    def computeRhs(self, rhs, diff, bdrycond):
-        b = np.zeros(self.mesh.nfaces * self.ncomp)
-        x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
+    def prepareBoundary(self, bdrycond, postproc):
+        if not isinstance(bdrycond, (list, tuple)):
+            return super().prepareBoundary(bdrycond.colorsOfType("Dirichlet"), postproc)
+        bdrydata = []
         for icomp in range(self.ncomp):
-            bfaces = rhs[icomp](x, y, z, diff[icomp][0])
-            b[icomp::self.ncomp] = self.massmatrix * bfaces
-        # if solexact or rhs:
-        #     x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
-        #     for icomp in range(self.ncomp):
-        #         if solexact:
-        #             bfaces = -solexact[icomp].xx(x, y, z) - solexact[icomp].yy(x, y, z) - solexact[icomp].zz(x, y, z)
-        #             bfaces *= diff[icomp][0]
-        #         else:
-        #             bfaces = rhs(x, y, z)
-        #         b[icomp::self.ncomp] = self.massmatrix * bfaces
+            bdrydata.append(super().prepareBoundary(bdrycond[icomp].colorsOfType("Dirichlet"), postproc[icomp]))
+        return bdrydata
+
+    def computeRhs(self, u, rhs, diff, bdrycond, method, bdrydata):
+        b = np.zeros(self.mesh.nfaces * self.ncomp)
+        x, y, z = self.mesh.pointsf.T
+        if rhs:
+            for icomp in range(self.ncomp):
+                bfaces = rhs[icomp](x, y, z, diff[icomp][0])
+                b[icomp::self.ncomp] = self.massmatrix * bfaces
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
             for icomp in range(self.ncomp):
-                condition = bdrycond[icomp].type[color]
-                if condition == "Neumann":
-                    neumann = bdrycond[icomp].fct[color]
-                    normalsS = normals[faces]
-                    dS = linalg.norm(normalsS,axis=1)
-                    kS = diff[icomp][self.mesh.cellsOfFaces[faces,0]]
-                    x1, y1, z1 = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
-                    nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                    bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                    # if solexact:
-                    #     bS = dS*kS*(solexact[icomp].x(x1, y1, z1)*nx + solexact[icomp].y(x1, y1, z1)*ny + solexact[icomp].z(x1, y1, z1)*nz)
-                    # else:
-                    #     bS = neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                    b[icomp+self.ncomp*faces] += bS
-        return b
+                if bdrycond[icomp].type[color] != "Neumann": continue
+                normalsS = normals[faces]
+                dS = linalg.norm(normalsS,axis=1)
+                kS = diff[icomp][self.mesh.cellsOfFaces[faces,0]]
+                x1, y1, z1 = self.mesh.pointsf[faces].T
+                nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
+                bS = bdrycond[icomp].fct[color](x1, y1, z1, nx, ny, nz, kS) * dS
+                b[icomp+self.ncomp*faces] += bS
+        return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
 
-    def massMatrix(self):
-        nfaces = self.mesh.nfaces
-        cols = np.tile(self.mesh.facesOfCells, self.nloc).reshape(self.mesh.ncells, self.nloc, self.nloc)
-        rows = cols.swapaxes(1, 2)
-        self.massmatrix = sparse.coo_matrix((self.mass, (rows.flatten(), cols.flatten())), shape=(nfaces, nfaces)).tocsr()
-        return self.massmatrix
-
-    def matrixDiffusion(self, k):
+    def matrixDiffusion(self, k, bdrycond, method, bdrydata):
         nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = np.zeros(shape=self.rows.shape, dtype=float).reshape(ncells, ncomp * self.nloc, ncomp * self.nloc)
+        nlocncomp = ncomp * self.nloc
+        mat = np.zeros(shape=(ncells, nlocncomp, nlocncomp))
         for icomp in range(ncomp):
             mat[:, icomp::ncomp, icomp::ncomp] = ((matxx + matyy + matzz).T * self.mesh.dV * k[icomp]).T
-        return sparse.coo_matrix((mat.flatten(), (self.rows, self.cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        A = sparse.coo_matrix((mat.flatten(), (self.rowssys, self.colssys)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        return self.matrixDirichlet(A, bdrycond, method, bdrydata)
 
-    def computeFemMatrices(self):
-        ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
-        scale = 1
-        self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
-        dim = self.mesh.dimension
-        scalemass = (2-dim) / (dim+1) / (dim+2)
-        massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
-        self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
+    def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
+        x, y, z = self.mesh.pointsf.T
+        nfaces, ncomp = self.mesh.nfaces, self.ncomp
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        for icomp in range(ncomp):
+            facesdirall, facesinner, colorsdir, facesdirflux = bdrydata[icomp].facesdirall, bdrydata[icomp].facesinner, bdrydata[icomp].colorsdir, bdrydata[icomp].facesdirflux
+            for key, faces in facesdirflux.items():
+                bdrydata[icomp].bsaved[key] = b[icomp + ncomp * faces]
+            indin = icomp + ncomp * facesinner
+            inddir = icomp + ncomp * facesdirall
+            if method == 'trad':
+                for color in colorsdir:
+                    faces = self.mesh.bdrylabels[color]
+                    dirichlet = bdrycond[icomp].fct[color]
+                    b[icomp + ncomp * faces] = dirichlet(x[faces], y[faces], z[faces])
+                    u[icomp + ncomp * faces] = b[icomp + ncomp * faces]
+                b[indin] -= bdrydata[icomp].A_inner_dir * b[inddir]
+            else:
+                for color in colorsdir:
+                    faces = self.mesh.bdrylabels[color]
+                    dirichlet = bdrycond[icomp].fct[color]
+                    u[icomp + ncomp * faces] = dirichlet(x[faces], y[faces], z[faces])
+                    b[icomp + ncomp * faces] = 0
+                b[indin] -= bdrydata[icomp].A_inner_dir * u[inddir]
+                b[inddir] = bdrydata[icomp].A_dir_dir * u[inddir]
+        return b, u, bdrydata
 
-    def prepareBoundary(self, colorsdir, postproc):
-        facesdirall = np.empty(shape=(0), dtype=int)
-        for color in colorsdir:
-            facesdir = self.mesh.bdrylabels[color]
-            facesdirall = np.unique(np.union1d(facesdirall, facesdir))
-        facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int),facesdirall)
-        facesdirflux={}
-        for key, val in postproc.items():
-            type,data = val.split(":")
-            if type != "bdrydn": continue
-            colors = [int(x) for x in data.split(',')]
-            facesdirflux[key] = np.empty(shape=(0), dtype=int)
-            for color in colors:
-                facesdir = self.mesh.bdrylabels[color]
-                facesdirflux[key] = np.unique(np.union1d(facesdirflux[key], facesdir).flatten())
-        return facesdirall, facesinner, colorsdir, facesdirflux
+    def matrixDirichlet(self, A, bdrycond, method, bdrydata):
+        nfaces, ncomp = self.mesh.nfaces, self.ncomp
+        for icomp in range(ncomp):
+            facesdirall, facesinner, colorsdir, facesdirflux = bdrydata[icomp].facesdirall, bdrydata[icomp].facesinner, bdrydata[icomp].colorsdir, bdrydata[icomp].facesdirflux
+            for key, faces in facesdirflux.items():
+                nb = faces.shape[0]
+                help = sparse.dok_matrix((nb, ncomp * nfaces))
+                for i in range(nb): help[i, icomp + ncomp * faces[i]] = 1
+                bdrydata[icomp].Asaved[key] = help.dot(A)
+            indin = icomp + ncomp * facesinner
+            inddir = icomp + ncomp * facesdirall
+            bdrydata[icomp].A_inner_dir = A[indin, :][:, inddir]
+            if method == 'trad':
+                help = np.ones((ncomp * nfaces))
+                help[inddir] = 0
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+                A = help.dot(A.dot(help))
+                help = np.zeros((ncomp * nfaces))
+                help[inddir] = 1.0
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+                A += help
+            else:
+                bdrydata[icomp].A_dir_dir = A[inddir, :][:, inddir]
+                help = np.ones((ncomp * nfaces))
+                help[inddir] = 0
+                help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+                help2 = np.zeros((ncomp * nfaces))
+                help2[inddir] = 1
+                help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+                A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+        return A, bdrydata
 
     def boundary(self, A, b, u, bdrycond, bdrydata, method):
-        x, y, z = self.pointsf[:, 0], self.pointsf[:, 1], self.pointsf[:, 2]
+        x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
         self.bsaved = []
         self.Asaved = []
@@ -157,11 +174,9 @@ class FemCR1(object):
                 b[inddir] = A[inddir, :][:, inddir] * u[inddir]
                 help = np.ones((ncomp * nfaces))
                 help[inddir] = 0
-                # print("help", help)
                 help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
                 help2 = np.zeros((ncomp * nfaces))
                 help2[inddir] = 1
-                # print("help2", help2)
                 help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
                 A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, b, u
@@ -200,7 +215,7 @@ class FemCR1(object):
                             raise ValueError('wrong in cell={}, ii,jj={},{} test= {}'.format(ic,ii,jj, test))
 
     def computeErrorL2(self, solex, uh):
-        x, y, z = self.pointsf[:,0], self.pointsf[:,1], self.pointsf[:,2]
+        x, y, z = self.mesh.pointsf.T
         e = []
         err = []
         for icomp in range(self.ncomp):
@@ -215,16 +230,17 @@ class FemCR1(object):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
+            omega += np.sum(dS)
             mean += np.sum(dS * u[icomp + self.ncomp * faces])
-        return mean
+        return mean/omega
 
-    def computeBdryDn(self, u, key, data, icomp):
-        # colors = [int(x) for x in data.split(',')]
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(self.bsaved[icomp][key] - self.Asaved[icomp][key] * u)
-        return flux
+    # def computeBdryDn(self, u, key, data, icomp):
+    #     # colors = [int(x) for x in data.split(',')]
+    #     # omega = 0
+    #     # for color in colors:
+    #     #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
+    #     flux = np.sum(self.bsaved[icomp][key] - self.Asaved[icomp][key] * u)
+    #     return flux
 
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)

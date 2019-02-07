@@ -71,7 +71,7 @@ class RaviartThomas(solvers.solver.Solver):
 
     def computeVCells(self, u):
         ncells, nfaces, nnodes, dim =  self.mesh.ncells, self.mesh.nfaces, self.mesh.nnodes, self.mesh.dimension
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        x, y, z = self.mesh.points.T
         assert u.shape[0] == nfaces
         v = np.zeros((dim,ncells))
         for ic in range(ncells):

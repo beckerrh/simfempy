@@ -55,27 +55,31 @@ class Heat(solvers.solver.Solver):
         # t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh)
-        colorsdir = []
-        for color, type in self.bdrycond.type.items():
-            if type == "Dirichlet": colorsdir.append(color)
-        self.fem.prepareBoundary(colorsdir, self.postproc)
+        self.bdrydata = self.fem.prepareBoundary(self.bdrycond.colorsOfType("Dirichlet"), self.postproc)
+        # print("bdrydata = ", self.bdrydata)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
-        # t1 = time.time()
-        # self.timer['setmesh'] = t1-t0
 
     def solve(self, iter=0, dirname=None):
         return self.solveLinear()
-    def computeRhs(self):
-        return self.fem.computeRhs(self.rhs, self.kheatcell, self.bdrycond)
+
+    def computeRhs(self, u=None):
+        b, u, self.bdrydata = self.fem.computeRhs(u, self.rhs, self.kheatcell, self.bdrycond, self.method, self.bdrydata)
+        return b,u
+
     def matrix(self):
-        return self.fem.matrixDiffusion(self.kheatcell)
-    def boundary(self, A, b, u=None):
-        if u is None: u = np.asarray(b)
-        return self.fem.boundary(A, b, u, self.bdrycond, self.method)
+        A, self.bdrydata = self.fem.matrixDiffusion(self.kheatcell, self.bdrycond, self.method, self.bdrydata)
+        return A
+
+    # def boundary(self, A, b, u=None):
+    #     if u is None: u = np.asarray(b)
+    #     A, b, u, self.bdrydata = self.fem.boundary(A, b, u, self.bdrycond, self.method, self.bdrydata)
+    #     return A, b, u
+
     def boundaryvec(self, b, u=None):
-        if u is None: u = np.asarray(b)
-        return self.fem.boundaryvec(b, u, self.bdrycond, self.method)
+        if u is None: u = np.zeros_like(b)
+        b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.bdrycond, self.method, self.bdrydata)
+        return b,u
 
     def postProcess(self, u):
         info = {}
@@ -86,18 +90,17 @@ class Heat(solvers.solver.Solver):
             info['error'] = {}
             info['error']['L2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
             point_data['E'] = self.fem.tonode(e)
-        # info['timer'] = self.timer
-        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         if self.postproc:
             for key, val in self.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
-                    info['postproc'][key] = self.fem.computeMean(u, key, data)
+                    info['postproc'][key] = self.fem.computeBdryMean(u, key, data)
                 elif type == "bdryfct":
                     info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.fem.computeFlux(u, key, data)
+                    bs, As = self.bdrydata.bsaved[key], self.bdrydata.Asaved[key]
+                    info['postproc'][key] = self.fem.computeBdryDn(u, key, data, bs, As)
                 elif type == "pointvalues":
                     info['postproc'][key] = self.fem.computePointValues(u, key, data)
                 else:

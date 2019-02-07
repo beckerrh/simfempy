@@ -68,44 +68,36 @@ class Elliptic(solvers.solver.Solver):
         else: self.method="trad"
         if 'show_diff' in kwargs: self.show_diff = kwargs.pop('show_diff')
         else: self.show_diff=False
-        
-    def defineProblem(self, problem):
-        self.problemname = problem
-        problemsplit = problem.split('_')
-        if problemsplit[0] != 'Analytic':
-            raise ValueError("unownd problem {}".format(problem))
-        function = problemsplit[1]
-        self.solexact = simfempy.tools.analyticalsolution.randomAnalyticalSolution(function, self.ncomp)
-        
+
     def setMesh(self, mesh):
-        # t0 = time.time()
         self.mesh = mesh
         self.fem.setMesh(self.mesh, self.ncomp)
-        self.bdrydata = []
         self.diffcell = []
-        for icomp,bdrycond in enumerate(self.bdrycond):
-            colorsdir = []
-            for color, type in bdrycond.type.items():
-                if type == "Dirichlet": colorsdir.append(color)
-            self.bdrydata.append(self.fem.prepareBoundary(colorsdir, self.postproc[icomp]))
+        for icomp in range(self.ncomp):
             self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
-        # t1 = time.time()
-        # self.timer['setmesh'] = t1-t0
-        
+        self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
+        # print("self.bdrydata", self.bdrydata)
+        # self.bdrydata = []
+        # for icomp,bdrycond in enumerate(self.bdrycond):
+        #     colorsdir = []
+        #     for color, type in bdrycond.type.items():
+        #         if type == "Dirichlet": colorsdir.append(color)
+        #     self.bdrydata.append(self.fem.prepareBoundary(colorsdir, self.postproc[icomp]))
+        #     self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
+
     def solvestatic(self):
         return self.solveLinear()
         
     def solve(self, iter, dirname):
         return self.solveLinear()
-        
-    def computeRhs(self):
-        return self.fem.computeRhs(self.rhs, self.diffcell, self.bdrycond)
-        
+
+    def computeRhs(self, u=None):
+        b, u, self.bdrydata = self.fem.computeRhs(u, self.rhs, self.diffcell, self.bdrycond, self.method, self.bdrydata)
+        return b,u
+
     def matrix(self):
-        return self.fem.matrixDiffusion(self.diffcell)
-        
-    def boundary(self, A, b, u):
-        return self.fem.boundary(A, b, u, self.bdrycond, self.bdrydata, self.method)
+        A, self.bdrydata = self.fem.matrixDiffusion(self.diffcell, self.bdrycond, self.method, self.bdrydata)
+        return A
 
     def postProcess(self, u):
         info = {}
@@ -128,7 +120,8 @@ class Elliptic(solvers.solver.Solver):
                 if type == "bdrymean":
                     info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryMean(u, key, data, icomp)
                 elif type == "bdrydn":
-                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryDn(u, key, data, icomp)
+                    bs, As = self.bdrydata[icomp].bsaved[key], self.bdrydata[icomp].Asaved[key]
+                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryDn(u, key, data, bs, As)
                 else:
                     raise ValueError("unknown postprocess {}".format(key))
             if self.show_diff: cell_data['diff_{:02d}'.format(icomp)] = self.diffcell[icomp]

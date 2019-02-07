@@ -52,32 +52,6 @@ class Solver(object):
         dim = self.mesh.dimension
         return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
 
-    # def setAnalyticalBoundaryCondition(self, bdrycond):
-    #     if isinstance(bdrycond, (list, tuple)):
-    #         if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
-    #         for icomp,bcs in enumerate(bdrycond):
-    #             for color, bc in bcs.type.items():
-    #                 if bc == "Dirichlet":
-    #                     bcs.fct[color] = self.solexact[icomp]
-    #                 elif bc == "Neumann":
-    #                     bcs.fct[color] = None
-    #                 else:
-    #                     raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
-    #     else:
-    #         def solexactall(x, y, z):
-    #             return [self.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
-    #         for color, bc in bdrycond.type.items():
-    #             if bc == "Dirichlet":
-    #                 if self.ncomp == 1:
-    #                     bdrycond.fct[color] = self.solexact
-    #                 else:
-    #                     bdrycond.fct[color] = solexactall
-    #             elif bc == "Neumann":
-    #                 bdrycond.fct[color] = None
-    #             else:
-    #                 raise ValueError("unknown boundary condition {} for color {}".format(bc,color))
-    #     return bdrycond
-
     def __init__(self, **kwargs):
         self.ncomp = 1
         if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
@@ -110,48 +84,14 @@ class Solver(object):
         except: pass
         self.linearsolver = 'umf'
 
-        # if 'problem' in kwargs:
-        #     if 'solexact' in kwargs: raise ValueError("not both 'problem' and 'solexact' can be specified")
-        #     if 'problemname' in kwargs: raise ValueError("not both 'problem' and 'problemname' can be specified")
-        #     random=True
-        #     if 'random' in kwargs: random = kwargs.pop('random')
-        #     self.solexact = self.defineAnalyticalSolution(problem=kwargs.pop('problem'), random=random)
-        # elif 'solexact' in kwargs:
-        #     self.solexact = kwargs.pop('solexact')
-        # else:
-        #     self.solexact = None
-        # if self.solexact:
-        #     self.bdrycond = self.setAnalyticalBoundaryCondition(bdrycond=kwargs.pop('bdrycond'))
-        # if 'problemname' in kwargs: self.problemname = kwargs.pop('problemname')
-        # self.rhs = None
-        # if 'problemdata' in kwargs:
-        #     problemdata = kwargs.pop('problemdata')
-        #     self.bdrycond = problemdata.bdrycond
-        #     if problemdata.rhs:
-        #         if isinstance(problemdata.rhs, (list, tuple)):
-        #             self.rhs = []
-        #             for r in problemdata.rhs:
-        #                 if r: self.rhs.append(np.vectorize(r))
-        #                 else: self.rhs.append(r)
-        #         else:
-        #             self.rhs = np.vectorize(problemdata.rhs)
-        # else: self.problemname="none"
-        # if 'postproc' in kwargs:
-        #     self.postproc = kwargs.pop('postproc')
-        # else:
-        #     self.postproc = {}
-
-
-
     def solveLinear(self):
         self.timer.add('init')
         A = self.matrix()
         self.timer.add('matrix')
-        b = self.computeRhs()
+        b,u = self.computeRhs()
         self.timer.add('rhs')
-        u = np.zeros_like(b)
-        A,b,u = self.boundary(A, b, u)
-        self.timer.add('boundary')
+        # A,b,u = self.boundary(A, b, u)
+        # self.timer.add('boundary')
         u = self.linearSolver(A, b, u, solver=self.linearsolver)
         self.timer.add('solve')
         point_data, cell_data, info = self.postProcess(u)

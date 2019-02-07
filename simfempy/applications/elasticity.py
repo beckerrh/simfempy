@@ -79,85 +79,45 @@ class Elasticity(solvers.solver.Solver):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.fem.setMesh(self.mesh, self.ncomp)
-        colorsdir = []
-        for color, type in self.bdrycond.type.items():
-            if type == "Dirichlet": colorsdir.append(color)
-        self.bdrydata = self.fem.prepareBoundary(colorsdir, self.postproc)
+        self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.lamcell = self.lam(self.mesh.cell_labels)
 
     def solve(self, iter, dirname):
         return self.solveLinear()
 
-    def computeRhs(self):
+    def computeRhs(self, u=None):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
         if self.rhs:
+            x, y, z = self.mesh.points.T
             rhsall = self.rhs(x, y, z, self.mucell[0], self.lamcell[0])
             for i in range(ncomp):
                 b[i::self.ncomp] = self.fem.massmatrix * rhsall[i]
-        # if self.solexact:
-        #     x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        #     for i in range(ncomp):
-        #         bnodes = np.zeros(self.mesh.nnodes)
-        #         for j in range(ncomp):
-        #             bnodes -= (self.lamcell[0]+self.mucell[0])*self.solexact[j].dd(i, j, x, y, z)
-        #             bnodes -= self.mucell[0]*self.solexact[i].dd(j, j, x, y, z)
-        #         b[i::self.ncomp] = self.fem.massmatrix * bnodes
-        # elif self.rhs:
-        #     x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        #     rhss = self.rhs(x, y, z)
-        #     for i in range(ncomp):
-        #         b[i::self.ncomp] = self.fem.massmatrix * rhss[i]
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
-            condition = self.bdrycond.type[color]
-            if condition == "Neumann":
-                scale = 1 / self.mesh.dimension
-                normalsS = normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
-                # lamS = self.lamcell[self.mesh.cellsOfFaces[faces, 0]]
-                # muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
-                lamS = self.lamcell[0]
-                muS = self.mucell[0]
-                x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
-                nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
-                if not color in self.bdrycond.fct.keys(): continue
-                neumanns = self.bdrycond.fct[color](x1, y1, z1, nx, ny, nz, muS, lamS)
-                for i in range(ncomp):
-                    bS = scale * dS * neumanns[i]
-                    indices = i + self.ncomp * self.mesh.faces[faces]
-                    np.add.at(b, indices.T, bS)
-
-                # if self.solexact:
-                #     for i in range(self.ncomp):
-                #         bS = np.zeros(xS.shape[0])
-                #         for j in range(self.ncomp):
-                #             bS += scale * lamS * self.solexact[j].d(j, x1, y1, z1) * normalsS[:, i]
-                #             bS += scale * muS * self.solexact[i].d(j, x1, y1, z1) * normalsS[:, j]
-                #             bS += scale * muS * self.solexact[j].d(i, x1, y1, z1) * normalsS[:, j]
-                #         indices = i + self.ncomp * self.mesh.faces[faces]
-                #         np.add.at(b, indices.T, bS)
-                # else:
-                #     if not color in self.bdrycond.fct.keys(): continue
-                #     neumann = self.bdrycond.fct[color]
-                #     neumanns = neumann(x1, y1, z1, nx, ny, nz, lamS, muS)
-                #     for i in range(ncomp):
-                #         bS = scale*dS*neumanns[i]
-                #         indices = i + self.ncomp * self.mesh.faces[faces]
-                #         np.add.at(b, indices.T, bS)
-                # print("bS.shape", bS.shape)
-                # print("indices.shape", indices.shape)
-
-        # from ..meshes import plotmesh
-        # plotmesh.meshWithData(self.mesh, point_data={"b_{:1d}".format(i):b[i::self.ncomp] for i in range(self.ncomp)})
-        return b
+            if self.bdrycond.type[color] != "Neumann": continue
+            scale = 1 / self.mesh.dimension
+            normalsS = normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
+            # lamS = self.lamcell[self.mesh.cellsOfFaces[faces, 0]]
+            # muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
+            lamS = self.lamcell[0]
+            muS = self.mucell[0]
+            x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
+            nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
+            if not color in self.bdrycond.fct.keys(): continue
+            neumanns = self.bdrycond.fct[color](x1, y1, z1, nx, ny, nz, muS, lamS)
+            for i in range(ncomp):
+                bS = scale * dS * neumanns[i]
+                indices = i + self.ncomp * self.mesh.faces[faces]
+                np.add.at(b, indices.T, bS)
+        return self.vectorDirichlet(b, u)
 
     def matrix(self):
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
-        nloc, rows, cols, cellgrads = self.fem.nloc, self.fem.rows, self.fem.cols, self.fem.cellgrads
+        nloc, rows, cols, cellgrads = self.fem.nloc, self.fem.rowssys, self.fem.colssys, self.fem.cellgrads
         mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
         for i in range(ncomp):
             for j in range(self.ncomp):
@@ -168,14 +128,87 @@ class Elasticity(solvers.solver.Solver):
         # if self.method == "sym":
         # rows, cols = A.nonzero()
         # A[cols, rows] = A[rows, cols]
+        return self.matrixDirichlet(A)
+
+    def matrixDirichlet(self, A):
+        nnodes, ncomp = self.mesh.nnodes, self.ncomp
+        nodesdir, nodedirall, nodesinner, nodesdirflux = self.bdrydata.nodesdir, self.bdrydata.nodedirall, self.bdrydata.nodesinner, self.bdrydata.nodesdirflux
+        for key, nodes in nodesdirflux.items():
+            nb = nodes.shape[0]
+            help = sparse.dok_matrix((ncomp *nb, ncomp * nnodes))
+            for icomp in range(ncomp):
+                for i in range(nb): help[icomp + ncomp * i, icomp + ncomp * nodes[i]] = 1
+            self.bdrydata.Asaved[key] = help.dot(A)
+        indin = np.repeat(ncomp * nodesinner, ncomp)
+        for icomp in range(ncomp): indin[icomp::ncomp] += icomp
+        inddir = np.repeat(ncomp * nodedirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        self.bdrydata.A_inner_dir = A[indin, :][:, inddir]
+        if self.method == 'trad':
+            help = np.ones((ncomp * nnodes))
+            help[inddir] = 0
+            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            A = help.dot(A.dot(help))
+            help = np.zeros((ncomp * nnodes))
+            help[inddir] = 1.0
+            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            A += help
+        else:
+            self.bdrydata.A_dir_dir = A[inddir, :][:, inddir]
+            help = np.ones((ncomp * nnodes))
+            help[inddir] = 0
+            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            help2 = np.zeros((ncomp * nnodes))
+            help2[inddir] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A
 
+    def vectorDirichlet(self, b, u):
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        x, y, z = self.mesh.points.T
+        nnodes, ncomp = self.mesh.nnodes, self.ncomp
+        nodesdir, nodedirall, nodesinner, nodesdirflux = self.bdrydata.nodesdir, self.bdrydata.nodedirall, self.bdrydata.nodesinner, self.bdrydata.nodesdirflux
+        for key, nodes in nodesdirflux.items():
+            ind = np.repeat(ncomp * nodes, ncomp)
+            for icomp in range(ncomp):ind[icomp::ncomp] += icomp
+            self.bdrydata.bsaved[key] = b[ind]
+        indin = np.repeat(ncomp * nodesinner, ncomp)
+        for icomp in range(ncomp): indin[icomp::ncomp] += icomp
+        inddir = np.repeat(ncomp * nodedirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        if self.method == 'trad':
+            for color, nodes in nodesdir.items():
+                if color in self.bdrycond.fct.keys():
+                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                    for icomp in range(ncomp):
+                        b[icomp + ncomp * nodes] = dirichlets[icomp]
+                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+                else:
+                    for icomp in range(ncomp):
+                        b[icomp + ncomp * nodes] = 0
+                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+            b[indin] -= self.bdrydata.A_inner_dir * b[inddir]
+        else:
+            for color, nodes in nodesdir.items():
+                if color in self.bdrycond.fct.keys():
+                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                    for icomp in range(ncomp):
+                        u[icomp + ncomp * nodes] = dirichlets[icomp]
+                        b[icomp + ncomp * nodes] = 0
+                else:
+                    for icomp in range(ncomp):
+                        b[icomp + ncomp * nodes] = 0
+                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+            b[indin] -= self.bdrydata.A_inner_dir * u[inddir]
+            b[inddir] = self.bdrydata.A_dir_dir * u[inddir]
+        return b, u
+
     def boundary(self, A, b, u=None):
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+        x, y, z = self.mesh.points.T
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodedirall, nodesinner, nodesdir, nodesdirflux = self.bdrydata
-        # print("nodedirall", nodedirall)
-        # print("nodesinner", nodesinner)
         self.bsaved = {}
         self.Asaved = {}
         for key, nodes in nodesdirflux.items():
@@ -188,7 +221,7 @@ class Elasticity(solvers.solver.Solver):
             for icomp in range(ncomp):
                 for i in range(nb): help[icomp + ncomp * i, icomp + ncomp * nodes[i]] = 1
             self.Asaved[key] = help.dot(A)
-        if u is None: u = np.asarray(b)
+        if u is None: u = np.zeros_like(b)
         indin = np.repeat(ncomp * nodesinner, ncomp)
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
         inddir = np.repeat(ncomp * nodedirall, ncomp)
@@ -237,18 +270,19 @@ class Elasticity(solvers.solver.Solver):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
+            omega += np.sum(dS)
             for i in range(self.ncomp):
                 mean[i] += np.sum(dS * np.mean(u[i + self.ncomp * self.mesh.faces[faces]], axis=1))
-        return mean
+        return [m/omega for m in mean]
 
-    def computeBdryDn(self, u, key, data):
+    def computeBdryDn(self, u, key, data, bs, As):
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
         # print("###",self.bsaved[key].shape)
         # print("###",(self.Asaved[key] * u).shape)
-        res = self.bsaved[key] - self.Asaved[key] * u
+        res = bs - As * u
         flux  = []
         for icomp in range(self.ncomp):
             flux.append(np.sum(res[icomp::self.ncomp]))
@@ -277,7 +311,8 @@ class Elasticity(solvers.solver.Solver):
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = mean[icomp]
             elif type == "bdrydn":
-                flux = self.computeBdryDn(u, key, data)
+                bs, As = self.bdrydata.bsaved[key], self.bdrydata.Asaved[key]
+                flux = self.computeBdryDn(u, key, data, bs, As)
                 assert len(flux) == self.ncomp
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = flux[icomp]
@@ -286,6 +321,7 @@ class Elasticity(solvers.solver.Solver):
         return point_data, cell_data, info
 
     def linearSolver(self, A, b, u=None, solver = 'umf'):
+        np.savetxt("A_{}".format(self.method),A.todense(), fmt='%6.2f',)
         # print("A is symmetric ? ", is_symmetric(A))
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD')

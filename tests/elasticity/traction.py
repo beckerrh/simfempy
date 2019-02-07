@@ -36,9 +36,8 @@ def mesh_traction(hmean, geomname="unitcube"):
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
     elasticity = Elasticity(problemdata=problemdata)
     elasticity.setMesh(mesh)
-    b = elasticity.computeRhs()
     A = elasticity.matrix()
-    A, b, u = elasticity.boundary(A, b)
+    b, u = elasticity.computeRhs()
     return A, b, u, elasticity
 
 #================================================================#

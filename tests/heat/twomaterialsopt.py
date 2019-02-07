@@ -133,32 +133,21 @@ class Heat(simfempy.applications.heat.Heat):
     def dkparam(self, label):
         if label==self.dlabel: return 1.0
         return 0.0
-    def matrix(self):
-        A = self.fem.matrixDiffusion(self.kheatcell)
-        return A
+
     def getData(self, infopp):
-        # dn20, dn40, up = infopp['flux20'], infopp['flux40'], infopp['measured']
-        # return np.concatenate( [np.array([dn20,dn40]), up], axis=0)
         return np.concatenate([np.array([infopp[f] for f in self.fluxes]), infopp['measured']], axis=0)
-    # def setinitial(self, param):
-    #     self.param = param
-    #     self.kheatcell = self.kheat(self.mesh.cell_labels)
-    #     # self.setMesh(mesh)
-    #     point_data, cell_data, info = self.solve()
-    #     self.data0 = self.getData(info['postproc'])
-    #     # self.plot(point_data, cell_data, info)
-    #     # print("self.data0", self.data0)
+
     def solvestate(self, param):
         # print("#")
         assert param.shape == self.param.shape
         self.param = param
         # print("self.param", self.param)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
-        b = self.computeRhs()
-        if not hasattr(self, 'ustate'):
-            self.ustate = np.zeros_like(b)
         A = self.matrix()
-        A,b,self.ustate = self.boundary(A, b, self.ustate)
+        if not hasattr(self, 'ustate'):
+            self.ustate = np.zeros(self.mesh.nnodes)
+        b,self.ustate= self.computeRhs(self.ustate)
+        # A,b,self.ustate = self.boundary(A, b, self.ustate)
         self.A = A
         self.ustate = self.linearSolver(A, b, self.ustate, solver=self.linearsolver, verbose=0)
         self.point_data, self.cell_data, self.info = self.postProcess(self.ustate)
@@ -166,8 +155,8 @@ class Heat(simfempy.applications.heat.Heat):
         # self.plotter.plot()
         # print("self.data0", self.data0, "data", data)
         return data - self.data0
+
     def solveDstate(self, param):
-        # print("@")
         assert param.shape == self.param.shape
         nparam = param.shape[0]
         jac = np.empty(shape=(self.data0.shape[0],nparam))
@@ -283,7 +272,7 @@ def test(diffglobal):
     param[0] = 101*diffglobal
     param[1] = diffglobal
     data = heat.solvestate(param)
-    heat.data0[:] =  data[:]*(1+0.01* ( 2*np.random.rand()-1))
+    heat.data0[:] =  data[:]*(1+0.001* ( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
     import time

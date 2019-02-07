@@ -9,7 +9,6 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
 import scipy.sparse.linalg as splinalg
-from simfempy.meshes import geomdefs
 
 if __name__ == '__main__' and __package__ is None:
     from os import sys, path
@@ -53,29 +52,6 @@ class Laplace(solvers.solver.Solver):
         self.mesh = mesh
         self.femv.setMesh(mesh)
 
-    # def defineProblem(self, problem):
-    #     self.problemname = problem
-    #     problemsplit = problem.split('_')
-    #     if problemsplit[0] == 'Analytic':
-    #         if problemsplit[1] == 'Constant':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('7')
-    #         elif problemsplit[1] == 'Linear':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x+2*y')
-    #         elif problemsplit[1] == 'Quadratic':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x+2*y*y')
-    #         elif problemsplit[1] == 'Hubbel':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('(1-x*x)*(1-y*y)')
-    #         elif problemsplit[1] == 'Exponential':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('exp(x-0.7*y)')
-    #         elif problemsplit[1] == 'Sinus':
-    #             solexact = simfempy.tools.analyticalsolution.AnalyticalSolution('sin(x+0.2*y*y)')
-    #         else:
-    #             raise ValueError("unknown analytic solution: {}".format(problemsplit[1]))
-    #         self.dirichlet = solexact
-    #         self.solexact = solexact
-    #     else:
-    #         raise ValueError("unownd problem {}".format(problem))
-
     def solve(self, iter, dirname):
         return self.solveLinear()
 
@@ -101,7 +77,7 @@ class Laplace(solvers.solver.Solver):
     def computeError(self, solexact, p, vc):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
         errors = {}
-        xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
+        xc, yc, zc = self.mesh.pointsc.T
         pex = solexact(xc, yc, zc)
         errp = np.sqrt(np.sum((pex-p)**2* self.mesh.dV))
         errv = 0
@@ -115,35 +91,27 @@ class Laplace(solvers.solver.Solver):
         errors['vcL2'] = errv
         return errors, pex, vexx
 
-    def computeRhs(self):
-        xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
-        xc, yc, zc = self.mesh.pointsc[:, 0], self.mesh.pointsc[:, 1], self.mesh.pointsc[:, 2]
-        # solexact, dirichlet, rhs = self.solexact, self.dirichlet, self.rhs
-        # solexact, rhs = self.solexact, self.rhs
+    def computeRhs(self, u=None):
+        xf, yf, zf = self.mesh.pointsf.T
+        xc, yc, zc = self.mesh.pointsc.T
         bcells = self.rhs(xc, yc, zc) * self.mesh.dV
-        # if solexact:
-        #     assert rhs is None
-        #     bcells = (solexact.xx(xc, yc, zc) + solexact.yy(xc, yc, zc) + solexact.zz(xc, yc, zc))* self.mesh.dV
-        # elif rhs:
-        #     assert solexact is None
-        #     bcells = rhs(xc, yc, zc) *  self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
         for color, faces in self.mesh.bdrylabels.items():
             condition = self.bdrycond.type[color]
             assert condition=="Dirichlet"
             dirichlet = self.bdrycond.fct[color]
             ud = dirichlet(xf[faces], yf[faces], zf[faces])
-            # print("ud.shape", ud)
             bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
-        return np.concatenate((bsides, bcells))
+        b = np.concatenate((bsides, bcells))
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        return b,u
+
 
     def matrix(self):
         A = self.femv.constructMass()
         B = self.femv.constructDiv()
         return A,B
-
-    def boundary(self, A, b, u):
-        return A,b,u
 
     def _to_single_matrix(self, Ain):
         A, B = Ain

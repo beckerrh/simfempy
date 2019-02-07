@@ -22,7 +22,8 @@ class SimplexMesh(object):
 
     dimension, nnodes, ncells, nfaces: dimension, number of nodes, simplices, faces
     points: coordinates of the vertices of shape (nnodes,3)
-    pointsc: coordinates of the barycenters (ncells,3)
+    pointsc: coordinates of the barycenters of cells (ncells,3)
+    pointsf: coordinates of the barycenters of faces (nfaces,3)
 
     simplices: node ids of simplices of shape (ncells, dimension+1)
     faces: node ids of faces of shape (nfaces, dimension)
@@ -44,14 +45,12 @@ class SimplexMesh(object):
         if 'data' in kwargs:
             self.geometry = 'own'
             data = kwargs.pop('data')
-            # self._initMeshPyGmsh(data[0], data[1], data[3])
         else:
             import pygmsh
             self.geometry = kwargs.pop('geometry')
             if 'hmean' in kwargs:
                 self.geometry.define(kwargs.pop('hmean'))
                 data = pygmsh.generate_mesh(self.geometry, verbose=False)
-            # self._initFromGeometry(**kwargs)
         self._initMeshPyGmsh(data[0], data[1], data[3])
 
     def _initMeshPyGmsh(self, points, cells, celldata):
@@ -78,6 +77,7 @@ class SimplexMesh(object):
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
+        self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
         from ..tools import npext
         self.cellloflabel = npext.unique_all(self.cell_labels)

@@ -89,12 +89,14 @@ class Stokes(solvers.solver.Solver):
         self.mesh = mesh
         self.femv.setMesh(self.mesh, self.ncomp)
         self.femp.setMesh(self.mesh)
-        self.pmean = True
-        colorsdir = []
-        for color, type in self.bdrycond.type.items():
-            if type == "Dirichlet": colorsdir.append(color)
-            else: self.pmean = False
-        self.bdrydata = self.femv.prepareBoundary(colorsdir, self.postproc)
+        # self.pmean = True
+        # colorsdir = []
+        # for color, type in self.bdrycond.type.items():
+        #     if type == "Dirichlet": colorsdir.append(color)
+        #     else: self.pmean = False
+        self.pmean = self.bdrycond.type.values() == len(self.bdrycond.type)*"Dirichlet"
+        self.bdrydata = self.femv.prepareBoundary(self.bdrycond, self.postproc)
+        # self.bdrydata = self.femv.prepareBoundary(colorsdir, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.pstart = self.ncomp*self.mesh.nfaces
         if self.rhsmethod == "rt":
@@ -104,13 +106,13 @@ class Stokes(solvers.solver.Solver):
     def solve(self, iter, dirname):
         return self.solveLinear()
 
-    def computeRhs(self):
+    def computeRhs(self, u=None):
         ncomp, nfaces, ncells = self.ncomp, self.mesh.nfaces, self.mesh.ncells
         if self.pmean: nall = nfaces * ncomp + self.mesh.ncells +1
         else: nall = nfaces * ncomp + self.mesh.ncells
         b = np.zeros(nall)
         rhsv, rhsp = self.rhs
-        xf, yf, zf = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
+        xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
         if rhsp:
             b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
@@ -136,7 +138,7 @@ class Stokes(solvers.solver.Solver):
                 normalsS = normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
                 muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
-                xf, yf, zf = self.femv.pointsf[faces,0], self.femv.pointsf[faces,1], self.femv.pointsf[faces,2]
+                xf, yf, zf = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if not color in self.bdrycond.fct.keys(): continue
                 neumanns = self.bdrycond.fct[color](xf, yf, zf, nx, ny, nz, self.mucell[0])
@@ -144,7 +146,7 @@ class Stokes(solvers.solver.Solver):
                     bS = dS * neumanns[i]
                     indices = i*nfaces + faces
                     b[indices] += bS
-        return b
+        return self.vectorDirichlet(b, u)
 
     def matrix(self):
         nfaces, facesOfCells = self.mesh.nfaces, self.mesh.facesOfCells
@@ -161,11 +163,107 @@ class Stokes(solvers.solver.Solver):
         colsB = np.repeat( facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + nfaces*np.arange(ncomp)
         matB = (cellgrads[:,:,:ncomp].T*dV).T
         B = scipy.sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))), shape=(ncells, nfaces*ncomp)).tocsr()
+        (A,B) = self.matrixDirichlet((A,B))
         if self.pmean:
             rows = np.zeros(ncells, dtype=int)
             cols = np.arange(0, ncells)
             C = scipy.sparse.coo_matrix((dV, (rows, cols)), shape=(1, ncells)).tocsr()
             return (A,B,C)
+        return (A,B)
+
+    def vectorDirichlet(self, b, u):
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        xf, yf, zf = self.mesh.pointsf.T
+        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
+        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
+        self.bdrydata.bsaved = []
+        for icomp in range(ncomp):
+            self.bdrydata.bsaved.append({})
+            for key, faces in facesdirflux.items():
+                self.bdrydata.bsaved[icomp][key] = b[icomp*nfaces + faces]
+        if self.method == 'trad':
+            for color in colorsdir:
+                faces = self.mesh.bdrylabels[color]
+                dirichlet = self.bdrycond.fct[color]
+                dirs = dirichlet(xf[faces], yf[faces], zf[faces])
+                # print("dirs", dirs)
+                for icomp in range(ncomp):
+                    b[icomp*nfaces + faces] = dirs[icomp]
+                    u[icomp*nfaces + faces] = b[icomp*nfaces + faces]
+            for icomp in range(ncomp):
+                indin = icomp*nfaces + facesinner
+                inddir = icomp*nfaces + facesdirall
+                b[indin] -= self.bdrydata.A_inner_dir * b[inddir]
+                b[self.pstart:self.pstart+ncells] -= self.bdrydata.B_inner_dir[icomp] * b[inddir]
+        else:
+            for color in colorsdir:
+                faces = self.mesh.bdrylabels[color]
+                dirichlet = self.bdrycond.fct[color]
+                dirs = dirichlet(xf[faces], yf[faces], zf[faces])
+                for icomp in range(ncomp):
+                    u[icomp*nfaces + faces] = dirs[icomp]
+                    b[icomp*nfaces + faces] = 0
+            for icomp in range(ncomp):
+                indin = icomp*nfaces + facesinner
+                inddir = icomp*nfaces + facesdirall
+                b[indin] -= self.bdrydata.A_inner_dir * u[inddir]
+                b[inddir] += self.bdrydata.A_dir_dir * u[inddir]
+        return b, u
+
+    def matrixDirichlet(self, Aall):
+        A, B = Aall
+        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
+        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
+        self.bdrydata.Asaved = {}
+        self.bdrydata.Bsaved = {}
+        for key, faces in facesdirflux.items():
+            nb = faces.shape[0]
+            help = scipy.sparse.dok_matrix((nb, nfaces))
+            for i in range(nb): help[i, faces[i]] = 1
+            self.bdrydata.Asaved[key] = help.dot(A)
+            # helpB = np.zeros((ncomp*nfaces))
+            # for icomp in range(ncomp):
+            #     helpB[icomp*nfaces + facesdirall] = 0
+            # helpB = scipy.sparse.dia_matrix((helpB, 0), shape=(ncomp*nfaces, ncomp*nfaces))
+            helpB = scipy.sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
+            for icomp in range(ncomp):
+                for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
+            self.bdrydata.Bsaved[key] = B.dot(helpB)
+        self.bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
+        self.bdrydata.B_inner_dir = []
+        for icomp in range(ncomp):
+            inddir = icomp * nfaces + facesdirall
+            self.bdrydata.B_inner_dir.append(B[:,:][:,inddir])
+        if self.method == 'trad':
+            help = np.ones((nfaces))
+            help[facesdirall] = 0
+            help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            A = help.dot(A.dot(help))
+            help = np.zeros((nfaces))
+            help[facesdirall] = 1.0
+            help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            A += help
+        else:
+            self.bdrydata.A_dir_dir = A[facesdirall, :][:, facesdirall]
+            for icomp in range(ncomp):
+                indin = icomp*nfaces + facesinner
+                inddir = icomp*nfaces + facesdirall
+                b[indin] -= self.A_inner_dir * u[inddir]
+                b[inddir] += self.A_dir_dir * u[inddir]
+            help = np.ones((nfaces))
+            help[facesdirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+            help2 = np.zeros((nfaces))
+            help2[facesdirall] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+        # B
+        help = np.ones((ncomp * nfaces))
+        for icomp in range(ncomp):
+            help[icomp*nfaces + facesdirall] = 0
+        help = scipy.sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+        B = B.dot(help)
         return (A,B)
 
     def boundary(self, Aall, b, u):
@@ -175,7 +273,7 @@ class Stokes(solvers.solver.Solver):
             A, B = Aall
         # print("A", A.todense())
         # print("B", B.todense())
-        x, y, z = self.femv.pointsf[:, 0], self.femv.pointsf[:, 1], self.femv.pointsf[:, 2]
+        xf, yf, zf = self.mesh.pointsf.T
         facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
         self.bsaved = []
@@ -203,7 +301,7 @@ class Stokes(solvers.solver.Solver):
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = self.bdrycond.fct[color]
-                dirs = dirichlet(x[faces], y[faces], z[faces])
+                dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 # print("dirs", dirs)
                 for icomp in range(ncomp):
                     b[icomp*nfaces + faces] = dirs[icomp]
@@ -225,7 +323,7 @@ class Stokes(solvers.solver.Solver):
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = self.bdrycond.fct[color]
-                dirs = dirichlet(x[faces], y[faces], z[faces])
+                dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 for icomp in range(ncomp):
                     u[icomp*nfaces + faces] = dirs[icomp]
                     b[icomp*nfaces + faces] = 0
@@ -270,20 +368,20 @@ class Stokes(solvers.solver.Solver):
     def computeBdryDn(self, u, key, data):
         nfaces, ncells, ncomp, pstart  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.pstart
         flux = []
-        pcontrib = self.Bsaved[key].T*u[pstart: pstart+ncells]
-        nb = self.Bsaved[key].shape[1]//ncomp
+        pcontrib = self.bdrydata.Bsaved[key].T*u[pstart: pstart+ncells]
+        nb = self.bdrydata.Bsaved[key].shape[1]//ncomp
         for icomp in range(ncomp):
-            res = self.bsaved[icomp][key] - self.Asaved[key] * u[icomp*nfaces:(icomp+1)*nfaces]
+            res = self.bdrydata.bsaved[icomp][key] - self.bdrydata.Asaved[key] * u[icomp*nfaces:(icomp+1)*nfaces]
             flux.append(np.sum(res+pcontrib[icomp*nb:(icomp+1)*nb]))
         return flux
 
     def computeErrorL2V(self, solex, uh):
         nfaces, ncomp  = self.mesh.nfaces, self.femv.ncomp
-        x, y, z = self.femv.pointsf[:,0], self.femv.pointsf[:,1], self.femv.pointsf[:,2]
+        xf, yf, zf = self.mesh.pointsf.T
         e = []
         err = []
         for icomp in range(self.ncomp):
-            e.append(solex[icomp](x, y, z) - uh[icomp*nfaces:(icomp+1)*nfaces])
+            e.append(solex[icomp](xf, yf, zf) - uh[icomp*nfaces:(icomp+1)*nfaces])
             err.append(np.sqrt(np.dot(e[icomp], self.femv.massmatrix * e[icomp])))
         return err, e
 

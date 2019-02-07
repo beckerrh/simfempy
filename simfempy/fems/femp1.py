@@ -12,6 +12,7 @@ try:
     from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
+import simfempy.fems.bdrydata
 
 
 #=================================================================#
@@ -27,79 +28,7 @@ class FemP1(object):
         self.rows = np.repeat(simps, self.nloc).flatten()
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
-    def prepareBoundary(self, colorsdir, postproc):
-        self.nodesdir={}
-        self.nodedirall = np.empty(shape=(0), dtype=int)
-        for color in colorsdir:
-            facesdir = self.mesh.bdrylabels[color]
-            self.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
-            self.nodedirall = np.unique(np.union1d(self.nodedirall, self.nodesdir[color]))
-        self.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),self.nodedirall)
-        # print("colorsdir", colorsdir)
-        # print("nodesdir", self.nodesdir)
-        # print("self.nodesinner", self.nodesinner)
-        self.bsaved={}
-        self.Asaved={}
-        self.nodesdirflux={}
-        if not postproc: return
-        for key, val in postproc.items():
-            type,data = val.split(":")
-            if type != "bdrydn": continue
-            colors = [int(x) for x in data.split(',')]
-            self.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
-            for color in colors:
-                facesdir = self.mesh.bdrylabels[color]
-                self.nodesdirflux[key] = np.unique(np.union1d(self.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
 
-    def computeRhs(self, rhs, kheatcell, bdrycond):
-        b = np.zeros(self.mesh.nnodes)
-        if rhs:
-            x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-            bnodes = rhs(x, y, z, kheatcell[0])
-            b += self.massmatrix * bnodes
-        # if solexact or rhs:
-        #     x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
-        #     if solexact:
-        #         bnodes = -solexact.xx(x, y, z) - solexact.yy(x, y, z)- solexact.zz(x, y, z)
-        #         bnodes *= kheatcell[0]
-        #     else:
-        #         bnodes = rhs(x, y, z)
-        #     b = self.massmatrix*bnodes
-        # else:
-        #     b = np.zeros(self.mesh.nnodes)
-        normals =  self.mesh.normals
-        for color, faces in self.mesh.bdrylabels.items():
-            condition = bdrycond.type[color]
-            if condition == "Neumann":
-                neumann = bdrycond.fct[color]
-                scale = 1/self.mesh.dimension
-                normalsS = normals[faces]
-                dS = linalg.norm(normalsS,axis=1)
-                xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
-                kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
-                assert(dS.shape[0] == len(faces))
-                assert(xS.shape[0] == len(faces))
-                assert(kS.shape[0] == len(faces))
-                x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
-                nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                # if solexact:
-                #     bS = scale*dS*kS*(solexact.x(x1, y1, z1)*nx + solexact.y(x1, y1, z1)*ny + solexact.z(x1, y1, z1)*nz)
-                # else:
-                #     bS = scale * neumann(x1, y1, z1, nx, ny, nz, kS) * dS
-                np.add.at(b, self.mesh.faces[faces].T, bS)
-        return b
-    def massMatrix(self):
-        nnodes = self.mesh.nnodes
-        self.massmatrix = sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-        return self.massmatrix
-    def matrixDiffusion(self, k):
-        nnodes = self.mesh.nnodes
-        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
-        return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
@@ -109,73 +38,189 @@ class FemP1(object):
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
         self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
-    def boundary(self, A, b, u, bdrycond, method):
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
+
+    def massMatrix(self):
         nnodes = self.mesh.nnodes
-        for key, nodes in self.nodesdirflux.items():
-            self.bsaved[key] = b[nodes]
-        for key, nodes in self.nodesdirflux.items():
+        return sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+
+    def prepareBoundary(self, colorsdir, postproc):
+        bdrydata = simfempy.fems.bdrydata.BdryData()
+        bdrydata.nodesdir={}
+        bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
+        for color in colorsdir:
+            facesdir = self.mesh.bdrylabels[color]
+            bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
+            bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
+        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
+        bdrydata.nodesdirflux={}
+        if not postproc: return bdrydata
+        for key, val in postproc.items():
+            type,data = val.split(":")
+            if type != "bdrydn": continue
+            colors = [int(x) for x in data.split(',')]
+            bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
+            for color in colors:
+                facesdir = self.mesh.bdrylabels[color]
+                bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
+        return bdrydata
+
+    def matrixDiffusion(self, k, bdrycond, method, bdrydata):
+        nnodes = self.mesh.nnodes
+        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
+        A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        return self.matrixDirichlet(A, bdrycond, method, bdrydata)
+
+    def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
+        b = np.zeros(self.mesh.nnodes)
+        if rhs:
+            x, y, z = self.mesh.points.T
+            bnodes = rhs(x, y, z, kheatcell[0])
+            b += self.massmatrix * bnodes
+        normals =  self.mesh.normals
+        scale = 1 / self.mesh.dimension
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != "Neumann": continue
+            normalsS = normals[faces]
+            dS = linalg.norm(normalsS,axis=1)
+            # xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
+            kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
+            assert(dS.shape[0] == len(faces))
+            # assert(xS.shape[0] == len(faces))
+            assert(kS.shape[0] == len(faces))
+            # x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
+            x1, y1, z1 = self.mesh.pointsf[faces].T
+            nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
+            bS = scale * bdrycond.fct[color](x1, y1, z1, nx, ny, nz, kS) * dS
+            np.add.at(b, self.mesh.faces[faces].T, bS)
+        return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
+
+    def matrixDirichlet(self, A, bdrycond, method, bdrydata):
+        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+        nnodes = self.mesh.nnodes
+        for key, nodes in nodesdirflux.items():
             nb = nodes.shape[0]
             help = sparse.dok_matrix((nb, nnodes))
             for i in range(nb): help[i, nodes[i]] = 1
-            self.Asaved[key] = help.dot(A)
-        self.A_inner_dir = A[self.nodesinner, :][:, self.nodedirall]
+            bdrydata.Asaved[key] = help.dot(A)
+        bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
         if method == 'trad':
-            for color, nodes in self.nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                u[nodes] = b[nodes]
-            b[self.nodesinner] -= A[self.nodesinner, :][:, self.nodedirall] * b[self.nodedirall]
             help = np.ones((nnodes))
-            help[self.nodedirall] = 0
+            help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help))
             help = np.zeros((nnodes))
-            help[self.nodedirall] = 1.0
+            help[nodedirall] = 1.0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             A += help
         else:
-            for color, nodes in self.nodesdir.items():
+            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
+            help = np.ones(nnodes)
+            help[nodedirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            help2 = np.zeros(nnodes)
+            help2[nodedirall] = 1
+            help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
+            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+        return A, bdrydata
+
+    def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
+        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        x, y, z = self.mesh.points.T
+        for key, nodes in nodesdirflux.items():
+            bdrydata.bsaved[key] = b[nodes]
+        if method == 'trad':
+            for color, nodes in nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                u[nodes] = b[nodes]
+            b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
+        else:
+            for color, nodes in nodesdir.items():
                 dirichlet = bdrycond.fct[color]
                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 b[nodes] = 0
-            self.A_dir_dir = A[self.nodedirall, :][:, self.nodedirall]
-            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
-            b[self.nodedirall] += self.A_dir_dir * u[self.nodedirall]
+            b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
+            b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
+        return b, u, bdrydata
+
+    def boundary(self, A, b, u, bdrycond, method, bdrydata):
+        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+        x, y, z = self.mesh.points.T
+        nnodes = self.mesh.nnodes
+        for key, nodes in nodesdirflux.items():
+            bdrydata.bsaved[key] = b[nodes]
+        for key, nodes in nodesdirflux.items():
+            nb = nodes.shape[0]
+            help = sparse.dok_matrix((nb, nnodes))
+            for i in range(nb): help[i, nodes[i]] = 1
+            bdrydata.Asaved[key] = help.dot(A)
+        bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
+        if method == 'trad':
+            for color, nodes in nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                u[nodes] = b[nodes]
+            b[nodesinner] -= A[nodesinner, :][:, nodedirall] * b[nodedirall]
             help = np.ones((nnodes))
-            help[self.nodedirall] = 0
+            help[nodedirall] = 0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            A = help.dot(A.dot(help))
+            help = np.zeros((nnodes))
+            help[nodedirall] = 1.0
+            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+            A += help
+        else:
+            for color, nodes in nodesdir.items():
+                dirichlet = bdrycond.fct[color]
+                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                b[nodes] = 0
+            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
+            b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
+            b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
+            help = np.ones((nnodes))
+            help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             help2 = np.zeros((nnodes))
-            help2[self.nodedirall] = 1
+            help2[nodedirall] = 1
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, b, u
-    def boundaryvec(self, b, u, bdrycond, method):
-        x, y, z = self.mesh.points[:, 0], self.mesh.points[:, 1], self.mesh.points[:, 2]
-        for key, nodes in self.nodesdirflux.items():
-            self.bsaved[key] = b[nodes]
+        return A, b, u, bdrydata
+
+    def boundaryvec(self, b, u, bdrycond, method, bdrydata):
+        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+        Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
+        x, y, z = self.mesh.points.T
+        for key, nodes in nodesdirflux.items():
+            bdrydata.bsaved[key] = b[nodes]
         if method == 'trad':
-            for color, nodes in self.nodesdir.items():
+            for color, nodes in nodesdir.items():
                 dirichlet = bdrycond.fct[color]
                 if dirichlet:
                     b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 else:
                     b[nodes] = 0
                 u[nodes] = b[nodes]
-            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
+            b[nodesinner] -= A_inner_dir * u[nodedirall]
         else:
-            for color, nodes in self.nodesdir.items():
+            for color, nodes in nodesdir.items():
                 dirichlet = bdrycond.fct[color]
                 if dirichlet:
                     u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
                 else:
                     u[nodes] = 0
                 b[nodes] = 0
-            b[self.nodesinner] -= self.A_inner_dir * u[self.nodedirall]
-            b[self.nodedirall] += self.A_dir_dir * u[self.nodedirall]
-        return b, u
+            b[nodesinner] -= A_inner_dir * u[nodedirall]
+            b[nodedirall] += A_dir_dir * u[nodedirall]
+        return b, u, bdrydata
+
     def tonode(self, u):
         return u
+
     def grad(self, ic):
         normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
         grads = 0.5*normals/self.mesh.dV[ic]
@@ -183,26 +228,31 @@ class FemP1(object):
         # print("### chsg", chsg, "normals", normals)
         grads[chsg] *= -1.
         return grads
+
     def computeErrorL2(self, solex, uh):
         x, y, z = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.points[:,2]
         e = solex(x, y, z) - uh
         return np.sqrt( np.dot(e, self.massmatrix*e) ), e
-    def computeMean(self, u, key, data):
+
+    def computeBdryMean(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         mean, omega = 0, 0
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
+            omega += np.sum(dS)
             mean += np.sum(dS*np.mean(u[self.mesh.faces[faces]],axis=1))
-        return mean
-    def computeFlux(self, u, key, data):
+        return mean/omega
+
+    def computeBdryDn(self, u, key, data, bsaved, Asaved):
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(self.bsaved[key] - self.Asaved[key]*u )
+        flux = np.sum(bsaved - Asaved*u )
         return flux
+
     def computeBdryFct(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         nodes = np.empty(shape=(0), dtype=int)
@@ -210,6 +260,7 @@ class FemP1(object):
             faces = self.mesh.bdrylabels[color]
             nodes = np.unique(np.union1d(nodes, self.mesh.faces[faces].ravel()))
         return self.mesh.points[nodes], u[nodes]
+
     def computePointValues(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))

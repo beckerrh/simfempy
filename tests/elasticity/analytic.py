@@ -13,6 +13,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
+        h = [0.5, 0.25, 0.125]
         if exactsolution=="Linear": h = h[:-2]
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
@@ -40,7 +41,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
         for bdry in ['trad','new']:
             compares[fem+bdry] = Elasticity(problemdata=problemdata, fem=fem, method=bdry)
     comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
-    if exactsolution == "Linear":  h = [2, 1, 0.5, 0.25]
+    if exactsolution == "Linear":  h = [2, 1, 0.5]
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['L2']
 
