@@ -20,6 +20,7 @@ class FemP1(object):
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
+        self.dirichlet_al = 10
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
@@ -116,12 +117,12 @@ class FemP1(object):
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             A += help
         else:
-            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
+            bdrydata.A_dir_dir = self.dirichlet_al*A[nodedirall, :][:, nodedirall]
             help = np.ones(nnodes)
             help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             help2 = np.zeros(nnodes)
-            help2[nodedirall] = 1
+            help2[nodedirall] = np.sqrt(self.dirichlet_al)
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
@@ -148,48 +149,48 @@ class FemP1(object):
             b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
         return b, u, bdrydata
 
-    def boundary(self, A, b, u, bdrycond, method, bdrydata):
-        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
-        x, y, z = self.mesh.points.T
-        nnodes = self.mesh.nnodes
-        for key, nodes in nodesdirflux.items():
-            bdrydata.bsaved[key] = b[nodes]
-        for key, nodes in nodesdirflux.items():
-            nb = nodes.shape[0]
-            help = sparse.dok_matrix((nb, nnodes))
-            for i in range(nb): help[i, nodes[i]] = 1
-            bdrydata.Asaved[key] = help.dot(A)
-        bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
-        if method == 'trad':
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                u[nodes] = b[nodes]
-            b[nodesinner] -= A[nodesinner, :][:, nodedirall] * b[nodedirall]
-            help = np.ones((nnodes))
-            help[nodedirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            A = help.dot(A.dot(help))
-            help = np.zeros((nnodes))
-            help[nodedirall] = 1.0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            A += help
-        else:
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                b[nodes] = 0
-            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
-            b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
-            b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
-            help = np.ones((nnodes))
-            help[nodedirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            help2 = np.zeros((nnodes))
-            help2[nodedirall] = 1
-            help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
-            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, b, u, bdrydata
+    # def boundary(self, A, b, u, bdrycond, method, bdrydata):
+    #     nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+    #     x, y, z = self.mesh.points.T
+    #     nnodes = self.mesh.nnodes
+    #     for key, nodes in nodesdirflux.items():
+    #         bdrydata.bsaved[key] = b[nodes]
+    #     for key, nodes in nodesdirflux.items():
+    #         nb = nodes.shape[0]
+    #         help = sparse.dok_matrix((nb, nnodes))
+    #         for i in range(nb): help[i, nodes[i]] = 1
+    #         bdrydata.Asaved[key] = help.dot(A)
+    #     bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
+    #     if method == 'trad':
+    #         for color, nodes in nodesdir.items():
+    #             dirichlet = bdrycond.fct[color]
+    #             b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+    #             u[nodes] = b[nodes]
+    #         b[nodesinner] -= A[nodesinner, :][:, nodedirall] * b[nodedirall]
+    #         help = np.ones((nnodes))
+    #         help[nodedirall] = 0
+    #         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+    #         A = help.dot(A.dot(help))
+    #         help = np.zeros((nnodes))
+    #         help[nodedirall] = 1.0
+    #         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+    #         A += help
+    #     else:
+    #         for color, nodes in nodesdir.items():
+    #             dirichlet = bdrycond.fct[color]
+    #             u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+    #             b[nodes] = 0
+    #         bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
+    #         b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
+    #         b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
+    #         help = np.ones((nnodes))
+    #         help[nodedirall] = 0
+    #         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+    #         help2 = np.zeros((nnodes))
+    #         help2[nodedirall] = 1
+    #         help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
+    #         A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+    #     return A, b, u, bdrydata
 
     def boundaryvec(self, b, u, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux

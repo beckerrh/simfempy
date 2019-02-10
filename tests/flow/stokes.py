@@ -7,7 +7,7 @@ from simfempy.applications.stokes import Stokes
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
-    import simfempy.tools.comparerrors
+    import simfempy.tools.comparemethods
     postproc = {}
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
@@ -36,7 +36,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     methods = {}
     for rhsmethod in ['cr','rt']:
         methods[rhsmethod] = Stokes(problemdata=problemdata, rhsmethod=rhsmethod)
-    comp = simfempy.tools.comparerrors.CompareErrors(methods, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     res = {}
     res['L2-V-cr'] = result[3]['error']['L2-V']['cr']

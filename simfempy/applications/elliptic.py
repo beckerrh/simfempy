@@ -1,6 +1,4 @@
-import time
 import numpy as np
-import simfempy.tools.analyticalsolution
 from simfempy import solvers
 from simfempy import fems
 
@@ -70,20 +68,12 @@ class Elliptic(solvers.solver.Solver):
         else: self.show_diff=False
 
     def setMesh(self, mesh):
-        self.mesh = mesh
+        super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
         self.diffcell = []
         for icomp in range(self.ncomp):
             self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
         self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
-        # print("self.bdrydata", self.bdrydata)
-        # self.bdrydata = []
-        # for icomp,bdrycond in enumerate(self.bdrycond):
-        #     colorsdir = []
-        #     for color, type in bdrycond.type.items():
-        #         if type == "Dirichlet": colorsdir.append(color)
-        #     self.bdrydata.append(self.fem.prepareBoundary(colorsdir, self.postproc[icomp]))
-        #     self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
 
     def solvestatic(self):
         return self.solveLinear()
@@ -111,8 +101,6 @@ class Elliptic(solvers.solver.Solver):
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        # info['timer'] = self.timer
-        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for icomp, postproc in enumerate(self.postproc):
             for key, val in postproc.items():
