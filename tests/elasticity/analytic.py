@@ -13,7 +13,6 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
-        h = [0.5, 0.25, 0.125]
         if exactsolution=="Linear": h = h[:-2]
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
