@@ -8,7 +8,7 @@ from simfempy.meshes import geomdefs
 
 # ----------------------------------------------------------------#
 def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
-    import simfempy.tools.comparerrors
+    import simfempy.tools.comparemethods
     bdrycond0 = simfempy.applications.problemdata.BoundaryConditions()
     bdrycond1 = simfempy.applications.problemdata.BoundaryConditions()
     postproc0 = {}
@@ -55,7 +55,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     for fem in ['p1', 'cr1']:
         for bdry in ['trad', 'new']:
             compares[fem + bdry] = Elliptic(problemdata=problemdata, fem=fem, method=bdry)
-    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     if exactsolution == "Linear": h = h[:-2]
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['L2']

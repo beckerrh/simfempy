@@ -16,7 +16,7 @@ class TableData(object):
     values : per method
     precs and types for latex
     """
-    def __init__(self, n, values, type='float', prec=3, nname='n'):
+    def __init__(self, n, values, type='float', prec=2, nname='n'):
         self.n = n
         self.values = values
         try:
@@ -66,11 +66,11 @@ class TableData(object):
                 if not values[key][i-1]:
                     p = -1
                     continue
-                try:
-                    fnd = float(n[i])/float(n[i-1])
-                    p = -dim* np.log(values[key][i]/values[key][i-1]) / np.log(fnd)
-                    # print 'n', n[i], n[i-1], values[key][i], values[key][i-1], " --> ", fnd, alpha
-                except:
+                fnd = float(n[i])/float(n[i-1])
+                vnd = values[key][i]/values[key][i-1]
+                if abs(vnd)>1e-10:
+                    p = -dim* np.log(vnd) / np.log(fnd)
+                else:
                     p=-1
                 valorder[i] = p
             values[key2] = valorder
@@ -89,22 +89,39 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-        # print(self.dirname, self.latexfilename)
-    def append(self, n, values, dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
-        if name is None:
-            name = 'table%1d' %self.countdata
+
+    # def append(self, n, values, paramname='n', dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
+    #     if name is None:
+    #         name = 'table{:d}'.format(self.countdata)
+    #     self.countdata += 1
+    #     tabledata = TableData(n=n, values=values, type=type, nname=paramname)
+    #     if diffandredrate:
+    #         if not dim: raise ValueError("needs dim to compute reduction rate")
+    #         tabledata.computeDiffs()
+    #         tabledata.computeReductionRate(dim, diff=True)
+    #     if redrate:
+    #         assert dim
+    #         tabledata.computeReductionRate(dim)
+    #     if percentage:
+    #         tabledata.computePercentage()
+    #     self.data[name] = tabledata
+
+    def append(self, **kwargs):
+        if 'name' in kwargs: name = kwargs.pop('name')
+        else: name = 'table{:d}'.format(self.countdata)
         self.countdata += 1
-        tabledata = TableData(n=n, values=values, type=type)
-        if diffandredrate:
-            assert dim
+        type = 'float'
+        if 'type' in kwargs: type = kwargs.pop('type')
+        tabledata = TableData(n=kwargs.pop('n'), values=kwargs.pop('values'), type=type, nname=kwargs.pop('paramname'))
+        if 'diffandredrate' in kwargs and kwargs.pop('diffandredrate'):
             tabledata.computeDiffs()
-            tabledata.computeReductionRate(dim, diff=True)
-        if redrate:
-            assert dim
-            tabledata.computeReductionRate(dim)
-        if percentage:
+            tabledata.computeReductionRate(kwargs.pop('dim'), diff=True)
+        if 'redrate' in kwargs and kwargs.pop('redrate'):
+            tabledata.computeReductionRate(kwargs.pop('dim'))
+        if 'percentage' in kwargs and kwargs.pop('percentage'):
             tabledata.computePercentage()
         self.data[name] = tabledata
+
     def write(self):
         self.latexfile = open(self.latexfilename, "w")
         self.writePreamble()
@@ -112,11 +129,13 @@ class LatexWriter(object):
             self.writeTable(name=key, tabledata=tabledata)
         self.writePostamble()
         self.latexfile.close()
+
     def __del__(self):
         try:
             self.latexfile.close()
         except:
             pass
+
     def writeTable(self, name, tabledata):
         n = tabledata.n
         values = tabledata.values
@@ -165,17 +184,19 @@ class LatexWriter(object):
         texte='\\end{tabular}\n\\caption{%s}' %(name.replace('_','\_'))
         texte += "\n\\end{center}\n\\label{fig:ref}\n\\end{table}\n%\n%---\n%\n" 
         self.latexfile.write(texte)
+
     def writePreamble(self, name="none", rotatenames=False):
-        texta = '\\documentclass[11pt]{article}\n\\usepackage[width=17cm, top=3mm, a4paper]{geometry}\n\\usepackage{times}\n\\usepackage{graphicx}\n\\usepackage{rotating}\n'
-        # texta = texta+'\\topmargin -2cm\n\\oddsidemargin -2cm\n\\evensidemargin -2cm\n\\textwidth 17cm\n\\textheight 19cm\n '
+        texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n\\usepackage{times}\n\\usepackage{graphicx}\n\\usepackage{rotating}\n'
         if rotatenames:
             texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
         texta = texta + self.sep + '\\begin{document}\n' + self.sep + '\n'
         self.latexfile.write(texta)
+
     def writePostamble(self):
         texte = '\n' + self.sep + '\\end{document}\n' + self.sep
         self.latexfile.write(texte)
         self.latexfile.close()
+
     def compile(self):
         import subprocess
         os.chdir(self.dirname)

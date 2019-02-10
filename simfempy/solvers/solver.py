@@ -45,7 +45,11 @@ class Solver(object):
                 if problemdata.bdrycond.type[color] == "Dirichlet":
                     problemdata.bdrycond.fct[color] = _solexactdir
                 else:
-                    problemdata.bdrycond.fct[color] = eval("self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color]))
+                    if color in problemdata.bdrycond.param:
+                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])
+                    else:
+                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color])
+                    problemdata.bdrycond.fct[color] = eval(cmd)
         return problemdata
 
     def defineAnalyticalSolution(self, exactsolution, random=True):
@@ -72,8 +76,6 @@ class Solver(object):
         self.rhs = self.problemdata.rhs
         # temporary
 
-        self.timer = simfempy.tools.timer.Timer(verbose=0)
-        self.runinfo = {'niter':0}
         self.linearsolvers=[]
         self.linearsolvers.append('umf')
         self.linearsolvers.append('lgmres')
@@ -83,6 +85,11 @@ class Solver(object):
             self.linearsolvers.append('pyamg')
         except: pass
         self.linearsolver = 'umf'
+        self.timer = simfempy.tools.timer.Timer(verbose=0)
+
+    def setMesh(self, mesh):
+        self.mesh = mesh
+        self.timer.reset()
 
     def solveLinear(self):
         self.timer.add('init')
@@ -92,17 +99,18 @@ class Solver(object):
         self.timer.add('rhs')
         # A,b,u = self.boundary(A, b, u)
         # self.timer.add('boundary')
-        u = self.linearSolver(A, b, u, solver=self.linearsolver)
+        u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         self.timer.add('solve')
         point_data, cell_data, info = self.postProcess(u)
         self.timer.add('postp')
         info['timer'] = self.timer.data
+        info['iter'] = {'lin':niter}
         return point_data, cell_data, info
 
     def linearSolver(self, A, b, u=None, solver = 'umf', verbose=1):
         if not hasattr(self, 'info'): self.info={}
         if solver == 'umf':
-            return splinalg.spsolve(A, b, permc_spec='COLAMD')
+            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
         # elif solver == 'scipy-umf_mmd':
         #     return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
         elif solver in ['gmres','lgmres','bicgstab','cg']:
@@ -111,26 +119,18 @@ class Solver(object):
             M_x = lambda x: M2.solve(x)
             M = splinalg.LinearOperator(A.shape, M_x)
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
-            self.info['runinfo'] = counter.niter
             args=""
             cmd = "u = splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(solver,args)
             exec(cmd)
-            return u
+            return u, counter.niter
         elif solver == 'pyamg':
             import pyamg
-            config = pyamg.solver_configuration(A, verb=False)
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
-            ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-            # print("ml", ml)
             res=[]
-            # if u is not None: print("u norm", np.linalg.norm(u))
-            u = ml.solve(b, x0=u, tol=1e-14, residuals=res, accel='gmres')
+            u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
-            self.info['runinfo'] = len(res)
-            return u
+            return u, len(res)
         else:
-            raise ValueError("unknown solve '{}'".format(solver))
+            raise NotImplementedError("unknown solve '{}'".format(solver))
 
     def residual(self, u):
         self.du[:]=0.0
@@ -142,27 +142,6 @@ class Solver(object):
         import pyamg
         x = pyamg.solve(self.A, b, verb=True)
         return x
-        # ilu = splinalg.spilu(self.A + 0.01*sparse.eye(self.A.shape[0]), fill_factor=2)
-        # M = splinalg.LinearOperator(shape=self.A.shape, matvec=ilu.solve)
-        # def linsolve(u):
-        #     # return self.Amg.solve(u)
-        #     print '--solve--'
-        #     return splinalg.spsolve(self.A, u)
-        # # M = None
-        # M = linalg.LinearOperator(shape=self.A.shape, matvec=linsolve)
-        #
-        # def jacobian(x, res):
-        #     print '--jac--'
-        #     self.A = self.matrix(x)
-        #     return self.A
-        #
-        # options = {'disp': True, 'jac_options': {'inner_M': M}}
-        # sol = optimize.root(self.residual, u, method='Krylov', options=options, callback=jacobian, tol=1e-12)
-        # u = optimize.newton_krylov(self.residual, u, inner_M=M, verbose=1)
-        # sol = optimize.root(self.residual, u, method='broyden2')
-        # print 'nit=', sol.nit
-        # u = sol.x
-        # u = linalg.spsolve(A, b)
 
     def newtonresidual(self, u):
         self.du = self.residual(u)

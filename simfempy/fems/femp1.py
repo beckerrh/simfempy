@@ -20,12 +20,13 @@ class FemP1(object):
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
+        self.dirichlet_al = 10
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         simps = self.mesh.simplices
-        self.cols = np.tile(simps, self.nloc).flatten()
-        self.rows = np.repeat(simps, self.nloc).flatten()
+        self.cols = np.tile(simps, self.nloc).reshape(-1)
+        self.rows = np.repeat(simps, self.nloc).reshape(-1)
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
 
@@ -70,8 +71,40 @@ class FemP1(object):
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
-        A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        rows = np.copy(self.rows)
+        cols = np.copy(self.cols)
+        mat, rows, cols = self.matrixRobin(mat, rows, cols, bdrycond, method, bdrydata)
+        A = sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
+
+    def matrixRobin(self, mat, rows, cols, bdrycond, method, bdrydata, lumped=True):
+        if lumped:
+            for color, faces in self.mesh.bdrylabels.items():
+                if bdrycond.type[color] != "Robin": continue
+                scalemass = bdrycond.param[color]/ self.mesh.dimension
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                nodes = self.mesh.faces[faces]
+                cols = np.append(cols, nodes)
+                rows = np.append(rows, nodes)
+                mass = np.repeat(scalemass*dS,self.mesh.dimension)
+                print("mass", mass)
+                mat = np.append(mat, mass)
+            return mat, rows, cols
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != "Robin": continue
+            scalemass = bdrycond.param[color] / (1+self.mesh.dimension)/self.mesh.dimension
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            nodes = self.mesh.faces[faces]
+            nloc = self.nloc-1
+            cols = np.append(cols, np.tile(nodes, nloc).reshape(-1))
+            rows = np.append(rows, np.repeat(nodes, nloc).reshape(-1))
+            massloc = np.tile(scalemass, (nloc, nloc))
+            massloc.reshape((nloc*nloc))[::nloc+1] *= 2
+            print("massloc", massloc)
+            mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
+        return mat, rows, cols
 
     def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
         b = np.zeros(self.mesh.nnodes)
@@ -82,7 +115,7 @@ class FemP1(object):
         normals =  self.mesh.normals
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Neumann": continue
+            if bdrycond.type[color] not in ["Neumann","Robin"]: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             # xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
@@ -116,12 +149,12 @@ class FemP1(object):
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             A += help
         else:
-            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
+            bdrydata.A_dir_dir = self.dirichlet_al*A[nodedirall, :][:, nodedirall]
             help = np.ones(nnodes)
             help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             help2 = np.zeros(nnodes)
-            help2[nodedirall] = 1
+            help2[nodedirall] = np.sqrt(self.dirichlet_al)
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
@@ -147,49 +180,6 @@ class FemP1(object):
             b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
             b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
         return b, u, bdrydata
-
-    def boundary(self, A, b, u, bdrycond, method, bdrydata):
-        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
-        x, y, z = self.mesh.points.T
-        nnodes = self.mesh.nnodes
-        for key, nodes in nodesdirflux.items():
-            bdrydata.bsaved[key] = b[nodes]
-        for key, nodes in nodesdirflux.items():
-            nb = nodes.shape[0]
-            help = sparse.dok_matrix((nb, nnodes))
-            for i in range(nb): help[i, nodes[i]] = 1
-            bdrydata.Asaved[key] = help.dot(A)
-        bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
-        if method == 'trad':
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                u[nodes] = b[nodes]
-            b[nodesinner] -= A[nodesinner, :][:, nodedirall] * b[nodedirall]
-            help = np.ones((nnodes))
-            help[nodedirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            A = help.dot(A.dot(help))
-            help = np.zeros((nnodes))
-            help[nodedirall] = 1.0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            A += help
-        else:
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                b[nodes] = 0
-            bdrydata.A_dir_dir = A[nodedirall, :][:, nodedirall]
-            b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
-            b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
-            help = np.ones((nnodes))
-            help[nodedirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
-            help2 = np.zeros((nnodes))
-            help2[nodedirall] = 1
-            help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
-            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, b, u, bdrydata
 
     def boundaryvec(self, b, u, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux

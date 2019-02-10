@@ -13,7 +13,7 @@ from simfempy.meshes.simplexmesh import SimplexMesh
 
 
 #=================================================================#
-class CompareErrors(object):
+class CompareMethods(object):
     """
     Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes)
     possible parameters:
@@ -25,15 +25,7 @@ class CompareErrors(object):
     """
     def __init__(self, methods, **kwargs):
         self.methods = methods
-        # check that every method solves the same problem
-        self.problemname = "none"
-        for name, method in self.methods.items():
-            if self.problemname =="none":
-                try: self.problemname = method.problemname
-                except: pass
-            else:
-                assert self.problemname == method.problemname
-        self.dirname = "Results_" + self.problemname
+        self.dirname = "Results"
         import os
         print("self.dirname=", self.dirname, "", os.getcwd())
         self.latex = True
@@ -52,13 +44,13 @@ class CompareErrors(object):
         if 'verbose' in kwargs:
             verbose = int(kwargs.pop("verbose"))
             self.latex, self.vtk, self.plot, self.plotpostprocs = False, False, False, False
-            if verbose > 1: self.latex = True
-            if verbose > 2: self.vtk = True
+            if verbose > 0: self.latex = True
+            if verbose > 1: self.vtk = True
+            if verbose > 2: self.plotpostprocs = True
             if verbose > 3: self.plot = True
-            if verbose > 4: self.plotpostprocs = True
 
-        if 'hmean' in kwargs:
-            self.hmean = kwargs.pop("hmean")
+        if 'h' in kwargs:
+            self.h = kwargs.pop("h")
             self.paramname = kwargs.pop("paramname")
         else:
             self.paramname = "ncells"
@@ -69,19 +61,22 @@ class CompareErrors(object):
         if self.paramname == "ncells":
             params = h
         else:
-            mesh = SimplexMesh(geometry=geometry, hmean=self.hmean)
+            mesh = SimplexMesh(geometry=geometry, hmean=self.h)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
                 mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)
+                # self.solver.setParameter(self.param, param)
             for name, method in self.methods.items():
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
+                if self.paramname != "ncells":
+                    method.setParameter(self.paramname, param)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.vtk:
-                    filename = "{}_{}_{:02d}.vtk".format(self.problemname, name, iter)
+                    filename = "{}_{:02d}.vtk".format(name, iter)
                     mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
@@ -115,22 +110,35 @@ class CompareErrors(object):
     def generateLatex(self, names, paramname, parameters, infos):
         latexwriter = LatexWriter(dirname=self.dirname)
         for key, val in infos.items():
-            redrate = (key=="error") and (paramname=="ncells")
-            if key == 'runinfo':
+            kwargs = {'n': parameters, 'paramname': paramname}
+            if key == 'iter':
                 newdict={}
                 for key2, val2 in val.items():
                     for name in names:
                         newdict["{}:{}".format(key2, name)] = val2[name]
-                latexwriter.append(n=parameters, values=newdict, name='{}'.format(key))
+                kwargs['name'] = '{}'.format(key)
+                kwargs['values'] = newdict
+                kwargs['type'] = 'int'
+                latexwriter.append(**kwargs)
+                # latexwriter.append(n=parameters, values=newdict, name='{}'.format(key))
             elif key == 'timer':
                 for name in names:
                     newdict={}
                     for key2, val2 in val.items():
                         newdict["{}".format(key2)] = val2[name]
-                    latexwriter.append(n=parameters, values=newdict, name='{}_{}'.format(name, key), percentage=True)
+                    kwargs['name'] = '{}_{}'.format(name, key)
+                    kwargs['values'] = newdict
+                    kwargs['percentage'] = True
+                    latexwriter.append(**kwargs)
+                    # latexwriter.append(n=parameters, values=newdict, name='{}_{}'.format(name, key), percentage=True)
             else:
+                kwargs['redrate'] = (key=="error") and (paramname=="ncells")
+                kwargs['diffandredrate'] = not kwargs['redrate'] and (paramname=="ncells")
+                kwargs['dim'] = self.dim
                 for key2, val2 in val.items():
-                    latexwriter.append(n=parameters, values=val2, name='{}_{}'.format(key,key2), dim=self.dim, redrate=redrate, diffandredrate=not redrate)
+                    kwargs['name'] = '{}_{}'.format(key,key2)
+                    kwargs['values'] = val2
+                    latexwriter.append(**kwargs)
         latexwriter.write()
         latexwriter.compile()
         
@@ -148,7 +156,7 @@ class CompareErrors(object):
         self.greens[:,1] = 1.0
         self.blues = np.outer(np.linspace(0.2,0.8,nmethods),[1,1,0])
         self.blues[:,2] = 1.0
-        singleplots = ['timer', 'runinfo']
+        singleplots = ['timer', 'iter']
         nplotsc = len(infos.keys())
         nplotsr = 0
         for key, val in infos.items():

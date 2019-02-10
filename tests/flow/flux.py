@@ -4,7 +4,7 @@ sys.path.append(fempypath)
 
 from simfempy import applications
 from simfempy.meshes import geomdefs
-import simfempy.tools.comparerrors
+import simfempy.tools.comparemethods
 
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitsquare", verbose=5):
@@ -37,7 +37,7 @@ def test_flux(geomname = "unitsquare", verbose=5):
     compares = {}
     for rhsmethod in ['cr','rt']:
         compares[rhsmethod] = applications.stokes.Stokes(problemdata=problemdata,rhsmethod=rhsmethod)
-    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     print("result", result)
 

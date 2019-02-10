@@ -77,7 +77,7 @@ class Elasticity(solvers.solver.Solver):
         else: self.method="trad"
 
     def setMesh(self, mesh):
-        self.mesh = mesh
+        super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
         self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
@@ -300,8 +300,6 @@ class Elasticity(solvers.solver.Solver):
             info['error']['L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        # info['timer'] = self.timer
-        # info['runinfo'] = self.runinfo
         info['postproc'] = {}
         for key, val in self.postproc.items():
             type,data = val.split(":")
@@ -321,17 +319,9 @@ class Elasticity(solvers.solver.Solver):
         return point_data, cell_data, info
 
     def linearSolver(self, A, b, u=None, solver = 'umf'):
-        # np.savetxt("A_{}".format(self.method),A.todense(), fmt='%6.2f',)
-        # np.savetxt("b_{}".format(self.method),b, fmt='%.10e',)
-        # print("A", A)
-        # print("b", b)
-        # print("u", u)
-        # raise NotImplementedError
-        # print("A is symmetric ? ", is_symmetric(A))
+        if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")
         if solver == 'umf':
-            return splinalg.spsolve(A, b, permc_spec='COLAMD')
-        # elif solver == 'scipy-umf_mmd':
-        #     return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
+            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
         elif solver in ['gmres','lgmres','bicgstab','cg']:
             M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
             M_x = lambda x: M2.solve(x)
@@ -341,7 +331,7 @@ class Elasticity(solvers.solver.Solver):
             if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
             cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
             exec(cmd)
-            return u
+            return u, counter.niter
         elif solver == 'pyamg':
             import pyamg
             config = pyamg.solver_configuration(A, verb=False)
@@ -353,7 +343,7 @@ class Elasticity(solvers.solver.Solver):
             # if u is not None: print("u norm", np.linalg.norm(u))
             u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
             print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
-            return u
+            return u, len(res)
         else:
             raise ValueError("unknown solve '{}'".format(solver))
 

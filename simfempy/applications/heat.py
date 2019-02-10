@@ -24,8 +24,28 @@ class Heat(solvers.solver.Solver):
             return rhs
         return _fctneumann
 
+    def defineRobinAnalyticalSolution(self, solexact, param=None):
+        if param is None: raise NotImplementedError("defineRobinAnalyticalSolution needs Robin parameter")
+        def _fctrobin(x, y, z, nx, ny, nz, diff):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += diff * solexact.d(i, x, y, z) * normals[i]
+            rhs += param*solexact(x,y,z)
+            return rhs
+        return _fctrobin
+
+    def setParameter(self, paramname, param):
+        if paramname == "dirichlet_al": self.fem.dirichlet_al = param
+        else:
+            if not hasattr(self, self.paramname):
+                raise NotImplementedError("{} has no paramater '{}'".format(self, self.paramname))
+            cmd = "self.{} = {}".format(self.paramname, param)
+            eval(cmd)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.linearsolver = 'pyamg'
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
@@ -52,8 +72,7 @@ class Heat(solvers.solver.Solver):
             self.plotk = False
 
     def setMesh(self, mesh):
-        # t0 = time.time()
-        self.mesh = mesh
+        super().setMesh(mesh)
         self.fem.setMesh(self.mesh)
         self.bdrydata = self.fem.prepareBoundary(self.bdrycond.colorsOfType("Dirichlet"), self.postproc)
         # print("bdrydata = ", self.bdrydata)
@@ -70,11 +89,6 @@ class Heat(solvers.solver.Solver):
     def matrix(self):
         A, self.bdrydata = self.fem.matrixDiffusion(self.kheatcell, self.bdrycond, self.method, self.bdrydata)
         return A
-
-    # def boundary(self, A, b, u=None):
-    #     if u is None: u = np.asarray(b)
-    #     A, b, u, self.bdrydata = self.fem.boundary(A, b, u, self.bdrycond, self.method, self.bdrydata)
-    #     return A, b, u
 
     def boundaryvec(self, b, u=None):
         if u is None: u = np.zeros_like(b)

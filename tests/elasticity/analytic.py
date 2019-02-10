@@ -8,7 +8,7 @@ from simfempy.meshes import geomdefs
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
-    import simfempy.tools.comparerrors
+    import simfempy.tools.comparemethods
     postproc = {}
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     if geomname == "unitsquare":
@@ -39,7 +39,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     for fem in ['p1']:
         for bdry in ['trad','new']:
             compares[fem+bdry] = Elasticity(problemdata=problemdata, fem=fem, method=bdry)
-    comp = simfempy.tools.comparerrors.CompareErrors(compares, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     if exactsolution == "Linear":  h = [2, 1, 0.5]
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['L2']

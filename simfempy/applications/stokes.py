@@ -85,18 +85,11 @@ class Stokes(solvers.solver.Solver):
         return _fctneumann
 
     def setMesh(self, mesh):
-        # t0 = time.time()
-        self.mesh = mesh
+        super().setMesh(mesh)
         self.femv.setMesh(self.mesh, self.ncomp)
         self.femp.setMesh(self.mesh)
-        # self.pmean = True
-        # colorsdir = []
-        # for color, type in self.bdrycond.type.items():
-        #     if type == "Dirichlet": colorsdir.append(color)
-        #     else: self.pmean = False
         self.pmean = self.bdrycond.type.values() == len(self.bdrycond.type)*"Dirichlet"
         self.bdrydata = self.femv.prepareBoundary(self.bdrycond, self.postproc)
-        # self.bdrydata = self.femv.prepareBoundary(colorsdir, self.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.pstart = self.ncomp*self.mesh.nfaces
         if self.rhsmethod == "rt":
@@ -222,10 +215,6 @@ class Stokes(solvers.solver.Solver):
             help = scipy.sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
             self.bdrydata.Asaved[key] = help.dot(A)
-            # helpB = np.zeros((ncomp*nfaces))
-            # for icomp in range(ncomp):
-            #     helpB[icomp*nfaces + facesdirall] = 0
-            # helpB = scipy.sparse.dia_matrix((helpB, 0), shape=(ncomp*nfaces, ncomp*nfaces))
             helpB = scipy.sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
             for icomp in range(ncomp):
                 for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
@@ -284,10 +273,6 @@ class Stokes(solvers.solver.Solver):
             help = scipy.sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
             self.Asaved[key] = help.dot(A)
-            # helpB = np.zeros((ncomp*nfaces))
-            # for icomp in range(ncomp):
-            #     helpB[icomp*nfaces + facesdirall] = 0
-            # helpB = scipy.sparse.dia_matrix((helpB, 0), shape=(ncomp*nfaces, ncomp*nfaces))
             helpB = scipy.sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
             for icomp in range(ncomp):
                 for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
@@ -462,7 +447,7 @@ class Stokes(solvers.solver.Solver):
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
             u =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
-            return u
+            return u, 1
         elif solver == 'gmres':
             nfaces, ncells, ncomp, pstart = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.pstart
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
@@ -497,7 +482,7 @@ class Stokes(solvers.solver.Solver):
                 P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
                 u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
                 if info: raise ValueError("no convergence info={}".format(info))
-                return u
+                return u, counter.niter
             else:
                 A, B = Ain
                 nall = ncomp*nfaces + ncells
@@ -526,6 +511,6 @@ class Stokes(solvers.solver.Solver):
                 P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
                 u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
                 if info: raise ValueError("no convergence info={}".format(info))
-                return u
+                return u, counter.niter
         else:
             raise ValueError("unknown solve '{}'".format(solver))
