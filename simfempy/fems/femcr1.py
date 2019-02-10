@@ -53,7 +53,7 @@ class FemCR1(object):
             b += self.massmatrix * bnodes
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Neumann": continue
+            if bdrycond.type[color] not in ["Neumann","Robin"]: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
@@ -72,8 +72,23 @@ class FemCR1(object):
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
-        A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        rows = np.copy(self.rows)
+        cols = np.copy(self.cols)
+        mat, rows, cols = self.matrixRobin(mat, rows, cols, bdrycond, method, bdrydata)
+        A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        # A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
+
+    def matrixRobin(self, mat, rows, cols, bdrycond, method, bdrydata):
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != "Robin": continue
+            scalemass = bdrycond.param[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            cols = np.append(cols, faces)
+            rows = np.append(rows, faces)
+            mat = np.append(mat, scalemass*dS)
+        return mat, rows, cols
 
     def prepareBoundary(self, colorsdir, postproc):
         bdrydata = simfempy.fems.bdrydata.BdryData()

@@ -14,7 +14,8 @@ def _getGeometry(geomname = "unitcube"):
         bdrycond.type[1000] = "Neumann"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Neumann"
-        bdrycond.type[1003] = "Dirichlet"
+        bdrycond.type[1003] = "Robin"
+        bdrycond.param[1003] = 1
         postproc['bdrymean'] = "bdrymean:1000,1002"
         postproc['bdrydn'] = "bdrydn:1001,1003"
         geometry = geomdefs.unitsquare.Unitsquare()
@@ -23,8 +24,10 @@ def _getGeometry(geomname = "unitcube"):
         bdrycond.type[105] = "Neumann"
         bdrycond.type[101] = "Dirichlet"
         bdrycond.type[102] = "Dirichlet"
-        bdrycond.type[103] = "Dirichlet"
-        bdrycond.type[104] = "Dirichlet"
+        bdrycond.type[103] = "Robin"
+        bdrycond.type[104] = "Robin"
+        bdrycond.param[103] = 1
+        bdrycond.param[104] = 10
         postproc['bdrymean'] = "bdrymean:100,105"
         postproc['bdrydn'] = "bdrydn:101,102,103,104"
         geometry = geomdefs.unitcube.Unitcube()
@@ -113,12 +116,12 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 
 #================================================================#
 if __name__ == '__main__':
-    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Linear', geomname = "unitcube")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")
     # r=test_dirichlet(exactsolution = 'Quadratic', geomname = "unitcube")
-    test_dirichlet(exactsolution = 'Linear', geomname = "unitsquare")
-    print("r",r)
+    # test_dirichlet(exactsolution = 'Linear', geomname = "unitsquare")
+    # print("r",r)
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")
     # test_solvers(geomname='unitsquare')
     # test_solvers()

@@ -24,6 +24,17 @@ class Heat(solvers.solver.Solver):
             return rhs
         return _fctneumann
 
+    def defineRobinAnalyticalSolution(self, solexact, param=None):
+        if param is None: raise NotImplementedError("defineRobinAnalyticalSolution needs Robin parameter")
+        def _fctrobin(x, y, z, nx, ny, nz, diff):
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.mesh.dimension):
+                rhs += diff * solexact.d(i, x, y, z) * normals[i]
+            rhs += param*solexact(x,y,z)
+            return rhs
+        return _fctrobin
+
     def setParameter(self, paramname, param):
         if paramname == "dirichlet_al": self.fem.dirichlet_al = param
         else:

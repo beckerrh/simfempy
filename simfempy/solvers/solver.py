@@ -45,7 +45,11 @@ class Solver(object):
                 if problemdata.bdrycond.type[color] == "Dirichlet":
                     problemdata.bdrycond.fct[color] = _solexactdir
                 else:
-                    problemdata.bdrycond.fct[color] = eval("self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color]))
+                    if color in problemdata.bdrycond.param:
+                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])
+                    else:
+                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color])
+                    problemdata.bdrycond.fct[color] = eval(cmd)
         return problemdata
 
     def defineAnalyticalSolution(self, exactsolution, random=True):
