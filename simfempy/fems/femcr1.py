@@ -22,13 +22,15 @@ class FemCR1(object):
             self.setMesh(mesh)
         self.dirichlet_al = 10
 
-    def setMesh(self, mesh, bdrycond):
+    def setMesh(self, mesh, bdrycond=None):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         self.cols = np.tile(self.mesh.facesOfCells, self.nloc).flatten()
         self.rows = np.repeat(self.mesh.facesOfCells, self.nloc).flatten()
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
+        if bdrycond:
+            self.robinmassmatrix = self.computeBdryMassMatrix(bdrycond, type="Robin")
 
     def computeFemMatrices(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
@@ -49,21 +51,33 @@ class FemCR1(object):
         b = np.zeros(self.mesh.nfaces)
         if rhs:
             x, y, z = self.mesh.pointsf.T
-            bnodes = rhs(x, y, z, kheatcell[0])
-            b += self.massmatrix * bnodes
+            b += self.massmatrix * rhs(x, y, z)
+
+        help = np.zeros(self.mesh.nfaces)
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != "Robin": continue
+            xf, yf, zf = self.mesh.pointsf[faces].T
+            help[faces] = bdrycond.fct[color](xf, yf, zf)
+        b += self.robinmassmatrix*help
+
         normals =  self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] not in ["Neumann","Robin"]: continue
+            if bdrycond.type[color] != "Neumann": continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
-            kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
-            assert(dS.shape[0] == len(faces))
-            assert(kS.shape[0] == len(faces))
-            # xf, yf, zf = self.pointsf[faces,0], self.pointsf[faces,1], self.pointsf[faces,2]
+            normalsS = normalsS/dS[:,np.newaxis]
             xf, yf, zf = self.mesh.pointsf[faces].T
-            nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-            bS = bdrycond.fct[color](xf, yf, zf, nx, ny, nz, kS) * dS
-            b[faces] += bS
+            nx, ny, nz = normalsS.T
+            b[faces] += bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
+        if "Robin" in bdrycond.fctexact:
+            for color, faces in self.mesh.bdrylabels.items():
+                if bdrycond.type[color] != "Robin": continue
+                normalsS = normals[faces]
+                dS = linalg.norm(normalsS,axis=1)
+                normalsS = normalsS/dS[:,np.newaxis]
+                xf, yf, zf = self.mesh.pointsf[faces].T
+                nx, ny, nz = normalsS.T
+                b[faces] += bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz) * dS
         return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
 
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):
@@ -72,23 +86,23 @@ class FemCR1(object):
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
-        rows = np.copy(self.rows)
-        cols = np.copy(self.cols)
-        mat, rows, cols = self.matrixRobin(mat, rows, cols, bdrycond, method, bdrydata)
-        A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-        # A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
 
-    def matrixRobin(self, mat, rows, cols, bdrycond, method, bdrydata):
+    def computeBdryMassMatrix(self, bdrycond, type):
+        nfaces = self.mesh.nfaces
+        rows = np.empty(shape=(0), dtype=int)
+        cols = np.empty(shape=(0), dtype=int)
+        mat = np.empty(shape=(0), dtype=float)
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Robin": continue
-            scalemass = bdrycond.param[color]
+            if bdrycond.type[color] != type: continue
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             cols = np.append(cols, faces)
             rows = np.append(rows, faces)
-            mat = np.append(mat, scalemass*dS)
-        return mat, rows, cols
+            mat = np.append(mat, bdrycond.param[color] * dS)
+        return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
 
     def prepareBoundary(self, colorsdir, postproc):
         bdrydata = simfempy.fems.bdrydata.BdryData()

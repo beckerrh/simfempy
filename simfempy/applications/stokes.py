@@ -11,10 +11,55 @@ import simfempy.tools.iterationcounter
 class Stokes(solvers.solver.Solver):
     """
     """
+
+    def generatePoblemData(self, **kwargs):
+        self.ncomp = self.mesh.dimension
+        return super().generatePoblemData(**kwargs)
+
+    def defineAnalyticalSolution(self, exactsolution, random=True):
+        solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
+        if exactsolution == 'Linear':
+            # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
+        elif exactsolution == 'Quadratic':
+            # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
+            # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
+        else:
+            raise NotImplementedError("unknown function '{}'".format(exactsolution))
+        return solexact
+
+    def defineRhsAnalyticalSolution(self, solexact):
+        print("self.mu", self.mu(0))
+        def _fctv(x, y, z):
+            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs[i] -= self.mu(0)* solexact[i].dd(j, j, x, y, z)
+                rhs[i] += solexact[self.ncomp].d(i, x, y, z)
+            return rhs
+        def _fctp(x, y, z):
+            rhs = np.zeros(x.shape[0])
+            for i in range(self.ncomp):
+                rhs += solexact[i].d(i, x, y, z)
+            return rhs
+        return _fctv, _fctp
+
+    def defineNeumannAnalyticalSolution(self, solexact):
+        def _fctneumann(x, y, z, nx, ny, nz):
+            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs[i] += self.mu(0) * solexact[i].d(j, x, y, z) * normals[j]
+                rhs[i] -= solexact[self.ncomp](x, y, z) * normals[i]
+            return rhs
+        return _fctneumann
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if 'geometry' in kwargs:
-            return
+        # if 'geometry' in kwargs:
+        #     return
         self.linearsolver = 'gmres'
         if 'fem' in kwargs:
             fem = kwargs.pop('fem')
@@ -37,52 +82,10 @@ class Stokes(solvers.solver.Solver):
             self.method = kwargs.pop('method')
         else:
             self.method = "trad"
-        self.rhsmethod = kwargs.pop('rhsmethod')
-        if self.rhsmethod == "rt":
-            self.femrt = fems.femrt0.FemRT0()
-
-    def generatePoblemData(self, **kwargs):
-        self.ncomp = self.mesh.dimension
-        return super().generatePoblemData(**kwargs)
-
-    def defineAnalyticalSolution(self, exactsolution, random=True):
-        solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
-        if exactsolution == 'Linear':
-            # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
-        elif exactsolution == 'Quadratic':
-            # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
-            # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-        else:
-            raise NotImplementedError("unknown function '{}'".format(exactsolution))
-        return solexact
-
-    def defineRhsAnalyticalSolution(self, solexact):
-        def _fctv(x, y, z, mu):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhs[i] -= mu* solexact[i].dd(j, j, x, y, z)
-                rhs[i] += solexact[self.ncomp].d(i, x, y, z)
-            return rhs
-        def _fctp(x, y, z):
-            rhs = np.zeros(x.shape[0])
-            for i in range(self.ncomp):
-                rhs += solexact[i].d(i, x, y, z)
-            return rhs
-        return _fctv, _fctp
-
-    def defineNeumannAnalyticalSolution(self, solexact):
-        def _fctneumann(x, y, z, nx, ny, nz, mu):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            normals = nx, ny, nz
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhs[i] += mu * solexact[i].d(j, x, y, z) * normals[j]
-                rhs[i] -= solexact[self.ncomp](x, y, z) * normals[i]
-            return rhs
-        return _fctneumann
+        if 'rhsmethod' in kwargs:
+            self.rhsmethod = kwargs.pop('rhsmethod')
+            if self.rhsmethod == "rt":
+                self.femrt = fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -109,7 +112,7 @@ class Stokes(solvers.solver.Solver):
         xc, yc, zc = self.mesh.pointsc.T
         if rhsp:
             b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
-        rhsall = np.array(rhsv(xf, yf, zf, self.mucell[0]))
+        rhsall = np.array(rhsv(xf, yf, zf))
         if self.rhsmethod=='rt':
             normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
             dS = linalg.norm(normals, axis=1)
@@ -130,11 +133,10 @@ class Stokes(solvers.solver.Solver):
             if condition == "Neumann":
                 normalsS = normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
-                muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
                 xf, yf, zf = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
                 if not color in self.bdrycond.fct.keys(): continue
-                neumanns = self.bdrycond.fct[color](xf, yf, zf, nx, ny, nz, self.mucell[0])
+                neumanns = self.bdrycond.fct[color](xf, yf, zf, nx, ny, nz)
                 for i in range(ncomp):
                     bS = dS * neumanns[i]
                     indices = i*nfaces + faces

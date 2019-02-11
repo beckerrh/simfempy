@@ -22,7 +22,7 @@ class FemP1(object):
             self.setMesh(mesh)
         self.dirichlet_al = 10
 
-    def setMesh(self, mesh, bdrycond):
+    def setMesh(self, mesh, bdrycond=None):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         simps = self.mesh.simplices
@@ -30,7 +30,8 @@ class FemP1(object):
         self.rows = np.repeat(simps, self.nloc).reshape(-1)
         self.computeCellGrads()
         self.massmatrix = self.computeMassMatrix()
-        self.neumannmassmatrix = self.computeBdryMassMatrix(bdrycond, type="Neumann")
+        if bdrycond:
+            self.robinmassmatrix = self.computeBdryMassMatrix(bdrycond, type="Robin")
 
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
@@ -54,20 +55,19 @@ class FemP1(object):
         if lumped:
             for color, faces in self.mesh.bdrylabels.items():
                 if bdrycond.type[color] != type: continue
-                scalemass = 1/ self.mesh.dimension
+                scalemass = bdrycond.param[color]/ self.mesh.dimension
                 normalsS = self.mesh.normals[faces]
                 dS = linalg.norm(normalsS, axis=1)
                 nodes = self.mesh.faces[faces]
                 rows = np.append(rows, nodes)
                 cols = np.append(cols, nodes)
                 mass = np.repeat(scalemass*dS,self.mesh.dimension)
-                print("mass", mass)
                 mat = np.append(mat, mass)
             return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
         else:
             for color, faces in self.mesh.bdrylabels.items():
                 if bdrycond.type[color] != type: continue
-                scalemass = 1 / (1+self.mesh.dimension)/self.mesh.dimension
+                scalemass = bdrycond.param[color] / (1+self.mesh.dimension)/self.mesh.dimension
                 normalsS = self.mesh.normals[faces]
                 dS = linalg.norm(normalsS, axis=1)
                 nodes = self.mesh.faces[faces]
@@ -106,63 +106,47 @@ class FemP1(object):
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
-        rows = np.copy(self.rows)
-        cols = np.copy(self.cols)
-        mat, rows, cols = self.matrixRobin(mat, rows, cols, bdrycond, method, bdrydata)
-        A = sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
+        A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
-
-    def matrixRobin(self, mat, rows, cols, bdrycond, method, bdrydata, lumped=True):
-        if lumped:
-            for color, faces in self.mesh.bdrylabels.items():
-                if bdrycond.type[color] != "Robin": continue
-                scalemass = bdrycond.param[color]/ self.mesh.dimension
-                normalsS = self.mesh.normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                nodes = self.mesh.faces[faces]
-                cols = np.append(cols, nodes)
-                rows = np.append(rows, nodes)
-                mass = np.repeat(scalemass*dS,self.mesh.dimension)
-                print("mass", mass)
-                mat = np.append(mat, mass)
-            return mat, rows, cols
-        for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Robin": continue
-            scalemass = bdrycond.param[color] / (1+self.mesh.dimension)/self.mesh.dimension
-            normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
-            nodes = self.mesh.faces[faces]
-            nloc = self.nloc-1
-            cols = np.append(cols, np.tile(nodes, nloc).reshape(-1))
-            rows = np.append(rows, np.repeat(nodes, nloc).reshape(-1))
-            massloc = np.tile(scalemass, (nloc, nloc))
-            massloc.reshape((nloc*nloc))[::nloc+1] *= 2
-            print("massloc", massloc)
-            mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
-        return mat, rows, cols
 
     def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
         b = np.zeros(self.mesh.nnodes)
         if rhs:
             x, y, z = self.mesh.points.T
-            bnodes = rhs(x, y, z, kheatcell[0])
-            b += self.massmatrix * bnodes
+            b += self.massmatrix * rhs(x, y, z)
+
+        help = np.zeros(self.mesh.nnodes)
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != "Robin": continue
+            nodes = np.unique(self.mesh.faces[faces].reshape(-1))
+            x, y, z = self.mesh.points[nodes].T
+            help[nodes] = bdrycond.fct[color](x, y, z)
+        b += self.robinmassmatrix*help
+
         normals =  self.mesh.normals
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] not in ["Neumann","Robin"]: continue
+            if bdrycond.type[color] != "Neumann": continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
-            # xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
-            kS = kheatcell[self.mesh.cellsOfFaces[faces,0]]
+            normalsS = normalsS/dS[:,np.newaxis]
             assert(dS.shape[0] == len(faces))
-            # assert(xS.shape[0] == len(faces))
-            assert(kS.shape[0] == len(faces))
-            # x1, y1, z1 = xS[:,0], xS[:,1], xS[:,2]
             x1, y1, z1 = self.mesh.pointsf[faces].T
-            nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-            bS = scale * bdrycond.fct[color](x1, y1, z1, nx, ny, nz, kS) * dS
+            nx, ny, nz = normalsS.T
+            bS = scale * bdrycond.fct[color](x1, y1, z1, nx, ny, nz) * dS
             np.add.at(b, self.mesh.faces[faces].T, bS)
+        if "Robin" in bdrycond.fctexact:
+            for color, faces in self.mesh.bdrylabels.items():
+                if bdrycond.type[color] != "Robin": continue
+                normalsS = normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                normalsS = normalsS / dS[:, np.newaxis]
+                assert (dS.shape[0] == len(faces))
+                x1, y1, z1 = self.mesh.pointsf[faces].T
+                nx, ny, nz = normalsS.T
+                bS = scale * bdrycond.fctexact["Neumann"](x1, y1, z1, nx, ny, nz) * dS
+                np.add.at(b, self.mesh.faces[faces].T, bS)
         return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
 
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):

@@ -41,15 +41,23 @@ class Solver(object):
             else:
                 def _solexactdir(x, y, z):
                     return problemdata.solexact(x, y, z)
+            types = set(problemdata.bdrycond.types())
+            types.discard("Dirichlet")
+            problemdata.bdrycond.fctexact = {}
+            for type in types:
+                cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
+                problemdata.bdrycond.fctexact[type] = eval(cmd)
+
             for color in self.mesh.bdrylabels:
                 if problemdata.bdrycond.type[color] == "Dirichlet":
                     problemdata.bdrycond.fct[color] = _solexactdir
                 else:
-                    if color in problemdata.bdrycond.param:
-                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])
-                    else:
-                        cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color])
-                    problemdata.bdrycond.fct[color] = eval(cmd)
+                    # if color in problemdata.bdrycond.param:
+                    #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])
+                    # else:
+                    #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color])
+                    # problemdata.bdrycond.fct[color] = eval(cmd)
+                    problemdata.bdrycond.fct[color] = problemdata.bdrycond.fctexact[bdrycond.type[color]]
         return problemdata
 
     def defineAnalyticalSolution(self, exactsolution, random=True):

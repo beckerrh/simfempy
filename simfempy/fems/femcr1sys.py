@@ -16,8 +16,10 @@ except ModuleNotFoundError:
 
 #=================================================================#
 class FemCR1(femcr1.FemCR1):
+
     def __init__(self, mesh=None):
         super().__init__(mesh)
+
     def setMesh(self, mesh, ncomp):
         super().setMesh(mesh)
         self.ncomp = ncomp

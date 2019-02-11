@@ -24,6 +24,9 @@ class BoundaryConditions(object):
     def colors(self):
         return self.type.keys()
 
+    def types(self):
+        return self.type.values()
+
     def colorsOfType(self, type):
         colors = []
         for color, typeofcolor in self.type.items():

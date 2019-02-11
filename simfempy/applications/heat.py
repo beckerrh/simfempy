@@ -8,32 +8,24 @@ class Heat(solvers.solver.Solver):
     """
     """
     def defineRhsAnalyticalSolution(self, solexact):
-        def _fctu(x, y, z, diff):
+        def _fctu(x, y, z):
             rhs = np.zeros(x.shape[0])
             for i in range(self.mesh.dimension):
-                rhs -= diff * solexact.dd(i, i, x, y, z)
+                rhs -= self.kheat(0) * solexact.dd(i, i, x, y, z)
             return rhs
         return _fctu
 
     def defineNeumannAnalyticalSolution(self, solexact):
-        def _fctneumann(x, y, z, nx, ny, nz, diff):
+        def _fctneumann(x, y, z, nx, ny, nz):
             rhs = np.zeros(x.shape[0])
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
-                rhs += diff * solexact.d(i, x, y, z) * normals[i]
+                rhs += self.kheat(0) * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctneumann
 
-    def defineRobinAnalyticalSolution(self, solexact, param=None):
-        if param is None: raise NotImplementedError("defineRobinAnalyticalSolution needs Robin parameter")
-        def _fctrobin(x, y, z, nx, ny, nz, diff):
-            rhs = np.zeros(x.shape[0])
-            normals = nx, ny, nz
-            for i in range(self.mesh.dimension):
-                rhs += diff * solexact.d(i, x, y, z) * normals[i]
-            rhs += param*solexact(x,y,z)
-            return rhs
-        return _fctrobin
+    def defineRobinAnalyticalSolution(self, solexact):
+        return solexact
 
     def setParameter(self, paramname, param):
         if paramname == "dirichlet_al": self.fem.dirichlet_al = param
