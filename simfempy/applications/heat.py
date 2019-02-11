@@ -73,7 +73,7 @@ class Heat(solvers.solver.Solver):
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        self.fem.setMesh(self.mesh)
+        self.fem.setMesh(self.mesh, self.bdrycond)
         self.bdrydata = self.fem.prepareBoundary(self.bdrycond.colorsOfType("Dirichlet"), self.postproc)
         # print("bdrydata = ", self.bdrydata)
         self.kheatcell = self.kheat(self.mesh.cell_labels)

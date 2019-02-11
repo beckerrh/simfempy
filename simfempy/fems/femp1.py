@@ -21,28 +21,63 @@ class FemP1(object):
         if mesh is not None:
             self.setMesh(mesh)
         self.dirichlet_al = 10
-    def setMesh(self, mesh):
+
+    def setMesh(self, mesh, bdrycond):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         simps = self.mesh.simplices
         self.cols = np.tile(simps, self.nloc).reshape(-1)
         self.rows = np.repeat(simps, self.nloc).reshape(-1)
-        self.computeFemMatrices()
-        self.massmatrix = self.massMatrix()
+        self.computeCellGrads()
+        self.massmatrix = self.computeMassMatrix()
+        self.neumannmassmatrix = self.computeBdryMassMatrix(bdrycond, type="Neumann")
 
-    def computeFemMatrices(self):
+    def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
         # print("dV", np.where(dV<0.001))
         self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
+
+    def computeMassMatrix(self, lumped=False):
+        nnodes = self.mesh.nnodes
         scalemass = 1 / self.nloc / (self.nloc+1);
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
-        self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
+        mass = np.einsum('n,kl->nkl', self.mesh.dV, massloc).flatten()
+        return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
-    def massMatrix(self):
+    def computeBdryMassMatrix(self, bdrycond, type, lumped=False):
         nnodes = self.mesh.nnodes
-        return sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        rows = np.empty(shape=(0), dtype=int)
+        cols = np.empty(shape=(0), dtype=int)
+        mat = np.empty(shape=(0), dtype=float)
+        if lumped:
+            for color, faces in self.mesh.bdrylabels.items():
+                if bdrycond.type[color] != type: continue
+                scalemass = 1/ self.mesh.dimension
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                nodes = self.mesh.faces[faces]
+                rows = np.append(rows, nodes)
+                cols = np.append(cols, nodes)
+                mass = np.repeat(scalemass*dS,self.mesh.dimension)
+                print("mass", mass)
+                mat = np.append(mat, mass)
+            return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
+        else:
+            for color, faces in self.mesh.bdrylabels.items():
+                if bdrycond.type[color] != type: continue
+                scalemass = 1 / (1+self.mesh.dimension)/self.mesh.dimension
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                nodes = self.mesh.faces[faces]
+                nloc = self.nloc-1
+                rows = np.append(rows, np.repeat(nodes, nloc).reshape(-1))
+                cols = np.append(cols, np.tile(nodes, nloc).reshape(-1))
+                massloc = np.tile(scalemass, (nloc, nloc))
+                massloc.reshape((nloc*nloc))[::nloc+1] *= 2
+                mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
+            return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
 
     def prepareBoundary(self, colorsdir, postproc):
         bdrydata = simfempy.fems.bdrydata.BdryData()

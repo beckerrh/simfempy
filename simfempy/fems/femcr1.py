@@ -22,7 +22,7 @@ class FemCR1(object):
             self.setMesh(mesh)
         self.dirichlet_al = 10
 
-    def setMesh(self, mesh):
+    def setMesh(self, mesh, bdrycond):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         self.cols = np.tile(self.mesh.facesOfCells, self.nloc).flatten()
