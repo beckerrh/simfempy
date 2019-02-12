@@ -30,7 +30,7 @@ class Solver(object):
             if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
             for color in self.mesh.bdrylabels:
                 for icomp,bcs in enumerate(problemdata.bdrycond):
-                    if bcs.type[color] == "Dirichlet":
+                    if bcs.type[color] in ["Dirichlet","Robin"]:
                         bcs.fct[color] = problemdata.solexact[icomp]
                     else:
                         bcs.fct[color] = eval("self.define{}AnalyticalSolution_{:d}(problemdata.solexact)".format(bcs.type[color],icomp))
@@ -43,12 +43,15 @@ class Solver(object):
                     return problemdata.solexact(x, y, z)
             types = set(problemdata.bdrycond.types())
             types.discard("Dirichlet")
+            # types.discard("Robin")
+            types.add("Neumann")
             problemdata.bdrycond.fctexact = {}
             for type in types:
                 cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
                 problemdata.bdrycond.fctexact[type] = eval(cmd)
 
             for color in self.mesh.bdrylabels:
+                # if problemdata.bdrycond.type[color] in ["Dirichlet","Robin"]:
                 if problemdata.bdrycond.type[color] == "Dirichlet":
                     problemdata.bdrycond.fct[color] = _solexactdir
                 else:

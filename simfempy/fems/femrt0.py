@@ -26,29 +26,19 @@ class FemRT0(object):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
-        facesofcells = self.mesh.facesOfCells
-        self.rows = np.repeat(facesofcells, self.nloc).flatten()
-        self.cols = np.tile(facesofcells, self.nloc).flatten()
+        # facesofcells = self.mesh.facesOfCells
+        # self.rows = np.repeat(facesofcells, self.nloc).flatten()
+        # self.cols = np.tile(facesofcells, self.nloc).flatten()
         self.Mtocell = self.toCellMatrix()
-        # self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
 
 
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
         dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
-        # ps = p[simp]
-        # print("ps.shape", ps.shape)
-        # print("ps", ps)
         ps = p[simp][:,:,:dim]
-        # print("ps.shape", ps.shape)
-        # print("ps", ps)
         ps2 = np.transpose(ps, axes=(2,0,1))
-        # print("ps2.shape", ps2.shape)
-        # print("ps2", ps2)
         pc2 = np.repeat(pc[:,:dim].T[:, :, np.newaxis], nloc, axis=2)
-        # print("pc2.shape", pc2.shape)
-        # print("pc2", pc2)
         pd = pc2 -ps2
         rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),nloc)
         cols = np.tile(facesofcells.ravel(), dim)
@@ -56,17 +46,15 @@ class FemRT0(object):
         return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
 
     def toCell(self, v):
-        # print("self.Mtocell.shape", self.Mtocell.shape, "v.shape", v.shape)
         return self.Mtocell.dot(v)
 
-    def constructMass(self):
+    def constructMass(self, diffcell):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
         scalea = 1 / dim / dim / (dim + 2) / (dim + 1)
         scaleb = 1 / dim / dim / (dim + 2) * (dim + 1)
         scalec = 1 / dim / dim
         dS = sigma * linalg.norm(normals[facesofcells], axis=2)
-        # print("p[simp].shape", p[simp].shape)
         x1 = scalea *np.einsum('nij,nij->n', p[simp], p[simp]) + scaleb* np.einsum('ni,ni->n', pc, pc)
         mat = np.einsum('ni,nj, n->nij', dS, dS, x1)
         x2 = scalec *np.einsum('nik,njk->nij', p[simp], p[simp])
@@ -74,13 +62,53 @@ class FemRT0(object):
         x3 = - scalec * np.einsum('nik,nk->ni', p[simp], pc)
         mat += np.einsum('ni,nj,ni->nij', dS, dS, x3)
         mat += np.einsum('ni,nj,nj->nij', dS, dS, x3)
-        mat = np.einsum("nij, n -> nij", mat, 1/dV)
-        return sparse.coo_matrix((mat.flatten(), (self.rows, self.cols)), shape=(nfaces, nfaces))
+        mat = np.einsum("nij, n -> nij", mat, 1/dV/diffcell)
+        rows = np.repeat(facesofcells, self.nloc).flatten()
+        cols = np.tile(facesofcells, self.nloc).flatten()
+        return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+
+    def constructRobin(self, bdrycond, type):
+        nfaces = self.mesh.nfaces
+        rows = np.empty(shape=(0), dtype=int)
+        cols = np.empty(shape=(0), dtype=int)
+        mat = np.empty(shape=(0), dtype=float)
+        for color, faces in self.mesh.bdrylabels.items():
+            if bdrycond.type[color] != type: continue
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            cols = np.append(cols, faces)
+            rows = np.append(rows, faces)
+            mat = np.append(mat, 1/bdrycond.param[color] * dS)
+        return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+
 
     def constructDiv(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         rows = np.repeat(np.arange(ncells), self.nloc)
         cols = facesofcells.flatten()
         mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).flatten()
-        return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces))
+        return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces)).tocsr()
 
+    def matrixNeumann(self, A, B, bdrycond):
+        nfaces = self.mesh.nfaces
+        bdrydata = simfempy.fems.bdrydata.BdryData()
+        bdrydata.facesneumann = np.empty(shape=(0), dtype=int)
+        bdrydata.colorsneum = bdrycond.colorsOfType("Neumann")
+        for color in bdrydata.colorsneum:
+            bdrydata.facesneumann = np.unique(np.union1d(bdrydata.facesneumann, self.mesh.bdrylabels[color]))
+        bdrydata.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int), bdrydata.facesneumann)
+
+        bdrydata.B_inner_neum = B[:, :][:, bdrydata.facesneumann]
+        help = np.ones(nfaces)
+        help[bdrydata.facesneumann] = 0
+        help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+        B = B.dot(help)
+
+        bdrydata.A_inner_neum = A[bdrydata.facesinner, :][:, bdrydata.facesneumann]
+        bdrydata.A_neum_neum = A[bdrydata.facesneumann, :][:, bdrydata.facesneumann]
+        help2 = np.zeros((nfaces))
+        help2[bdrydata.facesneumann] = 1
+        help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
+        A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+
+        return bdrydata, A, B

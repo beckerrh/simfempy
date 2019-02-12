@@ -27,8 +27,9 @@ class Elasticity(solvers.solver.Solver):
         return super().generatePoblemData(**kwargs)
 
     def defineRhsAnalyticalSolution(self, solexact):
-        def _fctu(x, y, z, mu, lam):
+        def _fctu(x, y, z):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            mu, lam = self.mu(0), self.lam(0)
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
@@ -37,9 +38,10 @@ class Elasticity(solvers.solver.Solver):
         return _fctu
 
     def defineNeumannAnalyticalSolution(self, solexact):
-        def _fctneumann(x, y, z, nx, ny, nz, mu, lam):
+        def _fctneumann(x, y, z, nx, ny, nz):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
+            mu, lam = self.mu(0), self.lam(0)
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] += lam * solexact[j].d(j, x, y, z) * normals[i]
@@ -50,8 +52,8 @@ class Elasticity(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if 'geometry' in kwargs:
-            return
+        # if 'geometry' in kwargs:
+        #     return
         self.linearsolver = 'pyamg'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         else: fem='p1'
@@ -91,7 +93,7 @@ class Elasticity(solvers.solver.Solver):
         b = np.zeros(self.mesh.nnodes * self.ncomp)
         if self.rhs:
             x, y, z = self.mesh.points.T
-            rhsall = self.rhs(x, y, z, self.mucell[0], self.lamcell[0])
+            rhsall = self.rhs(x, y, z)
             for i in range(ncomp):
                 b[i::self.ncomp] = self.fem.massmatrix * rhsall[i]
         normals = self.mesh.normals
@@ -101,14 +103,10 @@ class Elasticity(solvers.solver.Solver):
             normalsS = normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
-            # lamS = self.lamcell[self.mesh.cellsOfFaces[faces, 0]]
-            # muS = self.mucell[self.mesh.cellsOfFaces[faces, 0]]
-            lamS = self.lamcell[0]
-            muS = self.mucell[0]
             x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
             nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
             if not color in self.bdrycond.fct.keys(): continue
-            neumanns = self.bdrycond.fct[color](x1, y1, z1, nx, ny, nz, muS, lamS)
+            neumanns = self.bdrycond.fct[color](x1, y1, z1, nx, ny, nz)
             for i in range(ncomp):
                 bS = scale * dS * neumanns[i]
                 indices = i + self.ncomp * self.mesh.faces[faces]

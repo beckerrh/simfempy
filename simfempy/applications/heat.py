@@ -24,9 +24,6 @@ class Heat(solvers.solver.Solver):
             return rhs
         return _fctneumann
 
-    def defineRobinAnalyticalSolution(self, solexact):
-        return solexact
-
     def setParameter(self, paramname, param):
         if paramname == "dirichlet_al": self.fem.dirichlet_al = param
         else:
