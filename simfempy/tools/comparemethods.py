@@ -163,7 +163,7 @@ class CompareMethods(object):
             if key in singleplots: number=1
             else: number=len(val.keys())
             nplotsr = max(nplotsr, number)
-        fig, axs = plt.subplots(nplotsr, nplotsc, figsize=(nplotsc * 4, nplotsr * 4), squeeze=False)
+        fig, axs = plt.subplots(nplotsr, nplotsc, figsize=(nplotsc * 3, nplotsr * 3), squeeze=False)
         cc = 0
         for key, val in infos.items():
             cr = 0

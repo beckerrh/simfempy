@@ -48,6 +48,7 @@ class LaplaceMixed(solvers.solver.Solver):
         super().setMesh(mesh)
         self.femv.setMesh(mesh)
         self.diffcell = self.diff(self.mesh.cell_labels)
+        self.diffcellinv = 1/self.diffcell
 
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -57,11 +58,13 @@ class LaplaceMixed(solvers.solver.Solver):
         info = {}
         cell_data = {'p': u[nfaces:]}
         vc = self.femv.toCell(u[:nfaces])
+        pn = self.femv.reconstruct(u[nfaces:], vc, self.diffcellinv)
         for i in range(dim):
             cell_data['v{:1d}'.format(i)] = vc[i::dim]
         point_data = {}
+        point_data['p_1'] = pn
         if self.problemdata.solexact:
-            err, pe, vexx = self.computeError(self.problemdata.solexact, u[nfaces:], vc)
+            err, pe, vexx = self.computeError(self.problemdata.solexact, u[nfaces:], vc, pn)
             cell_data['perr'] = np.abs(pe - u[nfaces:])
             for i in range(dim):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
@@ -71,7 +74,7 @@ class LaplaceMixed(solvers.solver.Solver):
             for key, val in self.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
-                    info['postproc'][key] = self.computeBdryMean(u, key, data)
+                    info['postproc'][key] = self.computeBdryMean(pn, key, data)
                 elif type == "bdryfct":
                     info['postproc'][key] = self.computeBdryFct(u, key, data)
                 elif type == "bdrydn":
@@ -83,12 +86,29 @@ class LaplaceMixed(solvers.solver.Solver):
         return point_data, cell_data, info
 
     def computeBdryDn(self, u, key, data):
-        return None
+        colors = [int(x) for x in data.split(',')]
+        mean, omega = 0, 0
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega += np.sum(dS)
+            mean += np.sum(dS*u[faces])
+        return mean
+        return mean/omega
 
-    def computeBdryMean(self, u, key, data):
-        return None
+    def computeBdryMean(self, pn, key, data):
+        colors = [int(x) for x in data.split(',')]
+        mean, omega = 0, 0
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega += np.sum(dS)
+            mean += np.sum(dS*np.mean(pn[self.mesh.faces[faces]],axis=1))
+        return mean/omega
 
-    def computeError(self, solexact, p, vc):
+    def computeError(self, solexact, p, vc, pn):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
         errors = {}
         xc, yc, zc = self.mesh.pointsc.T
@@ -103,6 +123,12 @@ class LaplaceMixed(solvers.solver.Solver):
         errv = np.sqrt(errv)
         errors['pcL2'] = errp
         errors['vcL2'] = errv
+
+        x, y, z = self.mesh.points.T
+        epn = solexact(x, y, z) - pn
+        epn = epn**2
+        epn= np.mean(epn[self.mesh.simplices], axis=1)
+        errors['pnL2'] = np.sqrt(np.sum(epn* self.mesh.dV))
         return errors, pex, vexx
 
     def computeRhs(self, u=None):
@@ -145,7 +171,7 @@ class LaplaceMixed(solvers.solver.Solver):
         return b,u
 
     def matrix(self):
-        A = self.femv.constructMass(self.diffcell)
+        A = self.femv.constructMass(self.diffcellinv)
         A += self.femv.constructRobin(self.bdrycond, "Robin")
         B = self.femv.constructDiv()
         self.bdrydata, A,B = self.femv.matrixNeumann(A, B, self.bdrycond)

@@ -50,7 +50,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    # test_analytic(exactsolution="Linear")
+    # test_analytic(exactsolution="Quadratic", verbose=5)
     # test_analytic(exactsolution="Linear", geomname="unitcube")
     # test_analytic()
     test_analytic(geomname="unitcube")
