@@ -117,8 +117,8 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
-    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
-    test_analytic(exactsolution = 'Linear', geomname = "unitcube")
+    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    # test_analytic(exactsolution = 'Linear', geomname = "unitcube")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")
     # r=test_dirichlet(exactsolution = 'Quadratic', geomname = "unitcube")
     # test_dirichlet(exactsolution = 'Linear', geomname = "unitsquare")

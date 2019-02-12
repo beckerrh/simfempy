@@ -136,7 +136,7 @@ class FemP1(object):
             nx, ny, nz = normalsS.T
             bS = scale * bdrycond.fct[color](x1, y1, z1, nx, ny, nz) * dS
             np.add.at(b, self.mesh.faces[faces].T, bS)
-        if "Robin" in bdrycond.fctexact:
+        if bdrycond.hasExactSolution():
             for color, faces in self.mesh.bdrylabels.items():
                 if bdrycond.type[color] != "Robin": continue
                 normalsS = normals[faces]

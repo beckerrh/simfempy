@@ -43,7 +43,7 @@ class Solver(object):
                     return problemdata.solexact(x, y, z)
             types = set(problemdata.bdrycond.types())
             types.discard("Dirichlet")
-            # types.discard("Robin")
+            types.discard("Robin")
             types.add("Neumann")
             problemdata.bdrycond.fctexact = {}
             for type in types:
@@ -51,9 +51,9 @@ class Solver(object):
                 problemdata.bdrycond.fctexact[type] = eval(cmd)
 
             for color in self.mesh.bdrylabels:
-                # if problemdata.bdrycond.type[color] in ["Dirichlet","Robin"]:
-                if problemdata.bdrycond.type[color] == "Dirichlet":
-                    problemdata.bdrycond.fct[color] = _solexactdir
+                if problemdata.bdrycond.type[color] in ["Dirichlet","Robin"]:
+                # if problemdata.bdrycond.type[color] == "Dirichlet":
+                        problemdata.bdrycond.fct[color] = _solexactdir
                 else:
                     # if color in problemdata.bdrycond.param:
                     #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])

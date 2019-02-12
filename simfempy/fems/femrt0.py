@@ -48,7 +48,7 @@ class FemRT0(object):
     def toCell(self, v):
         return self.Mtocell.dot(v)
 
-    def constructMass(self, diffcell):
+    def constructMass(self, diffcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
         scalea = 1 / dim / dim / (dim + 2) / (dim + 1)
@@ -62,7 +62,11 @@ class FemRT0(object):
         x3 = - scalec * np.einsum('nik,nk->ni', p[simp], pc)
         mat += np.einsum('ni,nj,ni->nij', dS, dS, x3)
         mat += np.einsum('ni,nj,nj->nij', dS, dS, x3)
-        mat = np.einsum("nij, n -> nij", mat, 1/dV/diffcell)
+        if diffcell is None:
+            mat = np.einsum("nij, n -> nij", mat, 1/dV)
+        else:
+            print("diffcell.shape", diffcell.shape)
+            mat = np.einsum("nij, n -> nij", mat, 1 / dV / diffcell)
         rows = np.repeat(facesofcells, self.nloc).flatten()
         cols = np.tile(facesofcells, self.nloc).flatten()
         return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()

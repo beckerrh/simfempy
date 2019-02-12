@@ -21,6 +21,9 @@ class BoundaryConditions(object):
     def __repr__(self):
         return "types={} fct={} param={}".format(self.type, self.fct, self.param)
 
+    def hasExactSolution(self):
+        return hasattr(self, 'fctexact')
+
     def colors(self):
         return self.type.keys()
 

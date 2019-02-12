@@ -82,6 +82,12 @@ class LaplaceMixed(solvers.solver.Solver):
                     raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         return point_data, cell_data, info
 
+    def computeBdryDn(self, u, key, data):
+        return None
+
+    def computeBdryMean(self, u, key, data):
+        return None
+
     def computeError(self, solexact, p, vc):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
         errors = {}
@@ -124,7 +130,7 @@ class LaplaceMixed(solvers.solver.Solver):
         bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
 
         # for robin-exactsolution
-        if "Robin" in self.bdrycond.fctexact:
+        if self.bdrycond.hasExactSolution():
             for color, faces in self.mesh.bdrylabels.items():
                 if self.bdrycond.type[color] != "Robin": continue
                 normalsS = self.mesh.normals[faces]

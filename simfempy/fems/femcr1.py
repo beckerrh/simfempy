@@ -69,7 +69,7 @@ class FemCR1(object):
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
             b[faces] += bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
-        if "Robin" in bdrycond.fctexact:
+        if bdrycond.hasExactSolution():
             for color, faces in self.mesh.bdrylabels.items():
                 if bdrycond.type[color] != "Robin": continue
                 normalsS = normals[faces]
