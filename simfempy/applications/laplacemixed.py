@@ -4,6 +4,8 @@ import scipy.sparse
 import scipy.sparse.linalg as splinalg
 import simfempy
 from simfempy import solvers
+import simfempy.tools.iterationcounter
+
 
 #=================================================================#
 class LaplaceMixed(solvers.solver.Solver):
@@ -31,7 +33,7 @@ class LaplaceMixed(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolver = "gmres2"
+        self.linearsolver = "gmres"
         self.femv = simfempy.fems.femrt0.FemRT0()
         if 'diff' in kwargs:
             self.diff = np.vectorize(kwargs.pop('diff'))
@@ -64,6 +66,20 @@ class LaplaceMixed(solvers.solver.Solver):
             for i in range(dim):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
             info['error'] = err
+        info['postproc'] = {}
+        if self.postproc:
+            for key, val in self.postproc.items():
+                type,data = val.split(":")
+                if type == "bdrymean":
+                    info['postproc'][key] = self.computeBdryMean(u, key, data)
+                elif type == "bdryfct":
+                    info['postproc'][key] = self.computeBdryFct(u, key, data)
+                elif type == "bdrydn":
+                    info['postproc'][key] = self.computeBdryDn(u, key, data)
+                elif type == "pointvalues":
+                    info['postproc'][key] = self.computePointValues(u, key, data)
+                else:
+                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         return point_data, cell_data, info
 
     def computeError(self, solexact, p, vc):
@@ -103,11 +119,9 @@ class LaplaceMixed(solvers.solver.Solver):
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
             help[faces] += self.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz)
-        print("self.bdrydata.facesneumann", self.bdrydata.facesneumann.shape)
-        print("self.bdrydata.A_neum_neum", self.bdrydata.A_neum_neum.shape)
-        bsides[self.bdrydata.facesinner] += self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
+        bsides[self.bdrydata.facesinner] -= self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
         bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
-        bcells += self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
+        bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
 
         # for robin-exactsolution
         if "Robin" in self.bdrycond.fctexact:
@@ -146,14 +160,7 @@ class LaplaceMixed(solvers.solver.Solver):
             Aall = self._to_single_matrix(Ain)
             return splinalg.spsolve(Aall, bin, permc_spec='COLAMD'), 1
         elif solver == 'gmres':
-            counter = simfempy.solvers.solver.IterationCounter(name=solver)
-            Aall = self._to_single_matrix(Ain)
-            u,info = splinalg.lgmres(Aall, bin, callback=counter, inner_m=20, outer_k=4, atol=1e-10)
-            if info: raise ValueError("no convergence info={}".format(info))
-            return u, counter.niter
-        elif solver == 'gmres2':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
-            import simfempy.tools.iterationcounter
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
             # Aall = self._to_single_matrix(Ain)
             # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
@@ -166,7 +173,6 @@ class LaplaceMixed(solvers.solver.Solver):
             import pyamg
             config = pyamg.solver_configuration(S, verb=False)
             ml = pyamg.rootnode_solver(S, B=config['B'], smooth='energy')
-            # Silu = splinalg.spilu(S)
             # Ailu = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
             def amult(x):
                 v,p = x[:nfaces],x[nfaces:]
@@ -181,7 +187,6 @@ class LaplaceMixed(solvers.solver.Solver):
                 # w = w - Ailu.solve(B.T.dot(q))
                 return np.hstack( [w, q] )
             P = splinalg.LinearOperator(shape=(nfaces+ncells,nfaces+ncells), matvec=pmult)
-            # u,info = splinalg.gmres(Amult, bin, M=P, callback=counter, atol=1e-10, restart=5)
             u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-12, tol=1e-12, inner_m=10, outer_k=4)
             if info: raise ValueError("no convergence info={}".format(info))
             return u, counter.niter

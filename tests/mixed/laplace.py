@@ -24,18 +24,20 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
         bdrycond.type[1003] = "Robin"
         bdrycond.param[1003] = 11
         postproc['bdrydn'] = "bdrydn:1000,1001"
+        postproc['bdrymean'] = "bdrymean:1002"
         geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
         bdrycond.type[100] = "Dirichlet"
         bdrycond.type[105] = "Dirichlet"
-        bdrycond.type[101] = "Dirichlet"
-        bdrycond.type[102] = "Dirichlet"
+        bdrycond.type[101] = "Neumann"
+        bdrycond.type[102] = "Neumann"
         bdrycond.type[103] = "Robin"
         bdrycond.type[104] = "Robin"
         bdrycond.param[103] = 1
         bdrycond.param[104] = 10
         postproc['bdrydn'] = "bdrydn:100,105"
+        postproc['bdrymean'] = "bdrymean:101,102"
         geometry = geomdefs.unitcube.Unitcube()
     laplace = LaplaceMixed(geometry=geometry, showmesh=False)
     problemdata = laplace.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
@@ -48,5 +50,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    test_analytic(exactsolution="Linear")
+    # test_analytic(exactsolution="Linear")
+    # test_analytic(exactsolution="Linear", geomname="unitcube")
     # test_analytic()
+    test_analytic(geomname="unitcube")
