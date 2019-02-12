@@ -17,7 +17,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     if geomname == "unitsquare":
-        h = [1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
+        h = [2, 1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
         bdrycond.type[1002] = "Neumann"
@@ -52,5 +52,5 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
 if __name__ == '__main__':
     # test_analytic(exactsolution="Quadratic", verbose=5)
     # test_analytic(exactsolution="Linear", geomname="unitcube")
-    # test_analytic()
-    test_analytic(geomname="unitcube")
+    test_analytic()
+    # test_analytic(geomname="unitcube")

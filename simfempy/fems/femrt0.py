@@ -71,19 +71,35 @@ class FemRT0(object):
         return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
 
     def reconstruct(self, p, vc, diffinv):
-        nnodes, ncells = self.mesh.nnodes, self.mesh.ncells
-        nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
+        nnodes, ncells, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension
         if len(diffinv.shape) != 1:
             raise NotImplemented("only scalar diffusion the time being")
-        pn = np.zeros(nnodes)
-        cn = np.zeros(nnodes, dtype=int)
-        for ic in range(ncells):
-            grad = diffinv[ic]*vc[dim*ic:dim*(ic+1)]
-            for i in self.mesh.simplices[ic]:
-                xd = self.mesh.points[i,:dim] - self.mesh.pointsc[ic,:dim]
-                pn[i] += p[ic]+ np.dot(grad,xd)
-                cn[i] += 1
-        return pn/cn
+
+        counts = np.bincount(self.mesh.simplices.reshape(-1))
+
+        # timer = simfempy.tools.timer.Timer("toto")
+        # pn = np.zeros(nnodes)
+        # np.add.at(pn, self.mesh.simplices.T, p)
+        # for ic in range(ncells):
+        #     grad = diffinv[ic]*vc[dim*ic:dim*(ic+1)]
+        #     for i in self.mesh.simplices[ic]:
+        #         xd = self.mesh.points[i,:dim] - self.mesh.pointsc[ic,:dim]
+        #         pn[i] += np.dot(grad, xd)
+        # pn = pn/counts
+        # timer.add("assemble")
+
+        pn2 = np.zeros(nnodes)
+        xdiff = self.mesh.points[self.mesh.simplices, :dim] - self.mesh.pointsc[:, np.newaxis,:dim]
+        rows = np.repeat(self.mesh.simplices,dim)
+        cols = np.repeat(dim*np.arange(ncells),dim*(dim+1)).reshape(ncells * (dim+1), dim) + np.arange(dim)
+        mat = np.einsum("nij, n -> nij", xdiff, diffinv)
+        A = sparse.coo_matrix((mat.reshape(-1), (rows.reshape(-1), cols.reshape(-1))), shape=(nnodes, dim*ncells)).tocsr()
+        np.add.at(pn2, self.mesh.simplices.T, p)
+        pn2 += A*vc
+        pn2 /= counts
+        # timer.add("sparse")
+        # assert np.allclose(pn,pn2)
+        return pn2
 
 
     def constructRobin(self, bdrycond, type):
