@@ -289,8 +289,9 @@ class FemP1(object):
     def computePointValues(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
+
         for i,color in enumerate(colors):
-            nodes = self.mesh.vertices[self.mesh.vertex_labels==color]
+            nodes = self.mesh.vertices[self.mesh.veretexoflabel[color]]
             up[i] = u[nodes]
         return up
 # ------------------------------------- #

@@ -59,14 +59,15 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
     # print("code", geometry.get_code())
     data = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
-    bdrycond = simfempy.applications.problemdata.BoundaryConditions(mesh.bdrylabels.keys())
+    bdrycond = simfempy.applications.problemdata.BoundaryConditions()
     bdrycond.type[1002] = "Neumann"
     bdrycond.type[1000] = "Dirichlet"
     bdrycond.type[1001] = "Dirichlet"
     bdrycond.type[1003] = "Dirichlet"
-    bdrycond.fct[1002] = lambda x, y, z, nx, ny, nz, k: 0
+    bdrycond.fct[1002] = lambda x, y, z, nx, ny, nz: 0
     bdrycond.fct[1000] = lambda x, y, z: 333
     bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x, y, z: 293
+    bdrycond.check(mesh.bdrylabels.keys())
     postproc = {}
     postproc['measured'] = "pointvalues:{}".format(','.join( [str(l) for l in pointlabels]))
     print("postproc['measured']",postproc['measured'])
@@ -149,7 +150,7 @@ class Heat(simfempy.applications.heat.Heat):
         b,self.ustate= self.computeRhs(self.ustate)
         # A,b,self.ustate = self.boundary(A, b, self.ustate)
         self.A = A
-        self.ustate = self.linearSolver(A, b, self.ustate, solver=self.linearsolver, verbose=0)
+        self.ustate, iter = self.linearSolver(A, b, self.ustate, solver=self.linearsolver, verbose=0)
         self.point_data, self.cell_data, self.info = self.postProcess(self.ustate)
         data = self.getData(self.info['postproc'])
         # self.plotter.plot()
@@ -172,7 +173,7 @@ class Heat(simfempy.applications.heat.Heat):
             du = np.zeros_like(b)
             self.kheatcell = self.kheat(self.mesh.cell_labels)
             b,du = self.boundaryvec(b, du)
-            du = self.linearSolver(self.A, b, du, solver=self.linearsolver, verbose=0)
+            du, iter = self.linearSolver(self.A, b, du, solver=self.linearsolver, verbose=0)
             point_data, cell_data, info = self.postProcess(du)
             # self.plot(point_data, cell_data, info)
             jac[:,i] = self.getData(info['postproc'])

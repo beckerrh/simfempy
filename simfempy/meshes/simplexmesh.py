@@ -8,6 +8,8 @@ import os, sys, importlib
 import meshio
 import numpy as np
 from scipy import sparse
+from simfempy.tools import npext
+
 
 # try:
 #     import geomdefs
@@ -68,8 +70,12 @@ class SimplexMesh(object):
         self.points = points
         self.nnodes = self.points.shape[0]
         if 'vertex' in cells.keys():
-            self.vertices = cells['vertex']
+            self.vertices = cells['vertex'].reshape(-1)
             self.vertex_labels = celldata['vertex']['gmsh:physical']
+            veretexoflabel = npext.unique_all(self.vertex_labels)
+            self.veretexoflabel={}
+            for color, ind in zip(veretexoflabel[0], veretexoflabel[1]):
+                self.veretexoflabel[color] = ind
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
@@ -84,7 +90,6 @@ class SimplexMesh(object):
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
         # from ..tools import npext
-        from simfempy.tools import npext
         self.cellloflabel = npext.unique_all(self.cell_labels)
         # for color, ind in zip(self.cellloflabel[0], self.cellloflabel[1]):
         #     print("color", color)
