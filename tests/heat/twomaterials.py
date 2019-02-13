@@ -21,7 +21,7 @@ def test():
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
     simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
-    bdrycond =  simfempy.applications.problemdata.BoundaryConditions(mesh.bdrylabels.keys())
+    bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     bdrycond.type[1000] = "Neumann"
     bdrycond.type[1001] = "Dirichlet"
@@ -31,24 +31,25 @@ def test():
     postproc['bdrymean_up'] = "bdrymean:1002"
     postproc['bdrydn_left'] = "bdrydn:1003"
     postproc['bdrydn_right'] = "bdrydn:1001"
-    bdrycond.fct[1000] = lambda x,y,z, nx, ny, nz, k: 0
-    bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz, k: 100
+    bdrycond.fct[1000] = lambda x,y,z, nx, ny, nz: 0
+    bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 100
     bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
+    bdrycond.check(mesh.bdrylabels.keys())
     # print("bdrycond", bdrycond)
     def kheat(label):
         if label==100: return 0.1
         return 10000.0
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    problemdata.diffcoeff = kheat
 
     fems = ['p1', 'cr1']
-    fems = ['p1']
     for fem in fems:
-        heat = simfempy.applications.heat.Heat(problemdata=problemdata, kheat=kheat, fem=fem, plotk=True)
+        heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
         heat.setMesh(mesh)
         point_data, cell_data, info = heat.solve()
         print("time: {}".format(info['timer']))
         print("postproc: {}".format(info['postproc']))
-        simfempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data)
+        simfempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data, title=fem)
         plt.show()
 
 #================================================================#

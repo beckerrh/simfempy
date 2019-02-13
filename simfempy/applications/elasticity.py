@@ -64,12 +64,10 @@ class Elasticity(solvers.solver.Solver):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if 'mu' in kwargs:
-            self.mu = kwargs.pop('mu')
-            self.mu = np.vectorize(self.mu)
-            if 'lam' not in kwargs: raise ValueError("If mu is given, so should be lam !")
-            self.lam = kwargs.pop('lam')
-            self.lam = np.vectorize(self.lam)
+        if hasattr(self,'problemdata') and hasattr(self.problemdata,'mu'):
+            self.mu = np.vectorize(self.problemdata.mu)
+            if not hasattr(self.problemdata,'lam'): raise ValueError("If mu is given, so should be lam !")
+            self.lam = np.vectorize(self.problemdata.lam)
         else:
             E, nu = self.YoungPoisson["Acier"]
             mu, lam = self.toLame(E, nu)

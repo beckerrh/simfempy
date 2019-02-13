@@ -47,8 +47,8 @@ class Heat(solvers.solver.Solver):
             self.rhocp = np.vectorize(kwargs.pop('rhocp'))
         else:
             self.rhocp = np.vectorize(lambda i: 1234.56)
-        if 'kheat' in kwargs:
-            self.kheat = np.vectorize(kwargs.pop('kheat'))
+        if hasattr(self,'problemdata') and hasattr(self.problemdata,'diffcoeff'):
+            self.kheat = np.vectorize(self.problemdata.diffcoeff)
         else:
             self.kheat = np.vectorize(lambda i: 0.123)
         if 'method' in kwargs:
@@ -91,7 +91,8 @@ class Heat(solvers.solver.Solver):
         point_data['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
             info['error'] = {}
-            info['error']['L2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            info['error']['pnL2'], info['error']['pcL2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            info['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             point_data['E'] = self.fem.tonode(e)
         info['postproc'] = {}
         if self.postproc:

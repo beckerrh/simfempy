@@ -48,9 +48,13 @@ class SimplexMesh(object):
         else:
             import pygmsh
             self.geometry = kwargs.pop('geometry')
-            if 'hmean' in kwargs:
-                self.geometry.define(kwargs.pop('hmean'))
-                data = pygmsh.generate_mesh(self.geometry, verbose=False)
+            if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
+            else: hmean = 1
+            self.geometry.define(hmean)
+            # code = self.geometry.get_code()
+            # with open("toto.geo",'w') as file:
+            #     file.write(code)
+            data = pygmsh.generate_mesh(self.geometry, verbose=False)
         self._initMeshPyGmsh(data[0], data[1], data[3])
 
     def _initMeshPyGmsh(self, points, cells, celldata):
@@ -79,7 +83,8 @@ class SimplexMesh(object):
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
-        from ..tools import npext
+        # from ..tools import npext
+        from simfempy.tools import npext
         self.cellloflabel = npext.unique_all(self.cell_labels)
         # for color, ind in zip(self.cellloflabel[0], self.cellloflabel[1]):
         #     print("color", color)
@@ -287,13 +292,16 @@ class SimplexMesh(object):
             plt.show()
 
     def plotWithBoundaries(self):
-        from . import plotmesh
+        # from . import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.meshWithBoundaries(self)
     def plot(self, **kwargs):
-        from . import plotmesh
+        # from . import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.plotmesh(self, **kwargs)
     def plotWithData(self, **kwargs):
-        from . import plotmesh
+        # from . import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.meshWithData(self, **kwargs)
 
 

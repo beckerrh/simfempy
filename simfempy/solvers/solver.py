@@ -6,6 +6,7 @@ Created on Sun Dec  4 18:14:29 2016
 """
 
 import time
+import copy
 import numpy as np
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
@@ -78,7 +79,7 @@ class Solver(object):
             if showmesh:
                 self.mesh.plotWithBoundaries()
             return
-        self.problemdata = kwargs.pop('problemdata')
+        self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
         self.ncomp = self.problemdata.ncomp
 
         # temporary

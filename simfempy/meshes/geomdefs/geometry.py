@@ -13,7 +13,7 @@ class Geometry(pygmsh.built_in.Geometry):
     Simple wrap for pygmsh.Geometry in order to define to be called several times
     """
     def __init__(self, **kwargs):
-        # super().__init__()
+        super().__init__()
         if 'h' in kwargs:
             self.define(kwargs.pop('h'))
         else:

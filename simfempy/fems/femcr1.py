@@ -186,10 +186,22 @@ class FemCR1(object):
         grads[chsg] *= -1.
         return grads
 
-    def computeErrorL2(self, solex, uh):
+    def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.pointsf.T
-        e = solex(x, y, z) - uh
-        return np.sqrt( np.dot(e, self.massmatrix*e) ), e
+        xc, yc, zc = self.mesh.pointsc.T
+        e = solexact(x, y, z) - uh
+        ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.facesOfCells], axis=1)
+        return np.sqrt( np.dot(e, self.massmatrix*e) ), np.sqrt(np.sum(ec**2* self.mesh.dV)), e
+
+    def computeErrorFluxL2(self, solexact, diffcell, uh):
+        xc, yc, zc = self.mesh.pointsc.T
+        graduh = np.einsum('nij,ni->nj', self.cellgrads, uh[self.mesh.facesOfCells])
+        errv = 0
+        for i in range(self.mesh.dimension):
+            solxi = solexact.d(i, xc, yc, zc)
+            errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
+        return np.sqrt(errv)
+
 
     def computeBdryMean(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
@@ -207,7 +219,7 @@ class FemCR1(object):
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(bs - As*u )
+        flux = np.sum(As*u - bs)
         return flux
 
     def tonode(self, u):

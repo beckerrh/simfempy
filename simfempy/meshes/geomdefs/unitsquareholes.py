@@ -34,7 +34,7 @@ if __name__ == '__main__':
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
-    geometry = Unitsquarewithholes(h=1)
+    geometry = Unitsquareholes(h=1)
     meshdata = pygmsh.generate_mesh(geometry)
     mesh = simplexmesh.SimplexMesh(data=meshdata)
     mesh.plotWithBoundaries()

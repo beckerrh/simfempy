@@ -143,7 +143,7 @@ class LatexWriter(object):
         keys_to_write = sorted(values.keys())
         size = len(keys_to_write)
         if size==0: return
-        texta ='%\n%---\n%\n\\begin{table}[htp]\n\\begin{center}\n\\begin{tabular}{'
+        texta ='%\n%---\n%\n\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
         texta += 'r|' + size*'|r' + '}\n'
         self.latexfile.write(texta)
         if tabledata.rotatenames:

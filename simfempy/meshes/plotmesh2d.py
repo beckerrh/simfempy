@@ -63,9 +63,12 @@ def _plotNormalsAndSigma(xc, yc, xf, yf, normals, sidesofcells, sigma, ax=plt):
                         r'%d' % (s), color='y', fontweight='bold')
 
 #=================================================================#
-def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
-    colors = np.unique(bdrylabels)
-    # print("colors", colors)
+# def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
+def meshWithBoundaries(x, y, tris, **kwargs):
+    if 'ax' in kwargs: ax = kwargs.pop('ax')
+    else: ax = plt
+    lines = kwargs.pop('lines')
+    bdrylabels = kwargs.pop('bdrylabels')
     ax.triplot(x, y, tris, color='k')
     if ax ==plt:
         plt.gca().set_aspect(aspect='equal')
@@ -75,7 +78,7 @@ def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
         ax.set_aspect(aspect='equal')
         ax.set_xlabel(r'x')
         ax.set_ylabel(r'y')
-    pltcolors = 'bgrcmyk'
+    pltcolors = 'bgrcmykbgrcmyk'
     patches=[]
     i=0
     for color, edges in bdrylabels.items():
@@ -83,6 +86,14 @@ def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
         for ie in edges:
             ax.plot(x[lines[ie]], y[lines[ie]], color=pltcolors[i], lw=4)
         i += 1
+    if 'celllabels' in kwargs:
+        celllabels = kwargs.pop('celllabels')
+        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+        clb = plt.colorbar(cnt)
+        # clb = plt.colorbar(cnt, ax=ax)
+        # clb.ax.set_title(cdn)
+        clb.set_label("cellcolors")
+
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")
 

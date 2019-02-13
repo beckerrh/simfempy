@@ -15,7 +15,7 @@ class LaplaceMixed(solvers.solver.Solver):
         def _fctu(x, y, z):
             rhs = np.zeros(x.shape[0])
             for i in range(self.mesh.dimension):
-                rhs += self.diff(0)*solexact.dd(i, i, x, y, z)
+                rhs -= self.diff(0)*solexact.dd(i, i, x, y, z)
             return rhs
         return _fctu
 
@@ -35,8 +35,8 @@ class LaplaceMixed(solvers.solver.Solver):
         super().__init__(**kwargs)
         self.linearsolver = "gmres"
         self.femv = simfempy.fems.femrt0.FemRT0()
-        if 'diff' in kwargs:
-            self.diff = np.vectorize(kwargs.pop('diff'))
+        if hasattr(self,'problemdata') and hasattr(self.problemdata,'diffcoeff'):
+            self.diff = np.vectorize(self.problemdata.diffcoeff)
         else:
             self.diff = np.vectorize(lambda i: 0.123)
         if 'method' in kwargs:
@@ -134,7 +134,7 @@ class LaplaceMixed(solvers.solver.Solver):
     def computeRhs(self, u=None):
         xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
-        bcells = self.rhs(xc, yc, zc) * self.mesh.dV
+        bcells = -self.rhs(xc, yc, zc) * self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
 
         for color, faces in self.mesh.bdrylabels.items():

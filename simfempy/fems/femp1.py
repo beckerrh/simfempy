@@ -36,7 +36,8 @@ class FemP1(object):
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
-        # print("dV", np.where(dV<0.001))
+        # print("dV", np.where(dV<0.0001))
+        # print("dV", dV[dV<0.00001])
         self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
 
     def computeMassMatrix(self, lumped=False):
@@ -187,8 +188,11 @@ class FemP1(object):
             bdrydata.bsaved[key] = b[nodes]
         if method == 'trad':
             for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                # print("dirichlet.shape",dirichlet.shape)
+                # print("dirichlet",dirichlet)
+                # print("b[nodes]",b[nodes])
+                b[nodes] = dirichlet
                 u[nodes] = b[nodes]
             b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
         else:
@@ -238,10 +242,22 @@ class FemP1(object):
         grads[chsg] *= -1.
         return grads
 
-    def computeErrorL2(self, solex, uh):
+    def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.points.T
-        e = solex(x, y, z) - uh
-        return np.sqrt( np.dot(e, self.massmatrix*e) ), e
+        en = solexact(x, y, z) - uh
+        xc, yc, zc = self.mesh.pointsc.T
+        ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.simplices], axis=1)
+        return np.sqrt( np.dot(en, self.massmatrix*en) ), np.sqrt(np.sum(ec**2* self.mesh.dV)), en
+
+    def computeErrorFluxL2(self, solexact, diffcell, uh):
+        xc, yc, zc = self.mesh.pointsc.T
+        graduh = np.einsum('nij,ni->nj', self.cellgrads, uh[self.mesh.simplices])
+        errv = 0
+        for i in range(self.mesh.dimension):
+            solxi = solexact.d(i, xc, yc, zc)
+            errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
+        return np.sqrt(errv)
+
 
     def computeBdryMean(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
@@ -259,7 +275,7 @@ class FemP1(object):
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(bsaved - Asaved*u )
+        flux = np.sum(Asaved*u - bsaved)
         return flux
 
     def computeBdryFct(self, u, key, data):

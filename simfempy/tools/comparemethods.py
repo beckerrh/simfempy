@@ -115,7 +115,7 @@ class CompareMethods(object):
                 newdict={}
                 for key2, val2 in val.items():
                     for name in names:
-                        newdict["{}:{}".format(key2, name)] = val2[name]
+                        newdict["{}-{}".format(key2, name)] = val2[name]
                 kwargs['name'] = '{}'.format(key)
                 kwargs['values'] = newdict
                 kwargs['type'] = 'int'
@@ -126,7 +126,7 @@ class CompareMethods(object):
                     newdict={}
                     for key2, val2 in val.items():
                         newdict["{}".format(key2)] = val2[name]
-                    kwargs['name'] = '{}_{}'.format(name, key)
+                    kwargs['name'] = '{}_{}'.format(key, name)
                     kwargs['values'] = newdict
                     kwargs['percentage'] = True
                     latexwriter.append(**kwargs)

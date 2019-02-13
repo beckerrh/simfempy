@@ -5,7 +5,11 @@ import numpy as np
 class TestAnalytical(unittest.TestCase):
     def _check(self, results):
         for meth,err in results.items():
-            if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
+            if isinstance(err, dict):
+                for m, e in err.items():
+                    if not np.all(e<1e-10): raise ValueError("error in method '{}' '{}' error is {}".format(meth,m,e))
+            else:
+                if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
 #---------------------------
     def test_poisson2d(self):
         from heat.poisson import test_analytic

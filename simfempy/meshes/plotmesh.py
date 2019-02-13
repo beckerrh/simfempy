@@ -21,11 +21,18 @@ def _getDim(meshdata):
 def meshWithBoundaries(meshdata, ax=plt):
     dim, meshdataismesh = _getDim(meshdata)
     if dim==2:
+        kwargs={}
+        kwargs['ax'] = ax
         if meshdataismesh:
-            x, y, tris, lines, labels = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces, meshdata.bdrylabels
-            plotmesh2d.meshWithBoundaries(x, y, tris, lines, labels, ax)
+            x, y, tris = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices
+            kwargs['lines'] = meshdata.faces
+            kwargs['bdrylabels'] = meshdata.bdrylabels
+            kwargs['celllabels'] = meshdata.cell_labels
         else:
-            plotmesh2d.meshWithBoundaries(meshdata, ax)
+            x, y, tris = meshdata[0], meshdata[1], meshdata[2]
+            kwargs['lines'] = meshdata[3]
+            kwargs['bdrylabels'] = meshdata[4]
+        plotmesh2d.meshWithBoundaries(x, y, tris, **kwargs)
     else:
         if meshdataismesh:
             x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices

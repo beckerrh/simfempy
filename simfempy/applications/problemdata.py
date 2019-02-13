@@ -36,6 +36,16 @@ class BoundaryConditions(object):
             if typeofcolor == type: colors.append(color)
         return colors
 
+    def check(self, colors):
+        colors = set(colors)
+        typecolors = set(self.type.keys())
+        withouttype = colors.difference(typecolors)
+        if withouttype:
+            raise ValueError("without types: {}".format(withouttype))
+        typenotfound = typecolors.difference(colors)
+        if typenotfound:
+            raise ValueError("unused types: {}".format(typenotfound))
+
 
 class ProblemData(object):
     """

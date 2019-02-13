@@ -68,7 +68,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=2):
         methods[method] = Heat(problemdata=problemdata, fem=fem, method=meth)
     comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
-    return result[3]['error']['L2']
+    return result[3]['error']
 
 # ----------------------------------------------------------------#
 def test_solvers(geomname='unitcube', fem = 'p1', method='new'):

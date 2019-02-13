@@ -11,7 +11,6 @@ import simfempy.tools.iterationcounter
 class Stokes(solvers.solver.Solver):
     """
     """
-
     def generatePoblemData(self, **kwargs):
         self.ncomp = self.mesh.dimension
         return super().generatePoblemData(**kwargs)
@@ -73,9 +72,8 @@ class Stokes(solvers.solver.Solver):
             self.femv = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if 'mu' in kwargs:
-            self.mu = kwargs.pop('mu')
-            self.mu = np.vectorize(self.mu)
+        if hasattr(self,'problemdata') and hasattr(self.problemdata,'mu'):
+            self.mu = np.vectorize(self.problemdata.mu)
         else:
             self.mu = np.vectorize(lambda x: 1.0)
         if 'method' in kwargs:
