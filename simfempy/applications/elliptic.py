@@ -50,9 +50,9 @@ class Elliptic(solvers.solver.Solver):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if self.postproc:
-            print("self.postproc", self.postproc, len(self.postproc), self.ncomp)
-            assert len(self.postproc) == self.ncomp
+        if self.problemdata.postproc:
+            print("self.problemdata.postproc", self.problemdata.postproc, len(self.problemdata.postproc), self.ncomp)
+            assert len(self.problemdata.postproc) == self.ncomp
         if 'diff' in kwargs:
             self.diff = kwargs.pop('diff')
             assert len(self.diff) == self.ncomp
@@ -73,7 +73,7 @@ class Elliptic(solvers.solver.Solver):
         self.diffcell = []
         for icomp in range(self.ncomp):
             self.diffcell.append(self.diff[icomp](self.mesh.cell_labels))
-        self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
+        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
 
     def solvestatic(self):
         return self.solveLinear()
@@ -82,11 +82,11 @@ class Elliptic(solvers.solver.Solver):
         return self.solveLinear()
 
     def computeRhs(self, u=None):
-        b, u, self.bdrydata = self.fem.computeRhs(u, self.rhs, self.diffcell, self.bdrycond, self.method, self.bdrydata)
+        b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata.rhs, self.diffcell, self.problemdata.bdrycond, self.method, self.bdrydata)
         return b,u
 
     def matrix(self):
-        A, self.bdrydata = self.fem.matrixDiffusion(self.diffcell, self.bdrycond, self.method, self.bdrydata)
+        A, self.bdrydata = self.fem.matrixDiffusion(self.diffcell, self.problemdata.bdrycond, self.method, self.bdrydata)
         return A
 
     def postProcess(self, u):
@@ -102,7 +102,7 @@ class Elliptic(solvers.solver.Solver):
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
         info['postproc'] = {}
-        for icomp, postproc in enumerate(self.postproc):
+        for icomp, postproc in enumerate(self.problemdata.postproc):
             for key, val in postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":

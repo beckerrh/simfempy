@@ -81,19 +81,19 @@ class Stokes(solvers.solver.Solver):
         else:
             self.method = "trad"
         if 'rhsmethod' in kwargs:
-            self.rhsmethod = kwargs.pop('rhsmethod')
-            if self.rhsmethod == "rt":
+            self.problemdata.rhsmethod = kwargs.pop('rhsmethod')
+            if self.problemdata.rhsmethod == "rt":
                 self.femrt = fems.femrt0.FemRT0()
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.femv.setMesh(self.mesh, self.ncomp)
         self.femp.setMesh(self.mesh)
-        self.pmean = self.bdrycond.type.values() == len(self.bdrycond.type)*"Dirichlet"
-        self.bdrydata = self.femv.prepareBoundary(self.bdrycond, self.postproc)
+        self.pmean = self.problemdata.bdrycond.type.values() == len(self.problemdata.bdrycond.type)*"Dirichlet"
+        self.bdrydata = self.femv.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.pstart = self.ncomp*self.mesh.nfaces
-        if self.rhsmethod == "rt":
+        if self.problemdata.rhsmethod == "rt":
             self.femrt.setMesh(self.mesh)
             self.massrt = self.femrt.constructMass()
 
@@ -105,13 +105,13 @@ class Stokes(solvers.solver.Solver):
         if self.pmean: nall = nfaces * ncomp + self.mesh.ncells +1
         else: nall = nfaces * ncomp + self.mesh.ncells
         b = np.zeros(nall)
-        rhsv, rhsp = self.rhs
+        rhsv, rhsp = self.problemdata.rhs
         xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
         if rhsp:
             b[self.pstart:self.pstart + ncells] = self.mesh.dV * np.array(rhsp(xc, yc, zc))
         rhsall = np.array(rhsv(xf, yf, zf))
-        if self.rhsmethod=='rt':
+        if self.problemdata.rhsmethod=='rt':
             normals, sigma, dV = self.mesh.normals, self.mesh.sigma, self.mesh.dV
             dS = linalg.norm(normals, axis=1)
             rhsn = np.zeros(nfaces)
@@ -120,21 +120,21 @@ class Stokes(solvers.solver.Solver):
             rhsn = self.massrt*rhsn
             for i in range(ncomp):
                 b[i * nfaces:(i + 1) * nfaces] = rhsn*normals[:,i]/dS
-        elif self.rhsmethod=='cr':
+        elif self.problemdata.rhsmethod=='cr':
             for i in range(ncomp):
                 b[i * nfaces:(i + 1) * nfaces] = self.femv.massmatrix * rhsall[i]
         else:
-            raise ValueError("don't know rhsmethod='{}'".format(self.rhsmethod))
+            raise ValueError("don't know rhsmethod='{}'".format(self.problemdata.rhsmethod))
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
-            condition = self.bdrycond.type[color]
+            condition = self.problemdata.bdrycond.type[color]
             if condition == "Neumann":
                 normalsS = normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
                 xf, yf, zf = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS[:,0]/dS, normalsS[:,1]/dS, normalsS[:,2]/dS
-                if not color in self.bdrycond.fct.keys(): continue
-                neumanns = self.bdrycond.fct[color](xf, yf, zf, nx, ny, nz)
+                if not color in self.problemdata.bdrycond.fct.keys(): continue
+                neumanns = self.problemdata.bdrycond.fct[color](xf, yf, zf, nx, ny, nz)
                 for i in range(ncomp):
                     bS = dS * neumanns[i]
                     indices = i*nfaces + faces
@@ -178,7 +178,7 @@ class Stokes(solvers.solver.Solver):
         if self.method == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                dirichlet = self.bdrycond.fct[color]
+                dirichlet = self.problemdata.bdrycond.fct[color]
                 dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 # print("dirs", dirs)
                 for icomp in range(ncomp):
@@ -192,7 +192,7 @@ class Stokes(solvers.solver.Solver):
         else:
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                dirichlet = self.bdrycond.fct[color]
+                dirichlet = self.problemdata.bdrycond.fct[color]
                 dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 for icomp in range(ncomp):
                     u[icomp*nfaces + faces] = dirs[icomp]
@@ -285,7 +285,7 @@ class Stokes(solvers.solver.Solver):
         if self.method == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                dirichlet = self.bdrycond.fct[color]
+                dirichlet = self.problemdata.bdrycond.fct[color]
                 dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 # print("dirs", dirs)
                 for icomp in range(ncomp):
@@ -307,7 +307,7 @@ class Stokes(solvers.solver.Solver):
         else:
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                dirichlet = self.bdrycond.fct[color]
+                dirichlet = self.problemdata.bdrycond.fct[color]
                 dirs = dirichlet(xf[faces], yf[faces], zf[faces])
                 for icomp in range(ncomp):
                     u[icomp*nfaces + faces] = dirs[icomp]
@@ -389,7 +389,7 @@ class Stokes(solvers.solver.Solver):
                 point_data['E_V{:02d}'.format(icomp)] = self.femv.tonode(ev[icomp])
             cell_data['E_P'] = ep
         info['postproc'] = {}
-        for key, val in self.postproc.items():
+        for key, val in self.problemdata.postproc.items():
             type, data = val.split(":")
             if type == "bdrymean":
                 mean = self.computeBdryMean(u, key, data)

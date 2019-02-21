@@ -84,16 +84,19 @@ class SimplexMesh(object):
             self.simplices = cells['tetra']
             self._constructFacesFromSimplices(cells['triangle'], celldata['triangle']['gmsh:physical'])
             self.cell_labels = celldata['tetra']['gmsh:physical']
+        cellloflabel = npext.unique_all(self.cell_labels)
+        self.cellsoflabel = {}
+        for color, ind in zip(cellloflabel[0], cellloflabel[1]):
+            self.cellsoflabel[color] = ind
+        # for color, ind in zip(cellloflabel[0], cellloflabel[1]):
+        #     print("color", color)
+        #     print("split", cell_labels[ind])
+
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
-        # from ..tools import npext
-        self.cellloflabel = npext.unique_all(self.cell_labels)
-        # for color, ind in zip(self.cellloflabel[0], self.cellloflabel[1]):
-        #     print("color", color)
-        #     print("split", self.cell_labels[ind])
         print(self)
 
     def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):

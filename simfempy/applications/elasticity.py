@@ -79,7 +79,7 @@ class Elasticity(solvers.solver.Solver):
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
-        self.bdrydata = self.fem.prepareBoundary(self.bdrycond, self.postproc)
+        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
         self.mucell = self.mu(self.mesh.cell_labels)
         self.lamcell = self.lam(self.mesh.cell_labels)
 
@@ -89,22 +89,22 @@ class Elasticity(solvers.solver.Solver):
     def computeRhs(self, u=None):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
-        if self.rhs:
+        if self.problemdata.rhs:
             x, y, z = self.mesh.points.T
-            rhsall = self.rhs(x, y, z)
+            rhsall = self.problemdata.rhs(x, y, z)
             for i in range(ncomp):
                 b[i::self.ncomp] = self.fem.massmatrix * rhsall[i]
         normals = self.mesh.normals
         for color, faces in self.mesh.bdrylabels.items():
-            if self.bdrycond.type[color] != "Neumann": continue
+            if self.problemdata.bdrycond.type[color] != "Neumann": continue
             scale = 1 / self.mesh.dimension
             normalsS = normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
             x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
             nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
-            if not color in self.bdrycond.fct.keys(): continue
-            neumanns = self.bdrycond.fct[color](x1, y1, z1, nx, ny, nz)
+            if not color in self.problemdata.bdrycond.fct.keys(): continue
+            neumanns = self.problemdata.bdrycond.fct[color](x1, y1, z1, nx, ny, nz)
             for i in range(ncomp):
                 bS = scale * dS * neumanns[i]
                 indices = i + self.ncomp * self.mesh.faces[faces]
@@ -176,8 +176,8 @@ class Elasticity(solvers.solver.Solver):
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         if self.method == 'trad':
             for color, nodes in nodesdir.items():
-                if color in self.bdrycond.fct.keys():
-                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                if color in self.problemdata.bdrycond.fct.keys():
+                    dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         b[icomp + ncomp * nodes] = dirichlets[icomp]
                         u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
@@ -188,8 +188,8 @@ class Elasticity(solvers.solver.Solver):
             b[indin] -= self.bdrydata.A_inner_dir * b[inddir]
         else:
             for color, nodes in nodesdir.items():
-                if color in self.bdrycond.fct.keys():
-                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                if color in self.problemdata.bdrycond.fct.keys():
+                    dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         u[icomp + ncomp * nodes] = dirichlets[icomp]
                         b[icomp + ncomp * nodes] = 0
@@ -224,8 +224,8 @@ class Elasticity(solvers.solver.Solver):
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         if self.method == 'trad':
             for color, nodes in nodesdir.items():
-                if color in self.bdrycond.fct.keys():
-                    dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                if color in self.problemdata.bdrycond.fct.keys():
+                    dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         b[icomp + ncomp * nodes] = dirichlets[icomp]
                         u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
@@ -244,7 +244,7 @@ class Elasticity(solvers.solver.Solver):
             A += help
         else:
             for color, nodes in nodesdir.items():
-                dirichlets = self.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                 for icomp in range(ncomp):
                     u[icomp + ncomp * nodes] = dirichlets[icomp]
                     b[icomp + ncomp * nodes] = 0
@@ -297,7 +297,7 @@ class Elasticity(solvers.solver.Solver):
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
         info['postproc'] = {}
-        for key, val in self.postproc.items():
+        for key, val in self.problemdata.postproc.items():
             type,data = val.split(":")
             if type == "bdrymean":
                 mean = self.computeBdryMean(u, key, data)

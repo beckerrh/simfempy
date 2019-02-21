@@ -111,11 +111,22 @@ class FemP1(object):
         A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
 
-    def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
+    def computeRhs(self, u, problemdata, kheatcell, method, bdrydata):
+        rhs = problemdata.rhs
+        rhscell = problemdata.rhscell
+        bdrycond = problemdata.bdrycond
         b = np.zeros(self.mesh.nnodes)
         if rhs:
             x, y, z = self.mesh.points.T
             b += self.massmatrix * rhs(x, y, z)
+        if rhscell:
+            scale = 1/(self.mesh.dimension+1)
+            for label,fct in rhscell.items():
+                cells = self.mesh.cellsoflabel[label]
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                bC = scale*fct(xc, yc, zc)*self.mesh.dV[cells]
+                # print("bC", bC)
+                np.add.at(b, self.mesh.simplices[cells].T, bC)
 
         help = np.zeros(self.mesh.nnodes)
         for color, faces in self.mesh.bdrylabels.items():
@@ -192,7 +203,7 @@ class FemP1(object):
                     dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     b[nodes] = dirichlet
                 else:
-                    b[:] = 0
+                    b[nodes] = 0
                 u[nodes] = b[nodes]
             b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
         else:
@@ -289,11 +300,24 @@ class FemP1(object):
     def computePointValues(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
-
         for i,color in enumerate(colors):
             nodes = self.mesh.vertices[self.mesh.veretexoflabel[color]]
             up[i] = u[nodes]
         return up
+
+    def computeMeanValues(self, u, key, data):
+        colors = [int(x) for x in data.split(',')]
+        up = np.empty(len(colors))
+        for i, color in enumerate(colors):
+            up[i] = self.computeMeanValue(u,color)
+        return up
+
+    def computeMeanValue(self, u, color):
+        cells = self.mesh.cellsoflabel[color]
+        # print("umean", np.mean(u[self.mesh.simplices[cells]],axis=1))
+        return np.sum(np.mean(u[self.mesh.simplices[cells]],axis=1)*self.mesh.dV[cells])
+
+
 # ------------------------------------- #
 
 if __name__ == '__main__':

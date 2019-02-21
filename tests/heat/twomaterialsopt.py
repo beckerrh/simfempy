@@ -11,6 +11,9 @@ import scipy.optimize
 import matplotlib.pyplot as plt
 from simfempy.tools import npext
 from simfempy.meshes import pygmshext
+import copy
+import time
+
 
 # ----------------------------------------------------------------#
 def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2, nholes=2):
@@ -128,7 +131,7 @@ class Heat(simfempy.applications.heat.Heat):
         self.plotter = Plotter(self)
         if 'regularize' in kwargs: self.regularize = kwargs.pop('regularize')
         else: self.regularize = None
-        pp = self.postproc['measured'].split(":")[1]
+        pp = self.problemdata.postproc['measured'].split(":")[1]
         self.nmeasurements = len(pp.split(","))
         print("self.nmeasurements",self.nmeasurements)
 
@@ -181,10 +184,9 @@ class Heat(simfempy.applications.heat.Heat):
             jac[self.nmeasurements:,:] = self.regularize*np.eye(nparam)
         else:
             jac = np.zeros(shape=(self.nmeasurements, nparam))
-        import copy
-        bdrycond_bu = copy.deepcopy(self.bdrycond)
-        for color in self.bdrycond.fct:
-            self.bdrycond.fct[color] = None
+        bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
+        for color in self.problemdata.bdrycond.fct:
+            self.problemdata.bdrycond.fct[color] = None
         for i in range(nparam):
             self.dlabel = 200 + i
             self.kheatcell = self.dkheat(self.mesh.cell_labels)
@@ -199,7 +201,7 @@ class Heat(simfempy.applications.heat.Heat):
             # print("jac.shape",jac.shape)
             # self.plot(point_data, cell_data, info)
             jac[:self.nmeasurements,i] = self.getData(info['postproc'])
-        self.bdrycond = bdrycond_bu
+        self.problemdata.bdrycond = bdrycond_bu
 
         # print("jac", jac.shape)
         return jac
@@ -301,7 +303,6 @@ def test(diffglobal):
     heat.data0[:] =  data[:]*(1+0.002* ( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
-    import time
     for method in methods:
         param[:] = diffglobal
         t0 = time.time()

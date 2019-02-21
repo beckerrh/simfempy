@@ -48,7 +48,7 @@ def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
             self.fct = np.vectorize(self._fct)
             self.fct_x = np.vectorize(self._fct_x)
             self.fct_y = np.vectorize(self._fct_y)
-            self.rhs = np.vectorize(lambda x,y,z: -2*dim)
+            self.problemdata.rhs = np.vectorize(lambda x,y,z: -2*dim)
 
         def _fct(self, x, y, z):
             r2 = x**2 + y**2 + z**2

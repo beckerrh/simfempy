@@ -51,14 +51,14 @@ class ProblemData(object):
     """
     Contains all (?) data: boundary conditions and right-hand sides
     """
-    def __init__(self, bdrycond=None, rhs=None, postproc=None, ncomp=-1):
+    def __init__(self, bdrycond=None, rhs=None, rhscell=None, postproc=None, ncomp=-1):
         self.ncomp=ncomp
         if bdrycond: self.bdrycond = bdrycond
         else: self.bdrycond = BoundaryConditions()
-        if rhs: self.rhs = rhs
-        else: self.rhs = None
+        self.rhs = None
+        self.rhscell = rhscell
         self.solexact = None
         self.postproc = postproc
 
     def __repr__(self):
-        return "ncomp={:2d}\nbdrycond={}\nrhs={}\npostproc={}\nsolexact={}".format(self.ncomp, self.bdrycond, self.rhs, self.postproc, self.solexact)
+        return "ncomp={:2d}\nbdrycond={}\nrhs={}\nrhscell={}\npostproc={}\nsolexact={}".format(self.ncomp, self.bdrycond, self.rhs, self.rhscell, self.postproc, self.solexact)

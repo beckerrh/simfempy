@@ -62,8 +62,8 @@ class Heat(solvers.solver.Solver):
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        self.fem.setMesh(self.mesh, self.bdrycond)
-        self.bdrydata = self.fem.prepareBoundary(self.bdrycond.colorsOfType("Dirichlet"), self.postproc)
+        self.fem.setMesh(self.mesh, self.problemdata.bdrycond)
+        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
         # print("bdrydata = ", self.bdrydata)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
@@ -72,16 +72,16 @@ class Heat(solvers.solver.Solver):
         return self.solveLinear()
 
     def computeRhs(self, u=None):
-        b, u, self.bdrydata = self.fem.computeRhs(u, self.rhs, self.kheatcell, self.bdrycond, self.method, self.bdrydata)
+        b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata)
         return b,u
 
     def matrix(self):
-        A, self.bdrydata = self.fem.matrixDiffusion(self.kheatcell, self.bdrycond, self.method, self.bdrydata)
+        A, self.bdrydata = self.fem.matrixDiffusion(self.kheatcell, self.problemdata.bdrycond, self.method, self.bdrydata)
         return A
 
     def boundaryvec(self, b, u=None):
         if u is None: u = np.zeros_like(b)
-        b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.bdrycond, self.method, self.bdrydata)
+        b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.problemdata.bdrycond, self.method, self.bdrydata)
         return b,u
 
     def postProcess(self, u):
@@ -95,9 +95,8 @@ class Heat(solvers.solver.Solver):
             info['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             point_data['E'] = self.fem.tonode(e)
         info['postproc'] = {}
-        print("self.postproc", self.postproc)
-        if self.postproc:
-            for key, val in self.postproc.items():
+        if self.problemdata.postproc:
+            for key, val in self.problemdata.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
                     info['postproc'][key] = self.fem.computeBdryMean(u, key, data)
@@ -108,6 +107,8 @@ class Heat(solvers.solver.Solver):
                     info['postproc'][key] = self.fem.computeBdryDn(u, key, data, bs, As)
                 elif type == "pointvalues":
                     info['postproc'][key] = self.fem.computePointValues(u, key, data)
+                elif type == "meanvalues":
+                    info['postproc'][key] = self.fem.computeMeanValues(u, key, data)
                 else:
                     raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         assert self.kheatcell.shape[0] == self.mesh.ncells

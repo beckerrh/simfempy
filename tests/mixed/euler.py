@@ -28,7 +28,7 @@ class Euler(RaviartThomas):
         self.method = method
         self.alpha = alpha
         self.dirichlet = None
-        self.rhs = None
+        self.problemdata.rhs = None
         self.solexact = None
         self.defineProblem()
 
@@ -130,7 +130,7 @@ class Euler(RaviartThomas):
         xmid, ymid =  self.mesh.centersx,  self.mesh.centersy
         bsides = np.zeros(nedges)
         if solexact:
-            assert self.rhs is None
+            assert self.problemdata.rhs is None
             (solexactp, solexactv1, solexactv2) = solexact
             bcells = (solexactv1.x(xmid, ymid) + solexactv2.y(xmid, ymid))* self.mesh.area[:]
             bcells[:]=0
@@ -147,9 +147,9 @@ class Euler(RaviartThomas):
                     rt = self.rt(ic, xk, yk)
                     for ii in range(3):
                        bsides[edges[ii]] += ( self.mesh.area[ic]/3.0)*( f1*rt[ii,0] + f2*rt[ii,1])
-        elif self.rhs:
+        elif self.problemdata.rhs:
             assert solexact is None
-            (rhsp, rhsv1, rhsv2) = self.rhs
+            (rhsp, rhsv1, rhsv2) = self.problemdata.rhs
             bcells = rhsp(xmid, ymid) *  self.mesh.area[:]
             assert 0
         else:

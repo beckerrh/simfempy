@@ -70,8 +70,8 @@ class LaplaceMixed(solvers.solver.Solver):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
             info['error'] = err
         info['postproc'] = {}
-        if self.postproc:
-            for key, val in self.postproc.items():
+        if self.problemdata.postproc:
+            for key, val in self.problemdata.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
                     info['postproc'][key] = self.computeBdryMean(pn, key, data)
@@ -134,12 +134,12 @@ class LaplaceMixed(solvers.solver.Solver):
     def computeRhs(self, u=None):
         xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
-        bcells = -self.rhs(xc, yc, zc) * self.mesh.dV
+        bcells = -self.problemdata.rhs(xc, yc, zc) * self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
 
         for color, faces in self.mesh.bdrylabels.items():
-            if self.bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
-            ud = self.bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
+            if self.problemdata.bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
+            ud = self.problemdata.bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
             bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
 
         help = np.zeros(self.mesh.nfaces)
@@ -150,21 +150,21 @@ class LaplaceMixed(solvers.solver.Solver):
             normalsS = normalsS / dS[:, np.newaxis]
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
-            help[faces] += self.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz)
+            help[faces] += self.problemdata.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz)
         bsides[self.bdrydata.facesinner] -= self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
         bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
         bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
 
         # for robin-exactsolution
-        if self.bdrycond.hasExactSolution():
+        if self.problemdata.bdrycond.hasExactSolution():
             for color, faces in self.mesh.bdrylabels.items():
-                if self.bdrycond.type[color] != "Robin": continue
+                if self.problemdata.bdrycond.type[color] != "Robin": continue
                 normalsS = self.mesh.normals[faces]
                 dS = linalg.norm(normalsS,axis=1)
                 normalsS = normalsS/dS[:,np.newaxis]
                 xf, yf, zf = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS.T
-                bsides[faces] += self.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz) * dS/self.bdrycond.param[color]
+                bsides[faces] += self.problemdata.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz) * dS/self.problemdata.bdrycond.param[color]
         b = np.concatenate((bsides, bcells))
         if u is None: u = np.zeros_like(b)
         else: assert u.shape == b.shape
@@ -172,9 +172,9 @@ class LaplaceMixed(solvers.solver.Solver):
 
     def matrix(self):
         A = self.femv.constructMass(self.diffcellinv)
-        A += self.femv.constructRobin(self.bdrycond, "Robin")
+        A += self.femv.constructRobin(self.problemdata.bdrycond, "Robin")
         B = self.femv.constructDiv()
-        self.bdrydata, A,B = self.femv.matrixNeumann(A, B, self.bdrycond)
+        self.bdrydata, A,B = self.femv.matrixNeumann(A, B, self.problemdata.bdrycond)
         return A,B
 
     def _to_single_matrix(self, Ain):

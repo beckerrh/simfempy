@@ -85,7 +85,7 @@ class Solver(object):
         # temporary
         # self.bdrycond = self.problemdata.bdrycond
         # self.postproc = self.problemdata.postproc
-        # self.rhs = self.problemdata.rhs
+        # self.problemdata.rhs = self.problemdata.rhs
         # temporary
 
         self.linearsolvers=[]
