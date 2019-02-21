@@ -188,11 +188,11 @@ class FemP1(object):
             bdrydata.bsaved[key] = b[nodes]
         if method == 'trad':
             for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
-                # print("dirichlet.shape",dirichlet.shape)
-                # print("dirichlet",dirichlet)
-                # print("b[nodes]",b[nodes])
-                b[nodes] = dirichlet
+                if color in bdrycond.fct:
+                    dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                    b[nodes] = dirichlet
+                else:
+                    b[:] = 0
                 u[nodes] = b[nodes]
             b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
         else:

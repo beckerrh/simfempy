@@ -83,9 +83,9 @@ class Solver(object):
         self.ncomp = self.problemdata.ncomp
 
         # temporary
-        self.bdrycond = self.problemdata.bdrycond
-        self.postproc = self.problemdata.postproc
-        self.rhs = self.problemdata.rhs
+        # self.bdrycond = self.problemdata.bdrycond
+        # self.postproc = self.problemdata.postproc
+        # self.rhs = self.problemdata.rhs
         # temporary
 
         self.linearsolvers=[]

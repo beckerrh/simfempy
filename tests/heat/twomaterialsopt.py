@@ -13,7 +13,7 @@ from simfempy.tools import npext
 from simfempy.meshes import pygmshext
 
 # ----------------------------------------------------------------#
-def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
+def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2, nholes=2):
     geometry = pygmsh.built_in.Geometry()
     xholes = []
     xa, xb = 0.8, 0.1
@@ -70,14 +70,14 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2):
     bdrycond.check(mesh.bdrylabels.keys())
     postproc = {}
     postproc['measured'] = "pointvalues:{}".format(','.join( [str(l) for l in pointlabels]))
-    print("postproc['measured']",postproc['measured'])
+    # print("postproc['measured']",postproc['measured'])
     postproc['bdryfct'] = "bdryfct:1002"
-    postproc['meanout'] = "bdrymean:1002"
-    postproc['flux1'] = "bdrydn:1001"
-    postproc['flux2'] = "bdrydn:1003"
-    fluxes = ['flux1', 'flux2', 'meanout']
-    fluxes = []
-    return mesh, bdrycond, postproc, hole_labels, fluxes
+    # postproc['meanout'] = "bdrymean:1002"
+    # postproc['flux1'] = "bdrydn:1001"
+    # postproc['flux2'] = "bdrydn:1003"
+    # fluxes = ['flux1', 'flux2', 'meanout']
+    # fluxes = []
+    return mesh, bdrycond, postproc, hole_labels
 
 
 
@@ -98,7 +98,7 @@ class Plotter:
         # print("info['postproc']['measured']", info['postproc']['measured'])
         assert len(pointsmeas) == len(self.info['postproc']['measured'])
         ax.plot(self.heat.mesh.points[pointsmeas,0], self.info['postproc']['measured'], 'Dm', label=r'$C(u)$')
-        ax.plot(self.heat.mesh.points[pointsmeas,0], self.heat.data0[len(self.heat.fluxes):], 'vy', label=r'$C_0$')
+        ax.plot(self.heat.mesh.points[pointsmeas,0], self.heat.data0, 'vy', label=r'$C_0$')
         ax.legend()
     def plot(self, point_data=None, cell_data=None, info=None):
         if info is None:
@@ -123,9 +123,14 @@ class Heat(simfempy.applications.heat.Heat):
         self.hole_labels_inv = {}
         for i in range(len(self.hole_labels)):
             self.hole_labels_inv[int(self.hole_labels[i])] = i
-        self.fluxes = kwargs.pop('fluxes')
+        # self.fluxes = kwargs.pop('fluxes')
         self.param = np.ones(len(self.hole_labels))
         self.plotter = Plotter(self)
+        if 'regularize' in kwargs: self.regularize = kwargs.pop('regularize')
+        else: self.regularize = None
+        pp = self.postproc['measured'].split(":")[1]
+        self.nmeasurements = len(pp.split(","))
+        print("self.nmeasurements",self.nmeasurements)
 
     def kparam(self, label):
         if label==100: return self.diffglobal
@@ -136,12 +141,17 @@ class Heat(simfempy.applications.heat.Heat):
         return 0.0
 
     def getData(self, infopp):
-        return np.concatenate([np.array([infopp[f] for f in self.fluxes]), infopp['measured']], axis=0)
+        return infopp['measured']
+        # return np.concatenate([np.array([infopp[f] for f in self.fluxes]), infopp['measured']], axis=0)
 
     def solvestate(self, param):
         # print("#")
-        assert param.shape == self.param.shape
+        nparam = self.param.shape[0]
         self.param = param
+        # if param.shape[0] == nparam: self.param = param
+        # else:
+        #     assert param.shape[0] == 2*nparam
+        #     self.param = param[:nparam]
         # print("self.param", self.param)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         A = self.matrix()
@@ -155,12 +165,22 @@ class Heat(simfempy.applications.heat.Heat):
         data = self.getData(self.info['postproc'])
         # self.plotter.plot()
         # print("self.data0", self.data0, "data", data)
+        if self.regularize:
+            # print("self.regularize", self.regularize)
+            # print("param", param)
+            diffparam = param-self.diffglobal*np.ones(nparam)
+            # print("diffparam", diffparam)
+            return np.append(data - self.data0, self.regularize*(diffparam))
         return data - self.data0
 
     def solveDstate(self, param):
-        assert param.shape == self.param.shape
-        nparam = param.shape[0]
-        jac = np.empty(shape=(self.data0.shape[0],nparam))
+        nparam = self.param.shape[0]
+        assert self.data0.shape[0] == self.nmeasurements
+        if self.regularize:
+            jac = np.zeros(shape=(self.nmeasurements+nparam, nparam))
+            jac[self.nmeasurements:,:] = self.regularize*np.eye(nparam)
+        else:
+            jac = np.zeros(shape=(self.nmeasurements, nparam))
         import copy
         bdrycond_bu = copy.deepcopy(self.bdrycond)
         for color in self.bdrycond.fct:
@@ -175,10 +195,13 @@ class Heat(simfempy.applications.heat.Heat):
             b,du = self.boundaryvec(b, du)
             du, iter = self.linearSolver(self.A, b, du, solver=self.linearsolver, verbose=0)
             point_data, cell_data, info = self.postProcess(du)
+            # print("info['postproc'].shape",self.getData(info['postproc']).shape)
+            # print("jac.shape",jac.shape)
             # self.plot(point_data, cell_data, info)
-            jac[:,i] = self.getData(info['postproc'])
+            jac[:self.nmeasurements,i] = self.getData(info['postproc'])
         self.bdrycond = bdrycond_bu
-        # print("jac", jac)
+
+        # print("jac", jac.shape)
         return jac
 
 
@@ -260,20 +283,22 @@ def compute_j2d(diffglobal):
 
 #----------------------------------------------------------------#
 def test(diffglobal):
-    nmeasurepoints = 6
-    mesh, bdrycond, postproc, hole_labels, fluxes = createMesh2d(nmeasurepoints=nmeasurepoints)
+    nmeasurepoints = 2
+    nholes = 2
+    mesh, bdrycond, postproc, hole_labels = createMesh2d(nmeasurepoints=nmeasurepoints, nholes=nholes)
     # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
+    regularize = 1.
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
-    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, fluxes=fluxes, method="new")
+    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, method="new", regularize=regularize)
     heat.setMesh(mesh)
 
     heat.data0 = np.zeros(nmeasurepoints)
-    param = np.zeros(len(hole_labels), dtype=float)
-    param[0] = 101*diffglobal
+    param = np.zeros(nholes, dtype=float)
+    param[0] = 100*diffglobal
     param[1] = diffglobal
-    data = heat.solvestate(param)
-    heat.data0[:] =  data[:]*(1+0.001* ( 2*np.random.rand()-1))
+    data = heat.solvestate(param)[:nmeasurepoints]
+    heat.data0[:] =  data[:]*(1+0.002* ( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
     import time

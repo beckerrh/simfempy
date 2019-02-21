@@ -95,6 +95,7 @@ class Heat(solvers.solver.Solver):
             info['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             point_data['E'] = self.fem.tonode(e)
         info['postproc'] = {}
+        print("self.postproc", self.postproc)
         if self.postproc:
             for key, val in self.postproc.items():
                 type,data = val.split(":")
