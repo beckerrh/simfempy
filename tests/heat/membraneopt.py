@@ -167,7 +167,7 @@ def test():
     # print("data", data)
     membrane.plotter.plot()
     perc = 0
-    membrane.data0[:] =  data[:]*(1+0.5*perc* ( 2*np.random.rand()-1))
+    membrane.data0[:] =  data[:]*(1+0.5*perc* ( 2*np.random.rand(nmeasures)-1))
     param = np.zeros(nparams)
     # param = np.random.rand(nparams)
     # data = membrane.solvestate(param)[:nmeasures]

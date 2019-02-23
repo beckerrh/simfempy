@@ -301,7 +301,7 @@ def test(diffglobal):
     param[1] = diffglobal
     data = heat.solvestate(param)[:nmeasurepoints]
     percrandom = 0.005
-    heat.data0[:] =  data[:]*(1+0.5*percrandom*( 2*np.random.rand()-1))
+    heat.data0[:] =  data[:]*(1+0.5*percrandom*( 2*np.random.rand(nmeasurepoints)-1))
 
     methods = ['trf','lm']
     for method in methods:

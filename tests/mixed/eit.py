@@ -129,11 +129,12 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         else: self.regularize = None
         self.nparam = len(self.param_labels)
         self.nmeasures = len(self.measure_labels)
-        self.param = np.ones(self.nparam )
 
         self.diffglobalinv = kwargs.pop('diffglobalinv')
+        self.param = self.diffglobalinv*np.ones(self.nparam )
         self.diffinv = np.vectorize(self.conductivityinv)
         self.ddiffinv = np.vectorize(self.dconductivityinv)
+
 
         # print("self.problemdata", self.problemdata)
         bdrycond = self.problemdata.bdrycond
@@ -149,6 +150,9 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
     def solvestate(self, param):
         # print("#")
         self.param = param
+        if not np.all(param>0):
+            print((10*"#"))
+            self.param = np.fmax(param, self.diffglobalinv)
         self.diffcellinv = self.diffinv(self.mesh.cell_labels)
         self.diffcell = 1/self.diffcellinv
         A = self.matrix()
@@ -205,7 +209,7 @@ def test():
     h = 1
     hhole, hmeasure = 0.2*h, 0.1*h
     nholesperdirection = 1
-    nmeasures = 4
+    nmeasures = 8
     holesize = 2/nholesperdirection
     measuresize = 0.03
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholesperdirection, nmeasures=nmeasures, holesize=holesize, measuresize=measuresize)
@@ -232,49 +236,65 @@ def test():
     nmeasures = len(measure_labels)
     voltage_labels = electrode_labels
     # voltage = 1 + 10*(np.random.rand(nmeasures)-2)
-    voltage = 10*np.ones(nmeasures)
+    voltage = 2*np.ones(nmeasures)
     voltage[::2] *= -1
     voltage -= np.mean(voltage)
 
-    regularize = None
-    diffglobalinv = 10
+    regularize = 0.01
+    diffglobalinv = 1
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, regularize=regularize, diffglobalinv=diffglobalinv)
     eit.setMesh(mesh)
 
     eit.data0 = np.zeros(nmeasures)
-    param = 1/(1 +np.arange(nparams, dtype=float))
-    refdata = eit.solvestate(param)[:nmeasures]
-    print("param", param)
+    refparam = 0.01/(1 +np.arange(nparams, dtype=float))
+    refdata = eit.solvestate(refparam)[:nmeasures]
+    print("refparam", refparam)
     print("refdata", refdata)
     # eit.plotter.plot()
 
     percrandom = 0.01
-    perturbeddata =  refdata[:]*(1+0.5*percrandom*( 2*np.random.rand()-1))
+    perturbeddata =  refdata*(1+0.5*percrandom*( 2*np.random.rand(nmeasures)-1))
+    perturbeddata -= np.mean(perturbeddata)
     print("perturbeddata", perturbeddata)
     eit.data0[:] =  perturbeddata
-    optimize(eit, param)
-    params = np.einsum('i,j->ji', param, np.linspace(0.1,10, 30))
-    print("params", params.reshape(-1))
-    paramtocost(eit, params)
+
+    bounds = (0.001 * diffglobalinv, diffglobalinv)
+    # refparam[:] *= 2
+    param = diffglobalinv*refparam
+    optimize(eit, param, bounds=bounds)
+
+    # params = np.outer(np.linspace(0.0001*diffglobalinv, 0.1*diffglobalinv, 30),np.ones(refparam.shape[0]))
+    # # params = np.einsum('i,j->ji', refparam, np.linspace(-1,3, 30))
+    # print("params", params)
+    # paramtocost(eit, params, regularizes=[0, 0.001], refparam=refparam)
 
 
-def paramtocost(eit, params):
-    datas=[]
-    for param in params:
-        print("param", param)
-        data = eit.solvestate(param)
-        datas.append(0.5*np.linalg.norm(data)**2)
-    plt.plot(params, datas)
+def paramtocost(eit, params, regularizes=None, refparam=None):
+    if regularizes is None: regularizes=[0]
+    datas={}
+    for regularize in regularizes:
+        eit.regularize = regularize
+        datas[regularize] = []
+        for param in params:
+            # print("param", param)
+            data = eit.solvestate(param)
+            datas[regularize].append(0.5*np.linalg.norm(data)**2)
+    for regularize in regularizes:
+        plt.plot(params, datas[regularize], label="{}".format(regularize))
+    if refparam:
+        plt.axvline(x=refparam, color='k', linestyle='--')
+    plt.legend()
     plt.show()
 
-def optimize(eit, param):
+def optimize(eit, param, bounds=None):
     methods = ['trf','lm']
-    param[:] *= 2
+    print("param",param)
     for method in methods:
+        if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
         # param[:] = 1/diffglobal
         t0 = time.time()
         # info = scipy.optimize.least_squares(eit.solvestate, x0=param, method=method, gtol=1e-12, verbose=0)
-        info = scipy.optimize.least_squares(eit.solvestate, jac=eit.solveDstate, x0=param, method=method, gtol=1e-12, verbose=0)
+        info = scipy.optimize.least_squares(eit.solvestate, jac=eit.solveDstate, x0=param, bounds=bounds, method=method, gtol=1e-12, verbose=0)
         dt = time.time()-t0
         # print("status", info.status)
         # print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} {:10.2f} s".format(method, info.x, info.cost, info.nfev, info.njev, dt))
