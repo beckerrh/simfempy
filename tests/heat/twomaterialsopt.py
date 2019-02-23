@@ -1,7 +1,7 @@
 assert __name__ == '__main__'
 from os import sys, path
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 import simfempy.applications
 import pygmsh
@@ -300,7 +300,8 @@ def test(diffglobal):
     param[0] = 100*diffglobal
     param[1] = diffglobal
     data = heat.solvestate(param)[:nmeasurepoints]
-    heat.data0[:] =  data[:]*(1+0.002* ( 2*np.random.rand()-1))
+    percrandom = 0.005
+    heat.data0[:] =  data[:]*(1+0.5*percrandom*( 2*np.random.rand()-1))
 
     methods = ['trf','lm']
     for method in methods:

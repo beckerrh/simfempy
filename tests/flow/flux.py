@@ -1,6 +1,6 @@
 from os import sys, path
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 from simfempy import applications
 from simfempy.meshes import geomdefs

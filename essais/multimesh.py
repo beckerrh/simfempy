@@ -2,8 +2,8 @@ from os import sys, path
 import pygmsh
 import numpy as np
 import matplotlib.pyplot as plt
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 import simfempy.meshes
 
 geom = pygmsh.built_in.Geometry()

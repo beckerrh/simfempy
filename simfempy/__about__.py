@@ -3,7 +3,7 @@
 #
 
 __version__ = "1.0.3"
-__author__ = u"Roland Becker"
+__author__ = "Roland Becker"
 __author_email__ = "beckerrolandh@gmail.com"
 __copyright__ = u"Copyright (c) 2013-2018, {} <{}>".format(__author__, __author_email__)
 __website__ = "https://github.com/beckerrh/simfempy"

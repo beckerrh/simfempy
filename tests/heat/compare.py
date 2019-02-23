@@ -1,7 +1,7 @@
 from os import sys, path
 import numpy as np
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 import simfempy
 from simfempy.meshes import geomdefs

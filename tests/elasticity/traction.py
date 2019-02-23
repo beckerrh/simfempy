@@ -1,8 +1,8 @@
 assert __name__ == '__main__'
 from os import sys, path
 import numpy as np
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 from simfempy.applications.elasticity import Elasticity
 from simfempy.meshes import geomdefs

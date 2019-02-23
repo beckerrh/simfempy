@@ -1,7 +1,7 @@
 assert __name__ == '__main__'
 from os import sys, path
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 import simfempy.applications
 import pygmsh

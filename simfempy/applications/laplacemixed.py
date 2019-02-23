@@ -43,6 +43,10 @@ class LaplaceMixed(solvers.solver.Solver):
             self.method = kwargs.pop('method')
         else:
             self.method="trad"
+        if 'plotdiff' in kwargs:
+            self.plotdiff = kwargs.pop('plotdiff')
+        else:
+            self.plotdiff = False
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -83,6 +87,7 @@ class LaplaceMixed(solvers.solver.Solver):
                     info['postproc'][key] = self.computePointValues(u, key, data)
                 else:
                     raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+        if self.plotdiff: cell_data['diff'] = self.diffcell
         return point_data, cell_data, info
 
     def computeBdryDn(self, u, key, data):
@@ -99,13 +104,13 @@ class LaplaceMixed(solvers.solver.Solver):
 
     def computeBdryMean(self, pn, key, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
+        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            mean += np.sum(dS*np.mean(pn[self.mesh.faces[faces]],axis=1))
+            omega[i] = np.sum(dS)
+            mean[i] = np.sum(dS*np.mean(pn[self.mesh.faces[faces]],axis=1))
         return mean/omega
 
     def computeError(self, solexact, p, vc, pn):
@@ -134,8 +139,10 @@ class LaplaceMixed(solvers.solver.Solver):
     def computeRhs(self, u=None):
         xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
-        bcells = -self.problemdata.rhs(xc, yc, zc) * self.mesh.dV
         bsides = np.zeros(self.mesh.nfaces)
+        bcells = np.zeros(self.mesh.ncells)
+        if self.problemdata.rhs:
+            bcells = -self.problemdata.rhs(xc, yc, zc) * self.mesh.dV
 
         for color, faces in self.mesh.bdrylabels.items():
             if self.problemdata.bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
@@ -143,17 +150,18 @@ class LaplaceMixed(solvers.solver.Solver):
             bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
 
         help = np.zeros(self.mesh.nfaces)
-        for color in self.bdrydata.colorsneum:
-            faces = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
-            normalsS = normalsS / dS[:, np.newaxis]
-            xf, yf, zf = self.mesh.pointsf[faces].T
-            nx, ny, nz = normalsS.T
-            help[faces] += self.problemdata.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz)
-        bsides[self.bdrydata.facesinner] -= self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
-        bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
-        bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
+        if hasattr(self.problemdata.bdrycond,'fctexact'):
+            for color in self.bdrydata.colorsneum:
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                normalsS = normalsS / dS[:, np.newaxis]
+                xf, yf, zf = self.mesh.pointsf[faces].T
+                nx, ny, nz = normalsS.T
+                help[faces] += self.problemdata.bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz)
+            bsides[self.bdrydata.facesinner] -= self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
+            bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
+            bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
 
         # for robin-exactsolution
         if self.problemdata.bdrycond.hasExactSolution():
@@ -187,13 +195,14 @@ class LaplaceMixed(solvers.solver.Solver):
         Aall = scipy.sparse.vstack([A1, A2])
         return Aall.tocsr()
 
-    def linearSolver(self, Ain, bin, u=None, solver = 'umf'):
+    def linearSolver(self, Ain, bin, u=None, solver = None, verbose=0):
+        if solver is None: solver = self.linearsolver
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
             return splinalg.spsolve(Aall, bin, permc_spec='COLAMD'), 1
         elif solver == 'gmres':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
-            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
             # Aall = self._to_single_matrix(Ain)
             # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
             # M_x = lambda x: M2.solve(x)

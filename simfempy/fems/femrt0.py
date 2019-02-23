@@ -109,6 +109,7 @@ class FemRT0(object):
         mat = np.empty(shape=(0), dtype=float)
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != type: continue
+            if not bdrycond.param[color]: continue
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             cols = np.append(cols, faces)

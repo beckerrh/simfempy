@@ -1,7 +1,7 @@
 assert __name__ == '__main__'
 from os import sys, path
-fempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(fempypath)
+simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+sys.path.append(simfempypath)
 
 import simfempy.applications
 import pygmsh
@@ -17,29 +17,9 @@ import time
 def createMesh2d(h=0.1, hhole=0.03, nholes=2, holesize=0.2):
     x0, x1 = 0, 1
     geometry = pygmsh.built_in.Geometry()
-    spacesize = (x1-x0-nholes*holesize)/(nholes+1)
-    if spacesize < 0.1*holesize:
-        maxsize = (x1-x0)/(nholes*1.1 - 0.1)
-        raise ValueError("holes too big (max={})".format(maxsize))
-    pos = np.empty(2*nholes)
-    pos[0] = spacesize
-    pos[1] = pos[0] + holesize
-    for i in range(1,nholes):
-        pos[2*i] = pos[2*i-1] + spacesize
-        pos[2*i+1] = pos[2*i] + holesize
-    xholes = []
-    for i in range(nholes):
-        xa, xb = x0+pos[2*i], x0+pos[2*i+1]
-        for j in range(nholes):
-            ya, yb = x0+pos[2*j], x0+pos[2*j+1]
-            xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
-    holes = []
-    hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
-    for xhole, hole_label in zip(xholes, hole_labels):
-        xarrm = np.mean(np.array(xhole), axis=0)
-        holes.append(geometry.add_polygon(X=xhole, lcar=hhole))
-        pygmshext.add_point_in_surface(geometry, holes[-1].surface, xarrm, lcar=h)
-        geometry.add_physical_surface(holes[-1].surface, label=int(hole_label))
+
+    holes, hole_labels = pygmshext.add_holes(geometry, x0, x1, h, hhole, nholes, holesize)
+
     outer = []
     outer.append([[x0, x0, 0], 1000, h])
     outer.append([[x1, x0, 0], 1001, h])
