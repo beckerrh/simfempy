@@ -23,7 +23,8 @@ def createMesh2d(**kwargs):
     measuresize = kwargs.pop('measuresize')
     x0, x1 = -1.5, 1.5
     geometry = pygmsh.built_in.Geometry()
-    holes, hole_labels = pygmshext.add_holes(geometry, x0, x1, **kwargs)
+    kwargsholes = kwargs.copy()
+    holes, hole_labels = pygmshext.add_holes(geometry, x0, x1, **kwargsholes)
     # un point additionnel pas espace entre segments-mesure
     num_sections = 3*nmeasures
     spacing = np.empty(num_sections)
@@ -84,13 +85,13 @@ class Plotter:
         fig, axs = simfempy.meshes.plotmesh.meshWithData(self.eit.mesh, point_data, cell_data=cell_plot)
         plt.show()
 
-#----------------------------------------------------------------#
-class RhcRobin(object):
-    def __init__(self, param):
-        self.param = param
-    def __call__(self, x, y, z):
-        # print("RhcRobin", self.param)
-        return self.param
+# #----------------------------------------------------------------#
+# class RhsParam(object):
+#     def __init__(self, param):
+#         self.param = param
+#     def __call__(self, x, y, z):
+#         # print("RhsParam", self.param)
+#         return self.param
 
 #----------------------------------------------------------------#
 class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
@@ -139,7 +140,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         # print("self.problemdata", self.problemdata)
         bdrycond = self.problemdata.bdrycond
         for label in self.voltage_labels:
-            bdrycond.fct[label] = RhcRobin(self.voltage[self.voltage_labels_inv[label]])
+            bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(self.voltage[self.voltage_labels_inv[label]])
         # print("self.problemdata", self.problemdata)
 
 
@@ -208,8 +209,8 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 def test():
     h = 1
     hhole, hmeasure = 0.2*h, 0.1*h
-    nholesperdirection = 1
-    nmeasures = 8
+    nholesperdirection = 5
+    nmeasures = 30
     holesize = 2/nholesperdirection
     measuresize = 0.03
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholesperdirection, nmeasures=nmeasures, holesize=holesize, measuresize=measuresize)
@@ -226,7 +227,8 @@ def test():
         bdrycond.param[label] = 1
 
     postproc = {}
-    postproc['measured'] = "bdrymean:{}".format(','.join( [str(l) for l in electrode_labels]))
+    # postproc['measured'] = "bdrymean:{}".format(','.join( [str(l) for l in electrode_labels]))
+    postproc['measured'] = "bdrydn:{}".format(','.join( [str(l) for l in electrode_labels]))
 
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
 
@@ -240,19 +242,21 @@ def test():
     voltage[::2] *= -1
     voltage -= np.mean(voltage)
 
-    regularize = 0.01
+    regularize = 0.0001
     diffglobalinv = 1
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, regularize=regularize, diffglobalinv=diffglobalinv)
     eit.setMesh(mesh)
 
     eit.data0 = np.zeros(nmeasures)
-    refparam = 0.01/(1 +np.arange(nparams, dtype=float))
+    # refparam = 0.01/(1 +np.arange(nparams, dtype=float))
+    refparam = 0.1*diffglobalinv*np.ones(nparams)
+    refparam[::2] = 0.2*diffglobalinv
     refdata = eit.solvestate(refparam)[:nmeasures]
     print("refparam", refparam)
     print("refdata", refdata)
-    # eit.plotter.plot()
+    eit.plotter.plot()
 
-    percrandom = 0.01
+    percrandom = 0.00
     perturbeddata =  refdata*(1+0.5*percrandom*( 2*np.random.rand(nmeasures)-1))
     perturbeddata -= np.mean(perturbeddata)
     print("perturbeddata", perturbeddata)
@@ -260,13 +264,13 @@ def test():
 
     bounds = (0.001 * diffglobalinv, diffglobalinv)
     # refparam[:] *= 2
-    param = diffglobalinv*refparam
+    param = diffglobalinv*np.ones(nparams)
     optimize(eit, param, bounds=bounds)
 
-    # params = np.outer(np.linspace(0.0001*diffglobalinv, 0.1*diffglobalinv, 30),np.ones(refparam.shape[0]))
+    # params = np.outer(np.linspace(0.00001*diffglobalinv, 0.1*diffglobalinv, 30),np.ones(refparam.shape[0]))
     # # params = np.einsum('i,j->ji', refparam, np.linspace(-1,3, 30))
     # print("params", params)
-    # paramtocost(eit, params, regularizes=[0, 0.001], refparam=refparam)
+    # paramtocost(eit, params, regularizes=[0, 0.0001], refparam=refparam)
 
 
 def paramtocost(eit, params, regularizes=None, refparam=None):

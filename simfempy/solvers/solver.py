@@ -138,7 +138,10 @@ class Solver(object):
         elif solver == 'pyamg':
             import pyamg
             res=[]
-            u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
+            # u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
+            B = np.ones((A.shape[0], 1))
+            ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+            u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, accel='gmres')
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
         else:

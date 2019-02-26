@@ -134,11 +134,12 @@ def add_holes(geom, x0, x1, **kwargs):
         for j in range(nholes):
             ya, yb = x0+pos[2*j], x0+pos[2*j+1]
             xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
+
     holes = []
     hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
     for xhole, hole_label in zip(xholes, hole_labels):
-        xarrm = np.mean(np.array(xhole), axis=0)
         holes.append(geom.add_polygon(X=xhole, lcar=hhole))
+        xarrm = np.mean(np.array(xhole), axis=0)
         add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
         geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
     return holes, hole_labels

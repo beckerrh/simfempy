@@ -114,6 +114,7 @@ class FemP1(object):
     def computeRhs(self, u, problemdata, kheatcell, method, bdrydata):
         rhs = problemdata.rhs
         rhscell = problemdata.rhscell
+        rhspoint = problemdata.rhspoint
         bdrycond = problemdata.bdrycond
         b = np.zeros(self.mesh.nnodes)
         if rhs:
@@ -127,6 +128,14 @@ class FemP1(object):
                 bC = scale*fct(xc, yc, zc)*self.mesh.dV[cells]
                 # print("bC", bC)
                 np.add.at(b, self.mesh.simplices[cells].T, bC)
+        if rhspoint:
+            for label,fct in rhspoint.items():
+                if fct is None: continue
+                points = self.mesh.veretexoflabel[label]
+                xc, yc, zc = self.mesh.points[points].T
+                # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
+                b[points] += fct(xc, yc, zc)
+
 
         help = np.zeros(self.mesh.nnodes)
         for color, faces in self.mesh.bdrylabels.items():
@@ -140,6 +149,7 @@ class FemP1(object):
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Neumann": continue
+            if bdrycond.fct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS[:,np.newaxis]
@@ -193,7 +203,7 @@ class FemP1(object):
     def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         if u is None: u = np.zeros_like(b)
-        else: assert u.shape == b.shape
+        elif u.shape != b.shape : raise ValueError("u.shape != b.shape {} != {}".format(u.shape, b.shape))
         x, y, z = self.mesh.points.T
         for key, nodes in nodesdirflux.items():
             bdrydata.bsaved[key] = b[nodes]
@@ -209,7 +219,10 @@ class FemP1(object):
         else:
             for color, nodes in nodesdir.items():
                 dirichlet = bdrycond.fct[color]
-                u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                if dirichlet:
+                    u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+                else:
+                    u[nodes] = 0
                 b[nodes] = 0
             b[nodesinner] -= bdrydata.A_inner_dir * u[nodedirall]
             b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
@@ -301,7 +314,7 @@ class FemP1(object):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i,color in enumerate(colors):
-            nodes = self.mesh.vertices[self.mesh.veretexoflabel[color]]
+            nodes = self.mesh.veretexoflabel[color]
             up[i] = u[nodes]
         return up
 

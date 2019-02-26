@@ -164,6 +164,7 @@ def mesh(x, y, tris, **kwargs):
 #=================================================================#
 def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None,\
                  addplots=[]):
+    if addplots is None: addplots = []
     nplots=0
     if point_data: nplots += len(point_data)
     if cell_data: nplots += len(cell_data)

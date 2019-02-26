@@ -75,7 +75,7 @@ class SimplexMesh(object):
             veretexoflabel = npext.unique_all(self.vertex_labels)
             self.veretexoflabel={}
             for color, ind in zip(veretexoflabel[0], veretexoflabel[1]):
-                self.veretexoflabel[color] = ind
+                self.veretexoflabel[color] = self.vertices[ind]
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])

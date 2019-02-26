@@ -51,14 +51,35 @@ class ProblemData(object):
     """
     Contains all (?) data: boundary conditions and right-hand sides
     """
-    def __init__(self, bdrycond=None, rhs=None, rhscell=None, postproc=None, ncomp=-1):
+    def __init__(self, bdrycond=None, rhs=None, rhscell=None, rhspoint = None, postproc=None, ncomp=-1):
         self.ncomp=ncomp
         if bdrycond: self.bdrycond = bdrycond
         else: self.bdrycond = BoundaryConditions()
         self.rhs = None
         self.rhscell = rhscell
+        self.rhspoint = rhspoint
         self.solexact = None
         self.postproc = postproc
 
     def __repr__(self):
-        return "ncomp={:2d}\nbdrycond={}\nrhs={}\nrhscell={}\npostproc={}\nsolexact={}".format(self.ncomp, self.bdrycond, self.rhs, self.rhscell, self.postproc, self.solexact)
+        # sf = ""
+        # sc = []
+        # for a in [a for a in dir(self) if not a.startswith('__')]:
+        #     sf += "{}={{}}\\n".format(a)
+        #     sc.append("self."+a)
+        # s = sf.format(*sc)
+        # print("sf",sf)
+        # print("sc",sc)
+        # print("s",s)
+        # s = eval(s)
+        # return s
+        return "ncomp={:2d}\nbdrycond={}\nrhs={}\nrhspoint={}\nrhscell={}\npostproc={}\nsolexact={}".format(self.ncomp, self.bdrycond, self.rhs, self.rhspoint, self.rhscell, self.postproc, self.solexact)
+
+    def clear(self):
+        self.rhs = None
+        self.rhscell = None
+        self.rhspoint = None
+        self.solexact = None
+        self.postproc = None
+        for color in self.bdrycond.fct:
+            self.bdrycond.fct[color] = None

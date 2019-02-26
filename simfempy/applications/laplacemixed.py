@@ -92,13 +92,13 @@ class LaplaceMixed(solvers.solver.Solver):
 
     def computeBdryDn(self, u, key, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
+        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            mean += np.sum(dS*u[faces])
+            omega[i] = np.sum(dS)
+            mean[i] = np.sum(dS*u[faces])
         return mean
         return mean/omega
 
