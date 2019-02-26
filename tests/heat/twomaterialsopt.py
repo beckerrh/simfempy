@@ -15,18 +15,12 @@ import copy
 # ----------------------------------------------------------------#
 def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2, nholes=2):
     geometry = pygmsh.built_in.Geometry()
-    xholes = []
-    xa, xb = 0.8, 0.1
-    ya, yb = -0.8, 0.5
-    xholes.append([[-xa, ya, 0], [-xb, ya, 0], [-xb, yb, 0], [-xa, yb, 0]])
-    xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
-    holes = []
-    hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
-    for xhole, hole_label in zip(xholes, hole_labels):
-        xarrm = np.mean(np.array(xhole), axis=0)
-        holes.append(geometry.add_polygon(X=xhole, lcar=hhole))
-        pygmshext.add_point_in_surface(geometry, holes[-1].surface, xarrm, lcar=h)
-        geometry.add_physical_surface(holes[-1].surface, label=int(hole_label))
+
+    nholesy = int(np.sqrt(nholes))
+    nholesx = int(nholes/nholesy)
+
+    holes, hole_labels = pygmshext.add_holesnew(geometry, h=h, hhole=hhole, x0=-0.8, x1=0.8, y0=-0.8, y1=0.5, nholesx=nholesx,nholesy=nholesy)
+
     # outer poygon
     # nmeasurepoints = 2
     xmeas = np.linspace(1,-1,nmeasurepoints+2)[1:-1]
@@ -97,7 +91,7 @@ class Plotter:
         # print("info['postproc']['measured']", info['postproc']['measured'])
         assert len(pointsmeas) == len(self.info['postproc']['measured'])
         ax.plot(self.heat.mesh.points[pointsmeas,0], self.info['postproc']['measured'], 'Dm', label=r'$C(u)$')
-        ax.plot(self.heat.mesh.points[pointsmeas,0], self.heat.data0, 'vy', label=r'$C_0$')
+        ax.plot(self.heat.mesh.points[pointsmeas,0], self.heat.data0+293, 'vy', label=r'$C_0$')
         ax.legend()
     def plot(self, point_data=None, cell_data=None, info=None):
         if point_data is None:
@@ -105,7 +99,8 @@ class Plotter:
         if info is None:
             addplots = None
         else:
-            addplots = self.addplot
+            self.info = info
+            addplots = [self.plotmeas]
         fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data, cell_data, addplots=addplots)
         plt.show()
 
@@ -128,8 +123,6 @@ class Heat(simfempy.applications.heat.Heat):
         self.nparam = len(self.hole_labels)
         self.param = np.ones(self.nparam)
         self.plotter = Plotter(self)
-        if 'regularize' in kwargs: self.regularize = kwargs.pop('regularize')
-        else: self.regularize = None
         pp = self.problemdata.postproc['measured'].split(":")[1]
         self.nmeasures = len(pp.split(","))
         self.data0 = np.zeros(self.nmeasures)
@@ -159,20 +152,11 @@ class Heat(simfempy.applications.heat.Heat):
         data = self.getData(self.info['postproc'])
         # self.plotter.plot()
         # print("self.data0", self.data0, "data", data)
-        if self.regularize:
-            # print("self.regularize", self.regularize)
-            # print("param", param)
-            diffparam = param-self.diffglobal*np.ones(self.nparam)
-            return np.append(data - self.data0, self.regularize*diffparam), u
         return data - self.data0, u
 
     def computeDRes(self, param, u, du):
         assert self.data0.shape[0] == self.nmeasures
-        if self.regularize:
-            jac = np.zeros(shape=(self.nmeasures+self.nparam, self.nparam))
-            jac[self.nmeasures:,:] = self.regularize*np.eye(self.nparam)
-        else:
-            jac = np.zeros(shape=(self.nmeasures, self.nparam))
+        jac = np.zeros(shape=(self.nmeasures, self.nparam))
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
         for color in self.problemdata.bdrycond.fct:
             self.problemdata.bdrycond.fct[color] = None
@@ -196,11 +180,7 @@ class Heat(simfempy.applications.heat.Heat):
 
     def computeDResAdjW(self, param, u):
         assert self.data0.shape[0] == self.nmeasures
-        if self.regularize:
-            jac = np.zeros(shape=(self.nmeasures + self.nparam, self.nparam))
-            jac[self.nmeasures:, :] = self.regularize * np.eye(self.nparam)
-        else:
-            jac = np.zeros(shape=(self.nmeasures, self.nparam))
+        jac = np.zeros(shape=(self.nmeasures, self.nparam))
         pdsplit = self.problemdata.postproc['measured'].split(':')
         assert pdsplit[0] == 'pointvalues'
         pointids = [int(l) for l in pdsplit[1].split(',')]
@@ -227,32 +207,41 @@ class Heat(simfempy.applications.heat.Heat):
         self.problemdata = problemdata_bu
         return jac
 
-    def computeDResAdj(self, param, r, u):
+    def computeDResAdj(self, param, r, u, z):
         grad = np.zeros(shape=(self.nparam))
         pdsplit = self.problemdata.postproc['measured'].split(':')
         assert pdsplit[0] == 'pointvalues'
         pointids = [int(l) for l in pdsplit[1].split(',')]
         problemdata_bu = copy.deepcopy(self.problemdata)
         self.problemdata.clear()
-        if not hasattr(self, 'z'):
-            self.z = np.zeros(self.mesh.nnodes)
+        if z is None:
+            z = np.zeros(self.mesh.nnodes)
         self.problemdata.rhspoint = {}
         for j in range(self.nmeasures):
             self.problemdata.rhspoint[pointids[j]] = simfempy.solvers.optimize.RhsParam(r[j])
         self.kheatcell = self.kheat(self.mesh.cell_labels)
-        b, self.z = self.computeRhs(self.z)
-        self.z, iter = self.linearSolver(self.A, b, self.z, solver=self.linearsolver, verbose=0)
+        b, z = self.computeRhs(z)
+        z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
         # point_data, cell_data, info = self.postProcess(self.z)
         # self.plotter.plot(point_data, cell_data)
         for i in range(self.nparam):
             self.dlabel = self.hole_labels[i]
             self.kheatcell = self.dkheat(self.mesh.cell_labels)
             Bi = self.matrix()
-            grad[i] = -Bi.dot(u).dot(self.z)
+            grad[i] = -Bi.dot(u).dot(z)
         self.problemdata = problemdata_bu
-        if self.regularize:
-            grad += self.regularize*self.regularize*(param - self.diffglobal * np.ones(self.nparam))
-        return grad
+        return grad, z
+
+    def computeM(self, param, du, z):
+        M = np.zeros(shape=(self.nparam,self.nparam))
+        for i in range(self.nparam):
+            self.dlabel = self.hole_labels[i]
+            self.kheatcell = self.dkheat(self.mesh.cell_labels)
+            Bi = self.matrix()
+            for j in range(self.nparam):
+                M[j,i] = -Bi.dot(du[j]).dot(z)
+        # print("M", np.array2string(M, precision=2, floatmode='fixed'))
+        return M
 
 #----------------------------------------------------------------#
 def compute_j(diffglobal):
@@ -330,27 +319,29 @@ def compute_j2d(diffglobal):
 
 #----------------------------------------------------------------#
 def test(diffglobal):
-    nmeasurepoints = 4
-    nholes = 2
-    h = 0.5
-    hhole, hmeas = 0.5*h, 0.25*h
+    nmeasurepoints = 6
+    nholes = 4
+    h = 0.1
+    hhole, hmeas = 0.5*h, 0.1*h
     mesh, bdrycond, postproc, hole_labels = createMesh2d(h=h, hhole=hhole, hmeas=hmeas,nmeasurepoints=nmeasurepoints, nholes=nholes)
-    # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    # plt.show()
-    regularize = 0.01
+    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    plt.show()
+    regularize = 0.000
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
-    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, method="new", regularize=regularize)
+    heat = Heat(problemdata=problemdata, diffglobal=diffglobal, hole_labels=hole_labels, method="new")
     heat.setMesh(mesh)
 
-    optimizer = simfempy.solvers.optimize.Optimizer(heat, nparam=nholes, nmeasure=nmeasurepoints, regularize=regularize)
+    optimizer = simfempy.solvers.optimize.Optimizer(heat, nparam=nholes, nmeasure=nmeasurepoints, regularize=regularize, param0=diffglobal*np.ones(nholes))
 
     # heat.data0 = np.zeros(nmeasurepoints)
-    refparam = np.zeros(nholes, dtype=float)
-    refparam[0] = 200*diffglobal
-    refparam[1] = 100*diffglobal
+    refparam = diffglobal*np.ones(nholes, dtype=float)
+    refparam[0] *= 200
+    refparam[1] *= 100
     print("refparam",refparam)
-    percrandom = 0.2
+    percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
+    # perturbeddata[::2] *= 1.2
+    # perturbeddata[1::2] *= 0.8
 
     # refdata = heat.solvestate(refparam)[:nmeasurepoints]
     # perturbeddata =  refdata*(1+0.5*percrandom*( np.random.rand(nmeasurepoints)-2))
@@ -361,10 +352,11 @@ def test(diffglobal):
     initialparam = diffglobal*np.ones(nholes)
     print("initialparam",initialparam)
 
-    methods = ['trf','lm','dogbox','trust-ncg','Newton-CG']
+    methods = ['trf','lm','dogbox','trust-ncg','Newton-CG','dogleg']
     # methods = ['trust-ncg','Newton-CG']
     for method in methods:
         optimizer.minimize(x0=initialparam, method=method)
+        heat.plotter.plot(info=heat.info)
 
 #================================================================#
 

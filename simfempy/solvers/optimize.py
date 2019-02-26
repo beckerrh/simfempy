@@ -19,51 +19,72 @@ class Optimizer(object):
         self.u = None
         self.z = None
         self.du = None
+        self.fullhess = False
+        self.gradtest = False
 
-    def __init__(self, solver, nparam=None, nmeasure=None, regularize=None):
+    def __init__(self, solver, **kwargs):
         self.solver = solver
         self.reset()
-        self.nparam = nparam
-        self.nmeasure = nmeasure
-        self.regularize = regularize
-        if regularize is not None:
-            if nmeasure is None: raise ValueError("If 'regularize' is given, we need 'nmeasure'")
+        if 'fullhess' in kwargs: self.fullhess = kwargs.pop('fullhess')
+        if 'gradtest' in kwargs: self.gradtest = kwargs.pop('gradtest')
+        if 'regularize' in kwargs:
+            if not 'nmeasure' in kwargs: raise ValueError("If 'regularize' is given, we need 'nmeasure'")
+            if not 'param0' in kwargs: raise ValueError("If 'regularize' is given, we need 'param0'")
+            self.regularize = kwargs.pop('regularize')
+            if self.regularize is not None: np.sqrt(self.regularize)
+            self.nparam = kwargs.pop('nparam')
+            self.nmeasure = kwargs.pop('nmeasure')
+            self.param0 = kwargs.pop('param0')
 
     def computeRes(self, param):
-        toto = self.solver.computeRes(param, self.u)
         self.r, self.u = self.solver.computeRes(param, self.u)
+        if self.regularize:
+           self.r = np.append(self.r, self.regularize*(param-self.param0))
         return self.r
 
     def computeDRes(self, param):
         self.dr, self.du = self.solver.computeDRes(param, self.u, self.du)
+        if self.regularize:
+            self.dr = np.append(self.dr, self.regularize * np.eye(self.nparam),axis=0)
         return self.dr
 
     def computeJ(self, param):
-        self.r, self.u = self.solver.computeRes(param, self.u)
-        return 0.5*np.linalg.norm(self.r)**2
+        return 0.5*np.linalg.norm(self.computeRes(param))**2
 
     def computeDJ(self, param):
         if self.r is None:
-            self.r, self.u = self.solver.computeRes(param, self.u)
+            self.r = self.computeRes(param)
         self.dr, self.du = self.solver.computeDRes(param, self.u, self.du)
+        if self.regularize:
+            self.dr = np.append(self.dr, self.regularize * np.eye(self.nparam),axis=0)
+        if not self.gradtest:
+            return np.dot(self.r, self.dr)
+
         dr2 = self.solver.computeDResAdjW(param, self.u)
+        if self.regularize:
+            dr2 = np.append(dr2, self.regularize * np.eye(self.nparam),axis=0)
+        #     jac[self.nmeasures:, :] = self.regularize * np.eye(self.nparam)
+
         assert np.allclose(self.dr, dr2)
         # print("r", r.shape, "dr", dr.shape, "np.dot(r,dr)", np.dot(r,dr))
         grad = np.dot(self.r, self.dr)
-        grad2 = self.solver.computeDResAdj(param, self.r, self.u)
+        grad2, self.z = self.solver.computeDResAdj(param, self.r[:self.nmeasure], self.u, self.z)
+        if self.regularize:
+            grad2 += self.regularize*self.regularize*(param - self.param0)
+
         if not np.allclose(grad, grad2):
-            print("self.r", self.r)
-            print("self.dr", self.dr)
             raise ValueError("different gradients\ndirect={}\nadjoint={}", grad, grad2)
         return np.dot(self.r, self.dr)
 
     def computeDDJ(self, param):
-        if hasattr(self, 'dr'):
-            dr = self.dr
-        else:
-            dr = self.solver.computeDRes(param)
-        # print("r", r.shape, "dr", dr.shape, "np.dot(r,dr)", np.dot(r,dr))
-        return np.dot(dr.T, dr)
+        if self.dr is None:
+            self.dr, self.du = self.solver.computeDRes(param)
+        gn = np.dot(self.dr.T, self.dr)
+        if not self.fullhess:
+            return gn
+        M = self.solver.computeM(param, self.du, self.z)
+        # print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
+        return gn+M.T
 
     def create_data(self, refparam, percrandom=0):
         nmeasures = self.solver.nmeasures
@@ -79,7 +100,7 @@ class Optimizer(object):
         hashess = False
         t0 = time.time()
         lsmethods = ['lm', 'trf','dogbox']
-        minmethods = ['Newton-CG', 'trust-ncg']
+        minmethods = ['Newton-CG', 'trust-ncg', 'dogleg']
         if method in lsmethods:
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0, method=method, verbose=0)
         elif method in minmethods:
@@ -103,5 +124,5 @@ class Optimizer(object):
             nhev = info.nhev
         else:
             nhev = 0
-        x = np.array2string(info.x, precision=5, floatmode='fixed')
+        x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
         print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, info.njev, nhev, dt))

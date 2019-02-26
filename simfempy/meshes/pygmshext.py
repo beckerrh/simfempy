@@ -108,7 +108,6 @@ def add_circle(
 
 
 #----------------------------------------------------------------#
-# def add_holes(geom, x0, x1, h, hhole, nholes, holesize, hole_labels=None, make_surface=True):
 def add_holes(geom, x0, x1, **kwargs):
     h = kwargs.pop('h')
     hhole = kwargs.pop('hhole')
@@ -133,6 +132,64 @@ def add_holes(geom, x0, x1, **kwargs):
         xa, xb = x0+pos[2*i], x0+pos[2*i+1]
         for j in range(nholes):
             ya, yb = x0+pos[2*j], x0+pos[2*j+1]
+            xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
+
+    holes = []
+    hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
+    for xhole, hole_label in zip(xholes, hole_labels):
+        holes.append(geom.add_polygon(X=xhole, lcar=hhole))
+        xarrm = np.mean(np.array(xhole), axis=0)
+        add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
+        geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
+    return holes, hole_labels
+#----------------------------------------------------------------#
+def add_holesnew(geom, **kwargs):
+    h = kwargs.pop('h')
+    hhole = kwargs.pop('hhole')
+    x0 = kwargs.pop('x0')
+    x1 = kwargs.pop('x1')
+    y0 = kwargs.pop('y0')
+    y1 = kwargs.pop('y1')
+    nholesx = kwargs.pop('nholesx')
+    nholesy = kwargs.pop('nholesy')
+    if 'holesizex' in kwargs: holesizex = kwargs.pop('holesizex')
+    else: holesizex=None
+    if 'holesizey' in kwargs: holesizey = kwargs.pop('holesizey')
+    else: holesizey=None
+    if 'hole_labels' in kwargs: hole_labels = kwargs.pop('hole_labels')
+    else: hole_labels = None
+    if 'make_surface' in kwargs: make_surface = kwargs.pop('make_surface')
+    else: make_surface = True
+    holesizexmax = (x1 - x0) / (nholesx * 1.1 - 0.1)
+    if holesizex is None: holesizex = holesizexmax
+    if nholesx>1:
+        spacesizex = (x1-x0-nholesx*holesizex)/(nholesx-1)
+        if spacesizex < 0.1*holesizex:
+            raise ValueError("holesizex({}) too big (max={})".format(holesizex,holesizexmax))
+    holesizeymax = (y1 - y0) / (nholesy * 1.1 - 0.1)
+    if holesizey is None: holesizey = holesizeymax
+    if nholesy>1:
+        spacesizey = (y1-y0-nholesy*holesizey)/(nholesy-1)
+        if spacesizey < 0.1*holesizey:
+            raise ValueError("holesizey({}) too big (max={})".format(holesizey,holesizeymax))
+    posx = np.empty(2*nholesx)
+    posx[0] = x0
+    posx[1] = posx[0] + holesizex
+    for i in range(1,nholesx):
+        posx[2*i] = posx[2*i-1] + spacesizex
+        posx[2*i+1] = posx[2*i] + holesizex
+    posy = np.empty(2*nholesy)
+    posy[0] = y0
+    posy[1] = posy[0] + holesizey
+    for i in range(1,nholesy):
+        posy[2*i] = posy[2*i-1] + spacesizey
+        posy[2*i+1] = posy[2*i] + holesizey
+
+    xholes = []
+    for i in range(nholesx):
+        xa, xb = posx[2*i], posx[2*i+1]
+        for j in range(nholesy):
+            ya, yb = posy[2*j], posy[2*j+1]
             xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
 
     holes = []
