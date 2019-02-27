@@ -101,7 +101,7 @@ class Heat(simfempy.applications.heat.Heat):
         kwargs['plotk'] = True
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
-        self.linearsolver = "umf"
+        # self.linearsolver = "umf"
         self.kheat = np.vectorize(self.kparam)
         self.dkheat = np.vectorize(self.dkparam)
         self.diffglobal = kwargs.pop('diffglobal')
@@ -150,7 +150,7 @@ class Heat(simfempy.applications.heat.Heat):
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
         for color in self.problemdata.bdrycond.fct:
             self.problemdata.bdrycond.fct[color] = None
-            if du is None: du = self.nparam*[np.empty(0)]
+        if du is None: du = self.nparam*[np.empty(0)]
         for i in range(self.nparam):
             self.dlabel = self.hole_labels[i]
             self.kheatcell = self.dkheat(self.mesh.cell_labels)
@@ -371,6 +371,7 @@ def testholes(diffglobal, nholes):
     initialparam = diffglobal*np.ones(nholes)
     print("initialparam",initialparam)
 
+    # optimizer.gradtest = True
     for method in optimizer.methods:
     # for method in optimizer.minmethods:
         optimizer.minimize(x0=initialparam, method=method)
@@ -380,5 +381,5 @@ def testholes(diffglobal, nholes):
 
 diffglobal = 1e-3
 # compute_j(diffglobal)
-compute_j2d(diffglobal)
-# testholes(diffglobal, nholes=4)
+# compute_j2d(diffglobal)
+testholes(diffglobal, nholes=4)

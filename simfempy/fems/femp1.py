@@ -123,6 +123,7 @@ class FemP1(object):
         if rhscell:
             scale = 1/(self.mesh.dimension+1)
             for label,fct in rhscell.items():
+                if fct is None: continue
                 cells = self.mesh.cellsoflabel[label]
                 xc, yc, zc = self.mesh.pointsc[cells].T
                 bC = scale*fct(xc, yc, zc)*self.mesh.dV[cells]

@@ -19,12 +19,12 @@ class Optimizer(object):
         self.u = None
         self.z = None
         self.du = None
-        self.fullhess = True
-        self.gradtest = False
 
     def __init__(self, solver, **kwargs):
         self.solver = solver
         self.reset()
+        self.fullhess = True
+        self.gradtest = False
         if 'fullhess' in kwargs: self.fullhess = kwargs.pop('fullhess')
         if 'gradtest' in kwargs: self.gradtest = kwargs.pop('gradtest')
         if 'regularize' in kwargs:
@@ -38,6 +38,9 @@ class Optimizer(object):
         self.lsmethods = ['lm', 'trf','dogbox']
         self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg']
         self.methods = self.lsmethods +self.minmethods
+        if not hasattr(solver,"computeM"):
+            print("*** solver does not have 'computeM', setting 'fullhess=False'")
+            self.fullhess = False
 
     def computeRes(self, param):
         self.r, self.u = self.solver.computeRes(param, self.u)
@@ -64,11 +67,10 @@ class Optimizer(object):
             return np.dot(self.r, self.dr)
 
         dr2 = self.solver.computeDResAdjW(param, self.u)
-        if self.regularize:
-            dr2 = np.append(dr2, self.regularize * np.eye(self.nparam),axis=0)
-        #     jac[self.nmeasures:, :] = self.regularize * np.eye(self.nparam)
+        if self.regularize: dr2 = np.append(dr2, self.regularize * np.eye(self.nparam),axis=0)
 
-        assert np.allclose(self.dr, dr2)
+        if not np.allclose(self.dr, dr2):
+            raise ValueError("dr('computeDRes') =\n{}\nbut dr2('computeDResAdjW') =\n{}".format(self.dr[:self.nmeasure], dr2[:self.nmeasure]))
         # print("r", r.shape, "dr", dr.shape, "np.dot(r,dr)", np.dot(r,dr))
         grad = np.dot(self.r, self.dr)
         grad2, self.z = self.solver.computeDResAdj(param, self.r[:self.nmeasure], self.u, self.z)
@@ -76,7 +78,7 @@ class Optimizer(object):
             grad2 += self.regularize*self.regularize*(param - self.param0)
 
         if not np.allclose(grad, grad2):
-            raise ValueError("different gradients\ndirect={}\nadjoint={}", grad, grad2)
+            raise ValueError("different gradients\ndirect:  = {}\nadjoint: = {}".format(grad, grad2))
         return np.dot(self.r, self.dr)
 
     def computeDDJ(self, param):
@@ -94,6 +96,7 @@ class Optimizer(object):
         nmeasures = self.solver.nmeasures
         refdata = self.computeRes(refparam)[:nmeasures]
         perturbeddata = refdata * (1 + 0.5 * percrandom * (np.random.rand(nmeasures) - 2))
+        self.solver.data0 = perturbeddata
         return refdata, perturbeddata
 
     def minimize(self, x0, method, bounds=None):
@@ -104,12 +107,18 @@ class Optimizer(object):
         hashess = False
         t0 = time.time()
         if method in self.lsmethods:
-            info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0, method=method, verbose=0)
+            info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
+                                                method=method, verbose=0)
         elif method in self.minmethods:
             hascost = False
             hashess = True
+            # hess = scipy.optimize.BFGS()
+            hess = self.computeDDJ
             # method = 'trust-constr'
-            info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=self.computeDDJ, method=method, tol=1e-8)
+            if method == 'Newton-CG': tol = 1e-10
+            else: tol = None
+            info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
+                                           method=method, tol=1e-9)
         else:
             raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(self.methods)))
         dt = time.time()-t0
