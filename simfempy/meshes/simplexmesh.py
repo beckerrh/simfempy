@@ -72,10 +72,10 @@ class SimplexMesh(object):
         if 'vertex' in cells.keys():
             self.vertices = cells['vertex'].reshape(-1)
             self.vertex_labels = celldata['vertex']['gmsh:physical']
-            veretexoflabel = npext.unique_all(self.vertex_labels)
-            self.veretexoflabel={}
-            for color, ind in zip(veretexoflabel[0], veretexoflabel[1]):
-                self.veretexoflabel[color] = self.vertices[ind]
+            verticesoflabel = npext.unique_all(self.vertex_labels)
+            self.verticesoflabel={}
+            for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
+                self.verticesoflabel[color] = self.vertices[ind]
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
@@ -303,10 +303,10 @@ class SimplexMesh(object):
         # from . import plotmesh
         from simfempy.meshes import plotmesh
         plotmesh.meshWithBoundaries(self)
-    def plot(self, **kwargs):
+    def plotWithNumbering(self, **kwargs):
         # from . import plotmesh
         from simfempy.meshes import plotmesh
-        plotmesh.plotmesh(self, **kwargs)
+        plotmesh.plotmeshWithNumbering(self, **kwargs)
     def plotWithData(self, **kwargs):
         # from . import plotmesh
         from simfempy.meshes import plotmesh
@@ -322,5 +322,5 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
-    plotmesh.plotmesh(mesh, ax=axarr[1])
-    plotmesh.plotmesh(mesh, localnumbering=True)
+    plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
+    plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)

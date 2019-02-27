@@ -22,7 +22,7 @@ class RaviartThomas(solvers.solver.Solver):
         self.mesh = mesh
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
         from simfempy import meshes
-        # meshes.plotmesh.plotmesh(self.mesh, localnumbering=True)
+        # meshes.plotmesh.plotmeshWithNumbering(self.mesh, localnumbering=True)
 
     def solve(self):
         return self.solveLinear()

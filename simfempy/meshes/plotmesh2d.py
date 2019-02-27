@@ -63,7 +63,36 @@ def _plotNormalsAndSigma(xc, yc, xf, yf, normals, sidesofcells, sigma, ax=plt):
                         r'%d' % (s), color='y', fontweight='bold')
 
 #=================================================================#
-# def meshWithBoundaries(x, y, tris, lines, bdrylabels, ax=plt):
+def plotmesh(mesh, **kwargs):
+    if 'ax' in kwargs: ax = kwargs.pop('ax')
+    title = 'Mesh'
+    if 'title' in kwargs: title = kwargs.pop('title')
+    else: ax = plt
+    x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+    ax.triplot(x, y, tris, color='k')
+    if ax ==plt:
+        plt.gca().set_aspect(aspect='equal')
+        ax.xlabel(r'x')
+        ax.ylabel(r'y')
+    else:
+        ax.set_aspect(aspect='equal')
+        ax.set_xlabel(r'x')
+        ax.set_ylabel(r'y')
+    celllabels = mesh.cell_labels
+    cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+    # clb = plt.colorbar(cnt)
+    # clb.set_label("cellcolors")
+    pltcolors = 'bgrcmykbgrcmyk'
+    patches=[]
+    for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
+        patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+        for vertex in vertices:
+            ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
+    ax.legend(handles=patches)
+    _settitle(ax, title)
+
+
+#=================================================================#
 def meshWithBoundaries(x, y, tris, **kwargs):
     if 'ax' in kwargs: ax = kwargs.pop('ax')
     else: ax = plt

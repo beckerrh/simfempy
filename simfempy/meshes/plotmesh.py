@@ -17,6 +17,16 @@ def _getDim(meshdata):
         meshdataismesh = False
     return dim, meshdataismesh
 
+
+#=================================================================#
+def plotmesh(mesh, **kwargs):
+    dim, meshdataismesh = _getDim(mesh)
+    if dim==2:
+        plotmesh2d.plotmesh(mesh, **kwargs)
+    else:
+        plotmesh3d.plotmesh(mesh, **kwargs)
+    if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
+
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):
     dim, meshdataismesh = _getDim(meshdata)
@@ -66,7 +76,7 @@ def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, tit
 
 
 #=================================================================#
-def plotmesh(meshdata, **kwargs):
+def plotmeshWithNumbering(meshdata, **kwargs):
     dim, meshdataismesh = _getDim(meshdata)
     if dim==3:
         raise NotImplementedError("3d not yet implemented")
@@ -126,5 +136,8 @@ def plotmesh(meshdata, **kwargs):
 #=================================================================#
 if __name__ == '__main__':
     import simplexmesh
-    mesh = simplexmesh.SimplexMesh(geomname="unitsquare", hmean=1)
-    plotmesh(mesh, localnumbering=True)
+    import geomdefs
+    geometry = geomdefs.unitsquare.Unitsquare()
+    mesh = simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
+    # plotmeshWithNumbering(mesh, localnumbering=True)
+    plotmesh(mesh)

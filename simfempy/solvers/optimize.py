@@ -19,7 +19,7 @@ class Optimizer(object):
         self.u = None
         self.z = None
         self.du = None
-        self.fullhess = False
+        self.fullhess = True
         self.gradtest = False
 
     def __init__(self, solver, **kwargs):
@@ -35,6 +35,9 @@ class Optimizer(object):
             self.nparam = kwargs.pop('nparam')
             self.nmeasure = kwargs.pop('nmeasure')
             self.param0 = kwargs.pop('param0')
+        self.lsmethods = ['lm', 'trf','dogbox']
+        self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg']
+        self.methods = self.lsmethods +self.minmethods
 
     def computeRes(self, param):
         self.r, self.u = self.solver.computeRes(param, self.u)
@@ -82,9 +85,10 @@ class Optimizer(object):
         gn = np.dot(self.dr.T, self.dr)
         if not self.fullhess:
             return gn
+        self.z = self.solver.computeAdj(param, self.r[:self.nmeasure], self.u, self.z)
         M = self.solver.computeM(param, self.du, self.z)
         # print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
-        return gn+M.T
+        return gn+M
 
     def create_data(self, refparam, percrandom=0):
         nmeasures = self.solver.nmeasures
@@ -99,18 +103,15 @@ class Optimizer(object):
         hascost=True
         hashess = False
         t0 = time.time()
-        lsmethods = ['lm', 'trf','dogbox']
-        minmethods = ['Newton-CG', 'trust-ncg', 'dogleg']
-        if method in lsmethods:
+        if method in self.lsmethods:
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0, method=method, verbose=0)
-        elif method in minmethods:
+        elif method in self.minmethods:
             hascost = False
             hashess = True
             # method = 'trust-constr'
-            info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=self.computeDDJ,
-                                           method=method)
+            info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=self.computeDDJ, method=method, tol=1e-8)
         else:
-            raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(set.union(set(lsmethods),set(minmethods)))))
+            raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(self.methods)))
         dt = time.time()-t0
         # if method == 'trust-ncg': print(info)
         # print("info", info)

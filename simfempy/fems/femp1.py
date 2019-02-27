@@ -131,7 +131,7 @@ class FemP1(object):
         if rhspoint:
             for label,fct in rhspoint.items():
                 if fct is None: continue
-                points = self.mesh.veretexoflabel[label]
+                points = self.mesh.verticesoflabel[label]
                 xc, yc, zc = self.mesh.points[points].T
                 # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
                 b[points] += fct(xc, yc, zc)
@@ -314,7 +314,7 @@ class FemP1(object):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i,color in enumerate(colors):
-            nodes = self.mesh.veretexoflabel[color]
+            nodes = self.mesh.verticesoflabel[color]
             up[i] = u[nodes]
         return up
 
