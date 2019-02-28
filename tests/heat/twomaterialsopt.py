@@ -124,8 +124,7 @@ class Heat(simfempy.applications.heat.Heat):
     def dkparam(self, label):
         if label==self.dlabel: return 1.0
         return 0.0
-    def rhsone(self, x, y, z):
-        return 1
+
     def getData(self, infopp):
         return infopp['measured'] - 293
         # return np.concatenate([np.array([infopp[f] for f in self.fluxes]), infopp['measured']], axis=0)
@@ -180,7 +179,7 @@ class Heat(simfempy.applications.heat.Heat):
         self.problemdata.rhspoint = {}
         for j in range(self.nmeasures):
             for k in range(self.nmeasures):
-                if k==j: self.problemdata.rhspoint[pointids[k]] = self.rhsone
+                if k==j: self.problemdata.rhspoint[pointids[k]] = simfempy.solvers.optimize.RhsParam(1)
                 else: self.problemdata.rhspoint[pointids[k]] = None
             self.kheatcell = self.kheat(self.mesh.cell_labels)
             if self.w[j].shape[0]==0:
@@ -225,31 +224,6 @@ class Heat(simfempy.applications.heat.Heat):
             Bi = self.matrix()
             grad[i] = -Bi.dot(u).dot(z)
         return grad, z
-
-    # def computeDResAdj(self, param, r, u, z):
-    #     grad = np.zeros(shape=(self.nparam))
-    #     pdsplit = self.problemdata.postproc['measured'].split(':')
-    #     assert pdsplit[0] == 'pointvalues'
-    #     pointids = [int(l) for l in pdsplit[1].split(',')]
-    #     problemdata_bu = copy.deepcopy(self.problemdata)
-    #     self.problemdata.clear()
-    #     if z is None:
-    #         z = np.zeros(self.mesh.nnodes)
-    #     self.problemdata.rhspoint = {}
-    #     for j in range(self.nmeasures):
-    #         self.problemdata.rhspoint[pointids[j]] = simfempy.solvers.optimize.RhsParam(r[j])
-    #     self.kheatcell = self.kheat(self.mesh.cell_labels)
-    #     b, z = self.computeRhs(z)
-    #     z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
-    #     # point_data, cell_data, info = self.postProcess(self.z)
-    #     # self.plotter.plot(point_data, cell_data)
-    #     for i in range(self.nparam):
-    #         self.dlabel = self.hole_labels[i]
-    #         self.kheatcell = self.dkheat(self.mesh.cell_labels)
-    #         Bi = self.matrix()
-    #         grad[i] = -Bi.dot(u).dot(z)
-    #     self.problemdata = problemdata_bu
-    #     return grad, z
 
     def computeM(self, param, du, z):
         M = np.zeros(shape=(self.nparam,self.nparam))
@@ -366,14 +340,14 @@ def testholes(diffglobal, nholes):
     # perturbeddata[::2] *= 1.2
     # perturbeddata[1::2] *= 0.8
 
-    heat.data0 =  perturbeddata
+    # heat.data0 =  perturbeddata
 
     initialparam = diffglobal*np.ones(nholes)
     print("initialparam",initialparam)
 
     # optimizer.gradtest = True
-    for method in optimizer.methods:
-    # for method in optimizer.minmethods:
+    # for method in optimizer.methods:
+    for method in optimizer.minmethods:
         optimizer.minimize(x0=initialparam, method=method)
         # heat.plotter.plot(info=heat.info)
 

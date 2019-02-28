@@ -191,12 +191,31 @@ def mesh(x, y, tris, **kwargs):
     _settitle(ax, title)
 
 #=================================================================#
-def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None,\
-                 addplots=[]):
-    if addplots is None: addplots = []
+# def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
+def meshWithData(**kwargs):
+    """
+    point_data  : dictionary name->data
+    cell_data  : dictionary name->data
+    addplots  : additional plot functions (in new axes)
+    """
+    x, y, tris, xc, yc = kwargs['x'], kwargs['y'], kwargs['tris'], kwargs['xc'], kwargs['yc']
+    addplots = []
+    if 'addplots' in kwargs: addplots = kwargs['addplots']
+    if addplots is None: addplots=[]
+    point_data, cell_data, quiver_cell_data = None, None, None
+    numbering = False
+    title, suptitle = None, None
+    if 'point_data' in kwargs: point_data = kwargs['point_data']
+    if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
+    if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
+    if 'numbering' in kwargs: numbering = kwargs['numbering']
+    if 'title' in kwargs: title = kwargs['title']
+    if 'suptitle' in kwargs: suptitle = kwargs['suptitle']
+
     nplots=0
     if point_data: nplots += len(point_data)
     if cell_data: nplots += len(cell_data)
+    if quiver_cell_data: nplots += len(quiver_cell_data)
     nplots += len(addplots)
     if nplots==0:
         print("meshWithData() no point_data")
@@ -238,6 +257,14 @@ def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=
             clb.set_label(cdn)
             _settitle(ax, cdn)
             count += 1
+    if quiver_cell_data:
+        for cdn, cd in quiver_cell_data.items():
+            ax = axs[count//ncols,count%ncols]
+            ax.set_aspect(aspect='equal')
+            vals_norm = 0.5*np.sqrt(cd[0]** 2 + cd[1]** 2) + 1e-10
+            ax.quiver(xc,yc, cd[0] / vals_norm, cd[1] / vals_norm)
+            count += 1
+
     for addplot in addplots:
         ax = axs[count // ncols, count % ncols]
         addplot(ax)

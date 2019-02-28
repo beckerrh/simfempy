@@ -53,26 +53,63 @@ def meshWithBoundaries(meshdata, ax=plt):
     if ax==plt: plt.show()
 
 #=================================================================#
-def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
+# def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
+def meshWithData(meshdata, **kwargs):
+
     dim, meshdataismesh = _getDim(meshdata)
     """
     meshdata    : either mesh or coordinates and connectivity
     point_data  : dictionary name->data
     cell_data  : dictionary name->data
     """
+    newkwargs = kwargs.copy()
+
     if dim==2:
         if meshdataismesh:
-            x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
-            return plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+            newkwargs['x'] = meshdata.points[:,0]
+            newkwargs['y'] = meshdata.points[:,1]
+            newkwargs['tris'] = meshdata.simplices
+            newkwargs['xc'] = meshdata.pointsc[:,0]
+            newkwargs['yc'] = meshdata.pointsc[:,1]
         else:
-            return plotmesh2d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+            newkwargs['x'] = meshdata[0]
+            newkwargs['y'] = meshdata[1]
+            newkwargs['tris'] = meshdata[2]
+            newkwargs['xc'] = meshdata.pointsc[3]
+            newkwargs['yc'] = meshdata.pointsc[4]
+        return plotmesh2d.meshWithData(**newkwargs)
     else:
         if meshdataismesh:
-            x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
-            xc, yc, zc = meshdata.pointsc[:,0], meshdata.pointsc[:,1], meshdata.pointsc[:,2]
-            return plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+            newkwargs['x'] = meshdata.points[:,0]
+            newkwargs['y'] = meshdata.points[:,1]
+            newkwargs['z'] = meshdata.points[:,2]
+            newkwargs['tets'] = meshdata.simplices
+            newkwargs['xc'] = meshdata.pointsc[:,0]
+            newkwargs['yc'] = meshdata.pointsc[:,1]
+            newkwargs['zc'] = meshdata.pointsc[:,2]
         else:
-            return plotmesh3d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+            newkwargs['x'] = meshdata[0]
+            newkwargs['y'] = meshdata[1]
+            newkwargs['z'] = meshdata[2]
+            newkwargs['tets'] = meshdata[3]
+            newkwargs['xc'] = meshdata.pointsc[4]
+            newkwargs['yc'] = meshdata.pointsc[5]
+            newkwargs['zc'] = meshdata.pointsc[6]
+        return plotmesh3d.meshWithData(**newkwargs)
+
+    # if dim==2:
+    #     if meshdataismesh:
+    #         x, y, tris, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.pointsc[:,0], meshdata.pointsc[:,1]
+    #         return plotmesh2d.meshWithData(x, y, tris, xc, yc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+    #     else:
+    #         return plotmesh2d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+    # else:
+    #     if meshdataismesh:
+    #         x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
+    #         xc, yc, zc = meshdata.pointsc[:,0], meshdata.pointsc[:,1], meshdata.pointsc[:,2]
+    #         return plotmesh3d.meshWithData(x, y, z, tets, xc, yc, zc, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
+    #     else:
+    #         return plotmesh3d.meshWithData(meshdata, point_data, cell_data, title=title, suptitle=suptitle,addplots=addplots)
 
 
 #=================================================================#
