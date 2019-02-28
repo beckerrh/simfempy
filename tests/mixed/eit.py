@@ -8,23 +8,27 @@ print("sys.path",sys.path)
 import simfempy.applications
 import pygmsh
 import numpy as np
-import scipy.optimize
 import matplotlib.pyplot as plt
 from simfempy.tools import npext
 from simfempy.meshes import pygmshext
 import copy
-import time
 
 # ----------------------------------------------------------------#
 def createMesh2d(**kwargs):
+    geometry = pygmsh.built_in.Geometry()
+
     h = kwargs['h']
     hmeasure = kwargs.pop('hmeasure')
     nmeasures = kwargs.pop('nmeasures')
     measuresize = kwargs.pop('measuresize')
-    x0, x1 = -1.5, 1.5
-    geometry = pygmsh.built_in.Geometry()
-    kwargsholes = kwargs.copy()
-    holes, hole_labels = pygmshext.add_holes(geometry, x0, x1, **kwargsholes)
+    x0, x1 = -1.4, 1.4
+
+    hhole = kwargs.pop('hhole')
+    nholes = kwargs.pop('nholes')
+    nholesy = int(np.sqrt(nholes))
+    nholesx = int(nholes/nholesy)
+    print("hhole", hhole, "nholes", nholes, "nholesy", nholesy, "nholesx", nholesx)
+    holes, hole_labels = pygmshext.add_holesnew(geometry, h=h, hhole=hhole, x0=x0, x1=x1, y0=x0, y1=x1, nholesx=nholesx,nholesy=nholesy)
     # un point additionnel pas espace entre segments-mesure
     num_sections = 3*nmeasures
     spacing = np.empty(num_sections)
@@ -61,7 +65,7 @@ def createMesh2d(**kwargs):
     geometry.add_physical_surface(circ.plane_surface, label=100)
     # print("circ", dir(circ.line_loop))
 
-    # with open("welcome.geo","w") as file: file.write(geometry.get_code())
+    with open("welcome.geo","w") as file: file.write(geometry.get_code())
     data = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
     measure_labels = labels[::3]
@@ -100,15 +104,15 @@ class Plotter:
 #----------------------------------------------------------------#
 class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 
-    def conductivityinv(self, label):
+    def conductivity(self, label):
         if label == 100:
-            return self.diffglobalinv
+            return self.diffglobal
         # print("conductivity", label, self.param[self.param_labels_inv[label]], self.param)
         return self.param[self.param_labels_inv[label]]
 
-    def dconductivityinv(self, label):
+    def dconductivity(self, label):
         if label == self.dlabel:
-            return 1
+            return self.dcoeff
         return 0
 
     def __init__(self, **kwargs):
@@ -133,10 +137,10 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.nparam = len(self.param_labels)
         self.nmeasures = len(self.measure_labels)
 
-        self.diffglobalinv = kwargs.pop('diffglobalinv')
-        self.param = self.diffglobalinv*np.ones(self.nparam )
-        self.diffinv = np.vectorize(self.conductivityinv)
-        self.ddiffinv = np.vectorize(self.dconductivityinv)
+        self.diffglobal = kwargs.pop('diffglobal')
+        self.param = self.diffglobal*np.ones(self.nparam )
+        self.diff = np.vectorize(self.conductivity)
+        self.ddiff = np.vectorize(self.dconductivity)
 
 
         # print("self.problemdata", self.problemdata)
@@ -151,72 +155,14 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         # print("infopp", infopp)
         return infopp['measured']
 
-    # def solvestate(self, param):
-    #     # print("#")
-    #     self.param = param
-    #     if not np.all(param>0):
-    #         print((10*"#"))
-    #         self.param = np.fmax(param, self.diffglobalinv)
-    #     self.diffcellinv = self.diffinv(self.mesh.cell_labels)
-    #     self.diffcell = 1/self.diffcellinv
-    #     A = self.matrix()
-    #     if hasattr(self, 'ustate'):
-    #         b,self.ustate = self.computeRhs(self.ustate)
-    #     else:
-    #         b, self.ustate = self.computeRhs()
-    #     self.A = A
-    #     self.ustate, iter = self.linearSolver(A, b, self.ustate, verbose=0)
-    #     # print("state iter", iter)
-    #     self.point_data, self.cell_data, self.info = self.postProcess(self.ustate)
-    #     data = self.getData(self.info['postproc'])
-    #     # print("self.param", self.param)
-    #     # print("data- self.data0", data-self.data0)
-    #     if self.regularize:
-    #         diffparam = param-self.diffglobalinv *np.ones(self.nparam)
-    #         return np.append(data - self.data0, self.regularize*(diffparam))
-    #     return data - self.data0
-    #
-    # def solveDstate(self, param):
-    #     nparam = self.param.shape[0]
-    #     assert self.data0.shape[0] == self.nmeasures
-    #     if self.regularize:
-    #         jac = np.zeros(shape=(self.nmeasures+nparam, nparam))
-    #         jac[self.nmeasures:,:] = self.regularize*np.eye(nparam)
-    #     else:
-    #         jac = np.zeros(shape=(self.nmeasures, nparam))
-    #     bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
-    #     for color in self.problemdata.bdrycond.fct:
-    #         self.problemdata.bdrycond.fct[color] = None
-    #         self.problemdata.bdrycond.param[color] = 0
-    #     for i in range(nparam):
-    #         self.dlabel = self.param_labels[i]
-    #         self.diffcellinv = self.ddiffinv(self.mesh.cell_labels)
-    #         Ai, B = self.matrix()
-    #         b = np.zeros_like(self.ustate)
-    #         b[:self.mesh.nfaces] = -Ai.dot(self.ustate[:self.mesh.nfaces])
-    #         du = np.zeros_like(b)
-    #         self.diffcellinv = self.diffinv(self.mesh.cell_labels)
-    #         du, iter = self.linearSolver(self.A, b, du, verbose=0)
-    #         # print("dstate iter", iter)
-    #         point_data, cell_data, info = self.postProcess(du)
-    #         # print("info['postproc'].shape",self.getData(info['postproc']).shape)
-    #         # print("jac.shape",jac.shape)
-    #         # self.plot(point_data, cell_data, info)
-    #         jac[:self.nmeasures,i] = self.getData(info['postproc'])
-    #     self.problemdata.bdrycond = bdrycond_bu
-    #
-    #     # print("jac", jac.shape)
-    #     return jac
-    #
-
     def computeRes(self, param, u=None):
         # print("#")
-        self.param = param
+        self.param = 1/param
         if not np.all(param>0):
-            print((10*"#"))
-            self.param = np.fmax(param, self.diffglobalinv)
-        self.diffcellinv = self.diffinv(self.mesh.cell_labels)
-        self.diffcell = 1/self.diffcellinv
+            print(10*"#")
+            self.param = np.fmax(param, self.diffglobal)
+        self.diffcell = self.diff(self.mesh.cell_labels)
+        self.diffcellinv = 1/self.diffcell
         A = self.matrix()
         b, u = self.computeRhs(u)
         self.A = A
@@ -229,21 +175,24 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         return data - self.data0, u
 
     def computeDRes(self, param, u, du):
-        nparam = self.param.shape[0]
+        self.param = 1/param
         if du is None: du = self.nparam*[np.empty(0)]
-        jac = np.zeros(shape=(self.nmeasures, nparam))
+        jac = np.zeros(shape=(self.nmeasures, self.nparam))
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
         for color in self.problemdata.bdrycond.fct:
             self.problemdata.bdrycond.fct[color] = None
             self.problemdata.bdrycond.param[color] = 0
-        for i in range(nparam):
+        for i in range(self.nparam):
             self.dlabel = self.param_labels[i]
-            self.diffcellinv = self.ddiffinv(self.mesh.cell_labels)
+            self.dcoeff = 1
+            # self.dcoeff = -1/param[i]**2
+            self.diffcellinv = self.ddiff(self.mesh.cell_labels)
             Ai, B = self.matrix()
             b = np.zeros_like(u)
             b[:self.mesh.nfaces] = -Ai.dot(u[:self.mesh.nfaces])
             du[i] = np.zeros_like(b)
-            self.diffcellinv = self.diffinv(self.mesh.cell_labels)
+            self.diffcell = self.diff(self.mesh.cell_labels)
+            self.diffcellinv = 1 / self.diffcell
             du[i], iter = self.linearSolver(self.A, b, du[i], verbose=0)
             # print("dstate iter", iter)
             point_data, cell_data, info = self.postProcess(du[i])
@@ -258,13 +207,12 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 
 #----------------------------------------------------------------#
 def test():
-    h = 1
-    hhole, hmeasure = 0.2*h, 0.1*h
-    nholesperdirection = 3
+    h = 0.2
+    hhole, hmeasure = 0.3*h, 0.2*h
     nmeasures = 10
-    holesize = 2/nholesperdirection
     measuresize = 0.03
-    mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholesperdirection, nmeasures=nmeasures, holesize=holesize, measuresize=measuresize)
+    nholes = 9
+    mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
     # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
     # print("electrode_labels",electrode_labels)
@@ -293,14 +241,16 @@ def test():
     voltage -= np.mean(voltage)
 
 
-    regularize = 0.0001
-    diffglobalinv = 1
-    eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, diffglobalinv=diffglobalinv)
+    regularize = 0.000001
+    diffglobal = 1
+    eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, diffglobal=diffglobal)
     eit.setMesh(mesh)
 
-    optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=diffglobalinv*np.ones(nparams))
+    optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=diffglobal*np.ones(nparams))
 
-    refparam = diffglobalinv*np.ones(nparams, dtype=float)
+    refparam = diffglobal*np.ones(nparams, dtype=float)
+    # refparam[::2] *= 5
+    # refparam[1::2] *= 10
     refparam[::2] *= 0.2
     refparam[1::2] *= 0.1
     # refparam[1::2] *= 100
@@ -309,8 +259,10 @@ def test():
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     # perturbeddata[::2] *= 1.2
     # perturbeddata[1::2] *= 0.8
+    print("refdata",refdata)
+    print("perturbeddata",perturbeddata)
 
-    initialparam = diffglobalinv*np.ones(nparams)
+    initialparam = diffglobal*np.ones(nparams)
     print("initialparam",initialparam)
 
     # optimizer.gradtest = True
@@ -319,73 +271,6 @@ def test():
         optimizer.minimize(x0=initialparam, method=method)
         eit.plotter.plot(info=eit.info)
 #
-#
-#     print(10*"OLD")
-#
-#
-#     regularize = 0.0001
-#     diffglobalinv = 1
-#     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, regularize=regularize, diffglobalinv=diffglobalinv)
-#     eit.setMesh(mesh)
-#
-#     eit.data0 = np.zeros(nmeasures)
-#     # refparam = 0.01/(1 +np.arange(nparams, dtype=float))
-#     refparam = 0.1*diffglobalinv*np.ones(nparams)
-#     refparam[::2] = 0.2*diffglobalinv
-#     refdata = eit.solvestate(refparam)[:nmeasures]
-#     print("refparam", refparam)
-#     print("refdata", refdata)
-#     eit.plotter.plot()
-#
-#     percrandom = 0.00
-#     perturbeddata =  refdata*(1+0.5*percrandom*( 2*np.random.rand(nmeasures)-1))
-#     perturbeddata -= np.mean(perturbeddata)
-#     print("perturbeddata", perturbeddata)
-#     eit.data0[:] =  perturbeddata
-#
-#     bounds = (0.001 * diffglobalinv, diffglobalinv)
-#     # refparam[:] *= 2
-#     param = diffglobalinv*np.ones(nparams)
-#     optimize(eit, param, bounds=bounds)
-#
-#     # params = np.outer(np.linspace(0.00001*diffglobalinv, 0.1*diffglobalinv, 30),np.ones(refparam.shape[0]))
-#     # # params = np.einsum('i,j->ji', refparam, np.linspace(-1,3, 30))
-#     # print("params", params)
-#     # paramtocost(eit, params, regularizes=[0, 0.0001], refparam=refparam)
-#
-#
-# def paramtocost(eit, params, regularizes=None, refparam=None):
-#     if regularizes is None: regularizes=[0]
-#     datas={}
-#     for regularize in regularizes:
-#         eit.regularize = regularize
-#         datas[regularize] = []
-#         for param in params:
-#             # print("param", param)
-#             data = eit.solvestate(param)
-#             datas[regularize].append(0.5*np.linalg.norm(data)**2)
-#     for regularize in regularizes:
-#         plt.plot(params, datas[regularize], label="{}".format(regularize))
-#     if refparam:
-#         plt.axvline(x=refparam, color='k', linestyle='--')
-#     plt.legend()
-#     plt.show()
-#
-# def optimize(eit, param, bounds=None):
-#     methods = ['trf','lm']
-#     print("param",param)
-#     for method in methods:
-#         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
-#         # param[:] = 1/diffglobal
-#         t0 = time.time()
-#         # info = scipy.optimize.least_squares(eit.solvestate, x0=param, method=method, gtol=1e-12, verbose=0)
-#         info = scipy.optimize.least_squares(eit.solvestate, jac=eit.solveDstate, x0=param, bounds=bounds, method=method, gtol=1e-12, verbose=0)
-#         dt = time.time()-t0
-#         # print("status", info.status)
-#         # print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} {:10.2f} s".format(method, info.x, info.cost, info.nfev, info.njev, dt))
-#         print("{:^10s} x = {} J={:10.2e} nf={:4d} {:10.2f} s".format(method, info.x, info.cost, info.nfev,  dt))
-#         eit.plotter.plot()
-
 
 #================================================================#
 

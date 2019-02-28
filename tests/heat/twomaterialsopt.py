@@ -74,11 +74,7 @@ class Plotter:
         fct = scipy.interpolate.interp1d(x, ub)
         xn = np.linspace(x.min(), x.max(), 50)
         ax.plot(xn, fct(xn), label=r'$u$')
-        # ax.plot(x, fct(x), 'r.')
         pointsmeas = self.heat.mesh.vertices
-        # print("self.heat.mesh.vertices", self.heat.mesh.vertices)
-        # print("self.heat.mesh.points[pointsmeas,0]", self.heat.mesh.points[pointsmeas,0])
-        # print("info['postproc']['measured']", info['postproc']['measured'])
         assert len(pointsmeas) == len(self.info['postproc']['measured'])
         ax.plot(self.heat.mesh.points[pointsmeas,0], self.info['postproc']['measured'], 'Dm', label=r'$C(u)$')
         ax.plot(self.heat.mesh.points[pointsmeas,0], self.heat.data0+293, 'vy', label=r'$C_0$')
@@ -91,7 +87,7 @@ class Plotter:
         else:
             self.info = info
             addplots = [self.plotmeas]
-        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data, cell_data, addplots=addplots)
+        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data=point_data, cell_data=cell_data, addplots=addplots)
         plt.show()
 
 #----------------------------------------------------------------#

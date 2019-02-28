@@ -92,6 +92,7 @@ class FemP1(object):
         bdrydata.nodesdirflux={}
         if not postproc: return bdrydata
         for key, val in postproc.items():
+            print("key", key)
             type,data = val.split(":")
             if type != "bdrydn": continue
             colors = [int(x) for x in data.split(',')]
@@ -137,7 +138,6 @@ class FemP1(object):
                 # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
                 b[points] += fct(xc, yc, zc)
 
-
         help = np.zeros(self.mesh.nnodes)
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Robin": continue
@@ -150,7 +150,7 @@ class FemP1(object):
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Neumann": continue
-            if bdrycond.fct[color] is None: continue
+            if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS[:,np.newaxis]
@@ -295,8 +295,25 @@ class FemP1(object):
             mean += np.sum(dS*np.mean(u[self.mesh.faces[faces]],axis=1))
         return mean/omega
 
-    def computeBdryDn(self, u, key, data, bsaved, Asaved):
-        # colors = [int(x) for x in data.split(',')]
+    def comuteFluxOnRobin(self, u, faces, dS, uR, cR):
+        uhmean =  np.sum(dS * np.mean(u[self.mesh.faces[faces]], axis=1))
+        xf, yf, zf = self.mesh.pointsf[faces].T
+        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf))
+        else: uRmean=0
+        return cR*(uRmean-uhmean)
+
+    def computeBdryDn(self, u, key, data, bdrydata, bdrycond):
+        bs, As = bdrydata.bsaved[key], bdrydata.Asaved[key]
+        colors = [int(x) for x in data.split(',')]
+        flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
+            if bdrycond.type[color] != "Robin":  raise NotImplementedError("computeBdryDn bousillé")
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega[i] = np.sum(dS)
+            flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
+        return flux
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))

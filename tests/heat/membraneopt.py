@@ -57,7 +57,7 @@ class Plotter:
         else:
             self.info = info
             addplots = None
-        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data, cell_data, addplots=addplots)
+        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data=point_data, cell_data=cell_data, addplots=addplots)
         plt.show()
 
 #----------------------------------------------------------------#

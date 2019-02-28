@@ -108,40 +108,40 @@ def add_circle(
 
 
 #----------------------------------------------------------------#
-def add_holes(geom, x0, x1, **kwargs):
-    h = kwargs.pop('h')
-    hhole = kwargs.pop('hhole')
-    nholes = kwargs.pop('nholes')
-    holesize = kwargs.pop('holesize')
-    if 'hole_labels' in kwargs: hole_labels = kwargs.pop('hole_labels')
-    else: hole_labels = None
-    if 'make_surface' in kwargs: make_surface = kwargs.pop('make_surface')
-    else: make_surface = True
-    spacesize = (x1-x0-nholes*holesize)/(nholes+1)
-    if spacesize < 0.1*holesize:
-        maxsize = (x1-x0)/(nholes*1.1 - 0.1)
-        raise ValueError("holes too big (max={})".format(maxsize))
-    pos = np.empty(2*nholes)
-    pos[0] = spacesize
-    pos[1] = pos[0] + holesize
-    for i in range(1,nholes):
-        pos[2*i] = pos[2*i-1] + spacesize
-        pos[2*i+1] = pos[2*i] + holesize
-    xholes = []
-    for i in range(nholes):
-        xa, xb = x0+pos[2*i], x0+pos[2*i+1]
-        for j in range(nholes):
-            ya, yb = x0+pos[2*j], x0+pos[2*j+1]
-            xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
-
-    holes = []
-    hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
-    for xhole, hole_label in zip(xholes, hole_labels):
-        holes.append(geom.add_polygon(X=xhole, lcar=hhole))
-        xarrm = np.mean(np.array(xhole), axis=0)
-        add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
-        geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
-    return holes, hole_labels
+# def add_holes(geom, x0, x1, **kwargs):
+#     h = kwargs.pop('h')
+#     hhole = kwargs.pop('hhole')
+#     nholes = kwargs.pop('nholes')
+#     holesize = kwargs.pop('holesize')
+#     if 'hole_labels' in kwargs: hole_labels = kwargs.pop('hole_labels')
+#     else: hole_labels = None
+#     if 'make_surface' in kwargs: make_surface = kwargs.pop('make_surface')
+#     else: make_surface = True
+#     spacesize = (x1-x0-nholes*holesize)/(nholes+1)
+#     if spacesize < 0.1*holesize:
+#         maxsize = (x1-x0)/(nholes*1.1 - 0.1)
+#         raise ValueError("holes too big (max={})".format(maxsize))
+#     pos = np.empty(2*nholes)
+#     pos[0] = spacesize
+#     pos[1] = pos[0] + holesize
+#     for i in range(1,nholes):
+#         pos[2*i] = pos[2*i-1] + spacesize
+#         pos[2*i+1] = pos[2*i] + holesize
+#     xholes = []
+#     for i in range(nholes):
+#         xa, xb = x0+pos[2*i], x0+pos[2*i+1]
+#         for j in range(nholes):
+#             ya, yb = x0+pos[2*j], x0+pos[2*j+1]
+#             xholes.append([[xa, ya, 0], [xb, ya, 0], [xb, yb, 0], [xa, yb, 0]])
+#
+#     holes = []
+#     hole_labels = np.arange(200, 200 + len(xholes), dtype=int)
+#     for xhole, hole_label in zip(xholes, hole_labels):
+#         holes.append(geom.add_polygon(X=xhole, lcar=hhole))
+#         xarrm = np.mean(np.array(xhole), axis=0)
+#         add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
+#         geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
+#     return holes, hole_labels
 #----------------------------------------------------------------#
 def add_holesnew(geom, **kwargs):
     h = kwargs.pop('h')
@@ -161,13 +161,13 @@ def add_holesnew(geom, **kwargs):
     if 'make_surface' in kwargs: make_surface = kwargs.pop('make_surface')
     else: make_surface = True
     holesizexmax = (x1 - x0) / (nholesx * 1.1 - 0.1)
-    if holesizex is None: holesizex = holesizexmax
+    if holesizex is None: holesizex = holesizexmax*0.99
     if nholesx>1:
         spacesizex = (x1-x0-nholesx*holesizex)/(nholesx-1)
         if spacesizex < 0.1*holesizex:
             raise ValueError("holesizex({}) too big (max={})".format(holesizex,holesizexmax))
     holesizeymax = (y1 - y0) / (nholesy * 1.1 - 0.1)
-    if holesizey is None: holesizey = holesizeymax
+    if holesizey is None: holesizey = holesizeymax*0.99
     if nholesy>1:
         spacesizey = (y1-y0-nholesy*holesizey)/(nholesy-1)
         if spacesizey < 0.1*holesizey:

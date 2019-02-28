@@ -103,8 +103,7 @@ class Heat(solvers.solver.Solver):
                 elif type == "bdryfct":
                     info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
                 elif type == "bdrydn":
-                    bs, As = self.bdrydata.bsaved[key], self.bdrydata.Asaved[key]
-                    info['postproc'][key] = self.fem.computeBdryDn(u, key, data, bs, As)
+                    info['postproc'][key] = self.fem.computeBdryDn(u, key, data, self.bdrydata, self.problemdata.bdrycond)
                 elif type == "pointvalues":
                     info['postproc'][key] = self.fem.computePointValues(u, key, data)
                 elif type == "meanvalues":

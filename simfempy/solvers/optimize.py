@@ -99,13 +99,14 @@ class Optimizer(object):
         self.solver.data0 = perturbeddata
         return refdata, perturbeddata
 
-    def minimize(self, x0, method, bounds=None):
+    def minimize(self, x0, method, bounds=None, verbose=0):
         self.reset()
         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
         # print("x0", x0, "method", method)
         hascost=True
         hashess = False
         t0 = time.time()
+        #         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
         if method in self.lsmethods:
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
                                                 method=method, verbose=0)
