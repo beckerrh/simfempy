@@ -144,9 +144,9 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 
 
         # print("self.problemdata", self.problemdata)
-        bdrycond = self.problemdata.bdrycond
-        for label in self.voltage_labels:
-            bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(self.voltage[self.voltage_labels_inv[label]])
+        # bdrycond = self.problemdata.bdrycond
+        # for label in self.voltage_labels:
+        #     bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(self.voltage[self.voltage_labels_inv[label]])
         # print("self.problemdata", self.problemdata)
         self.data0 = np.zeros(self.nmeasures)
 
@@ -159,7 +159,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         # print("#")
         self.param = 1/param
         if not np.all(param>0):
-            print(10*"#")
+            print(10*"#", param)
             self.param = np.fmax(param, self.diffglobal)
         self.diffcell = self.diff(self.mesh.cell_labels)
         self.diffcellinv = 1/self.diffcell
@@ -201,34 +201,55 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
             # self.plot(point_data, cell_data, info)
             jac[:self.nmeasures,i] = self.getData(info['postproc'])
         self.problemdata.bdrycond = bdrycond_bu
-
-        # print("jac", jac.shape)
         return jac, du
+
+    def computeAdj(self, param, r, u, z):
+        self.param = 1/param
+        pdsplit = self.problemdata.postproc['measured'].split(':')
+        assert pdsplit[0] == 'pointvalues'
+        pointids = [int(l) for l in pdsplit[1].split(',')]
+        problemdata_bu = copy.deepcopy(self.problemdata)
+        self.problemdata.clear()
+        if z is None: z = np.zeros(self.mesh.nnodes)
+        self.problemdata.rhspoint = {}
+        for j in range(self.nmeasures):
+            self.problemdata.rhspoint[pointids[j]] = simfempy.solvers.optimize.RhsParam(r[j])
+        self.kheatcell = self.kheat(self.mesh.cell_labels)
+        b, z = self.computeRhs(z)
+        z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
+        # point_data, cell_data, info = self.postProcess(self.z)
+        # self.plotter.plot(point_data, cell_data)
+        self.problemdata = problemdata_bu
+        return z
+
+    def computeM(self, param, du, z):
+        self.param = 1/param
+        M = np.zeros(shape=(self.nparam,self.nparam))
+        assert z is not None
+        for i in range(self.nparam):
+            self.dlabel = self.param_labels[i]
+            self.dcoeff = 1
+            # self.dcoeff = -1/param[i]**2
+            self.diffcellinv = self.ddiff(self.mesh.cell_labels)
+            Ai, B = self.matrix()
+            for j in range(self.nparam):
+                M[i, j] = -Ai.dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+        # print("M", np.array2string(M, precision=2, floatmode='fixed'))
+        return M
 
 #----------------------------------------------------------------#
 def test():
-    h = 0.2
+    h = 0.3
     hhole, hmeasure = 0.3*h, 0.2*h
-    nmeasures = 10
-    measuresize = 0.03
-    nholes = 9
+    nmeasures = 6
+    measuresize = 0.02
+    nholes = 2
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
     # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
     # print("electrode_labels",electrode_labels)
     # print("other_labels",other_labels)
-    bdrycond = simfempy.applications.problemdata.BoundaryConditions()
 
-    for label in other_labels:
-        bdrycond.type[label] = "Neumann"
-    for label in electrode_labels:
-        bdrycond.type[label] = "Robin"
-        bdrycond.param[label] = 1
-
-    postproc = {}
-    postproc['measured'] = "bdrydn:{}".format(','.join( [str(l) for l in electrode_labels]))
-
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
 
     param_labels = hole_labels
     nparams = len(param_labels)
@@ -241,6 +262,21 @@ def test():
     voltage -= np.mean(voltage)
 
 
+    bdrycond = simfempy.applications.problemdata.BoundaryConditions()
+
+    for label in other_labels:
+        bdrycond.type[label] = "Neumann"
+    for i,label in enumerate(electrode_labels):
+        bdrycond.type[label] = "Robin"
+        bdrycond.param[label] = 100
+        bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(voltage[i])
+
+    postproc = {}
+    postproc['measured'] = "bdrydn:{}".format(','.join( [str(l) for l in electrode_labels]))
+
+    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+
+
     regularize = 0.000001
     diffglobal = 1
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, diffglobal=diffglobal)
@@ -249,14 +285,21 @@ def test():
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=diffglobal*np.ones(nparams))
 
     refparam = diffglobal*np.ones(nparams, dtype=float)
-    # refparam[::2] *= 5
-    # refparam[1::2] *= 10
-    refparam[::2] *= 0.2
-    refparam[1::2] *= 0.1
-    # refparam[1::2] *= 100
+
+    if nholes==25:
+        refparam[7] *= 0.1
+        refparam[11] *= 0.1
+        refparam[17] *= 0.1
+    else:
+        # refparam[::2] *= 5
+        # refparam[1::2] *= 10
+        refparam[::2] *= 0.2
+        refparam[1::2] *= 0.1
+
     print("refparam",refparam)
     percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
+    eit.plotter.plot(info=eit.info)
     # perturbeddata[::2] *= 1.2
     # perturbeddata[1::2] *= 0.8
     print("refdata",refdata)
@@ -267,8 +310,9 @@ def test():
 
     # optimizer.gradtest = True
     # for method in optimizer.methods:
-    for method in optimizer.lsmethods:
-        optimizer.minimize(x0=initialparam, method=method)
+    for method in optimizer.minmethods:
+    # for method in optimizer.lsmethods:
+        optimizer.minimize(x0=initialparam, method=method, bounds=(0.1*diffglobal,np.inf))
         eit.plotter.plot(info=eit.info)
 #
 

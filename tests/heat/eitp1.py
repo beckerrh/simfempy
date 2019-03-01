@@ -21,7 +21,7 @@ def createMesh2d(**kwargs):
     hmeasure = kwargs.pop('hmeasure')
     nmeasures = kwargs.pop('nmeasures')
     measuresize = kwargs.pop('measuresize')
-    x0, x1 = -1.2, 1.2
+    x0, x1 = -1.4, 1.4
 
     hhole = kwargs.pop('hhole')
     nholes = kwargs.pop('nholes')
@@ -235,7 +235,7 @@ def test():
     hhole, hmeasure = 0.3*h, 0.2*h
     nmeasures = 4
     measuresize = 0.03
-    nholes = 2
+    nholes = 1
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
     # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     # plt.show()
@@ -257,7 +257,7 @@ def test():
         bdrycond.type[label] = "Neumann"
     for i,label in enumerate(electrode_labels):
         bdrycond.type[label] = "Robin"
-        bdrycond.param[label] = 1000
+        bdrycond.param[label] = 1
         bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(voltage[i])
 
     postproc = {}
@@ -266,7 +266,7 @@ def test():
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
 
 
-    regularize = 0.00000
+    regularize = 0.000001
     diffglobal = 1
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, hole_labels=param_labels, diffglobal=diffglobal)
     eit.setMesh(mesh)

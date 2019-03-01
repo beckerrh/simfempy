@@ -36,7 +36,7 @@ class Optimizer(object):
             self.nmeasure = kwargs.pop('nmeasure')
             self.param0 = kwargs.pop('param0')
         self.lsmethods = ['lm', 'trf','dogbox']
-        self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg']
+        self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr','SLSQP', 'L-BFGS-B', 'TNC']
         self.methods = self.lsmethods +self.minmethods
         if not hasattr(solver,"computeM"):
             print("*** solver does not have 'computeM', setting 'fullhess=False'")
@@ -109,7 +109,7 @@ class Optimizer(object):
         #         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
         if method in self.lsmethods:
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
-                                                method=method, verbose=0)
+                                                method=method, bounds=bounds, verbose=0)
         elif method in self.minmethods:
             hascost = False
             hashess = True
@@ -118,8 +118,10 @@ class Optimizer(object):
             # method = 'trust-constr'
             if method == 'Newton-CG': tol = 1e-10
             else: tol = None
+            bbounds = [bounds for l in range(len(x0))]
+            print("bbounds", bbounds)
             info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
-                                           method=method, tol=1e-9)
+                                           method=method, bounds=bbounds, tol=1e-9)
         else:
             raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(self.methods)))
         dt = time.time()-t0
@@ -131,9 +133,13 @@ class Optimizer(object):
             cost = info.cost
         else:
             cost = info.fun
-        if hashess:
+        if hasattr(info, 'nhev'):
             nhev = info.nhev
         else:
             nhev = 0
+        if hasattr(info, 'njev'):
+            njev = info.njev
+        else:
+            njev = 0
         x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
-        print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, info.njev, nhev, dt))
+        print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, njev, nhev, dt))
