@@ -259,30 +259,38 @@ class Elasticity(solvers.solver.Solver):
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A.tobsr(), b, u
 
-    def computeBdryMean(self, u, key, data):
+    def computeBdryMean(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = [0 for i in range(self.ncomp)], 0
-        for color in colors:
+        mean, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            for i in range(self.ncomp):
-                mean[i] += np.sum(dS * np.mean(u[i + self.ncomp * self.mesh.faces[faces]], axis=1))
-        return [m/omega for m in mean]
+            omega[i] = np.sum(dS)
+            for icomp in range(self.ncomp):
+                mean[icomp,i] += np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+        return mean/omega
 
-    def computeBdryDn(self, u, key, data, bs, As):
+    def computeBdryDn(self, u, data, bs, As):
+        colors = [int(x) for x in data.split(',')]
+        flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+        for i,color in enumerate(colors):
+            bs, As = self.bdrydata.bsaved[color], self.bdrydata.Asaved[color]
+            res = bs - As * u
+            for icomp in range(self.ncomp):
+                flux[icomp, i] = np.sum(res[icomp::self.ncomp])
+        return flux
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
         # for color in colors:
         #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
         # print("###",self.bsaved[key].shape)
         # print("###",(self.Asaved[key] * u).shape)
-        res = bs - As * u
-        flux  = []
-        for icomp in range(self.ncomp):
-            flux.append(np.sum(res[icomp::self.ncomp]))
-        return flux
+        # res = bs - As * u
+        # flux  = []
+        # for icomp in range(self.ncomp):
+        #     flux.append(np.sum(res[icomp::self.ncomp]))
+        # return flux
 
     def postProcess(self, u):
         info = {}
@@ -300,13 +308,12 @@ class Elasticity(solvers.solver.Solver):
         for key, val in self.problemdata.postproc.items():
             type,data = val.split(":")
             if type == "bdrymean":
-                mean = self.computeBdryMean(u, key, data)
+                mean = self.computeBdryMean(u, data)
                 assert len(mean) == self.ncomp
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = mean[icomp]
             elif type == "bdrydn":
-                bs, As = self.bdrydata.bsaved[key], self.bdrydata.Asaved[key]
-                flux = self.computeBdryDn(u, key, data, bs, As)
+                flux = self.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
                 assert len(flux) == self.ncomp
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = flux[icomp]

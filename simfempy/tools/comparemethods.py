@@ -105,12 +105,13 @@ class CompareMethods(object):
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
                 # for name in self.methods.keys():
-                self.infos[key2][key3][name][iter] = info3
+                # print("name", name, "key2", key2, "key3", key3, "info3", info3)
+                self.infos[key2][key3][name][iter] = np.sum(info3)
                 
     def generateLatex(self, names, paramname, parameters, infos):
         latexwriter = LatexWriter(dirname=self.dirname)
         for key, val in infos.items():
-            kwargs = {'n': parameters, 'paramname': paramname}
+            kwargs = {'n': parameters, 'nname': paramname}
             if key == 'iter':
                 newdict={}
                 for key2, val2 in val.items():
@@ -118,9 +119,8 @@ class CompareMethods(object):
                         newdict["{}-{}".format(key2, name)] = val2[name]
                 kwargs['name'] = '{}'.format(key)
                 kwargs['values'] = newdict
-                kwargs['type'] = 'int'
+                kwargs['valformat'] = '3d'
                 latexwriter.append(**kwargs)
-                # latexwriter.append(n=parameters, values=newdict, name='{}'.format(key))
             elif key == 'timer':
                 for name in names:
                     newdict={}
@@ -130,7 +130,6 @@ class CompareMethods(object):
                     kwargs['values'] = newdict
                     kwargs['percentage'] = True
                     latexwriter.append(**kwargs)
-                    # latexwriter.append(n=parameters, values=newdict, name='{}_{}'.format(name, key), percentage=True)
             else:
                 kwargs['redrate'] = (key=="error") and (paramname=="ncells")
                 kwargs['diffandredrate'] = not kwargs['redrate'] and (paramname=="ncells")

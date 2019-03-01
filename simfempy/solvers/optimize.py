@@ -118,8 +118,10 @@ class Optimizer(object):
             # method = 'trust-constr'
             if method == 'Newton-CG': tol = 1e-10
             else: tol = None
-            bbounds = [bounds for l in range(len(x0))]
-            print("bbounds", bbounds)
+            if len(bounds)==2:
+                bbounds = [bounds for l in range(len(x0))]
+            else:
+                bbounds=bounds
             info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
                                            method=method, bounds=bbounds, tol=1e-9)
         else:
@@ -142,4 +144,5 @@ class Optimizer(object):
         else:
             njev = 0
         x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
-        print("{:^10s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, njev, nhev, dt))
+        print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, njev, nhev, dt))
+        return x, cost, info.nfev, njev, nhev, dt

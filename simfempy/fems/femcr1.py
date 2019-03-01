@@ -47,11 +47,16 @@ class FemCR1(object):
         self.massmatrix = sparse.coo_matrix((self.mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
         return self.massmatrix
 
-    def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
+    # def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
+    def computeRhs(self, u, problemdata, kheatcell, method, bdrydata):
+        rhs = problemdata.rhs
+        rhscell = problemdata.rhscell
+        rhspoint = problemdata.rhspoint
+        bdrycond = problemdata.bdrycond
         b = np.zeros(self.mesh.nfaces)
-        if rhs:
+        if rhscell:
             x, y, z = self.mesh.pointsf.T
-            b += self.massmatrix * rhs(x, y, z)
+            b += self.massmatrix * rhscell(x, y, z)
 
         help = np.zeros(self.mesh.nfaces)
         for color, faces in self.mesh.bdrylabels.items():
@@ -117,10 +122,11 @@ class FemCR1(object):
             type, data = val.split(":")
             if type != "bdrydn": continue
             colors = [int(x) for x in data.split(',')]
-            bdrydata.facesdirflux[key] = np.empty(shape=(0), dtype=int)
+            # bdrydata.facesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
-                bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).flatten())
+                # bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).flatten())
+                bdrydata.facesdirflux[color] = facesdir
         return bdrydata
 
     def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
@@ -129,8 +135,10 @@ class FemCR1(object):
         if u is None: u = np.zeros_like(b)
         else: assert u.shape == b.shape
         nfaces = self.mesh.nfaces
-        for key, faces in facesdirflux.items():
-            bdrydata.bsaved[key] = b[faces]
+        # for key, faces in facesdirflux.items():
+        #     bdrydata.bsaved[key] = b[faces]
+        for color, faces in facesdirflux.items():
+            bdrydata.bsaved[color] = b[faces]
         if method == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
@@ -152,11 +160,16 @@ class FemCR1(object):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces = self.mesh.nfaces
-        for key, faces in facesdirflux.items():
+        # for key, faces in facesdirflux.items():
+        #     nb = faces.shape[0]
+        #     help = sparse.dok_matrix((nb, nfaces))
+        #     for i in range(nb): help[i, faces[i]] = 1
+        #     bdrydata.Asaved[key] = help.dot(A)
+        for color, faces in facesdirflux.items():
             nb = faces.shape[0]
             help = sparse.dok_matrix((nb, nfaces))
             for i in range(nb): help[i, faces[i]] = 1
-            bdrydata.Asaved[key] = help.dot(A)
+            bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
         if method == 'trad':
             help = np.ones((nfaces))
@@ -203,23 +216,40 @@ class FemCR1(object):
         return np.sqrt(errv)
 
 
-    def computeBdryMean(self, u, key, data):
+    def computeBdryMean(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
+        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            mean += np.sum(dS*u[faces])
+            omega[i] = np.sum(dS)
+            mean[i] = np.sum(dS*u[faces])
         return mean/omega
 
-    def computeBdryDn(self, u, key, data, bs, As):
-        # colors = [int(x) for x in data.split(',')]
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(As*u - bs)
+
+    def comuteFluxOnRobin(self, u, faces, dS, uR, cR):
+        uhmean =  np.sum(dS * u[faces])
+        xf, yf, zf = self.mesh.pointsf[faces].T
+        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf))
+        else: uRmean=0
+        return cR*(uRmean-uhmean)
+
+    def computeBdryDn(self, u, data, bdrydata, bdrycond):
+        colors = [int(x) for x in data.split(',')]
+        flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega[i] = np.sum(dS)
+            if bdrycond.type[color] == "Robin":
+                flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
+            elif bdrycond.type[color] == "Dirichlet":
+                bs, As = bdrydata.bsaved[color], bdrydata.Asaved[color]
+                flux[i] = np.sum(As * u - bs)
+            else:
+                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
 
     def tonode(self, u):

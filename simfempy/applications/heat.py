@@ -99,15 +99,15 @@ class Heat(solvers.solver.Solver):
             for key, val in self.problemdata.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
-                    info['postproc'][key] = self.fem.computeBdryMean(u, key, data)
+                    info['postproc'][key] = self.fem.computeBdryMean(u, data)
                 elif type == "bdryfct":
-                    info['postproc'][key] = self.fem.computeBdryFct(u, key, data)
+                    info['postproc'][key] = self.fem.computeBdryFct(u, data)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.fem.computeBdryDn(u, key, data, self.bdrydata, self.problemdata.bdrycond)
+                    info['postproc'][key] = self.fem.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
                 elif type == "pointvalues":
-                    info['postproc'][key] = self.fem.computePointValues(u, key, data)
+                    info['postproc'][key] = self.fem.computePointValues(u, data)
                 elif type == "meanvalues":
-                    info['postproc'][key] = self.fem.computeMeanValues(u, key, data)
+                    info['postproc'][key] = self.fem.computeMeanValues(u, data)
                 else:
                     raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         assert self.kheatcell.shape[0] == self.mesh.ncells

@@ -338,27 +338,57 @@ class Stokes(solvers.solver.Solver):
             return (A, B, C), b, u
         return (A,B), b, u
 
-    def computeBdryMean(self, u, key, data):
+    def computeBdryMean(self, u, data):
         nfaces, ncomp  = self.mesh.nfaces, self.femv.ncomp
         colors = [int(x) for x in data.split(',')]
-        mean, omega = [0 for i in range(self.ncomp)], 0
-        for color in colors:
+        mean, omega = np.zeros(shape=(ncomp,len(colors))), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            for i in range(ncomp):
-                mean[i] += np.sum(dS * u[i*nfaces + faces])
-        return mean
+            omega[i] = np.sum(dS)
+            for icomp in range(ncomp):
+                mean[icomp,i] += np.sum(dS * u[icomp*nfaces + faces])
+        return mean/omega
+        # colors = [int(x) for x in data.split(',')]
+        # mean, omega = [0 for i in range(self.ncomp)], 0
+        # for color in colors:
+        #     faces = self.mesh.bdrylabels[color]
+        #     normalsS = self.mesh.normals[faces]
+        #     dS = linalg.norm(normalsS, axis=1)
+        #     for i in range(ncomp):
+        #         mean[i] += np.sum(dS * u[i*nfaces + faces])
+        # return mean
 
-    def computeBdryDn(self, u, key, data):
+    def computeBdryDn(self, u, data, bdrydata, bdrycond):
         nfaces, ncells, ncomp, pstart  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.pstart
-        flux = []
-        pcontrib = self.bdrydata.Bsaved[key].T*u[pstart: pstart+ncells]
-        nb = self.bdrydata.Bsaved[key].shape[1]//ncomp
-        for icomp in range(ncomp):
-            res = self.bdrydata.bsaved[icomp][key] - self.bdrydata.Asaved[key] * u[icomp*nfaces:(icomp+1)*nfaces]
-            flux.append(np.sum(res+pcontrib[icomp*nb:(icomp+1)*nb]))
+        colors = [int(x) for x in data.split(',')]
+        flux, omega = np.zeros(shape=(ncomp,len(colors))), np.zeros(len(colors))
+        for i,color in enumerate(colors):
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega[i] = np.sum(dS)
+            if bdrycond.type[color] == "Dirichlet":
+                As = bdrydata.Asaved[color]
+                Bs = bdrydata.Bsaved[color]
+                pcontrib = Bs.T * u[pstart: pstart + ncells]
+                nb = Bs.shape[1] // ncomp
+                for icomp in range(ncomp):
+                    bs = bdrydata.bsaved[icomp][color]
+                    res = bs - As * u[icomp * nfaces:(icomp + 1) * nfaces]
+                    flux[icomp, i] = np.sum(res+pcontrib[icomp*nb:(icomp+1)*nb])
+            else:
+                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
+
+        # flux = []
+        # pcontrib = self.bdrydata.Bsaved[key].T*u[pstart: pstart+ncells]
+        # nb = self.bdrydata.Bsaved[key].shape[1]//ncomp
+        # for icomp in range(ncomp):
+        #     res = self.bdrydata.bsaved[icomp][key] - self.bdrydata.Asaved[key] * u[icomp*nfaces:(icomp+1)*nfaces]
+        #     flux.append(np.sum(res+pcontrib[icomp*nb:(icomp+1)*nb]))
+        # return flux
 
     def computeErrorL2V(self, solex, uh):
         nfaces, ncomp  = self.mesh.nfaces, self.femv.ncomp
@@ -392,12 +422,12 @@ class Stokes(solvers.solver.Solver):
         for key, val in self.problemdata.postproc.items():
             type, data = val.split(":")
             if type == "bdrymean":
-                mean = self.computeBdryMean(u, key, data)
+                mean = self.computeBdryMean(u, data)
                 assert len(mean) == self.ncomp
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = mean[icomp]
             elif type == "bdrydn":
-                flux = self.computeBdryDn(u, key, data)
+                flux = self.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
                 assert len(flux) == self.ncomp
                 for icomp in range(self.ncomp):
                     info['postproc']["{}_{:02d}".format(key, icomp)] = flux[icomp]

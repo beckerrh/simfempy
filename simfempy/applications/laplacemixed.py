@@ -78,11 +78,11 @@ class LaplaceMixed(solvers.solver.Solver):
             for key, val in self.problemdata.postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
-                    info['postproc'][key] = self.computeBdryMean(pn, key, data)
+                    info['postproc'][key] = self.computeBdryMean(pn, data)
                 elif type == "bdryfct":
                     info['postproc'][key] = self.computeBdryFct(u, key, data)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.computeBdryDn(u, key, data)
+                    info['postproc'][key] = self.computeBdryDn(u, data)
                 elif type == "pointvalues":
                     info['postproc'][key] = self.computePointValues(u, key, data)
                 else:
@@ -90,19 +90,19 @@ class LaplaceMixed(solvers.solver.Solver):
         if self.plotdiff: cell_data['diff'] = self.diffcell
         return point_data, cell_data, info
 
-    def computeBdryDn(self, u, key, data):
+    def computeBdryDn(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            mean[i] = np.sum(dS*u[faces])
-        return mean
-        return mean/omega
+            flux[i] = np.sum(dS*u[faces])
+        return flux
+        return flux/omega
 
-    def computeBdryMean(self, pn, key, data):
+    def computeBdryMean(self, pn, data):
         colors = [int(x) for x in data.split(',')]
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):

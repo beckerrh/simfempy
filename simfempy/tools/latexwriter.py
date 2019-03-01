@@ -14,23 +14,33 @@ class TableData(object):
     """
     n : first axis
     values : per method
-    precs and types for latex
     """
-    def __init__(self, n, values, type='float', prec=2, nname='n'):
-        self.n = n
-        self.values = values
-        try:
-            keys = list(values.keys())
-        except:
+    def __init__(self, **kwargs):
+        values = kwargs.pop('values')
+        if not isinstance(values, dict):
             raise ValueError("values is not a dictionary (values=%s)" %values)
-        self.precs = {}
-        self.types = {}
-        for key in keys:
-            self.precs[key] = prec
-            self.types[key] = type
+        self.values = dict((str(k), v) for k, v in values.items())
+        self.n = kwargs.pop('n')
+        for k,v in values.items():
+            if len(self.n) != len(v):
+                raise ValueError("wrong lengths: n({}) value({})".format(len(self.n), len(v)))
+        self.nname = kwargs.pop('nname')
+        self.nformat = "{:15d}"
+        if 'nformat' in kwargs:
+            self.nformat = "{{:{}}}".format(kwargs.pop('nformat'))
+        self.valformat = {k:"{:10.2e}" for k in values.keys()}
+        if 'valformat' in kwargs:
+            valformat = kwargs.pop('valformat')
+            if isinstance(valformat,str):
+                for k in values.keys():
+                    self.valformat[k] = "{{:{}}}".format(valformat)
+            else:
+                for k in values.keys():
+                    self.valformat[k] = "{{:{}}}".format(valformat[k])
         self.rotatenames = False
-        self.nname = nname
+
     def computePercentage(self):
+        self.values = dict((k+"(\%)", v) for k, v in self.values.items())
         self.values['sum'] = np.zeros(len(self.n))
         for i in range(len(self.n)):
             sum = 0
@@ -41,9 +51,9 @@ class TableData(object):
                 if key=='sum': continue
                 self.values[key][i] *= 100/sum
         for key in self.values.keys():
-            self.precs[key] = 1
-            self.types[key] = 'ffloat'
-        self.types['sum'] = 'float'
+            self.valformat[key] = "{:8.2f}"
+        self.valformat['sum'] = "{:10.2e}"
+
     def computeDiffs(self):
         n, values, keys = self.n, self.values, list(self.values.keys())
         for key in keys:
@@ -52,10 +62,12 @@ class TableData(object):
             for i in range(1,len(n)):
                 valorder[i] = abs(values[key][i]-values[key][i-1])
             values[key2] = valorder
-            self.precs[key2] = self.precs[key]
-            self.types[key2] = self.types[key]
+            self.valformat[key2] = self.valformat[key]
+            self.valformat[key2] = self.valformat[key]
+
     def computeReductionRate(self, dim, diff=False):
         n, values, keys = self.n, self.values, list(self.values.keys())
+        if not isinstance(n[0],(int,float)): raise ValueError("n must be int or float")
         fi = 1+int(diff)
         for key in keys:
             if diff:
@@ -74,14 +86,16 @@ class TableData(object):
                     p=-1
                 valorder[i] = p
             values[key2] = valorder
-            self.precs[key2] = 2
-            self.types[key2] = 'ffloat'
+            self.valformat[key2] = "{:8.2f}"
 
 #=================================================================#
 class LatexWriter(object):
     def __init__(self, dirname="Resultslatextest", filename=None):
         if filename is None:
             filename = dirname + ".tex"
+        else:
+            if filename[-4:] != '.tex':
+                filename += '.tex'
         self.dirname = dirname + os.sep + "tex"
         if not os.path.isdir(self.dirname) :
             os.makedirs(self.dirname)
@@ -90,29 +104,12 @@ class LatexWriter(object):
         self.data = {}
         self.countdata = 0
 
-    # def append(self, n, values, paramname='n', dim=None, type='float', name= None, redrate=False, diffandredrate=False, percentage=False):
-    #     if name is None:
-    #         name = 'table{:d}'.format(self.countdata)
-    #     self.countdata += 1
-    #     tabledata = TableData(n=n, values=values, type=type, nname=paramname)
-    #     if diffandredrate:
-    #         if not dim: raise ValueError("needs dim to compute reduction rate")
-    #         tabledata.computeDiffs()
-    #         tabledata.computeReductionRate(dim, diff=True)
-    #     if redrate:
-    #         assert dim
-    #         tabledata.computeReductionRate(dim)
-    #     if percentage:
-    #         tabledata.computePercentage()
-    #     self.data[name] = tabledata
-
     def append(self, **kwargs):
         if 'name' in kwargs: name = kwargs.pop('name')
         else: name = 'table{:d}'.format(self.countdata)
         self.countdata += 1
-        type = 'float'
-        if 'type' in kwargs: type = kwargs.pop('type')
-        tabledata = TableData(n=kwargs.pop('n'), values=kwargs.pop('values'), type=type, nname=kwargs.pop('paramname'))
+        tabledata = TableData(**kwargs)
+
         if 'diffandredrate' in kwargs and kwargs.pop('diffandredrate'):
             tabledata.computeDiffs()
             tabledata.computeReductionRate(kwargs.pop('dim'), diff=True)
@@ -137,9 +134,7 @@ class LatexWriter(object):
             pass
 
     def writeTable(self, name, tabledata):
-        n = tabledata.n
-        values = tabledata.values
-        nname = tabledata.nname
+        n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
         keys_to_write = sorted(values.keys())
         size = len(keys_to_write)
         if size==0: return
@@ -158,27 +153,11 @@ class LatexWriter(object):
             itemformated += "\\\\\\hline\hline\n"
         self.latexfile.write(itemformated)
 
-        format_n = '%15d '
-        formatvalue={}
-        for i in range(size):
-            key = keys_to_write[i]
-            type = tabledata.types[key]
-            prec = tabledata.precs[key]
-            if  type == 'int':
-                formatvalue[i] = ' & %15d '
-            elif type=='float':
-                formatvalue[i] = ' & %15.' + '%1de ' % prec
-            elif type == 'ffloat':
-                formatvalue[i] = ' & %15.' + '%1df ' % prec
-            else:
-                raise ValueError("no such type '%s'" %type)
-
-        numberitems = len(n)
-        for texline in range(numberitems):
-            itemformated = format_n %(n[texline])
+        for texline in range(len(n)):
+            itemformated = nformat.format(n[texline])
             for i in range(size):
                 key = keys_to_write[i]
-                itemformated += formatvalue[i] %values[key][texline]
+                itemformated += '&'+valformat[key].format(values[key][texline])
             itemformated += "\\\\\\hline\n"
             self.latexfile.write(itemformated)
         texte='\\end{tabular}\n\\caption{%s}' %(name.replace('_','\_'))
@@ -211,11 +190,15 @@ class LatexWriter(object):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    n = [i**2 for i in range(1, 5)]
+    n = [i**2 for i in range(1, 10)]
     values={}
-    values['u'] = np.random.rand((len(n)))
-    values['v'] = np.random.rand((len(n)))
+    values['u'] = np.power(n,-2.) + 0.1*np.random.rand((len(n)))
+    values['v'] = np.power(n,-3.) + 0.1*np.random.rand((len(n)))
     latexwriter = LatexWriter()
-    latexwriter.append(n, values)
+    latexwriter.append(n=n, nname='n', values=values, diffandredrate=True, dim=2)
+    values2={}
+    values2[1] = [1,2,3]
+    values2[2] = [4,5,6]
+    latexwriter.append(n=['a','b','c'], nname='letter', nformat="10s", values=values2, percentage=True)
     latexwriter.write()
     latexwriter.compile()

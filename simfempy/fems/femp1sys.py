@@ -238,24 +238,31 @@ class FemP1(femp1.FemP1):
             err.append(np.sqrt(np.dot(e[icomp], self.massmatrix * e[icomp])))
         return err, e
 
-    def computeBdryMean(self, u, key, data, icomp):
+    def computeBdryMean(self, u, data, icomp):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
+        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            mean += np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+            omega[i] = np.sum(dS)
+            mean[i] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
         return mean/omega
 
-    # def computeBdryDn(self, u, key, data, icomp):
-    #     # colors = [int(x) for x in data.split(',')]
-    #     # omega = 0
-    #     # for color in colors:
-    #     #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-    #     flux = np.sum(self.bsaved[icomp][key] - self.Asaved[icomp][key] * u)
-    #     return flux
+    def computeBdryDn(self, u, data, bdrydata, bdrycond, icomp):
+        colors = [int(x) for x in data.split(',')]
+        flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            omega[i] = np.sum(dS)
+            if bdrycond[icomp].type[color] == "Dirichlet":
+                bs, As = bdrydata[icomp].bsaved[color], bdrydata[icomp].Asaved[color]
+                flux[i] = np.sum(As * u - bs)
+            else:
+                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
+        return flux
 
 
 # ------------------------------------- #

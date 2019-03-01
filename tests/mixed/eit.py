@@ -222,20 +222,20 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.problemdata = problemdata_bu
         return z
 
-    def computeM(self, param, du, z):
-        self.param = 1/param
-        M = np.zeros(shape=(self.nparam,self.nparam))
-        assert z is not None
-        for i in range(self.nparam):
-            self.dlabel = self.param_labels[i]
-            self.dcoeff = 1
-            # self.dcoeff = -1/param[i]**2
-            self.diffcellinv = self.ddiff(self.mesh.cell_labels)
-            Ai, B = self.matrix()
-            for j in range(self.nparam):
-                M[i, j] = -Ai.dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
-        # print("M", np.array2string(M, precision=2, floatmode='fixed'))
-        return M
+    # def computeM(self, param, du, z):
+    #     self.param = 1/param
+    #     M = np.zeros(shape=(self.nparam,self.nparam))
+    #     assert z is not None
+    #     for i in range(self.nparam):
+    #         self.dlabel = self.param_labels[i]
+    #         self.dcoeff = 1
+    #         # self.dcoeff = -1/param[i]**2
+    #         self.diffcellinv = self.ddiff(self.mesh.cell_labels)
+    #         Ai, B = self.matrix()
+    #         for j in range(self.nparam):
+    #             M[i, j] = -Ai.dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+    #     # print("M", np.array2string(M, precision=2, floatmode='fixed'))
+    #     return M
 
 #----------------------------------------------------------------#
 def test():
@@ -260,6 +260,7 @@ def test():
     voltage = 2*np.ones(nmeasures)
     voltage[::2] *= -1
     voltage -= np.mean(voltage)
+    print("voltage", voltage)
 
 
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
@@ -278,7 +279,7 @@ def test():
 
 
     regularize = 0.000001
-    diffglobal = 1
+    diffglobal = 10
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, diffglobal=diffglobal)
     eit.setMesh(mesh)
 
@@ -308,13 +309,25 @@ def test():
     initialparam = diffglobal*np.ones(nparams)
     print("initialparam",initialparam)
 
+    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     # optimizer.gradtest = True
-    # for method in optimizer.methods:
-    for method in optimizer.minmethods:
-    # for method in optimizer.lsmethods:
-        optimizer.minimize(x0=initialparam, method=method, bounds=(0.1*diffglobal,np.inf))
-        eit.plotter.plot(info=eit.info)
-#
+    methods = optimizer.minmethods
+    methods = optimizer.minmethods
+    methods = optimizer.methods
+    values = {"J":[], "nf":[], "ng":[], "nh":[], "s":[]}
+    valformat = {"J":"10.2e", "nf":"3d", "ng":"3d", "nh":"3d", "s":"6.1f"}
+    for method in methods:
+        x, cost, nfev, njev, nhev, dt = optimizer.minimize(x0=initialparam, method=method, bounds=(0.1*diffglobal,np.inf))
+        # eit.plotter.plot(info=eit.info)
+        values["J"].append(cost)
+        values["nf"].append(nfev)
+        values["ng"].append(njev)
+        values["nh"].append(nhev)
+        values["s"].append(dt)
+    latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
+    latex.write()
+    latex.compile()
+
 
 #================================================================#
 

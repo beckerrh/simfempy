@@ -56,7 +56,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=2):
     import simfempy.tools.comparemethods
     geometry, bdrycond, postproc = _getGeometry(geomname)
     if geomname == "unitsquare":
-        h = [0.5, 0.25, 0.125, 0.06, 0.03]
+        h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
     elif geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125]
     if exactsolution == "Linear":  h = h[:-3]

@@ -92,14 +92,14 @@ class FemP1(object):
         bdrydata.nodesdirflux={}
         if not postproc: return bdrydata
         for key, val in postproc.items():
-            print("key", key)
             type,data = val.split(":")
             if type != "bdrydn": continue
             colors = [int(x) for x in data.split(',')]
-            bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
+            # bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
-                bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
+                # bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
+                bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].flatten())
         return bdrydata
 
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):
@@ -175,11 +175,16 @@ class FemP1(object):
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
-        for key, nodes in nodesdirflux.items():
+        # for key, nodes in nodesdirflux.items():
+        #     nb = nodes.shape[0]
+        #     help = sparse.dok_matrix((nb, nnodes))
+        #     for i in range(nb): help[i, nodes[i]] = 1
+        #     bdrydata.Asaved[key] = help.dot(A)
+        for color, nodes in nodesdirflux.items():
             nb = nodes.shape[0]
             help = sparse.dok_matrix((nb, nnodes))
             for i in range(nb): help[i, nodes[i]] = 1
-            bdrydata.Asaved[key] = help.dot(A)
+            bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
         if method == 'trad':
             help = np.ones((nnodes))
@@ -206,8 +211,10 @@ class FemP1(object):
         if u is None: u = np.zeros_like(b)
         elif u.shape != b.shape : raise ValueError("u.shape != b.shape {} != {}".format(u.shape, b.shape))
         x, y, z = self.mesh.points.T
-        for key, nodes in nodesdirflux.items():
-            bdrydata.bsaved[key] = b[nodes]
+        # for key, nodes in nodesdirflux.items():
+        #     bdrydata.bsaved[key] = b[nodes]
+        for color, nodes in nodesdirflux.items():
+            bdrydata.bsaved[color] = b[nodes]
         if method == 'trad':
             for color, nodes in nodesdir.items():
                 if color in bdrycond.fct:
@@ -233,8 +240,10 @@ class FemP1(object):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
         x, y, z = self.mesh.points.T
-        for key, nodes in nodesdirflux.items():
-            bdrydata.bsaved[key] = b[nodes]
+        # for key, nodes in nodesdirflux.items():
+        #     bdrydata.bsaved[key] = b[nodes]
+        for color, nodes in nodesdirflux.items():
+            bdrydata.bsaved[color] = b[nodes]
         if method == 'trad':
             for color, nodes in nodesdir.items():
                 dirichlet = bdrycond.fct[color]
@@ -284,15 +293,15 @@ class FemP1(object):
         return np.sqrt(errv)
 
 
-    def computeBdryMean(self, u, key, data):
+    def computeBdryMean(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = 0, 0
-        for color in colors:
+        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            omega += np.sum(dS)
-            mean += np.sum(dS*np.mean(u[self.mesh.faces[faces]],axis=1))
+            omega[i] = np.sum(dS)
+            mean[i] = np.sum(dS*np.mean(u[self.mesh.faces[faces]],axis=1))
         return mean/omega
 
     def comuteFluxOnRobin(self, u, faces, dS, uR, cR):
@@ -302,25 +311,24 @@ class FemP1(object):
         else: uRmean=0
         return cR*(uRmean-uhmean)
 
-    def computeBdryDn(self, u, key, data, bdrydata, bdrycond):
-        bs, As = bdrydata.bsaved[key], bdrydata.Asaved[key]
+    def computeBdryDn(self, u, data, bdrydata, bdrycond):
         colors = [int(x) for x in data.split(',')]
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
-            if bdrycond.type[color] != "Robin":  raise NotImplementedError("computeBdryDn bousillé")
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
-        return flux
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        flux = np.sum(Asaved*u - bsaved)
+            if bdrycond.type[color] == "Robin":
+                flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
+            elif bdrycond.type[color] == "Dirichlet":
+                bs, As = bdrydata.bsaved[color], bdrydata.Asaved[color]
+                flux[i] = np.sum(As * u - bs)
+            else:
+                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
 
-    def computeBdryFct(self, u, key, data):
+    def computeBdryFct(self, u, data):
         colors = [int(x) for x in data.split(',')]
         nodes = np.empty(shape=(0), dtype=int)
         for color in colors:
@@ -328,7 +336,7 @@ class FemP1(object):
             nodes = np.unique(np.union1d(nodes, self.mesh.faces[faces].ravel()))
         return self.mesh.points[nodes], u[nodes]
 
-    def computePointValues(self, u, key, data):
+    def computePointValues(self, u, data):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i,color in enumerate(colors):
@@ -336,7 +344,7 @@ class FemP1(object):
             up[i] = u[nodes]
         return up
 
-    def computeMeanValues(self, u, key, data):
+    def computeMeanValues(self, u, data):
         colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i, color in enumerate(colors):

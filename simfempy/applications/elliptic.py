@@ -106,10 +106,9 @@ class Elliptic(solvers.solver.Solver):
             for key, val in postproc.items():
                 type,data = val.split(":")
                 if type == "bdrymean":
-                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryMean(u, key, data, icomp)
+                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryMean(u, data, icomp)
                 elif type == "bdrydn":
-                    bs, As = self.bdrydata[icomp].bsaved[key], self.bdrydata[icomp].Asaved[key]
-                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryDn(u, key, data, bs, As)
+                    info['postproc']["{}_{:02d}".format(key,icomp)] = self.fem.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond, icomp)
                 else:
                     raise ValueError("unknown postprocess {}".format(key))
             if self.show_diff: cell_data['diff_{:02d}'.format(icomp)] = self.diffcell[icomp]
