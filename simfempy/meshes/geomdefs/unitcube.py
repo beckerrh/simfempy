@@ -12,12 +12,15 @@ except:
 
 # ------------------------------------- #
 class Unitcube(geometry.Geometry):
+    def __init__(self,x=[-1,1], y=[-1,1], z=[-1,1]):
+        self.x, self.y, self.z = x, y, z
+        super().__init__()
     def define(self, h=1.):
         self.reset()
-        a = 1
-        p = self.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=-a, lcar=h)
+        x, y, z = self.x, self.y, self.z
+        p = self.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
         self.add_physical_surface(p.surface, label=100)
-        axis = [0, 0, 2*a]
+        axis = [0, 0, z[1]-z[0]]
         top, vol, ext = self.extrude(p.surface, axis)
         # print ('vol', vars(vol))
         # print ('top', vars(top))

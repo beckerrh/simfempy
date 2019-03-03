@@ -91,7 +91,7 @@ def test_solvers(geomname='unitcube', fem = 'p1', method='new'):
     import simfempy.tools.timer
     timer = simfempy.tools.timer.Timer(name=fem + '_' + geomname + '_' + str(mesh.ncells))
     for solver in heat.linearsolvers:
-        u = heat.linearSolver(A, b, solver=solver)
+        u, niter = heat.linearSolver(A, b, solver=solver)
         timer.add(solver)
 
 #----------------------------------------------------------------#
