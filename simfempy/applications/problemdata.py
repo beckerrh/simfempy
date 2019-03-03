@@ -76,6 +76,9 @@ class ProblemData(object):
         return "ncomp={:2d}\nbdrycond={}\nrhs={}\nrhspoint={}\nrhscell={}\npostproc={}\nsolexact={}".format(self.ncomp, self.bdrycond, self.rhs, self.rhspoint, self.rhscell, self.postproc, self.solexact)
 
     def clear(self):
+        """
+        keeps the boundary condition types and parameters !
+        """
         self.rhs = None
         self.rhscell = None
         self.rhspoint = None

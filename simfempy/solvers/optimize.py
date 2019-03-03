@@ -37,6 +37,7 @@ class Optimizer(object):
             self.param0 = kwargs.pop('param0')
         self.lsmethods = ['lm', 'trf','dogbox']
         self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr','SLSQP', 'L-BFGS-B', 'TNC']
+        self.hesmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr']
         self.methods = self.lsmethods +self.minmethods
         if not hasattr(solver,"computeM"):
             print("*** solver does not have 'computeM', setting 'fullhess=False'")
@@ -89,7 +90,7 @@ class Optimizer(object):
             return gn
         self.z = self.solver.computeAdj(param, self.r[:self.nmeasure], self.u, self.z)
         M = self.solver.computeM(param, self.du, self.z)
-        # print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
+        print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
         return gn+M
 
     def create_data(self, refparam, percrandom=0):
@@ -112,9 +113,11 @@ class Optimizer(object):
                                                 method=method, bounds=bounds, verbose=0)
         elif method in self.minmethods:
             hascost = False
-            hashess = True
-            # hess = scipy.optimize.BFGS()
-            hess = self.computeDDJ
+            if method in self.hesmethods:
+                hashess = True
+                hess = self.computeDDJ
+            else:
+                hess = None
             # method = 'trust-constr'
             if method == 'Newton-CG': tol = 1e-10
             else: tol = None
@@ -129,8 +132,6 @@ class Optimizer(object):
         dt = time.time()-t0
         # if method == 'trust-ncg': print(info)
         # print("info", info)
-        if not info.success:
-            print(10*"@"+" no convergence!")
         if hascost:
             cost = info.cost
         else:
@@ -143,6 +144,10 @@ class Optimizer(object):
             njev = info.njev
         else:
             njev = 0
+        nfev = info.nfev
+        if not info.success:
+            print(10 * "@" + " no convergence!")
+            nfev, njev, nhev = -1, -1, -1
         x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
-        print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, info.nfev, njev, nhev, dt))
+        print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, nfev, njev, nhev, dt))
         return x, cost, info.nfev, njev, nhev, dt

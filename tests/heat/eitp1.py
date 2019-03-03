@@ -108,6 +108,12 @@ class EIT(simfempy.applications.heat.Heat):
         pp = self.problemdata.postproc['measured'].split(":")[1]
         self.nmeasures = len(pp.split(","))
         self.data0 = np.zeros(self.nmeasures)
+        Bis = [np.empty(shape=(0,0)) for i in range(self.nparam)]
+        for i in range(self.nparam):
+            self.dlabel = self.hole_labels[i]
+            self.kheatcell = self.dkheat(self.mesh.cell_labels)
+            Bis[i] = self.matrix()
+
 
     def kparam(self, label):
         if label==100: return self.diffglobal
@@ -225,7 +231,7 @@ class EIT(simfempy.applications.heat.Heat):
             self.kheatcell = self.dkheat(self.mesh.cell_labels)
             Bi = self.matrix()
             for j in range(self.nparam):
-                M[i,j] = -Bi.dot(du[j]).dot(z)
+                M[j,i] = -Bi.dot(du[j]).dot(z)
         # print("M", np.array2string(M, precision=2, floatmode='fixed'))
         return M
 

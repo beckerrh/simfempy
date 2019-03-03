@@ -206,7 +206,7 @@ class Heat(simfempy.applications.heat.Heat):
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         b, z = self.computeRhs(z)
         z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
-        # point_data, cell_data, info = self.postProcess(self.z)
+        # point_data, cell_data, info = self.postProcess(z)
         # self.plotter.plot(point_data, cell_data)
         self.problemdata = problemdata_bu
         return z

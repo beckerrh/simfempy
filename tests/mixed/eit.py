@@ -128,28 +128,29 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.param_labels_inv = {}
         for i in range(len(self.param_labels)):
             self.param_labels_inv[int(self.param_labels[i])] = i
-        self.voltage_labels = kwargs.pop('voltage_labels')
-        self.voltage_labels_inv = {}
-        for i in range(len(self.voltage_labels)):
-            self.voltage_labels_inv[int(self.voltage_labels[i])] = i
-        self.voltage = kwargs.pop('voltage')
-
         self.nparam = len(self.param_labels)
         self.nmeasures = len(self.measure_labels)
-
         self.diffglobal = kwargs.pop('diffglobal')
         self.param = self.diffglobal*np.ones(self.nparam )
         self.diff = np.vectorize(self.conductivity)
         self.ddiff = np.vectorize(self.dconductivity)
-
-
-        # print("self.problemdata", self.problemdata)
-        # bdrycond = self.problemdata.bdrycond
-        # for label in self.voltage_labels:
-        #     bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(self.voltage[self.voltage_labels_inv[label]])
-        # print("self.problemdata", self.problemdata)
         self.data0 = np.zeros(self.nmeasures)
 
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        self.Ais = [np.empty(shape=(0,0)) for i in range(self.nparam)]
+        bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
+        for color in self.problemdata.bdrycond.fct:
+            self.problemdata.bdrycond.fct[color] = None
+            self.problemdata.bdrycond.param[color] = 0
+        for i in range(self.nparam):
+            self.dlabel = self.param_labels[i]
+            self.dcoeff = 1
+            # self.dcoeff = -1/param[i]**2
+            self.diffcellinv = self.ddiff(self.mesh.cell_labels)
+            Ai, B = self.matrix()
+            self.Ais[i] = Ai
+        self.problemdata.bdrycond = bdrycond_bu
 
     def getData(self, infopp):
         # print("infopp", infopp)
@@ -178,64 +179,41 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.param = 1/param
         if du is None: du = self.nparam*[np.empty(0)]
         jac = np.zeros(shape=(self.nmeasures, self.nparam))
-        bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
-        for color in self.problemdata.bdrycond.fct:
-            self.problemdata.bdrycond.fct[color] = None
-            self.problemdata.bdrycond.param[color] = 0
+        b = np.zeros_like(u)
         for i in range(self.nparam):
-            self.dlabel = self.param_labels[i]
-            self.dcoeff = 1
-            # self.dcoeff = -1/param[i]**2
-            self.diffcellinv = self.ddiff(self.mesh.cell_labels)
-            Ai, B = self.matrix()
-            b = np.zeros_like(u)
-            b[:self.mesh.nfaces] = -Ai.dot(u[:self.mesh.nfaces])
+            b[:self.mesh.nfaces] = -self.Ais[i].dot(u[:self.mesh.nfaces])
             du[i] = np.zeros_like(b)
-            self.diffcell = self.diff(self.mesh.cell_labels)
-            self.diffcellinv = 1 / self.diffcell
             du[i], iter = self.linearSolver(self.A, b, du[i], verbose=0)
-            # print("dstate iter", iter)
             point_data, cell_data, info = self.postProcess(du[i])
-            # print("info['postproc'].shape",self.getData(info['postproc']).shape)
-            # print("jac.shape",jac.shape)
-            # self.plot(point_data, cell_data, info)
             jac[:self.nmeasures,i] = self.getData(info['postproc'])
-        self.problemdata.bdrycond = bdrycond_bu
         return jac, du
 
     def computeAdj(self, param, r, u, z):
         self.param = 1/param
-        pdsplit = self.problemdata.postproc['measured'].split(':')
-        assert pdsplit[0] == 'pointvalues'
-        pointids = [int(l) for l in pdsplit[1].split(',')]
         problemdata_bu = copy.deepcopy(self.problemdata)
         self.problemdata.clear()
-        if z is None: z = np.zeros(self.mesh.nnodes)
-        self.problemdata.rhspoint = {}
-        for j in range(self.nmeasures):
-            self.problemdata.rhspoint[pointids[j]] = simfempy.solvers.optimize.RhsParam(r[j])
-        self.kheatcell = self.kheat(self.mesh.cell_labels)
+        if z is None: z = np.zeros(self.mesh.nfaces+self.mesh.ncells)
+        assert r.shape[0] == self.nmeasures
+        for i, label in enumerate(self.measure_labels):
+            self.problemdata.bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(r[i])
+        self.diffcell = self.diff(self.mesh.cell_labels)
+        self.diffcellinv = 1/self.diffcell
         b, z = self.computeRhs(z)
         z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
-        # point_data, cell_data, info = self.postProcess(self.z)
+        # point_data, cell_data, info = self.postProcess(z)
         # self.plotter.plot(point_data, cell_data)
         self.problemdata = problemdata_bu
         return z
 
-    # def computeM(self, param, du, z):
-    #     self.param = 1/param
-    #     M = np.zeros(shape=(self.nparam,self.nparam))
-    #     assert z is not None
-    #     for i in range(self.nparam):
-    #         self.dlabel = self.param_labels[i]
-    #         self.dcoeff = 1
-    #         # self.dcoeff = -1/param[i]**2
-    #         self.diffcellinv = self.ddiff(self.mesh.cell_labels)
-    #         Ai, B = self.matrix()
-    #         for j in range(self.nparam):
-    #             M[i, j] = -Ai.dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
-    #     # print("M", np.array2string(M, precision=2, floatmode='fixed'))
-    #     return M
+    def computeM(self, param, du, z):
+        self.param = 1/param
+        M = np.zeros(shape=(self.nparam,self.nparam))
+        assert z is not None
+        for i in range(self.nparam):
+            for j in range(self.nparam):
+                M[j, i] = self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+        # print("M", np.array2string(M, precision=2, floatmode='fixed'))
+        return M
 
 #----------------------------------------------------------------#
 def test():
@@ -280,7 +258,7 @@ def test():
 
     regularize = 0.000001
     diffglobal = 10
-    eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, voltage_labels=voltage_labels, voltage=voltage, diffglobal=diffglobal)
+    eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, diffglobal=diffglobal)
     eit.setMesh(mesh)
 
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=diffglobal*np.ones(nparams))
@@ -301,8 +279,8 @@ def test():
     percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
-    # perturbeddata[::2] *= 1.2
-    # perturbeddata[1::2] *= 0.8
+    perturbeddata[::2] *= 1.3
+    perturbeddata[1::2] *= 0.7
     print("refdata",refdata)
     print("perturbeddata",perturbeddata)
 
@@ -311,9 +289,10 @@ def test():
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     # optimizer.gradtest = True
-    methods = optimizer.minmethods
+    methods = optimizer.lsmethods
     methods = optimizer.minmethods
     methods = optimizer.methods
+    # methods = optimizer.hesmethods
     values = {"J":[], "nf":[], "ng":[], "nh":[], "s":[]}
     valformat = {"J":"10.2e", "nf":"3d", "ng":"3d", "nh":"3d", "s":"6.1f"}
     for method in methods:
