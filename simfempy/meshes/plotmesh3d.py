@@ -52,6 +52,63 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")
 
+#=================================================================#
+def plotmesh(mesh, **kwargs):
+    import vtki
+    import vtk
+    if 'ax' in kwargs: ax = kwargs.pop('ax')
+    else: ax = plt
+    title = 'Mesh'
+    if 'title' in kwargs: title = kwargs.pop('title')
+    x, y, z, tets = mesh.points[:, 0], mesh.points[:, 1], mesh.points[:, 2], mesh.simplices
+
+    xyz = np.stack((x, y, z)).T
+    ntets = tets.shape[0]
+    cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
+    offset = 5*np.arange(ntets)
+    cells = np.insert(tets, 0, 4, axis=1).flatten()
+    grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
+
+    plotter = vtki.Plotter()
+    plotter.renderer.SetBackground(255, 255, 255)
+    plotter.add_axes()
+    plotter.add_mesh(grid, showedges=False, opacity=0.6, color='gray')
+    plotter.remove_scalar_bar()
+    pltcolors = 'bgrcmykbgrcmyk'
+    for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
+        # print("color", color, "vertices", vertices)
+        points = mesh.points[vertices]
+        nv = vertices.shape[0]
+        # plotter.add_points(points, scalars=i*np.ones(nv), cmap=None, flip_scalars=True)
+        plotter.add_points(points, color=pltcolors[i], cmap=None, flip_scalars=True, point_size=15)
+        # plotter.add_text('x', points[0], color=pltcolors[i])
+        # patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+        # for vertex in vertices:
+        #     ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
+    cpos = plotter.show(title="U")
+
+    # ax.triplot(x, y, tris, color='k')
+    # if ax ==plt:
+    #     plt.gca().set_aspect(aspect='equal')
+    #     ax.xlabel(r'x')
+    #     ax.ylabel(r'y')
+    # else:
+    #     ax.set_aspect(aspect='equal')
+    #     ax.set_xlabel(r'x')
+    #     ax.set_ylabel(r'y')
+    # celllabels = mesh.cell_labels
+    # cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+    # # clb = plt.colorbar(cnt)
+    # # clb.set_label("cellcolors")
+    # pltcolors = 'bgrcmykbgrcmyk'
+    # patches=[]
+    # for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
+    #     patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+    #     for vertex in vertices:
+    #         ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
+    # ax.legend(handles=patches)
+    # _settitle(ax, title)
+
 # =================================================================#
 def meshWithData(**kwargs):
     import vtki
@@ -79,10 +136,14 @@ def meshWithData(**kwargs):
     grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
 
     if translate_point_data:
-        scale = 10
-        ux, uy, uz = point_data['u0'], point_data['u1'], point_data['u2']
-        un = np.sqrt(ux**2+uy**2+uz**2)
-        xyz2 = np.stack((x+scale*ux, y+scale*uy, z+scale*uz)).T
+        assert len(point_data.keys()) ==3
+        u, unames = [], []
+        for k,v in point_data.items():
+            unames.append(k)
+            u.append(v)
+        scale = translate_point_data
+        un = np.sqrt(u[0]**2+u[1]**2+u[2]**2)
+        xyz2 = np.stack((x+scale*u[0], y+scale*u[1], z+scale*u[2])).T
         grid2 = vtki.UnstructuredGrid(offset, cells, cell_type, xyz2)
         plotter = vtki.Plotter()
         plotter.renderer.SetBackground(255,255,255)

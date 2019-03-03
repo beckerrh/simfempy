@@ -140,7 +140,6 @@ class Heat(simfempy.applications.heat.Heat):
         return data - self.data0, u
 
     def computeDRes(self, param, u, du):
-        assert self.data0.shape[0] == self.nmeasures
         jac = np.zeros(shape=(self.nmeasures, self.nparam))
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
         for color in self.problemdata.bdrycond.fct:

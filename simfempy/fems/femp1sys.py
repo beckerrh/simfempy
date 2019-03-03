@@ -238,32 +238,54 @@ class FemP1(femp1.FemP1):
             err.append(np.sqrt(np.dot(e[icomp], self.massmatrix * e[icomp])))
         return err, e
 
-    def computeBdryMean(self, u, data, icomp):
+    def computeBdryMean(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        mean, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            mean[i] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+            for icomp in range(self.ncomp):
+                mean[i, icomp] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
         return mean/omega
 
-    def computeBdryDn(self, u, data, bdrydata, bdrycond, icomp):
+    def computeBdryDn(self, u, data, bdrydata, bdrycond):
         colors = [int(x) for x in data.split(',')]
-        flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
+        flux, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            if bdrycond[icomp].type[color] == "Dirichlet":
-                bs, As = bdrydata[icomp].bsaved[color], bdrydata[icomp].Asaved[color]
-                flux[i] = np.sum(As * u - bs)
+            for icomp in range(self.ncomp):
+                if bdrycond[icomp].type[color] == "Dirichlet":
+                    bs, As = bdrydata[icomp].bsaved[color], bdrydata[icomp].Asaved[color]
+                    flux[i, icomp] = np.sum(As * u - bs)
             else:
                 raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
 
+
+    def computePointValues(self, u, data):
+        colors = [int(x) for x in data.split(',')]
+        up = np.empty(shape=(len(colors), self.ncomp))
+        for i,color in enumerate(colors):
+            nodes = self.mesh.verticesoflabel[color]
+            for icomp in range(self.ncomp):
+                up[i, icomp] = u[icomp + self.ncomp *nodes]
+        return up
+
+    def computeMeanValues(self, u, data):
+        colors = [int(x) for x in data.split(',')]
+        up = np.empty(shape=(len(colors), self.ncomp))
+        for i, color in enumerate(colors):
+            cells = self.mesh.cellsoflabel[color]
+            simpcells = self.mesh.simplices[cells]
+            for icomp in range(self.ncomp):
+                mean = np.sum(np.mean(u[icomp + self.ncomp * simpcells], axis=1) * self.mesh.dV[cells])
+                up[i, icomp] = mean
+        return up
 
 # ------------------------------------- #
 

@@ -32,13 +32,19 @@ class Optimizer(object):
             if not 'param0' in kwargs: raise ValueError("If 'regularize' is given, we need 'param0'")
             self.regularize = kwargs.pop('regularize')
             if self.regularize is not None: np.sqrt(self.regularize)
-            self.nparam = kwargs.pop('nparam')
-            self.nmeasure = kwargs.pop('nmeasure')
+            else: self.regularize=0
             self.param0 = kwargs.pop('param0')
+        else: self.regularize=0
+        if 'nparam' in kwargs: self.nparam = kwargs.pop('nparam')
+        else: self.nparam = solver.nparam
+        if 'nmeasure' in kwargs: self.nmeasure = kwargs.pop('nmeasure')
+        else: self.nmeasure = solver.nmeasure
+
         self.lsmethods = ['lm', 'trf','dogbox']
-        self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr','SLSQP', 'L-BFGS-B', 'TNC']
-        self.hesmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr']
+        self.minmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr','SLSQP', 'BFGS', 'L-BFGS-B', 'TNC']
         self.methods = self.lsmethods +self.minmethods
+        self.hesmethods = ['Newton-CG', 'trust-ncg', 'dogleg', 'trust-constr']
+        self.boundmethods = ['trf','dogbox', 'L-BFGS-B', 'SLSQP', 'TNC']
         if not hasattr(solver,"computeM"):
             print("*** solver does not have 'computeM', setting 'fullhess=False'")
             self.fullhess = False
@@ -90,11 +96,11 @@ class Optimizer(object):
             return gn
         self.z = self.solver.computeAdj(param, self.r[:self.nmeasure], self.u, self.z)
         M = self.solver.computeM(param, self.du, self.z)
-        print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
+        # print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
         return gn+M
 
     def create_data(self, refparam, percrandom=0):
-        nmeasures = self.solver.nmeasures
+        nmeasures = self.nmeasure
         refdata = self.computeRes(refparam)[:nmeasures]
         perturbeddata = refdata * (1 + 0.5 * percrandom * (np.random.rand(nmeasures) - 2))
         self.solver.data0 = perturbeddata
@@ -102,31 +108,27 @@ class Optimizer(object):
 
     def minimize(self, x0, method, bounds=None, verbose=0):
         self.reset()
-        if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
+        if not method in self.boundmethods: bounds=None
         # print("x0", x0, "method", method)
         hascost=True
-        hashess = False
         t0 = time.time()
         #         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
         if method in self.lsmethods:
+            if bounds is None: bounds = (-np.inf, np.inf)
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
-                                                method=method, bounds=bounds, verbose=0)
+                                                method=method, bounds=bounds, verbose=verbose)
         elif method in self.minmethods:
             hascost = False
             if method in self.hesmethods:
-                hashess = True
                 hess = self.computeDDJ
             else:
                 hess = None
             # method = 'trust-constr'
             if method == 'Newton-CG': tol = 1e-10
             else: tol = None
-            if len(bounds)==2:
-                bbounds = [bounds for l in range(len(x0))]
-            else:
-                bbounds=bounds
+            if bounds and len(bounds)==2: bounds = [bounds for l in range(len(x0))]
             info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
-                                           method=method, bounds=bbounds, tol=1e-9)
+                                           method=method, bounds=bounds, tol=1e-9)
         else:
             raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(self.methods)))
         dt = time.time()-t0
@@ -151,3 +153,15 @@ class Optimizer(object):
         x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
         print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, nfev, njev, nhev, dt))
         return x, cost, info.nfev, njev, nhev, dt
+
+    def testmethods(self, x0, methods, bounds=None):
+        values = {"J": [], "nf": [], "ng": [], "nh": [], "s": []}
+        valformat = {"J": "10.2e", "nf": "3d", "ng": "3d", "nh": "3d", "s": "6.1f"}
+        for method in methods:
+            x, cost, nfev, njev, nhev, dt = self.minimize(x0=x0, method=method, bounds=bounds)
+            values["J"].append(cost)
+            values["nf"].append(nfev)
+            values["ng"].append(njev)
+            values["nh"].append(nhev)
+            values["s"].append(dt)
+        return values, valformat

@@ -15,12 +15,16 @@ class Elasticity(solvers.solver.Solver):
     YoungPoisson["Aluminium"] = (71, 0.34)
     YoungPoisson["Verre"] = (60, 0.25)
     YoungPoisson["Beton"] = (10, 0.15)
-    YoungPoisson["Caoutchouc"] = (0.2, 0.5)
+    YoungPoisson["Caoutchouc"] = (0.2, 0.49)
     YoungPoisson["Bois"] = (7, 0.2)
     YoungPoisson["Marbre"] = (26, 0.3)
 
     def toLame(self, E, nu):
         return 0.5*E/(1+nu), nu*E/(1+nu)/(1-2*nu)
+
+    def material2Lame(self, material):
+        E, nu = self.YoungPoisson[material]
+        return self.toLame(E, nu)
 
     def generatePoblemData(self, **kwargs):
         self.ncomp = self.mesh.dimension
@@ -29,7 +33,7 @@ class Elasticity(solvers.solver.Solver):
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            mu, lam = self.mu(0), self.lam(0)
+            mu, lam = self.mufct(0), self.lamfct(0)
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
@@ -41,7 +45,7 @@ class Elasticity(solvers.solver.Solver):
         def _fctneumann(x, y, z, nx, ny, nz):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
-            mu, lam = self.mu(0), self.lam(0)
+            mu, lam = self.mufct(0), self.lamfct(0)
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] += lam * solexact[j].d(j, x, y, z) * normals[i]
@@ -64,24 +68,26 @@ class Elasticity(solvers.solver.Solver):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if hasattr(self,'problemdata') and hasattr(self.problemdata,'mu'):
-            self.mu = np.vectorize(self.problemdata.mu)
-            if not hasattr(self.problemdata,'lam'): raise ValueError("If mu is given, so should be lam !")
-            self.lam = np.vectorize(self.problemdata.lam)
-        else:
-            E, nu = self.YoungPoisson["Acier"]
-            mu, lam = self.toLame(E, nu)
-            self.mu = np.vectorize(lambda j: mu)
-            self.lam = np.vectorize(lambda j: lam)
+        if 'material' in kwargs: material = kwargs.pop('material')
+        else: material = "Acier"
+        self.setParameters(*self.material2Lame(material))
         if 'method' in kwargs: self.method = kwargs.pop('method')
         else: self.method="trad"
+
+    def setParameters(self, mu, lam):
+        self.mu, self.lam = mu, lam
+        self.mufct = np.vectorize(lambda j: mu)
+        self.lamfct = np.vectorize(lambda j: lam)
+        if hasattr(self,'mesh'):
+            self.mucell = self.mufct(self.mesh.cell_labels)
+            self.lamcell = self.lamfct(self.mesh.cell_labels)
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
-        self.mucell = self.mu(self.mesh.cell_labels)
-        self.lamcell = self.lam(self.mesh.cell_labels)
+        self.mucell = self.mufct(self.mesh.cell_labels)
+        self.lamcell = self.lamfct(self.mesh.cell_labels)
 
     def solve(self, iter, dirname):
         return self.solveLinear()
@@ -110,6 +116,7 @@ class Elasticity(solvers.solver.Solver):
                 indices = i + self.ncomp * self.mesh.faces[faces]
                 np.add.at(b, indices.T, bS)
         return self.vectorDirichlet(b, u)
+
 
     def matrix(self):
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
@@ -259,27 +266,41 @@ class Elasticity(solvers.solver.Solver):
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A.tobsr(), b, u
 
-    def computeBdryMean(self, u, data):
+    # def computeBdryMean(self, u, data):
+    #     colors = [int(x) for x in data.split(',')]
+    #     mean, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+    #     for i,color in enumerate(colors):
+    #         faces = self.mesh.bdrylabels[color]
+    #         normalsS = self.mesh.normals[faces]
+    #         dS = linalg.norm(normalsS, axis=1)
+    #         omega[i] = np.sum(dS)
+    #         for icomp in range(self.ncomp):
+    #             mean[icomp,i] += np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+    #     return mean/omega
+    #
+    def computeBdryDn(self, u, data):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+        flux, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            for icomp in range(self.ncomp):
-                mean[icomp,i] += np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
-        return mean/omega
-
-    def computeBdryDn(self, u, data, bs, As):
-        colors = [int(x) for x in data.split(',')]
-        flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
-        for i,color in enumerate(colors):
             bs, As = self.bdrydata.bsaved[color], self.bdrydata.Asaved[color]
             res = bs - As * u
             for icomp in range(self.ncomp):
-                flux[icomp, i] = np.sum(res[icomp::self.ncomp])
+                flux[i, icomp] = np.sum(res[icomp::self.ncomp])
+            else:
+                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
+        # colors = [int(x) for x in data.split(',')]
+        # flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+        # for i,color in enumerate(colors):
+        #     bs, As = self.bdrydata.bsaved[color], self.bdrydata.Asaved[color]
+        #     res = bs - As * u
+        #     for icomp in range(self.ncomp):
+        #         flux[icomp, i] = np.sum(res[icomp::self.ncomp])
+        # return flux
         # colors = [int(x) for x in data.split(',')]
         # omega = 0
         # for color in colors:
@@ -305,23 +326,20 @@ class Elasticity(solvers.solver.Solver):
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
         info['postproc'] = {}
-        for key, val in self.problemdata.postproc.items():
-            type,data = val.split(":")
-            if type == "bdrymean":
-                mean = self.computeBdryMean(u, data)
-                assert len(mean) == self.ncomp
-                for icomp in range(self.ncomp):
-                    info['postproc']["{}_{:02d}".format(key, icomp)] = mean[icomp]
-            elif type == "bdrydn":
-                flux = self.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
-                assert len(flux) == self.ncomp
-                for icomp in range(self.ncomp):
-                    info['postproc']["{}_{:02d}".format(key, icomp)] = flux[icomp]
-            else:
-                raise ValueError("unknown postprocess {}".format(key))
+        if self.problemdata.postproc:
+            for key, val in self.problemdata.postproc.items():
+                type,data = val.split(":")
+                if type == "bdrymean":
+                    info['postproc'][key] = self.fem.computeBdryMean(u, data)
+                elif type == "bdrydn":
+                    info['postproc'][key] = self.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
+                elif type == "pointvalues":
+                    info['postproc'][key] = self.fem.computePointValues(u, data)
+                else:
+                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
         return point_data, cell_data, info
 
-    def linearSolver(self, A, b, u=None, solver = 'umf'):
+    def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
         if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
@@ -345,7 +363,7 @@ class Elasticity(solvers.solver.Solver):
             res=[]
             # if u is not None: print("u norm", np.linalg.norm(u))
             u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
-            print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
+            if verbose: print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
             return u, len(res)
         else:
             raise ValueError("unknown solve '{}'".format(solver))

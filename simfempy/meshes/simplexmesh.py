@@ -299,6 +299,9 @@ class SimplexMesh(object):
             plotmesh.meshWithNodesAndTriangles(meshdata)
             plt.show()
 
+    def plot(self, **kwargs):
+        from simfempy.meshes import plotmesh
+        plotmesh.plotmesh(self, **kwargs)
     def plotWithBoundaries(self):
         # from . import plotmesh
         from simfempy.meshes import plotmesh

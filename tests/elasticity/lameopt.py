@@ -1,6 +1,7 @@
 assert __name__ == '__main__'
 from os import sys, path
 import numpy as np
+import copy
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
 
@@ -56,22 +57,29 @@ def mesh_traction(h, dim=3, nmeasure=4):
         geometry.add_physical_volume(vol, label=10)
         nmeasurey = int(np.sqrt(nmeasure))
         nmeasurez = int(nmeasure / nmeasurey)
-        py = np.linspace(0.2,0.8, nmeasurey, endpoint=True)
-        pz = np.linspace(0.2,0.8, nmeasurez, endpoint=True)
-        print("py", py, "pz", pz)
+        if nmeasurey==1: py = [0.5]
+        else: py = np.linspace(0.2,0.8, nmeasurey, endpoint=True)
+        if nmeasurez==1: pz = [0.5]
+        else: pz = np.linspace(0.2,0.8, nmeasurez, endpoint=True)
+        # print("py", py, "pz", pz)
         hpoint = 0.05*h
+        pointlabels = []
         for iy in range(nmeasurey):
             for iz in range(nmeasurez):
                 X = (x[1], py[iy]*y[0]+(1-py[iy])*y[1], pz[iz]*z[0]+(1-pz[iz])*z[1])
                 label = 10000+iy+iz*nmeasurey
-                print("label", label)
+                pointlabels.append(label)
+                # print("label", label)
                 pygmshext.add_point_in_surface(geometry, surf=ext[1], X=X, lcar=hpoint, label=label)
+        postproc['measured'] = "pointvalues:{}".format(','.join( [str(l) for l in pointlabels]))
     else:
-        raise ValueError("unknown geomname={}".format(geomname))
+        raise ValueError("unknown dim={}".format(dim))
     data = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
     bdrycond.check(mesh.bdrylabels.keys())
+    # mesh.plot(title='Mesh with measures')
     # mesh.plotWithBoundaries()
+
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc, ncomp=ncomp)
     return mesh, problemdata
 
@@ -83,30 +91,74 @@ class Elasticity(simfempy.applications.elasticity.Elasticity):
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
 
+    def computeRes(self, param, u=None):
+        self.setParameters(*param)
+        # print("self.mu", self.mu, "self.lam", self.lam)
+        A = self.matrix()
+        b, u = self.computeRhs(u)
+        u, niter = self.linearSolver(A, b, u, solver="pyamg")
+        point_data, cell_data, info = self.postProcess(u)
+        # self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
+        data = info['postproc']['measured'].reshape(-1)
+        if not hasattr(self,'data0'): self.data0 = np.zeros_like(data)
+        # self.plotter.plot()
+        # print("self.data0", self.data0, "data", data)
+        return data - self.data0, u
+
+    def computeDRes(self, param, u, du):
+        nparam = param.shape[0]
+        nmeasure = self.data0.shape[0]
+        jac = np.zeros(shape=(nmeasure, nparam))
+        bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
+        for color in self.problemdata.bdrycond.fct:
+            self.problemdata.bdrycond.fct[color] = None
+        if du is None: du = nparam*[np.empty(0)]
+        for i in range(nparam):
+            if i==0:
+                self.setParameters(mu=1, lam=0)
+            elif i==1:
+                self.setParameters(mu=0, lam=1)
+            else: raise ValueError("too many parameters")
+            Bi = self.matrix()
+            b = -Bi.dot(u)
+            du[i] = np.zeros_like(b)
+            self.setParameters(*param)
+            A = self.matrix()
+            b,du[i] = self.vectorDirichlet(b, du[i])
+            du[i], iter = self.linearSolver(A, b, du[i], solver=self.linearsolver, verbose=0)
+            point_data, cell_data, info = self.postProcess(du[i])
+            # print("info['postproc'].shape",self.getData(info['postproc']).shape)
+            # print("jac.shape",jac.shape)
+            # self.plot(point_data, cell_data, info)
+            jac[:,i] = info['postproc']['measured'].reshape(-1)
+        self.problemdata.bdrycond = bdrycond_bu
+        return jac, du
+
 
 #================================================================#
 def test_plot():
     hmean = 0.1
-    mesh, problemdata = mesh_traction(hmean, nmeasure=1)
-
-
-
+    nmeasure = 4
+    mesh, problemdata = mesh_traction(hmean, nmeasure=nmeasure)
 
     elasticity = Elasticity(problemdata=problemdata)
     elasticity.setMesh(mesh)
 
+    optimizer = simfempy.solvers.optimize.Optimizer(elasticity, nparam=2, nmeasure=3*nmeasure)
 
+    refparam = elasticity.material2Lame("Acier")
+    print("refparam", refparam)
+    percrandom = 0.01
+    refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
+    # print("refdata", refdata)
+    # print("perturbeddata", perturbeddata)
 
-    A = elasticity.matrix()
-    b, u = elasticity.computeRhs()
-    ncomp = elasticity.ncomp
-    u, niter = elasticity.linearSolver(A, b, u, solver="pyamg")
-    ncomp = elasticity.ncomp
-    point_data={}
-    for icomp in range(ncomp):
-        point_data["u{:1d}".format(icomp)] = u[icomp::ncomp]
-    assert ncomp==3
-    elasticity.mesh.plotWithData(point_data=point_data, translate_point_data=True)
+    initialparam = elasticity.material2Lame("Aluminium")
+    print("initialparam",initialparam)
+
+    # optimizer.gradtest = True
+    for method in optimizer.methods:
+        optimizer.minimize(x0=initialparam, method=method)
 
 #================================================================#
 

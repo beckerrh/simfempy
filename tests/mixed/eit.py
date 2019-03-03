@@ -289,24 +289,17 @@ def test():
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     # optimizer.gradtest = True
-    methods = optimizer.lsmethods
-    methods = optimizer.minmethods
-    methods = optimizer.methods
-    # methods = optimizer.hesmethods
-    values = {"J":[], "nf":[], "ng":[], "nh":[], "s":[]}
-    valformat = {"J":"10.2e", "nf":"3d", "ng":"3d", "nh":"3d", "s":"6.1f"}
-    for method in methods:
-        x, cost, nfev, njev, nhev, dt = optimizer.minimize(x0=initialparam, method=method, bounds=(0.1*diffglobal,np.inf))
-        # eit.plotter.plot(info=eit.info)
-        values["J"].append(cost)
-        values["nf"].append(nfev)
-        values["ng"].append(njev)
-        values["nh"].append(nhev)
-        values["s"].append(dt)
+    bounds = False
+    if bounds:
+        bounds = (0.1 * diffglobal, np.inf)
+        methods = optimizer.boundmethods
+    else:
+        bounds = None
+        methods = optimizer.methods
+    values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds)
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
     latex.compile()
-
 
 #================================================================#
 

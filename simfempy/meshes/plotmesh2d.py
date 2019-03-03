@@ -65,9 +65,9 @@ def _plotNormalsAndSigma(xc, yc, xf, yf, normals, sidesofcells, sigma, ax=plt):
 #=================================================================#
 def plotmesh(mesh, **kwargs):
     if 'ax' in kwargs: ax = kwargs.pop('ax')
+    else: ax = plt
     title = 'Mesh'
     if 'title' in kwargs: title = kwargs.pop('title')
-    else: ax = plt
     x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
     ax.triplot(x, y, tris, color='k')
     if ax ==plt:
