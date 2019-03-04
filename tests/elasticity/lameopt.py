@@ -156,9 +156,19 @@ def test_plot():
     initialparam = elasticity.material2Lame("Aluminium")
     print("initialparam",initialparam)
 
+    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     # optimizer.gradtest = True
-    for method in optimizer.methods:
-        optimizer.minimize(x0=initialparam, method=method)
+    bounds = False
+    if bounds:
+        bounds = (0.001, np.inf)
+        methods = optimizer.boundmethods
+    else:
+        bounds = None
+        methods = optimizer.methods
+    values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds)
+    latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
+    latex.write()
+    latex.compile()
 
 #================================================================#
 
