@@ -136,7 +136,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.param = self.diffglobalinv*np.ones(self.nparam )
         self.diffinv = np.vectorize(self.conductivityinv)
         self.ddiffinv = np.vectorize(self.dconductivityinv)
-        self.data0 = np.zeros(self.nmeasures)
+        # self.data0 = np.zeros(self.nmeasures)
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -260,8 +260,8 @@ def problemdef(h, nholes, nmeasures, diffglobalinv = 100):
 #----------------------------------------------------------------#
 def test():
     h = 0.5
-    nmeasures = 8
-    nholes = 4
+    nmeasures = 2
+    nholes = 1
     diffglobalinv = 100
     eit = problemdef(h, nholes, nmeasures, diffglobalinv)
 
@@ -286,7 +286,7 @@ def test():
         refparam[1::2] /= 10
 
     print("refparam",refparam)
-    percrandom = 0.1
+    percrandom = 0.2
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
     # perturbeddata[::2] *= 1.3
@@ -298,8 +298,8 @@ def test():
     print("initialparam",initialparam)
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
-    # optimizer.hestest = True
-    bounds = True
+    optimizer.hestest = True
+    bounds = False
     if bounds:
         bounds = (0.01*diffglobalinv, diffglobalinv)
         methods = optimizer.boundmethods
@@ -308,7 +308,8 @@ def test():
         bounds = None
         methods = optimizer.methods
 
-    # methods = optimizer.hesmethods
+    methods = optimizer.hesmethods
+    methods = ['Newton-CG']
     values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds, plot=True)
     eit.plotter.plot(info=eit.info)
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
@@ -318,7 +319,7 @@ def test():
 
 #----------------------------------------------------------------#
 def plotJhat():
-    h = 0.5
+    h = 0.4
     nmeasures = 8
     nholes = 2
     diffglobalinv = 100
@@ -328,45 +329,51 @@ def plotJhat():
     refparam = diffglobalinv*np.ones(nholes, dtype=float)
     refparam[::2] /= 5
     refparam[1::2] /= 10
-    percrandom = 0.1
+    percrandom = 0.20
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
-    # eit.plotter.plot(info=eit.info)
+    eit.plotter.plot(info=eit.info)
 
-
-    n = 10
+    n = 25
     c = np.empty(shape=(n,n,nmeasures))
-    ps = np.linspace(0.01*diffglobalinv, diffglobalinv, n)
+    px = np.linspace(0.2*refparam[0], 5*refparam[0], n)
+    py = np.linspace(0.2*refparam[1], 5*refparam[1], n)
     param = np.empty(2, dtype=float)
     for i in range(n):
         for j in range(n):
-            param[0] = ps[i]
-            param[1] = ps[j]
+            param[0] = px[i]
+            param[1] = py[j]
             data, u = eit.computeRes(param)
             # print("data", data)
             # print("param", param, "data",data)
             c[i,j] = data
-    # ps *= diffglobalinv
-    xx, yy = np.meshgrid(ps, ps)
-    fig, axs = plt.subplots(1, 3,figsize=(12,4), squeeze=False)
-    for i in range(2):
+    xx, yy = np.meshgrid(px, py)
+    ncols = min(nmeasures,3)
+    nrows = nmeasures//3 + bool(nmeasures%3)
+    ncols = 1
+    nrows = 3
+    # print("nrows, ncols", nrows, ncols)
+    fig, axs = plt.subplots(ncols, nrows, figsize=(nrows*4.5,ncols*4), squeeze=False)
+    fig.suptitle("pert = {}%".format(percrandom))
+    # aspect = (np.max(x)-np.mean(x))/(np.max(y)-np.mean(y))
+    ind = [0,7]
+    for i in range(nrows-1):
+        # ax = axs[i // ncols, i % ncols]
         ax = axs[0,i]
-        cnt = ax.contourf(xx, yy, c[:,:,i], 16, cmap='jet')
+        cnt = ax.contourf(xx, yy, c[:,:,ind[i]], 16, cmap='jet')
         ax.set_aspect(1)
-        clb = plt.colorbar(cnt, ax=ax)
-        ax.set_title(r"$c_{}(u)$".format(i))
-    # res = c-np.mean(c,axis=(0,1))
-    res = c - perturbeddata
-    print("res", res.shape)
-    Jhat = np.einsum('ijk,ijk->ij', res, res)
-    print("Jhat", Jhat)
-    CS = axs[0, 2].contour(ps, ps, Jhat)#, levels=np.linspace(0.,1.,8))
-    axs[0, 2].clabel(CS, inline=1, fontsize=10)
-    axs[0, 2].set_title('LS with respect to mean')
-    plt.suptitle("Two-dim parameters")
+        # clb = plt.colorbar(cnt, ax=ax)
+        ax.set_title(r"$c_{}(u)$".format(ind[i]))
+    Jhat = np.sum(c*c, axis=(2))
+    Jhat /= np.max(Jhat)
+    # print("Jhat", Jhat)
+    ax = axs[0,-1]
+    CS = ax.contour(px, py, Jhat, levels=np.linspace(0.,1,20))
+    ax.clabel(CS, inline=1, fontsize=8)
+    ax.set_title(r'$\hat J$')
     plt.show()
 
 
 #================================================================#
 
-# test()
-plotJhat()
+test()
+# plotJhat()

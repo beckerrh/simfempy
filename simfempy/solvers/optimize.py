@@ -145,6 +145,7 @@ class Optimizer(object):
 
     def create_data(self, refparam, percrandom=0):
         nmeasures = self.nmeasure
+        self.solver.data0 = np.zeros(nmeasures)
         refdata = self.computeRes(refparam)[:nmeasures]
         perturbeddata = refdata * (1 + 0.5 * percrandom * (np.random.rand(nmeasures) - 2))
         self.solver.data0 = perturbeddata
