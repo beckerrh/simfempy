@@ -51,10 +51,13 @@ def createMesh2d(**kwargs):
         labels[3*i] = labels[3*i-1] + 1
         labels[3*i+1] = labels[3*i] + 1
         labels[3*i+2] = labels[3*i+1] + 0
-    # labels = 1000 + np.arange(num_sections, dtype=int)
+    labels = 1000*np.ones(num_sections, dtype=int)
+    labels[::3] += np.arange(1,nmeasures+1)
     lcars = hmeasure*np.ones(num_sections+1)
     lcars[3::3] = h
     # print("lcars",lcars)
+    # print("labels",labels)
+    # labels[3::3] = labels[-1]
 
     circ = pygmshext.add_circle(geometry, 3*[0], 2, lcars=lcars, h=h, num_sections=num_sections, holes=holes, spacing=spacing)
 
@@ -65,7 +68,7 @@ def createMesh2d(**kwargs):
     geometry.add_physical_surface(circ.plane_surface, label=100)
     # print("circ", dir(circ.line_loop))
 
-    with open("welcome.geo","w") as file: file.write(geometry.get_code())
+    # with open("welcome.geo","w") as file: file.write(geometry.get_code())
     data = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
     measure_labels = labels[::3]
@@ -85,8 +88,8 @@ class Plotter:
             self.info = info
             # addplots = [self.plotmeas]
             addplots = None
-        quiver_cell_data={'v': (cell_data['v0'],cell_data['v1'])}
-        cell_data={'p':cell_data['p'], 'diff':cell_data['diff']}
+        quiver_cell_data={'v': (4*cell_data['v0'],4*cell_data['v1'])}
+        cell_data={'u':cell_data['p'], 'diff':cell_data['diff']}
         point_data={}
         fig, axs = simfempy.meshes.plotmesh.meshWithData(self.solver.mesh, point_data=point_data, cell_data=cell_data, quiver_cell_data=quiver_cell_data, addplots=addplots)
 
@@ -218,15 +221,15 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 #----------------------------------------------------------------#
 def test():
     h = 0.3
-    hhole, hmeasure = 0.3*h, 0.2*h
-    nmeasures = 6
+    hhole, hmeasure = 0.2*h, 0.1*h
+    nmeasures = 8
     measuresize = 0.02
-    nholes = 2
+    nholes = 4
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
-    # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    # plt.show()
     # print("electrode_labels",electrode_labels)
     # print("other_labels",other_labels)
+    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    plt.show()
 
 
     param_labels = hole_labels
@@ -256,7 +259,8 @@ def test():
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
 
 
-    regularize = 0.000001
+    regularize = 0.01
+    regularize = 0.0
     diffglobal = 10
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, diffglobal=diffglobal)
     eit.setMesh(mesh)
@@ -269,6 +273,8 @@ def test():
         refparam[7] *= 0.1
         refparam[11] *= 0.1
         refparam[17] *= 0.1
+    elif nholes == 4:
+        refparam[0] = refparam[3] = 0.1
     else:
         # refparam[::2] *= 5
         # refparam[1::2] *= 10
@@ -276,11 +282,11 @@ def test():
         refparam[1::2] *= 0.1
 
     print("refparam",refparam)
-    percrandom = 0.
+    percrandom = 0.01
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
-    perturbeddata[::2] *= 1.3
-    perturbeddata[1::2] *= 0.7
+    # perturbeddata[::2] *= 1.3
+    # perturbeddata[1::2] *= 0.7
     print("refdata",refdata)
     print("perturbeddata",perturbeddata)
 

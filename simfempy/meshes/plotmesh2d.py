@@ -261,8 +261,7 @@ def meshWithData(**kwargs):
         for cdn, cd in quiver_cell_data.items():
             ax = axs[count//ncols,count%ncols]
             ax.set_aspect(aspect='equal')
-            vals_norm = 0.5*np.sqrt(cd[0]** 2 + cd[1]** 2) + 1e-10
-            ax.quiver(xc,yc, cd[0] / vals_norm, cd[1] / vals_norm)
+            ax.quiver(xc,yc, cd[0], cd[1], units='xy')
             count += 1
 
     for addplot in addplots:

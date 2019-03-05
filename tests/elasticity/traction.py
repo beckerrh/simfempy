@@ -89,5 +89,5 @@ def test_plot():
 
 #================================================================#
 
-test_solvers()
-# test_plot()
+# test_solvers()
+test_plot()

@@ -30,12 +30,16 @@ def mesh_traction(h, dim=3, nmeasure=4):
         bdrycond.type[102] = "Neumann"
 
         x, y, z = [-1, 1], [0, 1], [-1, 1]
-        bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([10,0,0])
+        bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([30,0,0])
 
         x, y, z = [-1, 1], [-0.5, 0.5], [-0.5, 0.5]
         bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([0,1,0])
-        # bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([0,0,1])
-        # bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([0,np.cos(np.sqrt(y**2+z**2)),-np.sin(np.sqrt(y**2+z**2))])
+
+        def torsion(x,y,z, nx, ny, nz):
+            r = 10*np.sqrt(y**2+z**2)
+            theta = np.arctan2(y,z)
+            return [0, r*np.cos(theta), -r*np.sin(theta) ]
+        bdrycond.fct[102] = torsion
 
         bdrycond.type[103] = "Neumann"
         bdrycond.type[104] = "Dirichlet"
@@ -63,6 +67,7 @@ def mesh_traction(h, dim=3, nmeasure=4):
         else: pz = np.linspace(0.2,0.8, nmeasurez, endpoint=True)
         # print("py", py, "pz", pz)
         hpoint = 0.05*h
+        hpoint = h
         pointlabels = []
         for iy in range(nmeasurey):
             for iz in range(nmeasurez):
@@ -101,7 +106,7 @@ class Elasticity(simfempy.applications.elasticity.Elasticity):
         # self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
         data = info['postproc']['measured'].reshape(-1)
         if not hasattr(self,'data0'): self.data0 = np.zeros_like(data)
-        # self.plotter.plot()
+        self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
         # print("self.data0", self.data0, "data", data)
         return data - self.data0, u
 
@@ -154,6 +159,7 @@ def test_plot():
     # print("perturbeddata", perturbeddata)
 
     initialparam = elasticity.material2Lame("Aluminium")
+    refparam = elasticity.material2Lame("Caouthouc")
     print("initialparam",initialparam)
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
@@ -165,6 +171,7 @@ def test_plot():
     else:
         bounds = None
         methods = optimizer.methods
+    methods = []
     values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds)
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
