@@ -150,7 +150,7 @@ class Optimizer(object):
         self.solver.data0 = perturbeddata
         return refdata, perturbeddata
 
-    def minimize(self, x0, method, bounds=None, verbose=0):
+    def minimize(self, x0, method, bounds=None, verbose=0, plot=False):
         self.reset()
         if not method in self.boundmethods: bounds=None
         # print("x0", x0, "method", method)
@@ -196,13 +196,15 @@ class Optimizer(object):
             nfev, njev, nhev = -1, -1, -1
         x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
         print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, nfev, njev, nhev, dt))
+        if plot:
+            self.solver.plot(suptitle="{}".format(method))
         return x, cost, info.nfev, njev, nhev, dt
 
-    def testmethods(self, x0, methods, bounds=None):
+    def testmethods(self, x0, methods, bounds=None, plot=False):
         values = {"J": [], "nf": [], "ng": [], "nh": [], "s": []}
         valformat = {"J": "10.2e", "nf": "3d", "ng": "3d", "nh": "3d", "s": "6.1f"}
         for method in methods:
-            x, cost, nfev, njev, nhev, dt = self.minimize(x0=x0, method=method, bounds=bounds)
+            x, cost, nfev, njev, nhev, dt = self.minimize(x0=x0, method=method, bounds=bounds, plot=plot)
             values["J"].append(cost)
             values["nf"].append(nfev)
             values["ng"].append(njev)
