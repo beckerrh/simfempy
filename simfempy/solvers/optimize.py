@@ -25,8 +25,10 @@ class Optimizer(object):
         self.reset()
         self.fullhess = True
         self.gradtest = False
+        self.hestest = False
         if 'fullhess' in kwargs: self.fullhess = kwargs.pop('fullhess')
         if 'gradtest' in kwargs: self.gradtest = kwargs.pop('gradtest')
+        if 'hestest' in kwargs: self.hestest = kwargs.pop('hestest')
         if 'regularize' in kwargs:
             if not 'nmeasure' in kwargs: raise ValueError("If 'regularize' is given, we need 'nmeasure'")
             if not 'param0' in kwargs: raise ValueError("If 'regularize' is given, we need 'param0'")
@@ -64,40 +66,82 @@ class Optimizer(object):
     def computeJ(self, param):
         return 0.5*np.linalg.norm(self.computeRes(param))**2
 
-    def computeDJ(self, param):
-        if self.r is None:
+    def testcomputeDRes(self, param, r, dr, u):
+        eps = 1e-6
+        if not dr.shape[0] == r.shape[0]:
+            raise ValueError("wrong dimensions r.shape={} dr.shape={}".format(r.shape, dr.shape))
+        for i in range(param.shape[0]):
+            parameps = param.copy()
+            parameps[i] += eps
+            rp, up = self.solver.computeRes(parameps, u)
+            parameps[i] -= 2*eps
+            rm, um = self.solver.computeRes(parameps, u)
+            r2 = (rp-rm)/(2*eps)
+            if not np.allclose(dr[:self.nmeasure,i], r2):
+                raise ValueError("problem in computeDRes:\ndr:\n{}\ndr(diff)\n{}\nparam={}\nrp={}\nrm={}".format(dr[:,i], r2, param, rp, rm))
+            else: print(end = '#')
+
+    def computeDJ(self, param, computeRes=True):
+        if self.r is None or computeRes:
             self.r = self.computeRes(param)
         self.dr, self.du = self.solver.computeDRes(param, self.u, self.du)
         if self.regularize:
             self.dr = np.append(self.dr, self.regularize * np.eye(self.nparam),axis=0)
         if not self.gradtest:
             return np.dot(self.r, self.dr)
+        self.testcomputeDRes(param, self.r, self.dr, self.u)
 
-        dr2 = self.solver.computeDResAdjW(param, self.u)
-        if self.regularize: dr2 = np.append(dr2, self.regularize * np.eye(self.nparam),axis=0)
+        if hasattr(self.solver, 'computeDResAdjW'):
+            dr2 = self.solver.computeDResAdjW(param, self.u)
+            if self.regularize: dr2 = np.append(dr2, self.regularize * np.eye(self.nparam),axis=0)
+            if not np.allclose(self.dr, dr2):
+                raise ValueError("dr('computeDRes') =\n{}\nbut dr2('computeDResAdjW') =\n{}".format(self.dr[:self.nmeasure], dr2[:self.nmeasure]))
+            # print("r", r.shape, "dr", dr.shape, "np.dot(r,dr)", np.dot(r,dr))
 
-        if not np.allclose(self.dr, dr2):
-            raise ValueError("dr('computeDRes') =\n{}\nbut dr2('computeDResAdjW') =\n{}".format(self.dr[:self.nmeasure], dr2[:self.nmeasure]))
-        # print("r", r.shape, "dr", dr.shape, "np.dot(r,dr)", np.dot(r,dr))
-        grad = np.dot(self.r, self.dr)
-        grad2, self.z = self.solver.computeDResAdj(param, self.r[:self.nmeasure], self.u, self.z)
-        if self.regularize:
-            grad2 += self.regularize*self.regularize*(param - self.param0)
-
-        if not np.allclose(grad, grad2):
-            raise ValueError("different gradients\ndirect:  = {}\nadjoint: = {}".format(grad, grad2))
+        if hasattr(self.solver, 'computeDResAdjW'):
+            grad = np.dot(self.r, self.dr)
+            grad2, self.z = self.solver.computeDResAdj(param, self.r[:self.nmeasure], self.u, self.z)
+            if self.regularize:
+                grad2 += self.regularize*self.regularize*(param - self.param0)
+            if not np.allclose(grad, grad2):
+                raise ValueError("different gradients\ndirect:  = {}\nadjoint: = {}".format(grad, grad2))
         return np.dot(self.r, self.dr)
+
+
+    def testHessian(self, param, gn, M):
+        H = gn+M
+        H2 = np.zeros_like(H)
+        eps = 1e-6
+        for i in range(self.nparam):
+            parameps = param.copy()
+            parameps[i] += eps
+            gradp = self.computeDJ(parameps, computeRes=True)
+            parameps[i] -= 2*eps
+            gradm = self.computeDJ(parameps, computeRes=True)
+            H2[i] = (gradp-gradm)/(2*eps)
+        if np.allclose(H[i], H2):
+            print(end='@')
+            return
+        raise ValueError("problem in testHessian:\nH:\n{}\nH(diff)\n{}\nparam={}\ngn={}\nM={}".format(H, H2, param, gn, M))
 
     def computeDDJ(self, param):
         if self.dr is None:
             self.dr, self.du = self.solver.computeDRes(param)
         gn = np.dot(self.dr.T, self.dr)
         if not self.fullhess:
-            return gn
+            if not self.hestest:
+                return gn
+            else:
+                self.testHessian(param, gn, np.zeros_like(gn))
+                return gn
+
         self.z = self.solver.computeAdj(param, self.r[:self.nmeasure], self.u, self.z)
         M = self.solver.computeM(param, self.du, self.z)
         # print("gn", np.linalg.eigvals(gn), "M", np.linalg.eigvals(M))
-        return gn+M
+        if not self.hestest:
+            return gn+M
+        self.testHessian(param, gn, M)
+        return gn + M
 
     def create_data(self, refparam, percrandom=0):
         nmeasures = self.nmeasure

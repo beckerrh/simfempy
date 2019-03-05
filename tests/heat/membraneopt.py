@@ -221,11 +221,12 @@ def test():
     # print("data", data)
     # membrane.plotter.plot()
 
-    # optimizer.gradtest = True
+    optimizer.gradtest = True
+    optimizer.hestest = True
     # for method in optimizer.lsmethods:
-    for method in optimizer.minmethods:
+    for method in optimizer.methods:
         optimizer.minimize(x0=initialparam, method=method)
-        membrane.plotter.plot(info=membrane.info)
+        # membrane.plotter.plot(info=membrane.info)
 
 #================================================================#
 

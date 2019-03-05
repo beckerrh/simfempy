@@ -164,7 +164,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.param = 1/param
         if not np.all(param>0):
             print(10*"#", param)
-            self.param = np.fmax(param, self.diffglobal)
+            # self.param = np.fmax(1/param, 1/self.diffglobal)
         self.diffcell = self.diff(self.mesh.cell_labels)
         self.diffcellinv = 1/self.diffcell
         A = self.matrix()
@@ -220,16 +220,16 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
 
 #----------------------------------------------------------------#
 def test():
-    h = 0.3
+    h = 0.5
     hhole, hmeasure = 0.2*h, 0.1*h
     nmeasures = 8
     measuresize = 0.02
-    nholes = 4
+    nholes = 1
     mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
     # print("electrode_labels",electrode_labels)
     # print("other_labels",other_labels)
-    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    plt.show()
+    # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+    # plt.show()
 
 
     param_labels = hole_labels
@@ -242,7 +242,6 @@ def test():
     voltage[::2] *= -1
     voltage -= np.mean(voltage)
     print("voltage", voltage)
-
 
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
 
@@ -261,7 +260,7 @@ def test():
 
     regularize = 0.01
     regularize = 0.0
-    diffglobal = 10
+    diffglobal = 0.01
     eit = EIT(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels, diffglobal=diffglobal)
     eit.setMesh(mesh)
 
@@ -270,38 +269,41 @@ def test():
     refparam = diffglobal*np.ones(nparams, dtype=float)
 
     if nholes==25:
-        refparam[7] *= 0.1
-        refparam[11] *= 0.1
-        refparam[17] *= 0.1
+        refparam[7] *= 10
+        refparam[11] *= 10
+        refparam[17] *= 10
     elif nholes == 4:
-        refparam[0] = refparam[3] = 0.1
+        refparam[0] *= 10
+        refparam[3] *= 5
     else:
         # refparam[::2] *= 5
         # refparam[1::2] *= 10
-        refparam[::2] *= 0.2
-        refparam[1::2] *= 0.1
+        refparam[::2] *= 5
+        refparam[1::2] *= 10
 
     print("refparam",refparam)
-    percrandom = 0.01
+    percrandom = 0.1
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
     # perturbeddata[::2] *= 1.3
     # perturbeddata[1::2] *= 0.7
-    print("refdata",refdata)
-    print("perturbeddata",perturbeddata)
+    # print("refdata",refdata)
+    # print("perturbeddata",perturbeddata)
 
     initialparam = diffglobal*np.ones(nparams)
     print("initialparam",initialparam)
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
-    # optimizer.gradtest = True
-    bounds = False
+    optimizer.hestest = True
+    bounds = True
     if bounds:
-        bounds = (0.1 * diffglobal, np.inf)
+        bounds = (diffglobal, np.inf)
         methods = optimizer.boundmethods
     else:
         bounds = None
         methods = optimizer.methods
+
+    methods = optimizer.hesmethods
     values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds)
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
