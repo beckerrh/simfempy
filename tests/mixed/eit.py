@@ -261,10 +261,10 @@ def problemdef(h, nholes, nmeasures, diffglobalinv = 100, volt=4):
 #----------------------------------------------------------------#
 def test():
     h = 0.5
-    nmeasures = 32
-    nholes = 25
-    diffglobalinv = 100
-    eit = problemdef(h, nholes, nmeasures, diffglobalinv)
+    nmeasures = 12
+    nholes = 9
+    diffglobalinv = 1
+    eit = problemdef(h, nholes, nmeasures, diffglobalinv, volt=4)
 
     regularize = 0.000
     param0 = diffglobalinv*np.ones(nholes)
@@ -290,8 +290,8 @@ def test():
     percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
-    perturbeddata[::2] *= 1.3
-    perturbeddata[1::2] *= 0.7
+    # perturbeddata[::2] *= 1.3
+    # perturbeddata[1::2] *= 0.7
     # print("refdata",refdata)
     # print("perturbeddata",perturbeddata)
 
