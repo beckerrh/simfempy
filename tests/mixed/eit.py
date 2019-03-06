@@ -219,12 +219,13 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         assert z is not None
         for i in range(self.nparam):
             for j in range(self.nparam):
-                M[j, i] = self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+                M[j, i] -= self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+                M[i, j] -= self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
         # print("M", np.array2string(M, precision=2, floatmode='fixed'))
         return M
 
 #----------------------------------------------------------------#
-def problemdef(h, nholes, nmeasures, diffglobalinv = 100):
+def problemdef(h, nholes, nmeasures, diffglobalinv = 100, volt=4):
     h = h
     hhole, hmeasure = 0.2*h, 0.1*h
     measuresize = 0.02
@@ -236,7 +237,7 @@ def problemdef(h, nholes, nmeasures, diffglobalinv = 100):
     measure_labels = electrode_labels
     assert nmeasures == len(measure_labels)
     voltage_labels = electrode_labels
-    voltage = 2*np.ones(nmeasures)
+    voltage = volt*np.ones(nmeasures)
     voltage[::2] *= -1
     voltage -= np.mean(voltage)
     print("voltage", voltage)
@@ -260,12 +261,12 @@ def problemdef(h, nholes, nmeasures, diffglobalinv = 100):
 #----------------------------------------------------------------#
 def test():
     h = 0.5
-    nmeasures = 2
-    nholes = 1
+    nmeasures = 32
+    nholes = 25
     diffglobalinv = 100
     eit = problemdef(h, nholes, nmeasures, diffglobalinv)
 
-    regularize = 0
+    regularize = 0.000
     param0 = diffglobalinv*np.ones(nholes)
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nholes, nmeasure=nmeasures, regularize=regularize,
                                                     param0=param0)
@@ -286,19 +287,17 @@ def test():
         refparam[1::2] /= 10
 
     print("refparam",refparam)
-    percrandom = 0.2
+    percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
-    # perturbeddata[::2] *= 1.3
-    # perturbeddata[1::2] *= 0.7
+    perturbeddata[::2] *= 1.3
+    perturbeddata[1::2] *= 0.7
     # print("refdata",refdata)
     # print("perturbeddata",perturbeddata)
 
     initialparam = diffglobalinv*np.ones(nholes)
     print("initialparam",initialparam)
 
-    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
-    optimizer.hestest = True
     bounds = False
     if bounds:
         bounds = (0.01*diffglobalinv, diffglobalinv)
@@ -308,10 +307,12 @@ def test():
         bounds = None
         methods = optimizer.methods
 
-    methods = optimizer.hesmethods
-    methods = ['Newton-CG']
+    # optimizer.hestest = True
+    methods = optimizer.methods
     values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds, plot=True)
-    eit.plotter.plot(info=eit.info)
+    # eit.plotter.plot(info=eit.info)
+
+    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
     latex.compile()
@@ -320,7 +321,7 @@ def test():
 #----------------------------------------------------------------#
 def plotJhat():
     h = 0.4
-    nmeasures = 8
+    nmeasures = 32
     nholes = 2
     diffglobalinv = 100
     eit = problemdef(h, nholes, nmeasures, diffglobalinv)
@@ -329,14 +330,14 @@ def plotJhat():
     refparam = diffglobalinv*np.ones(nholes, dtype=float)
     refparam[::2] /= 5
     refparam[1::2] /= 10
-    percrandom = 0.20
+    percrandom = 0.1
     refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
 
     n = 25
     c = np.empty(shape=(n,n,nmeasures))
-    px = np.linspace(0.2*refparam[0], 5*refparam[0], n)
-    py = np.linspace(0.2*refparam[1], 5*refparam[1], n)
+    px = np.linspace(0.2*refparam[0], 10*refparam[0], n)
+    py = np.linspace(0.2*refparam[1], 10*refparam[1], n)
     param = np.empty(2, dtype=float)
     for i in range(n):
         for j in range(n):

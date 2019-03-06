@@ -119,9 +119,10 @@ class Optimizer(object):
             parameps[i] -= 2*eps
             gradm = self.computeDJ(parameps, computeRes=True)
             H2[i] = (gradp-gradm)/(2*eps)
-        if np.allclose(H[i], H2):
+        if np.allclose(H, H2):
             print(end='@')
             return
+        print("HD", H-H2)
         raise ValueError("problem in testHessian:\nH:\n{}\nH(diff)\n{}\nparam={}\ngn={}\nM={}".format(H, H2, param, gn, M))
 
     def computeDDJ(self, param):
@@ -158,6 +159,7 @@ class Optimizer(object):
         hascost=True
         t0 = time.time()
         #         if bounds is None or method == 'lm': bounds = (-np.inf, np.inf)
+        # scipy.optimize.show_options("minimize",method=method, disp=True)
         if method in self.lsmethods:
             if bounds is None: bounds = (-np.inf, np.inf)
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
@@ -168,12 +170,16 @@ class Optimizer(object):
                 hess = self.computeDDJ
             else:
                 hess = None
+            options = None
             # method = 'trust-constr'
-            if method == 'Newton-CG': tol = 1e-10
-            else: tol = None
+            if method == 'Newton-CG':
+                tol = 1e-16
+                options = {'xtol':1e-16}
+            else:
+                tol = 1e-12
             if bounds and len(bounds)==2: bounds = [bounds for l in range(len(x0))]
             info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
-                                           method=method, bounds=bounds, tol=1e-9)
+                                           method=method, bounds=bounds, tol=tol, options=options)
         else:
             raise NotImplementedError("unknown method '{}' known are {}".format(method,','.join(self.methods)))
         dt = time.time()-t0
@@ -201,11 +207,11 @@ class Optimizer(object):
             self.solver.plot(suptitle="{}".format(method))
         return x, cost, info.nfev, njev, nhev, dt
 
-    def testmethods(self, x0, methods, bounds=None, plot=False):
+    def testmethods(self, x0, methods, bounds=None, plot=False, verbose=0):
         values = {"J": [], "nf": [], "ng": [], "nh": [], "s": []}
         valformat = {"J": "10.2e", "nf": "3d", "ng": "3d", "nh": "3d", "s": "6.1f"}
         for method in methods:
-            x, cost, nfev, njev, nhev, dt = self.minimize(x0=x0, method=method, bounds=bounds, plot=plot)
+            x, cost, nfev, njev, nhev, dt = self.minimize(x0=x0, method=method, bounds=bounds, plot=plot, verbose=verbose)
             values["J"].append(cost)
             values["nf"].append(nfev)
             values["ng"].append(njev)
