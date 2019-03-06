@@ -13,7 +13,7 @@ import eitdef, eitlin, eitexp
 
 #----------------------------------------------------------------#
 def test(nholes=2, percrandom = 0., plot=True):
-    h = 0.5
+    h = 0.4
     nmeasures = 32
     diffglobalinv = 1
     mesh, kwargs = eitdef.problemdef(h, nholes, nmeasures, volt=4)
@@ -27,7 +27,7 @@ def test(nholes=2, percrandom = 0., plot=True):
         raise ValueError("unknown parammethod '{}'".format(parammethod))
     eit.setMesh(mesh)
 
-    regularize = 0.001
+    regularize = 0.00
     diffinv0 = diffglobalinv*np.ones(nholes)
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nholes, nmeasure=nmeasures, regularize=regularize,
                                                     param0=eit.diffinv2param(diffinv0))
@@ -57,7 +57,7 @@ def test(nholes=2, percrandom = 0., plot=True):
     initialdiffinv = diffglobalinv*np.ones(nholes)
     print("initialdiffinv",initialdiffinv)
 
-    bounds = False
+    bounds = True
     if bounds:
         bounds = (eit.diffinv2param(0.01*diffglobalinv), eit.diffinv2param(diffglobalinv))
         methods = optimizer.boundmethods
@@ -67,10 +67,11 @@ def test(nholes=2, percrandom = 0., plot=True):
         methods = optimizer.methods
 
     # optimizer.hestest = True
-    methods = optimizer.lsmethods.copy()
-    methods.append("trust-ncg")
-    methods.append("L-BFGS-B")
-    values, valformat = optimizer.testmethods(x0=eit.diffinv2param(initialdiffinv), methods=methods, bounds=bounds, plot=False)
+    # methods = optimizer.lsmethods.copy()
+    # methods.append("trust-ncg")
+    # methods.append("L-BFGS-B")
+    methods = ['trf']
+    values, valformat = optimizer.testmethods(x0=eit.diffinv2param(initialdiffinv), methods=methods, bounds=bounds, plot=True)
     # eit.plotter.plot(info=eit.info)
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare_{}".format(nholes))
@@ -150,7 +151,6 @@ for nholes in nholess:
     methods, values, valformat = test(nholes, plot=False)
     for k in valuesall: valuesall[k].append(values[k])
 for k in valuesall: valuesall[k] = np.array(valuesall[k])
-print("valuesall", valuesall)
 fig, axs = plt.subplots(1, 2, figsize=(9,4), squeeze=False)
 for i,(k,v) in enumerate(valuesall.items()):
     ax =axs[0,i]

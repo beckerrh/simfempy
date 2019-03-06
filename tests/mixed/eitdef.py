@@ -81,7 +81,8 @@ def problemdef(h, nholes, nmeasures, volt=4):
     assert nmeasures == len(measure_labels)
     voltage_labels = electrode_labels
     voltage = volt*np.ones(nmeasures)
-    voltage[::2] *= -1
+    # voltage = volt*np.arange(nmeasures, dtype=float)
+    voltage[::nmeasures//2] *= -1
     voltage -= np.mean(voltage)
     print("voltage", voltage)
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
