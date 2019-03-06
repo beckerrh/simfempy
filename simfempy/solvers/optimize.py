@@ -144,10 +144,11 @@ class Optimizer(object):
         self.testHessian(param, gn, M)
         return gn + M
 
-    def create_data(self, refparam, percrandom=0):
+    def create_data(self, refparam, percrandom=0, plot=False):
         nmeasures = self.nmeasure
         self.solver.data0 = np.zeros(nmeasures)
         refdata = self.computeRes(refparam)[:nmeasures]
+        if plot: self.solver.plot()
         perturbeddata = refdata * (1 + 0.5 * percrandom * (np.random.rand(nmeasures) - 2))
         self.solver.data0 = perturbeddata
         return refdata, perturbeddata
@@ -201,7 +202,11 @@ class Optimizer(object):
         if not info.success:
             print(10 * "@" + " no convergence!")
             nfev, njev, nhev = -1, -1, -1
-        x = np.array2string(info.x, formatter={'float_kind':lambda x: "%11.4e" % x})
+        if hasattr(self.solver,'param2x'):
+            x = self.solver.param2x(info.x)
+        else:
+            x = info.x
+        x = np.array2string(x, formatter={'float_kind':lambda x: "%11.4e" % x})
         print("{:^14s} x = {} J={:10.2e} nf={:4d} nj={:4d} nh={:4d} {:10.2f} s".format(method, x, cost, nfev, njev, nhev, dt))
         if plot:
             self.solver.plot(suptitle="{}".format(method))
