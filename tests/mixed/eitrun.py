@@ -96,14 +96,14 @@ def plotJhat():
     refdiffinv = diffglobalinv*np.ones(nholes, dtype=float)
     refdiffinv[::2] /= 5
     refdiffinv[1::2] /= 10
-    percrandom = 0.1
+    percrandom = 0.
     refdata, perturbeddata = optimizer.create_data(refparam=refdiffinv, percrandom=percrandom)
     eit.plotter.plot(info=eit.info)
 
-    n = 25
+    n = 30
     c = np.empty(shape=(n,n,nmeasures))
-    px = np.linspace(0.1*refdiffinv[0], 20*refdiffinv[0], n)
-    py = np.linspace(0.1*refdiffinv[1], 20*refdiffinv[1], n)
+    px = np.linspace(0.1*refdiffinv[0], 10*refdiffinv[0], n)
+    py = np.linspace(0.1*refdiffinv[1], 10*refdiffinv[1], n)
     param = np.empty(2, dtype=float)
     for i in range(n):
         print("")
@@ -122,7 +122,7 @@ def plotJhat():
     nrows = 3
     # print("nrows, ncols", nrows, ncols)
     fig, axs = plt.subplots(ncols, nrows, figsize=(nrows*4.5,ncols*4), squeeze=False)
-    fig.suptitle("rand = {}%".format(percrandom))
+    fig.suptitle("rand = {}%".format(100*percrandom))
     # aspect = (np.max(x)-np.mean(x))/(np.max(y)-np.mean(y))
     ind = [0,7]
     for i in range(nrows-1):
@@ -144,20 +144,21 @@ def plotJhat():
 
 #================================================================#
 
-nholess = [2, 4, 9, 16, 25]
-valuesall = {'nf':[], 's':[]}
-for nholes in nholess:
-    methods, values, valformat = test(nholes, plot=False)
-    for k in valuesall: valuesall[k].append(values[k])
-for k in valuesall: valuesall[k] = np.array(valuesall[k])
-print("valuesall", valuesall)
-fig, axs = plt.subplots(1, 2, figsize=(9,4), squeeze=False)
-for i,(k,v) in enumerate(valuesall.items()):
-    ax =axs[0,i]
-    for i,m in enumerate(methods):
-        ax.plot(nholess, v[:,i], 'X-', label=m)
-    ax.legend()
-    ax.set_title(k)
-plt.show()
+def testholes():
+    nholess = [2, 4, 9, 16, 25]
+    valuesall = {'nf':[], 's':[]}
+    for nholes in nholess:
+        methods, values, valformat = test(nholes, plot=False)
+        for k in valuesall: valuesall[k].append(values[k])
+    for k in valuesall: valuesall[k] = np.array(valuesall[k])
+    print("valuesall", valuesall)
+    fig, axs = plt.subplots(1, 2, figsize=(9,4), squeeze=False)
+    for i,(k,v) in enumerate(valuesall.items()):
+        ax =axs[0,i]
+        for i,m in enumerate(methods):
+            ax.plot(nholess, v[:,i], 'X-', label=m)
+        ax.legend()
+        ax.set_title(k)
+    plt.show()
 
-# plotJhat()
+plotJhat()
