@@ -27,7 +27,7 @@ def test(nholes=2, percrandom = 0., plot=True):
         raise ValueError("unknown parammethod '{}'".format(parammethod))
     eit.setMesh(mesh)
 
-    regularize = 0.000
+    regularize = 0.001
     diffinv0 = diffglobalinv*np.ones(nholes)
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nholes, nmeasure=nmeasures, regularize=regularize,
                                                     param0=eit.diffinv2param(diffinv0))
@@ -145,15 +145,19 @@ def plotJhat():
 #================================================================#
 
 nholess = [2, 4, 9, 16, 25]
-valuesall = []
+valuesall = {'nf':[], 's':[]}
 for nholes in nholess:
     methods, values, valformat = test(nholes, plot=False)
-    valuesall.append(values['nf'])
-valuesall = np.array(valuesall)
+    for k in valuesall: valuesall[k].append(values[k])
+for k in valuesall: valuesall[k] = np.array(valuesall[k])
 print("valuesall", valuesall)
-for i,m in enumerate(methods):
-    plt.plot(nholess, valuesall[:,i], 'X-', label=m)
-plt.legend()
+fig, axs = plt.subplots(1, 2, figsize=(9,4), squeeze=False)
+for i,(k,v) in enumerate(valuesall.items()):
+    ax =axs[0,i]
+    for i,m in enumerate(methods):
+        ax.plot(nholess, v[:,i], 'X-', label=m)
+    ax.legend()
+    ax.set_title(k)
 plt.show()
 
 # plotJhat()
