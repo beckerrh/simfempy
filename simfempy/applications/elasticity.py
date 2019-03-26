@@ -290,8 +290,8 @@ class Elasticity(solvers.solver.Solver):
             res = bs - As * u
             for icomp in range(self.ncomp):
                 flux[i, icomp] = np.sum(res[icomp::self.ncomp])
-            else:
-                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
+            # else:
+            #     raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
         # colors = [int(x) for x in data.split(',')]
         # flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
@@ -332,7 +332,7 @@ class Elasticity(solvers.solver.Solver):
                 if type == "bdrymean":
                     info['postproc'][key] = self.fem.computeBdryMean(u, data)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
+                    info['postproc'][key] = self.computeBdryDn(u, data)
                 elif type == "pointvalues":
                     info['postproc'][key] = self.fem.computePointValues(u, data)
                 else:

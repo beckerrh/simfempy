@@ -238,33 +238,57 @@ class FemP1(femp1.FemP1):
             err.append(np.sqrt(np.dot(e[icomp], self.massmatrix * e[icomp])))
         return err, e
 
-    def computeBdryMean(self, u, data):
+    def computeBdryMean(self, u, data, icomp=None):
         colors = [int(x) for x in data.split(',')]
-        mean, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
-        for i,color in enumerate(colors):
-            faces = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
-            omega[i] = np.sum(dS)
-            for icomp in range(self.ncomp):
-                mean[i, icomp] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
-        return mean/omega
+        if icomp is None:
+            mean, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+            for i,color in enumerate(colors):
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                omega[i] = np.sum(dS)
+                for icomp in range(self.ncomp):
+                    mean[icomp, i] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+            return mean / omega
+        else:
+            mean, omega = np.zeros(shape=(len(colors))), np.zeros(len(colors))
+            for i,color in enumerate(colors):
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                omega[i] = np.sum(dS)
+                mean[i] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
+            return mean/omega
 
-    def computeBdryDn(self, u, data, bdrydata, bdrycond):
+    def computeBdryDn(self, u, data, bdrydata, bdrycond, icomp=None):
         colors = [int(x) for x in data.split(',')]
-        flux, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
-        for i,color in enumerate(colors):
-            faces = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
-            omega[i] = np.sum(dS)
-            for icomp in range(self.ncomp):
+        if icomp is None:
+            flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
+            for i,color in enumerate(colors):
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                omega[i] = np.sum(dS)
+                for icomp in range(self.ncomp):
+                    if bdrycond[icomp].type[color] == "Dirichlet":
+                        bs, As = bdrydata[icomp].bsaved[color], bdrydata[icomp].Asaved[color]
+                        flux[icomp, i] = np.sum(As * u - bs)
+                else:
+                    raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
+            return flux
+        else:
+            flux, omega = np.zeros(shape=(len(colors))), np.zeros(len(colors))
+            for i,color in enumerate(colors):
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                omega[i] = np.sum(dS)
                 if bdrycond[icomp].type[color] == "Dirichlet":
                     bs, As = bdrydata[icomp].bsaved[color], bdrydata[icomp].Asaved[color]
-                    flux[i, icomp] = np.sum(As * u - bs)
-            else:
-                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
-        return flux
+                    flux[i] = np.sum(As * u - bs)
+                else:
+                    raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
+            return flux
 
 
     def computePointValues(self, u, data):

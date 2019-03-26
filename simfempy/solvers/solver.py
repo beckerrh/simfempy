@@ -119,7 +119,8 @@ class Solver(object):
         info['iter'] = {'lin':niter}
         return point_data, cell_data, info
 
-    def linearSolver(self, A, b, u=None, solver = 'umf', verbose=1):
+    def linearSolver(self, A, b, u=None, solver = None, verbose=1):
+        if solver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1

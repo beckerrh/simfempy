@@ -81,7 +81,7 @@ class CompareMethods(object):
                 if self.plot:
                     from ..meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
-                    plotmesh.meshWithData(mesh, point_data, cell_data, title=name, suptitle=suptitle)
+                    plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=name, suptitle=suptitle)
                 self.fillInfo(iter, name, info, len(params))
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)

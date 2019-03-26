@@ -73,24 +73,26 @@ def problemdef(h, nholes, nmeasures, volt=4):
     hhole, hmeasure = 0.2*h, 0.1*h
     measuresize = 0.02
     nholes = nholes
-    mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes,
-                                                                     nmeasures=nmeasures, measuresize=measuresize)
+    mesh, hole_labels, electrode_labels, other_labels = createMesh2d(h=h, hhole=hhole, hmeasure=hmeasure, nholes=nholes, nmeasures=nmeasures, measuresize=measuresize)
     param_labels = hole_labels
-    nparams = len(param_labels)
     measure_labels = electrode_labels
     assert nmeasures == len(measure_labels)
-    voltage_labels = electrode_labels
+
     voltage = volt*np.ones(nmeasures)
     # voltage = volt*np.arange(nmeasures, dtype=float)
-    voltage[::nmeasures//2] *= -1
+    step = max(2,nmeasures//min(nmeasures,4))
+    voltage[::step] *= -1
     voltage -= np.mean(voltage)
     print("voltage", voltage)
+
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
     for label in other_labels:
         bdrycond.type[label] = "Neumann"
     for i,label in enumerate(electrode_labels):
-        bdrycond.type[label] = "Robin"
-        bdrycond.param[label] = 100
+        # bdrycond.type[label] = "Robin"
+        # bdrycond.param[label] = 10000
+        bdrycond.type[label] = "Dirichlet"
+        # bdrycond.param[label] = 10000
         bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(voltage[i])
     postproc = {}
     postproc['measured'] = "bdrydn:{}".format(','.join( [str(l) for l in electrode_labels]))

@@ -65,7 +65,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         # self.data0 = np.zeros(self.nmeasures)
         self.param2x = np.vectorize(self._param2x)
         self.diffinv2param = np.vectorize(self._diffinv2param)
-        self.scale = -1
+        self.scale = 1
 
     def setMesh(self, mesh):
         super().setMesh(mesh)

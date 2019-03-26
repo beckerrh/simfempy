@@ -47,10 +47,14 @@ class Heat(solvers.solver.Solver):
             self.rhocp = np.vectorize(kwargs.pop('rhocp'))
         else:
             self.rhocp = np.vectorize(lambda i: 1234.56)
-        if hasattr(self,'problemdata') and hasattr(self.problemdata,'diffcoeff'):
-            self.kheat = np.vectorize(self.problemdata.diffcoeff)
+        if 'diff' in kwargs:
+            self.kheat = np.vectorize(kwargs.pop('diff'))
         else:
             self.kheat = np.vectorize(lambda i: 0.123)
+        if 'reaction' in kwargs:
+            self.reaction = np.vectorize(kwargs.pop('reaction'))
+        else:
+            self.reaction = None
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:

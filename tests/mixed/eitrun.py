@@ -13,9 +13,10 @@ import eitdef, eitlin, eitexp
 
 #----------------------------------------------------------------#
 def test(nholes=2, percrandom = 0., plot=True):
-    h = 0.4
-    nmeasures = 32
+    h = 0.8
+    nmeasures = 4
     diffglobalinv = 1
+
     mesh, kwargs = eitdef.problemdef(h, nholes, nmeasures, volt=4)
     kwargs['diffglobalinv'] = diffglobalinv
     parammethod = "lin"
@@ -29,25 +30,21 @@ def test(nholes=2, percrandom = 0., plot=True):
 
     regularize = 0.00
     diffinv0 = diffglobalinv*np.ones(nholes)
-    optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nholes, nmeasure=nmeasures, regularize=regularize,
-                                                    param0=eit.diffinv2param(diffinv0))
+    optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nholes, nmeasure=nmeasures, regularize=regularize, param0=eit.diffinv2param(diffinv0))
     refdiffinv = diffglobalinv*np.ones(nholes)
-    if nholes==36:
-        refdiffinv[7] /= 10
-        refdiffinv[11] /= 10
-        refdiffinv[17] /= 10
-    elif nholes == 4:
-        refdiffinv[0] /= 10
-        refdiffinv[3] /= 5
+    if nholes==25:
+        refdiffinv[7] /= 100
+        refdiffinv[11] /= 100
+        refdiffinv[17] /= 100
     else:
-        # refdiffinv[::2] /= 5
-        # refdiffinv[1::2] /= 10
-        refdiffinv[::2] /= 5
-        refdiffinv[1::2] /= 10
+        ri = np.random.randint(0,3,nholes)
+        for i in range(nholes):
+            if ri[i] == 1: refdiffinv[i] /= 100
+            elif ri[i] == 2: refdiffinv[i] /= 50
+
     print("refdiffinv",refdiffinv)
 
-    refdata, perturbeddata = optimizer.create_data(refparam=eit.diffinv2param(refdiffinv), percrandom=percrandom)
-    if plot: eit.plotter.plot(info=eit.info)
+    optimizer.create_data(refparam=eit.diffinv2param(refdiffinv), percrandom=percrandom, plot=plot)
 
     # perturbeddata[::2] *= 1.3
     # perturbeddata[1::2] *= 0.7
@@ -60,6 +57,7 @@ def test(nholes=2, percrandom = 0., plot=True):
     bounds = True
     if bounds:
         bounds = (eit.diffinv2param(0.01*diffglobalinv), eit.diffinv2param(diffglobalinv))
+        print("bounds", bounds)
         methods = optimizer.boundmethods
         methods = ['trf','dogbox']
     else:
@@ -71,14 +69,17 @@ def test(nholes=2, percrandom = 0., plot=True):
     # methods.append("trust-ncg")
     # methods.append("L-BFGS-B")
     methods = ['trf']
-    values, valformat = optimizer.testmethods(x0=eit.diffinv2param(initialdiffinv), methods=methods, bounds=bounds, plot=True)
+    # methods = optimizer.boundmethods.copy()
+    # methods.append("lm")
+
+    values, valformat, xall = optimizer.testmethods(x0=eit.diffinv2param(initialdiffinv), methods=methods, bounds=bounds, plot=plot, verbose=2)
     # eit.plotter.plot(info=eit.info)
 
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare_{}".format(nholes))
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
     latex.compile()
-    return methods, values, valformat
+    return methods, values, valformat, refdiffinv, np.array(xall, dtype=float)
 
 
 #----------------------------------------------------------------#
@@ -144,16 +145,24 @@ def plotJhat():
 
 
 #================================================================#
-
 def testholes():
-    nholess = [2, 4, 9, 16, 25]
-    valuesall = {'nf':[], 's':[]}
+    nholess = [2, 4, 9]
+    # nholess = [2, 4, 9, 16, 25]
+    # nholess = [4, 6, 8, 12, 16, 20, 25]
+    # nholess = [25]
+    valuesall = {'nf':[], 's':[], 'err':[]}
     for nholes in nholess:
-        methods, values, valformat = test(nholes, plot=False)
-        for k in valuesall: valuesall[k].append(values[k])
+        methods, values, valformat, refdiffinv, xall = test(nholes, plot=True)
+        for k in valuesall:
+            if k=='err':
+                errors = np.sum((xall-refdiffinv)**2, axis=1)
+                print("errors", errors)
+                valuesall[k].append(errors)
+            else: valuesall[k].append(values[k])
     for k in valuesall: valuesall[k] = np.array(valuesall[k])
-    print("valuesall", valuesall)
-    fig, axs = plt.subplots(1, 2, figsize=(9,4), squeeze=False)
+    # print("valuesall", valuesall)
+    nrows = len(valuesall.keys())
+    fig, axs = plt.subplots(1, nrows, figsize=(3*nrows,4), squeeze=False)
     for i,(k,v) in enumerate(valuesall.items()):
         ax =axs[0,i]
         for i,m in enumerate(methods):
@@ -162,4 +171,33 @@ def testholes():
         ax.set_title(k)
     plt.show()
 
-plotJhat()
+
+#================================================================#
+def testrandom():
+    valuesall = {'nf':[], 's':[], 'err':[]}
+    percrandoms = [0.0001, 0.001]
+    for pr in percrandoms:
+        methods, values, valformat, refdiffinv, xall = test(nholes=25, percrandom=pr, plot=True)
+        for k in valuesall:
+            if k=='err':
+                errors = np.sum((xall-refdiffinv)**2, axis=1)
+                print("errors", errors)
+                valuesall[k].append(errors)
+            else: valuesall[k].append(values[k])
+    for k in valuesall: valuesall[k] = np.array(valuesall[k])
+    # print("valuesall", valuesall)
+    nrows = len(valuesall.keys())
+    fig, axs = plt.subplots(1, nrows, figsize=(3*nrows,4), squeeze=False)
+    for i,(k,v) in enumerate(valuesall.items()):
+        ax = axs[0,i]
+        for i,m in enumerate(methods):
+            ax.plot(percrandoms, v[:,i], 'X-', label=m)
+        ax.legend()
+        ax.set_title(k)
+    plt.show()
+
+#================================================================#
+
+# plotJhat()
+testholes()
+# testrandom()

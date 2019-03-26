@@ -5,6 +5,7 @@ import copy
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
 
+import matplotlib.pyplot as plt
 import pygmsh
 from simfempy.meshes import geomdefs
 import simfempy.tools.timer
@@ -36,9 +37,10 @@ def mesh_traction(h, dim=3, nmeasure=4):
         bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([0,1,0])
 
         def torsion(x,y,z, nx, ny, nz):
+            scale = 0.01
             r = 10*np.sqrt(y**2+z**2)
             theta = np.arctan2(y,z)
-            return [0, r*np.cos(theta), -r*np.sin(theta) ]
+            return [0, scale*r*np.cos(theta), -scale*r*np.sin(theta) ]
         bdrycond.fct[102] = torsion
 
         bdrycond.type[103] = "Neumann"
@@ -95,42 +97,74 @@ class Elasticity(simfempy.applications.elasticity.Elasticity):
         kwargs['plotk'] = True
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
+        self.linearsolver = "umf"
+        self.nparam = 2
+
+    def plot(self, **kwargs):
+        if not 'point_data' in kwargs: point_data = self.point_data
+        else: point_data = kwargs.pop('point_data')
+        if not 'cell_data' in kwargs: cell_data = self.cell_data
+        else: cell_data = kwargs.pop('cell_data')
+        self.mesh.plotWithData(point_data=point_data, cell_data=cell_data)
+        plt.show()
+
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        self.Ais = [np.empty(shape=(0,0)) for i in range(self.nparam)]
+        self.computeAis()
+
+    def computeAis(self):
+        bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
+        for color in self.problemdata.bdrycond.fct:
+            self.problemdata.bdrycond.fct[color] = None
+            self.problemdata.bdrycond.param[color] = 0
+        for i in range(self.nparam):
+            if i==0:
+                self.setParameters(mu=1, lam=0)
+            elif i==1:
+                self.setParameters(mu=0, lam=1)
+            else: raise ValueError("too many parameters")
+            self.Ais[i] = self.matrix()
+        self.problemdata.bdrycond = bdrycond_bu
 
     def computeRes(self, param, u=None):
         self.setParameters(*param)
         # print("self.mu", self.mu, "self.lam", self.lam)
         A = self.matrix()
         b, u = self.computeRhs(u)
-        u, niter = self.linearSolver(A, b, u, solver="pyamg")
-        point_data, cell_data, info = self.postProcess(u)
+        u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
+        self.point_data, self.cell_data, info = self.postProcess(u)
         # self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
         data = info['postproc']['measured'].reshape(-1)
-        if not hasattr(self,'data0'): self.data0 = np.zeros_like(data)
-        self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
+        self.nmeasure = data.shape[0]
+        # if not hasattr(self,'data0'): self.data0 = np.zeros_like(data)
+        # self.mesh.plotWithData(point_data=point_data, translate_point_data=1)
         # print("self.data0", self.data0, "data", data)
-        return data - self.data0, u
+        # return data - self.data0, u
+        return data, u
 
     def computeDRes(self, param, u, du):
         nparam = param.shape[0]
-        nmeasure = self.data0.shape[0]
+        nmeasure = self.nmeasure
         jac = np.zeros(shape=(nmeasure, nparam))
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
         for color in self.problemdata.bdrycond.fct:
             self.problemdata.bdrycond.fct[color] = None
         if du is None: du = nparam*[np.empty(0)]
         for i in range(nparam):
-            if i==0:
-                self.setParameters(mu=1, lam=0)
-            elif i==1:
-                self.setParameters(mu=0, lam=1)
-            else: raise ValueError("too many parameters")
-            Bi = self.matrix()
-            b = -Bi.dot(u)
+            # if i==0:
+            #     self.setParameters(mu=1, lam=0)
+            # elif i==1:
+            #     self.setParameters(mu=0, lam=1)
+            # else: raise ValueError("too many parameters")
+            # Bi = self.matrix()
+            # b = -Bi.dot(u)
+            b = -self.Ais[i].dot(u)
             du[i] = np.zeros_like(b)
             self.setParameters(*param)
             A = self.matrix()
             b,du[i] = self.vectorDirichlet(b, du[i])
-            du[i], iter = self.linearSolver(A, b, du[i], solver=self.linearsolver, verbose=0)
+            du[i], iter = self.linearSolver(A, b, du[i], solver=self.linearsolver)
             point_data, cell_data, info = self.postProcess(du[i])
             # print("info['postproc'].shape",self.getData(info['postproc']).shape)
             # print("jac.shape",jac.shape)
@@ -139,11 +173,40 @@ class Elasticity(simfempy.applications.elasticity.Elasticity):
         self.problemdata.bdrycond = bdrycond_bu
         return jac, du
 
+    def computeAdj(self, param, r, u, z):
+        self.param = param
+        problemdata_bu = copy.deepcopy(self.problemdata)
+        self.problemdata.clear()
+        if z is None: z = np.zeros(3*self.mesh.nnodes)
+        assert r.shape[0] == self.nmeasures
+        for i, label in enumerate(self.measure_labels):
+            self.problemdata.bdrycond.fct[label] = simfempy.solvers.optimize.RhsParam(r[i])
+        self.diffcellinv = self.diffinv(self.mesh.cell_labels)
+        self.diffcell = 1/self.diffcellinv
+        b, z = self.computeRhs(z)
+        z, iter = self.linearSolver(self.A, b, z, solver=self.linearsolver, verbose=0)
+        # point_data, cell_data, info = self.postProcess(z)
+        # self.plotter.plot(point_data, cell_data)
+        self.problemdata = problemdata_bu
+        return z
+
+    def computeM2(self, param, du, z):
+        self.param = param
+        M = np.zeros(shape=(self.nparam,self.nparam))
+        assert z is not None
+        for i in range(self.nparam):
+            for j in range(self.nparam):
+                M[j, i] -= self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+                M[i, j] -= self.Ais[i].dot(du[j][:self.mesh.nfaces]).dot(z[:self.mesh.nfaces])
+        # print("M", np.array2string(M, precision=2, floatmode='fixed'))
+        return M
+
 
 #================================================================#
 def test_plot():
     hmean = 0.1
-    nmeasure = 4
+    # hmean = 0.8
+    nmeasure = 1
     mesh, problemdata = mesh_traction(hmean, nmeasure=nmeasure)
 
     elasticity = Elasticity(problemdata=problemdata)
@@ -152,17 +215,16 @@ def test_plot():
     optimizer = simfempy.solvers.optimize.Optimizer(elasticity, nparam=2, nmeasure=3*nmeasure)
 
     refparam = elasticity.material2Lame("Acier")
+    refparam = elasticity.material2Lame("Caoutchouc")
+    initialparam = elasticity.material2Lame("Bois")
     print("refparam", refparam)
+    print("initialparam",initialparam)
     percrandom = 0.01
-    refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
+    optimizer.create_data(refparam=refparam, percrandom=percrandom, plot=True)
     # print("refdata", refdata)
     # print("perturbeddata", perturbeddata)
 
-    initialparam = elasticity.material2Lame("Aluminium")
-    refparam = elasticity.material2Lame("Caouthouc")
-    print("initialparam",initialparam)
 
-    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     # optimizer.gradtest = True
     bounds = False
     if bounds:
@@ -171,8 +233,12 @@ def test_plot():
     else:
         bounds = None
         methods = optimizer.methods
-    methods = []
-    values, valformat = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds)
+    # methods = []
+    # methods = ['lm']
+    methods.remove('TNC')
+    methods.remove('L-BFGS-B')
+    values, valformat, xall = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds, plot=True)
+    latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()
     latex.compile()

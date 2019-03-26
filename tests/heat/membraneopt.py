@@ -6,20 +6,18 @@ sys.path.append(simfempypath)
 import simfempy.applications
 import pygmsh
 import numpy as np
-import scipy.optimize
 import matplotlib.pyplot as plt
 from simfempy.tools import npext
 from simfempy.meshes import pygmshext
 import copy
-import time
 
 # ----------------------------------------------------------------#
-def createMesh2d(h=0.1, hhole=0.03, nholes=2, holesize=0.2):
+def createMesh2d(h=0.1, hhole=0.05, nholes=2, holesize=0.2):
     x0, x1 = 0, 1
     geometry = pygmsh.built_in.Geometry()
     nholesy = int(np.sqrt(nholes))
     nholesx = int(nholes/nholesy)
-    holes, hole_labels = pygmshext.add_holesnew(geometry, h=h, hhole=hhole, x0=0.2, x1=0.8, y0=0.2, y1=0.8, nholesx=nholesx,nholesy=nholesy)
+    holes, hole_labels = pygmshext.add_holesnew(geometry, h=h, hhole=hhole, x0=0.2, x1=0.8, y0=0.2, y1=0.8, nholesx=nholesx,nholesy=nholesy, holesizex=holesize, holesizey=holesize)
     outer = []
     outer.append([[x0, x0, 0], 1000, h])
     outer.append([[x1, x0, 0], 1001, h])
@@ -42,23 +40,9 @@ def createMesh2d(h=0.1, hhole=0.03, nholes=2, holesize=0.2):
     bdrycond.type[1001] = "Dirichlet"
     bdrycond.type[1003] = "Dirichlet"
     bdrycond.check(mesh.bdrylabels.keys())
+    hole_labels = np.reshape(hole_labels, (nholesx, nholesy))
     return mesh, bdrycond, hole_labels
 
-
-#----------------------------------------------------------------#
-class Plotter:
-    def __init__(self, heat):
-        self.heat = heat
-    def plot(self, point_data=None, cell_data=None, info=None):
-        if point_data is None:
-            point_data, cell_data = self.heat.point_data, self.heat.cell_data
-        if info is None:
-            addplots = None
-        else:
-            self.info = info
-            addplots = None
-        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.heat.mesh, point_data=point_data, cell_data=cell_data, addplots=addplots)
-        plt.show()
 
 #----------------------------------------------------------------#
 class Membrane(simfempy.applications.heat.Heat):
@@ -67,26 +51,42 @@ class Membrane(simfempy.applications.heat.Heat):
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
         # self.linearsolver = "umf"
-        self.plotter = Plotter(self)
+        self.kheat = np.vectorize(lambda i: 1)
+        self.reaction = np.vectorize(lambda i: 1)
+        self.plotk=True
         self.measure_labels = kwargs.pop('measure_labels')
-        self.measure_labels_inv = {}
-        for i in range(len(self.measure_labels)):
-            self.measure_labels_inv[int(self.measure_labels[i])] = i
+        # self.measure_labels_inv = {}
+        # for i in range(len(self.measure_labels)):
+        #     self.measure_labels_inv[int(self.measure_labels[i])] = i
         self.param_labels = kwargs.pop('param_labels')
+        print("self.param_labels", self.param_labels)
         self.param_labels_inv = {}
         for i in range(len(self.param_labels)):
             self.param_labels_inv[int(self.param_labels[i])] = i
-        # if 'regularize' in kwargs: self.regularize = kwargs.pop('regularize')
-        # else: self.regularize = None
         self.problemdata.postproc = {}
         self.problemdata.postproc['measured'] = "meanvalues:{}".format(','.join( [str(l) for l in self.measure_labels]))
         self.nparam = len(self.param_labels)
         self.nmeasures = len(self.measure_labels)
-        self.data0 = np.zeros(self.nmeasures)
         self.param = np.arange(self.nparam )
         self.problemdata.rhscell = {}
         for label in self.param_labels:
             self.problemdata.rhscell[label] = simfempy.solvers.optimize.RhsParam(self.param[self.param_labels_inv[label]])
+
+    def plot(self, **kwargs):
+        if not 'point_data' in kwargs: point_data = self.point_data
+        else: point_data = kwargs.pop('point_data')
+        if not 'cell_data' in kwargs: cell_data = self.cell_data
+        else: cell_data = kwargs.pop('cell_data')
+        labels = np.zeros(self.mesh.ncells)
+        for label in self.param_labels:
+            cells = self.mesh.cellsoflabel[label]
+            labels[cells] = 1
+        for label in self.measure_labels:
+            cells = self.mesh.cellsoflabel[label]
+            labels[cells] = -1
+        cell_data['labels'] = labels
+        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.mesh, point_data=point_data, cell_data=cell_data)
+        plt.show()
 
 
     def getData(self, info):
@@ -104,10 +104,9 @@ class Membrane(simfempy.applications.heat.Heat):
         self.point_data, self.cell_data, self.info = self.postProcess(u)
         data = self.getData(self.info)
         # print("self.data0",self.data0)
-        return data - self.data0, u
+        return data, u
 
     def computeDRes(self, param, u, du):
-        assert self.data0.shape[0] == self.nmeasures
         jac = np.zeros(shape=(self.nmeasures, self.nparam))
         rhscell = copy.deepcopy(self.problemdata.rhscell)
         if du is None: du = self.nparam*[np.empty(0)]
@@ -119,7 +118,7 @@ class Membrane(simfempy.applications.heat.Heat):
             du[i], iter = self.linearSolver(self.A, b, du[i], solver=self.linearsolver, verbose=0)
             point_data, cell_data, info = self.postProcess(du[i])
             # self.plot(point_data, cell_data, info)
-            jac[:self.nmeasures,i] = self.getData(info)
+            jac[:,i] = self.getData(info)
         self.problemdata.rhscell = rhscell
         return jac, du
 
@@ -178,55 +177,48 @@ class Membrane(simfempy.applications.heat.Heat):
 
 #----------------------------------------------------------------#
 def test():
-    nholesperdirection = 4
+    nholes = 8
     holesize = 0.1
-    mesh, bdrycond, hole_labels = createMesh2d(nholes=nholesperdirection, holesize=holesize)
-    # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    # plt.show()
+    mesh, bdrycond, hole_labels = createMesh2d(nholes=nholes, holesize=holesize)
+    mesh.plotWithBoundaries()
+    plt.show()
     problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond)
-    param_labels = hole_labels[1::2]
-    measure_labels = hole_labels[::2]
-    regularize = 0.0001
+    # param_labels = hole_labels[:,0]
+    # measure_labels = hole_labels[:,1]
+
+    param_labels = hole_labels[::2]
+    measure_labels = hole_labels[1::2]
+
+    param_labels = param_labels.reshape(-1)
+    measure_labels = measure_labels.reshape(-1)
+    print("param_labels", param_labels)
+
+    regularize = 0.00
     membrane = Membrane(problemdata=problemdata, measure_labels=measure_labels, param_labels=param_labels)
     membrane.setMesh(mesh)
     nmeasures = len(measure_labels)
     nparams = len(param_labels)
 
-    refparam = 2+2*np.arange(nparams)
-    optimizer = simfempy.solvers.optimize.Optimizer(membrane, nparam=nparams, nmeasure=nmeasures, regularize=regularize,
-                                                    param0=2*np.ones(nparams))
+    optimizer = simfempy.solvers.optimize.Optimizer(membrane, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=np.zeros(nparams))
 
+    refparam = np.zeros(nparams)
+    ri = np.random.randint(0, 3, nparams)
+    refparam[ri==1] = 100
+    refparam[ri==2] = 200
     percrandom = 0.1
-    refdata, perturbeddata = optimizer.create_data(refparam=refparam, percrandom=percrandom)
+    optimizer.create_data(refparam=refparam, percrandom=percrandom, printdata=True, plot=True)
 
-    initialparam = np.zeros(nparams)
-    print("refparam",refparam)
-    print("refdata",refdata)
-    print("perturbeddata",perturbeddata)
+    initialparam = 20*np.ones(nparams)
     print("initialparam",initialparam)
 
-    # membrane.data0 = np.zeros(nmeasures)
-    # param = np.random.rand(nparams)
-    # param = 2+2*np.arange(nparams)
-    # # data = membrane.solvestate(param)[:nmeasures]
-    # data,u = membrane.computeRes(param)[:nmeasures]
-    # print("param", param)
-    # # print("data", data)
-    # membrane.plotter.plot()
-    # perc = 0
-    # membrane.data0[:] =  data[:]*(1+0.5*perc* ( 2*np.random.rand(nmeasures)-1))
-    # param = np.zeros(nparams)
-    # param = np.random.rand(nparams)
-    # data = membrane.solvestate(param)[:nmeasures]
-    # print("data", data)
-    # membrane.plotter.plot()
-
-    optimizer.gradtest = True
-    optimizer.hestest = True
+    # optimizer.gradtest = True
+    # optimizer.hestest = True
     # for method in optimizer.lsmethods:
-    for method in optimizer.methods:
+    methods = optimizer.methods
+    # methods = ['Newton-CG']
+    for method in methods:
         optimizer.minimize(x0=initialparam, method=method)
-        # membrane.plotter.plot(info=membrane.info)
+        membrane.plot(info=membrane.info)
 
 #================================================================#
 

@@ -12,22 +12,22 @@ import copy
 
 
 #----------------------------------------------------------------#
-class Plotter:
-    def __init__(self, solver):
-        self.solver = solver
-    def plot(self, **kwargs):
-        if not 'point_data' in kwargs: point_data = self.solver.point_data
-        else: point_data = kwargs.pop('point_data')
-        if not 'cell_data' in kwargs: cell_data = self.solver.cell_data
-        else: cell_data = kwargs.pop('cell_data')
-        quiver_cell_data={'v': (cell_data['v0'],cell_data['v1'])}
-        cell_data={'u':cell_data['p'], 'diff':cell_data['diff']}
-        point_data={}
-        kwargs['point_data'] = point_data
-        kwargs['cell_data'] = cell_data
-        kwargs['quiver_cell_data'] = quiver_cell_data
-        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.solver.mesh, **kwargs)
-        plt.show()
+# class Plotter:
+#     def __init__(self, solver):
+#         self.solver = solver
+#     def plot(self, **kwargs):
+#         if not 'point_data' in kwargs: point_data = self.solver.point_data
+#         else: point_data = kwargs.pop('point_data')
+#         if not 'cell_data' in kwargs: cell_data = self.solver.cell_data
+#         else: cell_data = kwargs.pop('cell_data')
+#         quiver_cell_data={'v': (cell_data['v0'],cell_data['v1'])}
+#         cell_data={'u':cell_data['p'], 'diff':cell_data['diff']}
+#         point_data={}
+#         kwargs['point_data'] = point_data
+#         kwargs['cell_data'] = cell_data
+#         kwargs['quiver_cell_data'] = quiver_cell_data
+#         fig, axs = simfempy.meshes.plotmesh.meshWithData(self.solver.mesh, **kwargs)
+#         plt.show()
 
 #----------------------------------------------------------------#
 class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
@@ -46,9 +46,9 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
     def __init__(self, **kwargs):
         kwargs['plotdiff'] = True
         super().__init__(**kwargs)
-        self.plotter = Plotter(self)
+        # self.plotter = Plotter(self)
         self.linearsolver = "umf"
-        # self.linearsolver = "gmres"
+        self.linearsolver = "gmres"
         self.measure_labels = kwargs.pop('measure_labels')
         self.measure_labels_inv = {}
         for i in range(len(self.measure_labels)):
@@ -63,15 +63,14 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.param = self.diffglobalinv*np.ones(self.nparam )
         self.diffinv = np.vectorize(self.conductivityinv)
         self.ddiffinv = np.vectorize(self.dconductivityinv)
-        # self.data0 = np.zeros(self.nmeasures)
+
+    def diffinv2param(self, diffinv):
+        return diffinv
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Ais = [np.empty(shape=(0,0)) for i in range(self.nparam)]
         self.computeAis()
-
-    def diffinv2param(self, diffinv):
-        return diffinv
 
     def computeAis(self):
         bdrycond_bu = copy.deepcopy(self.problemdata.bdrycond)
@@ -88,7 +87,19 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         self.problemdata.bdrycond = bdrycond_bu
 
     def plot(self, **kwargs):
-        self.plotter.plot(**kwargs)
+        if not 'point_data' in kwargs: point_data = self.point_data
+        else: point_data = kwargs.pop('point_data')
+        if not 'cell_data' in kwargs: cell_data = self.cell_data
+        else: cell_data = kwargs.pop('cell_data')
+        quiver_cell_data={'v': (cell_data['v0'],cell_data['v1'])}
+        cell_data={'u':cell_data['p'], 'diff':cell_data['diff']}
+        point_data={}
+        kwargs['point_data'] = point_data
+        kwargs['cell_data'] = cell_data
+        kwargs['quiver_cell_data'] = quiver_cell_data
+        fig, axs = simfempy.meshes.plotmesh.meshWithData(self.mesh, **kwargs)
+        plt.show()
+        # self.plotter.plot(**kwargs)
 
     def getData(self, infopp):
         # print("infopp", infopp)
@@ -113,8 +124,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         # print("state iter", iter)
         self.point_data, self.cell_data, self.info = self.postProcess(u)
         data = self.getData(self.info['postproc'])
-        # print("data- self.data0", data-self.data0)
-        return data - self.data0, u
+        return data, u
 
     def computeDRes(self, param, u, du):
         self.param = param

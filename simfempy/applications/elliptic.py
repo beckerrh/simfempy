@@ -102,6 +102,7 @@ class Elliptic(solvers.solver.Solver):
             for icomp in range(self.ncomp):
                 point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
         info['postproc'] = {}
+        print("self.problemdata.postproc", self.problemdata.postproc)
         for icomp, postproc in enumerate(self.problemdata.postproc):
             for key, val in postproc.items():
                 type,data = val.split(":")
