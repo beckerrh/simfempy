@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 import simfempy.fems.bdrydata
 
 #=================================================================#
-class FemRT0(object):
+class FemBV0(object):
     """
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """
@@ -45,26 +45,20 @@ class FemRT0(object):
         return self.Mtocell.dot(v)
 
     def constructMass(self, diffinvcell=None):
-        ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
-        scalea = 1 / dim / dim / (dim + 2) / (dim + 1)
-        scaleb = 1 / dim / dim / (dim + 2) * (dim + 1)
-        scalec = 1 / dim / dim
-        dS = sigma * linalg.norm(normals[facesofcells], axis=2)
-        x1 = scalea *np.einsum('nij,nij->n', p[simp], p[simp]) + scaleb* np.einsum('ni,ni->n', pc, pc)
-        mat = np.einsum('ni,nj, n->nij', dS, dS, x1)
-        x2 = scalec *np.einsum('nik,njk->nij', p[simp], p[simp])
-        mat += np.einsum('ni,nj,nij->nij', dS, dS, x2)
-        x3 = - scalec * np.einsum('nik,nk->ni', p[simp], pc)
-        mat += np.einsum('ni,nj,ni->nij', dS, dS, x3)
-        mat += np.einsum('ni,nj,nj->nij', dS, dS, x3)
-        if diffinvcell is None:
-            mat = np.einsum("nij, n -> nij", mat, 1/dV)
-        else:
-            mat = np.einsum("nij, n -> nij", mat, diffinvcell / dV  )
-        rows = np.repeat(facesofcells, self.nloc).flatten()
-        cols = np.tile(facesofcells, self.nloc).flatten()
-        return sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        ncells, nfaces, normals = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals
+        cellsOfFaces, facesOfCells, dV = self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
+        dim = self.mesh.dimension
+        scalemass = (2-dim) / (dim+1) / (dim+2)
+        massloc = np.tile(scalemass, (self.nloc,self.nloc))
+        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
+        mass = np.einsum('n,kl->nkl', dV, massloc)
+        dS = linalg.norm(normals[facesOfCells], axis=2)
+        nnormals = (normals[facesOfCells].T/dS.T).T
+        mat = np.einsum('nij,n,nik,njk->nij', mass, diffinvcell, nnormals, nnormals).flatten()
+        rows = np.repeat(facesOfCells, self.nloc).flatten()
+        cols = np.tile(facesOfCells, self.nloc).flatten()
+        A= sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        return A
 
     def reconstruct(self, p, vc, diffinv):
         nnodes, ncells, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension

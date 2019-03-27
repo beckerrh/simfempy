@@ -20,11 +20,13 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
         h = [2, 1.0, 0.5, 0.25, 0.125, 0.062, 0.03, 0.015]
         bdrycond.type[1000] = "Dirichlet"
         bdrycond.type[1001] = "Dirichlet"
-        bdrycond.type[1002] = "Neumann"
-        bdrycond.type[1003] = "Robin"
-        bdrycond.param[1003] = 11
-        postproc['bdrydn'] = "bdrydn:1000,1001"
-        postproc['bdrymean'] = "bdrymean:1002"
+        # bdrycond.type[1002] = "Neumann"
+        # bdrycond.type[1003] = "Robin"
+        # bdrycond.param[1003] = 11
+        # postproc['bdrydn'] = "bdrydn:1000,1001"
+        # postproc['bdrymean'] = "bdrymean:1002"
+        bdrycond.type[1002] = "Dirichlet"
+        bdrycond.type[1003] = "Dirichlet"
         geometry = geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125, 0.06]
@@ -42,7 +44,8 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     laplace = LaplaceMixed(geometry=geometry, showmesh=False)
     problemdata = laplace.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
     methods = {}
-    methods['poisson'] = LaplaceMixed(problemdata=problemdata)
+    methods['RT0'] = LaplaceMixed(problemdata=problemdata)
+    methods['BV0'] = LaplaceMixed(problemdata=problemdata, fem='bv0')
     if exactsolution == "Linear": h = h[:-3]
     comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
@@ -50,7 +53,8 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    test_analytic(exactsolution="Quadratic")
+    test_analytic(exactsolution="Linear")
+    # test_analytic(exactsolution="Quadratic")
     # test_analytic(exactsolution="Linear", geomname="unitcube")
     # test_analytic()
     # test_analytic(geomname="unitcube")

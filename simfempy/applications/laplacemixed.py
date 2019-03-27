@@ -34,7 +34,10 @@ class LaplaceMixed(solvers.solver.Solver):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.linearsolver = "gmres"
-        self.femv = simfempy.fems.femrt0.FemRT0()
+        if 'fem' in kwargs and kwargs.pop('fem')=='bv0':
+            self.femv = simfempy.fems.fembv0.FemBV0()
+        else:
+            self.femv = simfempy.fems.femrt0.FemRT0()
         if 'diff' in kwargs:
             self.diff = np.vectorize(kwargs.pop('diff'))
         else:
