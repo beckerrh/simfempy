@@ -48,6 +48,12 @@ class FemBV0(object):
         ncells, nfaces, normals = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals
         cellsOfFaces, facesOfCells, dV = self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         dim = self.mesh.dimension
+
+        assert dim==2
+        mat = np.tile(1/3*dV,3).flatten()
+        rows = facesOfCells.flatten()
+        B= sparse.coo_matrix((mat, (rows, rows)), shape=(nfaces, nfaces)).tocsr()
+
         scalemass = (2-dim) / (dim+1) / (dim+2)
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
@@ -58,6 +64,7 @@ class FemBV0(object):
         rows = np.repeat(facesOfCells, self.nloc).flatten()
         cols = np.tile(facesOfCells, self.nloc).flatten()
         A= sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        assert np.allclose(A.data,B.data)
         return A
 
     def reconstruct(self, p, vc, diffinv):
