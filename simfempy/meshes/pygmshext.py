@@ -1,4 +1,32 @@
 import numpy as np
+import meshio
+import subprocess
+from . import simplexmesh
+
+#----------------------------------------------------------------#
+def gmshRefine(mesh):
+    filenamemsh = "coarse.msh"
+    filenamemshref = "fine.msh"
+    mesh.write(filename=filenamemsh)
+    cmd = ['gmsh']
+    cmd += ["-refine"]
+    cmd += ["{}".format(filenamemsh)]
+    cmd += ["-o"]
+    cmd += ["{}".format(filenamemshref)]
+    # cmd += ["-format"]
+    # cmd += ["{}".format("msh2")]
+    p = subprocess.Popen(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    # if stderr != "":
+    #     print("cmd=", cmd)
+    #     print("cmd=", ' '.join(cmd))
+    #     print("stderr=", stderr)
+    #     raise RuntimeError('Gmsh exited with error (return code %d).' % p.returncode)
+    mesh = meshio.read(filenamemshref)
+    print("mesh.cells", mesh.cells.keys())
+    print("mesh.cell_data", mesh.cell_data.keys())
+    data =  mesh.points, mesh.cells, mesh.point_data, mesh.cell_data, mesh.field_data
+    return simplexmesh.SimplexMesh(data=data)
 
 
 #----------------------------------------------------------------#

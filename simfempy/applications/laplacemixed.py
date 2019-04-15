@@ -34,14 +34,23 @@ class LaplaceMixed(solvers.solver.Solver):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.linearsolver = "gmres"
-        if 'fem' in kwargs and kwargs.pop('fem')=='bv0':
-            self.femv = simfempy.fems.fembv0.FemBV0()
+        if 'linearsolver' in kwargs:
+            self.linearsolver = kwargs.pop('linearsolver')
+        if 'massproj' in kwargs: massproj = kwargs.pop('massproj')
+        else: massproj=None
+        if 'fem' in kwargs:
+            fem = kwargs.pop('fem')
+            if fem =='bv0':
+                self.femv = simfempy.fems.fembv0.FemBV0()
+            else:
+                self.femv = simfempy.fems.femrt0.FemRT0(massproj=massproj)
         else:
-            self.femv = simfempy.fems.femrt0.FemRT0()
+            self.femv = simfempy.fems.femrt0.FemRT0(massproj=massproj)
         if 'diff' in kwargs:
             self.diff = np.vectorize(kwargs.pop('diff'))
         else:
-            self.diff = np.vectorize(lambda i: 0.123)
+            self.diff = np.vectorize(lambda i: 1)
+            # self.diff = np.vectorize(lambda i: 0.123)
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
@@ -150,7 +159,8 @@ class LaplaceMixed(solvers.solver.Solver):
         for color, faces in self.mesh.bdrylabels.items():
             if self.problemdata.bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
             ud = self.problemdata.bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
-            bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
+            # bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
+            bsides[faces] = self.femv.rhsDirichlet(faces, ud)
 
         help = np.zeros(self.mesh.nfaces)
         if hasattr(self.problemdata.bdrycond,'fctexact'):
@@ -201,8 +211,11 @@ class LaplaceMixed(solvers.solver.Solver):
     def linearSolver(self, Ain, bin, u=None, solver = None, verbose=0):
         if solver is None: solver = self.linearsolver
         if solver == 'umf':
+            # print("bin", bin)
             Aall = self._to_single_matrix(Ain)
-            return splinalg.spsolve(Aall, bin, permc_spec='COLAMD'), 1
+            u =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD'), 1
+            # print("u", u)
+            return u
         elif solver == 'gmres':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
@@ -214,6 +227,13 @@ class LaplaceMixed(solvers.solver.Solver):
             A, B = A.tocsr(), B.tocsr()
             D = scipy.sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces,nfaces))
             S = -B*D*B.T
+            # print("S", S)
+
+
+            # Dex = scipy.sparse.linalg.inv(A)
+            # print("Sex", -B*Dex*B.T)
+
+
             import pyamg
             config = pyamg.solver_configuration(S, verb=False)
             ml = pyamg.rootnode_solver(S, B=config['B'], smooth='energy')
@@ -233,6 +253,7 @@ class LaplaceMixed(solvers.solver.Solver):
             P = splinalg.LinearOperator(shape=(nfaces+ncells,nfaces+ncells), matvec=pmult)
             u,info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-12, tol=1e-12, inner_m=10, outer_k=4)
             if info: raise ValueError("no convergence info={}".format(info))
+            # print("u", u)
             return u, counter.niter
         else:
             raise NotImplementedError("solver '{}' ".format(solver))

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from simfempy.tools.latexwriter import LatexWriter
 from simfempy.meshes.simplexmesh import SimplexMesh
+import simfempy.meshes.pygmshext
 
 
 #=================================================================#
@@ -54,30 +55,41 @@ class CompareMethods(object):
             self.paramname = kwargs.pop("paramname")
         else:
             self.paramname = "ncells"
+            if 'niter' in kwargs: self.niter = kwargs.pop("niter")
+            else: self.niter = -1
         self.parameters = []
         self.infos = None
         
     def compare(self, geometry, h=None, params=None):
         if self.paramname == "ncells":
-            params = h
+            if h is None:
+                mesh = SimplexMesh(geometry=geometry)
+                gmshrefine = True
+                if self.niter ==-1: raise KeyError("please give 'niter'")
+                params = [mesh.ncells*mesh.dimension**i for i in range(self.niter)]
+            else:
+                params = h
+                gmshrefine = False
         else:
             mesh = SimplexMesh(geometry=geometry, hmean=self.h)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
-                mesh = SimplexMesh(geometry=geometry, hmean=param)
+                if gmshrefine:
+                    mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
+                else:
+                    mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)
-                # self.solver.setParameter(self.param, param)
             for name, method in self.methods.items():
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells":
                     method.setParameter(self.paramname, param)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
-                if self.vtk:
-                    filename = "{}_{:02d}.vtk".format(name, iter)
-                    mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
+                # if self.vtk:
+                #     filename = "{}_{:02d}.vtk".format(name, iter)
+                #     mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])

@@ -78,10 +78,12 @@ class SimplexMesh(object):
                 self.verticesoflabel[color] = self.vertices[ind]
         if self.dimension==2:
             self.simplices = cells['triangle']
+            self._facedata = (cells['line'], celldata['line']['gmsh:physical'])
             self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
             self.cell_labels = celldata['triangle']['gmsh:physical']
         else:
             self.simplices = cells['tetra']
+            self._facedata = (cells['triangle'], celldata['triangle']['gmsh:physical'])
             self._constructFacesFromSimplices(cells['triangle'], celldata['triangle']['gmsh:physical'])
             self.cell_labels = celldata['tetra']['gmsh:physical']
         cellloflabel = npext.unique_all(self.cell_labels)
@@ -267,21 +269,35 @@ class SimplexMesh(object):
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
         self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
 
-    def write(self, filename, dirname = "out", point_data=None, cell_data=None):
+    def write(self, filename, dirname = None, point_data=None):
         cell_data_meshio = {}
+
+        if hasattr(self,'vertex_labels'):
+            cell_data_meshio['vertex'] = {}
+            cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
+
+
         if self.dimension ==2:
             cells = {'triangle': self.simplices}
-            if cell_data is not None:
-                cell_data_meshio = {'triangle': cell_data}
+            cells['line'] = self._facedata[0]
+            cell_data_meshio['line']={}
+            cell_data_meshio['line']['gmsh:physical'] = self._facedata[1]
+            cell_data_meshio['triangle']={}
+            cell_data_meshio['triangle']['gmsh:physical'] = self.cell_labels
         else:
             cells = {'tetra': self.simplices}
-            if cell_data is not None:
-                cell_data_meshio = {'tetra': cell_data}
-        dirname = dirname + os.sep + "mesh"
-        if not os.path.isdir(dirname) :
-            os.makedirs(dirname)
-        filename = os.path.join(dirname, filename)
-        meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio)
+            cells['triangle'] = self._facedata[0]
+            cell_data_meshio['triangle']={}
+            cell_data_meshio['triangle']['gmsh:physical'] = self._facedata[1]
+            cell_data_meshio['tetra']={}
+            cell_data_meshio['tetra']['gmsh:physical'] = self.cell_labels
+        if dirname is not None:
+            dirname = dirname + os.sep + "mesh"
+            if not os.path.isdir(dirname) :
+                os.makedirs(dirname)
+            filename = os.path.join(dirname, filename)
+        print("cell_data_meshio['line']['gmsh:physical']", cell_data_meshio['line']['gmsh:physical'])
+        meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio, file_format='gmsh2-ascii')
 
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
