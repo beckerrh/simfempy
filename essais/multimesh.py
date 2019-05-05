@@ -29,6 +29,6 @@ geom.add_physical_volume(vol, label=111)
 
 # data = pygmsh.generate_mesh(geom)
 data = simfempy.meshes.gmsh.generate_mesh(geom, msh_filename='toto', bin=False)
-mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 plt.show()

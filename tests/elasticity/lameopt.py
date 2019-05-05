@@ -81,8 +81,8 @@ def mesh_traction(h, dim=3, nmeasure=4):
         postproc['measured'] = "pointvalues:{}".format(','.join( [str(l) for l in pointlabels]))
     else:
         raise ValueError("unknown dim={}".format(dim))
-    data = pygmsh.generate_mesh(geometry, verbose=False)
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    mesh = pygmsh.generate_mesh(geometry, verbose=False)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     bdrycond.check(mesh.bdrylabels.keys())
     # mesh.plot(title='Mesh with measures')
     # mesh.plotWithBoundaries()
@@ -215,11 +215,11 @@ def test_plot():
     optimizer = simfempy.solvers.optimize.Optimizer(elasticity, nparam=2, nmeasure=3*nmeasure)
 
     refparam = elasticity.material2Lame("Acier")
-    refparam = elasticity.material2Lame("Caoutchouc")
+    # refparam = elasticity.material2Lame("Caoutchouc")
     initialparam = elasticity.material2Lame("Bois")
     print("refparam", refparam)
     print("initialparam",initialparam)
-    percrandom = 0.01
+    percrandom = 0.0
     optimizer.create_data(refparam=refparam, percrandom=percrandom, plot=True)
     # print("refdata", refdata)
     # print("perturbeddata", perturbeddata)
@@ -227,8 +227,10 @@ def test_plot():
 
     # optimizer.gradtest = True
     bounds = False
+    bounds = True
     if bounds:
-        bounds = (0.001, np.inf)
+        from scipy.optimize import Bounds
+        bounds =  Bounds([0.001, 0.001],[np.inf, np.inf])
         methods = optimizer.boundmethods
     else:
         bounds = None
@@ -237,7 +239,7 @@ def test_plot():
     # methods = ['lm']
     methods.remove('TNC')
     methods.remove('L-BFGS-B')
-    values, valformat, xall = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds, plot=True)
+    values, valformat, xall = optimizer.testmethods(x0=initialparam, methods=methods, bounds=bounds, plot=True, verbose=0)
     latex = simfempy.tools.latexwriter.LatexWriter(filename="mincompare")
     latex.append(n=methods, nname='method', nformat="20s", values=values, valformat=valformat)
     latex.write()

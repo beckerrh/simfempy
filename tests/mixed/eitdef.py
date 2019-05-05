@@ -60,8 +60,8 @@ def createMesh2d(**kwargs):
     # print("circ", dir(circ.line_loop))
 
     # with open("welcome.geo","w") as file: file.write(geometry.get_code())
-    data = pygmsh.generate_mesh(geometry, verbose=False)
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    mesh = pygmsh.generate_mesh(geometry, verbose=False)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     measure_labels = labels[::3]
     other_labels = set.difference(set(np.unique(labels)),set(np.unique(measure_labels)))
     return mesh, hole_labels, measure_labels, other_labels

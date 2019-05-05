@@ -16,9 +16,9 @@ def test():
     holes.append([[-0.5, -0.75], [-0.5, -1.25], [0.5, -1.25], [0.5, -0.75]])
     # geometry = unitsquareholes.define_geometry(rect=(-1,1,-2,2), holes=holes, h=0.2)
     geometry = geomdefs.unitsquareholes.Unitsquareholes(rect=(-1,1,-2,2), holes=holes, h=0.2)
-    data = pygmsh.generate_mesh(geometry)
+    mesh = pygmsh.generate_mesh(geometry)
 
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
     plt.show()
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()

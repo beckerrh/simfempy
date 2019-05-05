@@ -42,8 +42,8 @@ def createMesh2d(h=0.1, hhole=0.05, hmeas=0.02, nmeasurepoints=2, nholes=2):
         pointlabels.append(label)
     geometry.add_physical_surface(p1.surface, label=100)
     # print("code", geometry.get_code())
-    data = pygmsh.generate_mesh(geometry, verbose=False)
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    mesh = pygmsh.generate_mesh(geometry, verbose=False)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
     bdrycond.type[1002] = "Neumann"
     bdrycond.type[1000] = "Dirichlet"

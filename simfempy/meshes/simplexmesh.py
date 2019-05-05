@@ -30,7 +30,7 @@ class SimplexMesh(object):
     simplices: node ids of simplices of shape (ncells, dimension+1)
     faces: node ids of faces of shape (nfaces, dimension)
 
-    facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]\setminus simplices[i,ii], sorted
+    facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]-setminus simplices[i,ii], sorted
     cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
 
     normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
@@ -44,9 +44,9 @@ class SimplexMesh(object):
     def __repr__(self):
         return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
-        if 'data' in kwargs:
+        if 'mesh' in kwargs:
             self.geometry = 'own'
-            data = kwargs.pop('data')
+            mesh = kwargs.pop('mesh')
         else:
             import pygmsh
             self.geometry = kwargs.pop('geometry')
@@ -56,8 +56,8 @@ class SimplexMesh(object):
             # code = self.geometry.get_code()
             # with open("toto.geo",'w') as file:
             #     file.write(code)
-            data = pygmsh.generate_mesh(self.geometry, verbose=False)
-        self._initMeshPyGmsh(data[0], data[1], data[3])
+            mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
+        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
 
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
