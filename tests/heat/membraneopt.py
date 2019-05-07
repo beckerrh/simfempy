@@ -32,8 +32,8 @@ def createMesh2d(h=0.1, hhole=0.05, nholes=2, holesize=0.2):
         geometry.add_physical_line([p1.line_loop.lines[i] for i in ind], label=int(val))
     geometry.add_physical_surface(p1.surface, label=100)
     # print("code", geometry.get_code())
-    data = pygmsh.generate_mesh(geometry, verbose=False)
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(data=data)
+    mesh = pygmsh.generate_mesh(geometry, verbose=False)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     bdrycond = simfempy.applications.problemdata.BoundaryConditions()
     bdrycond.type[1002] = "Dirichlet"
     bdrycond.type[1000] = "Dirichlet"

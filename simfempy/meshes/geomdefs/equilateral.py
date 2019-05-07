@@ -31,7 +31,7 @@ if __name__ == '__main__':
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
     geometry = Equilateral(h=2)
-    meshdata = pygmsh.generate_mesh(geometry)
+    meshmesh = pygmsh.generate_mesh(geometry)
     mesh = simplexmesh.SimplexMesh(data=meshdata)
     mesh.plotWithBoundaries()
     plt.show()

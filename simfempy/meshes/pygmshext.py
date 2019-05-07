@@ -26,7 +26,7 @@ def gmshRefine(mesh):
     print("mesh.cells", mesh.cells.keys())
     print("mesh.cell_data", mesh.cell_data.keys())
     data =  mesh.points, mesh.cells, mesh.point_data, mesh.cell_data, mesh.field_data
-    return simplexmesh.SimplexMesh(data=data)
+    return simplexmesh.SimplexMesh(mesh=mesh)
 
 
 #----------------------------------------------------------------#

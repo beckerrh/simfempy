@@ -62,7 +62,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     # methods['BV'] = LaplaceMixed(problemdata=problemdata, fem='bv0', linearsolver=linearsolver)
     # if exactsolution == "Linear" or exactsolution == "Constant": h = h[:-5]
     # h = [2]
-    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=4, niter=niter)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose, niter=niter)
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['pcL2']
 
