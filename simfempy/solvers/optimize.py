@@ -36,7 +36,7 @@ class Optimizer(object):
             if not 'param0' in kwargs: raise ValueError("If 'regularize' is given, we need 'param0'")
             self.regularize = kwargs.pop('regularize')
             if self.regularize is not None:
-                np.sqrt(self.regularize)
+                self.regularize = np.sqrt(self.regularize)
             else:
                 self.regularize = 0
             self.param0 = kwargs.pop('param0')
