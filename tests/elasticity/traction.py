@@ -26,7 +26,7 @@ def mesh_traction(hmean, geomname="unitcube", x=[-1,1], y=[-1,1], z=[-1,1]):
         bdrycond.type[100] = "Neumann"
         bdrycond.type[101] = "Neumann"
         bdrycond.type[102] = "Neumann"
-        bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([10,0,0])
+        bdrycond.fct[102] = lambda x, y, z, nx, ny, nz: np.array([40,0,0])
         bdrycond.type[103] = "Neumann"
         bdrycond.type[104] = "Dirichlet"
         bdrycond.type[105] = "Neumann"
@@ -77,7 +77,9 @@ def test_solvers():
 #================================================================#
 def test_plot():
     hmean = 0.1
-    A, b, u, elasticity = mesh_traction(hmean, x=[0,1], y=[0,1], z=[-1,1])
+    x, y, z = [0, 1], [0, 1], [-1, 1]
+    x, y, z = [-1, 1], [0, 1], [-1, 1]
+    A, b, u, elasticity = mesh_traction(hmean, x=x, y=y, z=z)
     n, ncomp = elasticity.mesh.ncells, elasticity.ncomp
     u, niter = elasticity.linearSolver(A, b, u, solver="pyamg")
     ncomp = elasticity.ncomp

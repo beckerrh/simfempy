@@ -22,9 +22,9 @@ class Backwardfacingstep(geometry.Geometry):
         X.append([ 3.0, -1.0])
         X.append([ 3.0,  1.0])
         p = self.add_polygon(X=np.insert(np.array(X), 2, 0, axis=1), lcar=h)
-        self.add_physical_surface(p.surface, label=100)
+        self.add_physical(p.surface, label=100)
         ll = p.line_loop
-        for i in range(len(ll.lines)): self.add_physical_line(ll.lines[i], label=1000+i)
+        for i in range(len(ll.lines)): self.add_physical(ll.lines[i], label=1000+i)
         return self
 
 # ------------------------------------- #

@@ -15,8 +15,8 @@ class Unitsquare(geometry.Geometry):
         self.reset()
         a = 1.0
         p = self.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
-        self.add_physical_surface(p.surface, label=100)
-        for i in range(4): self.add_physical_line(p.line_loop.lines[i], label=1000 + i)
+        self.add_physical(p.surface, label=100)
+        for i in range(4): self.add_physical(p.line_loop.lines[i], label=1000 + i)
 
 # ------------------------------------- #
 if __name__ == '__main__':

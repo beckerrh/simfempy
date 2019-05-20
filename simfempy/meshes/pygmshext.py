@@ -168,7 +168,7 @@ def add_circle(
 #         holes.append(geom.add_polygon(X=xhole, lcar=hhole))
 #         xarrm = np.mean(np.array(xhole), axis=0)
 #         add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
-#         geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
+#         geom.add_physical(holes[-1].surface, label=int(hole_label))
 #     return holes, hole_labels
 #----------------------------------------------------------------#
 def add_holesnew(geom, **kwargs):
@@ -226,7 +226,7 @@ def add_holesnew(geom, **kwargs):
         holes.append(geom.add_polygon(X=xhole, lcar=hhole))
         xarrm = np.mean(np.array(xhole), axis=0)
         add_point_in_surface(geom, holes[-1].surface, xarrm, lcar=h)
-        geom.add_physical_surface(holes[-1].surface, label=int(hole_label))
+        geom.add_physical(holes[-1].surface, label=int(hole_label))
     return holes, hole_labels
 
 #----------------------------------------------------------------#

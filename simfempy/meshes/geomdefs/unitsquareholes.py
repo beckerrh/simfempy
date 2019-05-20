@@ -21,11 +21,11 @@ class Unitsquareholes(geometry.Geometry):
         holes=[]
         for i,xhole in enumerate(xholes):
             holes.append(self.add_polygon(X=xhole, lcar=h))
-            self.add_physical_surface(holes[i].surface, label=200+i)
+            self.add_physical(holes[i].surface, label=200+i)
         # outer rectangle
         p1 = self.add_rectangle(rect[0], rect[1], rect[2], rect[3], 0, lcar=h, holes=holes)
-        self.add_physical_surface(p1.surface, label=100)
-        for i in range(4): self.add_physical_line(p1.line_loop.lines[i], label=1000+i)
+        self.add_physical(p1.surface, label=100)
+        for i in range(4): self.add_physical(p1.line_loop.lines[i], label=1000+i)
         return self
 
 # ------------------------------------- #

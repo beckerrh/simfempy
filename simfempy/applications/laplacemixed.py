@@ -12,8 +12,13 @@ class LaplaceMixed(solvers.solver.Solver):
     """
     """
     def defineRhsAnalyticalSolution(self, solexact):
+        # constant diffusion
         def _fctu(x, y, z):
             rhs = np.zeros(x.shape[0])
+            if self.beta is not None:
+                beta = self.beta(x,y,z)
+                for i in range(self.mesh.dimension):
+                    rhs += beta[i] * solexact.d(i, x, y, z)
             for i in range(self.mesh.dimension):
                 rhs -= self.diff(0)*solexact.dd(i, i, x, y, z)
             return rhs
@@ -51,6 +56,10 @@ class LaplaceMixed(solvers.solver.Solver):
         else:
             self.diff = np.vectorize(lambda i: 1)
             # self.diff = np.vectorize(lambda i: 0.123)
+        if 'beta' in kwargs:
+            self.beta = np.vectorize(kwargs.pop('beta'))
+        else:
+            self.beta = None
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
@@ -161,6 +170,20 @@ class LaplaceMixed(solvers.solver.Solver):
             ud = self.problemdata.bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
             # bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
             bsides[faces] = self.femv.rhsDirichlet(faces, ud)
+            if self.beta is not None:
+                faces = self.mesh.bdrylabels[color]
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS, axis=1)
+                normalsS = normalsS / dS[:, np.newaxis]
+                xf, yf, zf = self.mesh.pointsf[faces].T
+                beta = np.array(self.beta(xf, yf, zf))
+                # print("beta", beta)
+                # print("normalsS", normalsS.T)
+                bn = np.einsum("ij,ij->j", beta, normalsS.T)
+                # print("bn", bn)
+                bn[bn<=0] = 0
+                cells = self.mesh.cellsOfFaces[faces,0]
+                bcells[cells] += bn*ud*dS
 
         help = np.zeros(self.mesh.nfaces)
         if hasattr(self.problemdata.bdrycond,'fctexact'):

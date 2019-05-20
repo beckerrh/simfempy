@@ -22,13 +22,13 @@ class Backwardfacingstep3d(geometry.Geometry):
         X.append([ 3.0, -1.0])
         X.append([ 3.0,  1.0])
         p = self.add_polygon(X=np.insert(np.array(X), 2, -1.0, axis=1), lcar=h)
-        self.add_physical_surface(p.surface, label=100)
+        self.add_physical(p.surface, label=100)
         axis = [0, 0, 2]
         top, vol, ext = self.extrude(p.surface, axis)
         next = len(ext)
-        self.add_physical_surface(top, label=101+next)
+        self.add_physical(top, label=101+next)
         for i in range(next):
-            self.add_physical_surface(ext[i], label=101+i)
+            self.add_physical(ext[i], label=101+i)
         self.add_physical_volume(vol, label=10)
         return self
 

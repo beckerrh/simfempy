@@ -19,12 +19,12 @@ def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
         def define(self, h=1):
             self.reset()
             p = self.add_circle(x0=(0,0,0), radius=self.radius, lcar=h)
-            self.add_physical_surface(p.plane_surface, label=200)
+            self.add_physical(p.plane_surface, label=200)
             rect = [-1, 1, -1, 1]
             p1 = self.add_rectangle(rect[0], rect[1], rect[2], rect[3], 0, lcar=h, holes=[p])
-            self.add_physical_surface(p1.surface, label=100)
+            self.add_physical(p1.surface, label=100)
             for i,line in enumerate(p1.line_loop.lines):
-                self.add_physical_line(line, label=1000+i)
+                self.add_physical(line, label=1000+i)
     class InterfaceGeometry3d(geomdefs.geometry.Geometry):
         def __init__(self, radius):
             self.radius = radius
@@ -39,7 +39,7 @@ def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
             # print(dir(p1))
             # self.add_physical_volume(p1.volume, label=100)
             # for i,surface in enumerate(p1.surface_loop.surfaces):
-            #     self.add_physical_surface(surface, label=1000+i)
+            #     self.add_physical(surface, label=1000+i)
 
     class AnalyticalSolutionInterface(object):
         def __init__(self, kin, kex, r, dim):

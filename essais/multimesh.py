@@ -19,12 +19,12 @@ poly = geom.add_polygon([
     ],
     lcar=0.1
     )
-geom.add_physical_surface(poly.surface, label=11)
+geom.add_physical(poly.surface, label=11)
 axis = [0, 0, 1]
 top, vol, ext = geom.extrude(poly.surface, translation_axis=axis, rotation_axis=axis, point_on_axis=[0, 0, 0], angle=2.0 / 6.0 * np.pi)
-geom.add_physical_surface(top, label=22)
+geom.add_physical(top, label=22)
 for i,ex in enumerate(ext):
-    geom.add_physical_surface(ex, label=(i+3)*11)
+    geom.add_physical(ex, label=(i+3)*11)
 geom.add_physical_volume(vol, label=111)
 
 # data = pygmsh.generate_mesh(geom)

@@ -5,3 +5,5 @@ elasticity 2d sym mais 3d non
 
 
 flatten -> ravel ?!!
+
+pourqoi deux instanciations pour exact solution ?

@@ -29,8 +29,8 @@ def createMesh2d(h=0.1, hhole=0.05, nholes=2, holesize=0.2):
     p1 = pygmshext.add_polygon(geometry, xouter, lcar=lcars, holes=holes)
     vals, inds = npext.unique_all(labels)
     for val, ind in zip(vals, inds):
-        geometry.add_physical_line([p1.line_loop.lines[i] for i in ind], label=int(val))
-    geometry.add_physical_surface(p1.surface, label=100)
+        geometry.add_physical([p1.line_loop.lines[i] for i in ind], label=int(val))
+    geometry.add_physical(p1.surface, label=100)
     # print("code", geometry.get_code())
     mesh = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)

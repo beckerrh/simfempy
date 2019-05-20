@@ -60,9 +60,9 @@ def createMesh2d(**kwargs):
 
     vals, inds = npext.unique_all(labels)
     for val, ind in zip(vals, inds):
-        geometry.add_physical_line([circ.line_loop.lines[i] for i in ind], label=int(val))
+        geometry.add_physical([circ.line_loop.lines[i] for i in ind], label=int(val))
 
-    geometry.add_physical_surface(circ.plane_surface, label=100)
+    geometry.add_physical(circ.plane_surface, label=100)
     # print("circ", dir(circ.line_loop))
 
     with open("welcome.geo","w") as file: file.write(geometry.get_code())
