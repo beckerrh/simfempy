@@ -197,6 +197,8 @@ class Optimizer(object):
         # scipy.optimize.show_options("minimize",method=method, disp=True)
         if method in self.lsmethods:
             if bounds is None: bounds = (-np.inf, np.inf)
+            else: bounds = (bounds.lb, bounds.ub)
+            print("bounds", bounds)
             info = scipy.optimize.least_squares(self.computeRes, jac=self.computeDRes, x0=x0,
                                                 method=method, bounds=bounds, verbose=verbose)
         elif method in self.minmethods:
@@ -216,7 +218,7 @@ class Optimizer(object):
                     callback = printiter
             else:
                 tol = 1e-12
-            if bounds and len(bounds) == 2: bounds = [bounds for l in range(len(x0))]
+            # if bounds and len(bounds) == 2: bounds = [bounds for l in range(len(x0))]
             info = scipy.optimize.minimize(self.computeJ, x0=x0, jac=self.computeDJ, hess=hess,
                                            method=method, bounds=bounds, tol=tol, callback=callback,
                                            options=options)

@@ -54,7 +54,7 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
 
 #=================================================================#
 def plotmesh(mesh, **kwargs):
-    import vtki
+    import pyvista
     import vtk
     if 'ax' in kwargs: ax = kwargs.pop('ax')
     else: ax = plt
@@ -67,9 +67,9 @@ def plotmesh(mesh, **kwargs):
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
     offset = 5*np.arange(ntets)
     cells = np.insert(tets, 0, 4, axis=1).flatten()
-    grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
+    grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
 
-    plotter = vtki.Plotter()
+    plotter = pyvista.Plotter()
     plotter.renderer.SetBackground(255, 255, 255)
     plotter.add_axes()
     plotter.add_mesh(grid, showedges=False, opacity=0.6, color='gray')
@@ -111,7 +111,7 @@ def plotmesh(mesh, **kwargs):
 
 # =================================================================#
 def meshWithData(**kwargs):
-    import vtki
+    import pyvista
     import vtk
 
     x, y, z, tets = kwargs['x'], kwargs['y'], kwargs['z'], kwargs['tets']
@@ -133,7 +133,7 @@ def meshWithData(**kwargs):
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
     offset = 5*np.arange(ntets)
     cells = np.insert(tets, 0, 4, axis=1).flatten()
-    grid = vtki.UnstructuredGrid(offset, cells, cell_type, xyz)
+    grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
 
     if translate_point_data:
         assert len(point_data.keys()) ==3
@@ -144,8 +144,8 @@ def meshWithData(**kwargs):
         scale = translate_point_data
         un = np.sqrt(u[0]**2+u[1]**2+u[2]**2)
         xyz2 = np.stack((x+scale*u[0], y+scale*u[1], z+scale*u[2])).T
-        grid2 = vtki.UnstructuredGrid(offset, cells, cell_type, xyz2)
-        plotter = vtki.Plotter()
+        grid2 = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz2)
+        plotter = pyvista.Plotter()
         plotter.renderer.SetBackground(255,255,255)
         plotter.add_axes()
         plotter.add_mesh(grid, stitle="U=0", showedges=False, opacity=0.6, color='gray')
@@ -196,7 +196,7 @@ def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numb
 
 #=================================================================#
 def meshWithData2(**kwargs):
-    import vtki
+    import pyvista
     import vtk
 
     import matplotlib
@@ -209,13 +209,13 @@ def meshWithData2(**kwargs):
     ax.grid(True)
     ax.set_xlabel('Hello from VTK!', size=16)
     ax.bar(xrange(10), p.rand(10))
-    # The vtkImageImporter will treat a python string as a void pointer
-    importer = vtkImageImport()
+    # The pyvistamageImporter will treat a python string as a void pointer
+    importer = pyvistamageImport()
     importer.SetDataScalarTypeToUnsignedChar()
     importer.SetNumberOfScalarComponents(4)
 
     # It's upside-down when loaded, so add a flip filter
-    imflip = vtkImageFlip()
+    imflip = pyvistamageFlip()
     imflip.SetInput(importer.GetOutput())
     imflip.SetFilteredAxis(1)
 
