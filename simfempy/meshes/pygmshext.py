@@ -245,6 +245,8 @@ def add_polygon(geom, X, lcar=None, holes=None, make_surface=True):
     ll = geom.add_line_loop((lines))
     surface = geom.add_plane_surface(ll, holes) if make_surface else None
 
+    print("ll", ll)
+    print("surface", surface)
     return geom.Polygon(ll, surface)
     return geom.Polygon(ll, surface, lcar=lcar)
 

@@ -3,6 +3,9 @@
 
 # Python
 *.pyc
+dist
+build
+simfempy.egg-info
 
 # PyCharm
 *.bak

@@ -11,13 +11,11 @@ import pygmsh
 class Geometry(pygmsh.built_in.Geometry):
     """
     Simple wrap for pygmsh.Geometry in order to define to be called several times
+    Derived geometries must define "def define(h)". Other parameters should be passed through the consutructor
     """
-    def __init__(self, **kwargs):
+    def __init__(self, h=None):
         super().__init__()
-        if 'h' in kwargs:
-            self.define(kwargs.pop('h'))
-        else:
-            self.define()
+        self.define(h)
 
     def __repr__(self):
         return self.__class__.__name__

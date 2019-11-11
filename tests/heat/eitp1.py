@@ -90,9 +90,11 @@ class Plotter:
 #----------------------------------------------------------------#
 class EIT(simfempy.applications.heat.Heat):
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        mesh = kwargs.pop('mesh')
+        self.setMesh(mesh)
         kwargs['fem'] = 'p1'
         kwargs['plotk'] = True
-        super().__init__(**kwargs)
         self.linearsolver = "pyamg"
         # self.linearsolver = "umf"
         self.kheat = np.vectorize(self.kparam)
@@ -274,8 +276,7 @@ def test():
 
     regularize = 0.000001
     diffglobal = 1
-    eit = EIT(problemdata=problemdata, measure_labels=measure_labels, hole_labels=param_labels, diffglobal=diffglobal)
-    eit.setMesh(mesh)
+    eit = EIT(mesh=mesh, problemdata=problemdata, measure_labels=measure_labels, hole_labels=param_labels, diffglobal=diffglobal)
 
     optimizer = simfempy.solvers.optimize.Optimizer(eit, nparam=nparams, nmeasure=nmeasures, regularize=regularize, param0=diffglobal*np.ones(nparams))
 

@@ -8,19 +8,18 @@ import pygmsh
 import matplotlib.pyplot as plt
 
 #----------------------------------------------------------------#
-def test():
+def createMesh():
     from simfempy.meshes import geomdefs
     holes = []
     holes.append([[-0.5, -0.25], [-0.5, 0.25], [0.5, 0.25], [0.5, -0.25]])
     holes.append([[-0.5, 0.75], [-0.5, 1.25], [0.5, 1.25], [0.5, 0.75]])
     holes.append([[-0.5, -0.75], [-0.5, -1.25], [0.5, -1.25], [0.5, -0.75]])
-    # geometry = unitsquareholes.define_geometry(rect=(-1,1,-2,2), holes=holes, h=0.2)
-    geometry = geomdefs.unitsquareholes.Unitsquareholes(rect=(-1,1,-2,2), holes=holes, h=0.2)
+    geometry = geomdefs.unitsquareholes.Unitsquareholes(rect=(-1.1,1.1,-2,2), holes=holes, h=0.2)
     mesh = pygmsh.generate_mesh(geometry)
+    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
-    mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-    simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-    plt.show()
+#----------------------------------------------------------------#
+def createData():
     bdrycond =  simfempy.applications.problemdata.BoundaryConditions()
     postproc = {}
     bdrycond.type[1000] = "Neumann"
@@ -37,21 +36,27 @@ def test():
     bdrycond.check(mesh.bdrylabels.keys())
     # print("bdrycond", bdrycond)
     def kheat(label):
-        if label==100: return 0.1
-        return 10000.0
-    problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
-    problemdata.diffcoeff = kheat
+        print(f"label={label}")
+        if label==100: return 0.0001
+        return 1000.0
+    data = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    data.kheat = kheat
+    return data
 
-    fems = ['p1', 'cr1']
-    for fem in fems:
-        heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
-        heat.setMesh(mesh)
-        point_data, cell_data, info = heat.solve()
-        print("time: {}".format(info['timer']))
-        print("postproc: {}".format(info['postproc']))
-        simfempy.meshes.plotmesh.meshWithData(mesh, point_data, cell_data, title=fem)
-        plt.show()
+#----------------------------------------------------------------#
+def test(mesh, problemdata):
+    fem = 'p1' # or fem = 'cr1
+    heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
+    heat.setMesh(mesh)
+    point_data, cell_data, info = heat.solve()
+    print("fem={} time: {}".format(fem, info['timer']))
+    print("postproc: {}".format(info['postproc']))
+    simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=fem)
+    plt.show()
 
 #================================================================#
 
-test()
+mesh = createMesh()
+simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+problemdata = createData()
+test(mesh, problemdata)

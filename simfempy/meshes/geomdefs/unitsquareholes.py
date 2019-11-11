@@ -12,17 +12,26 @@ except:
 
 # ------------------------------------- #
 class Unitsquareholes(geometry.Geometry):
-    def define(self, h=0.1, rect = [-1, 1, -1, 1], holes = [ \
-            [[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5] ]]):
+    def __init__(self, **kwargs):
+        self.holes = [[[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]]]
+        self.rect = [-1,1,-1,1]
+        if 'holes' in kwargs: self.holes = kwargs.pop("holes")
+        if 'rect' in kwargs: self.rect = kwargs.pop("rect")
+        if 'h' in kwargs: h = kwargs['h']
+        else: h=None
+        super().__init__()
+
+    def define(self, h=0.1):
         self.reset()
         xholes = []
-        for hole in holes:
+        for hole in self.holes:
             xholes.append(np.insert(np.array(hole), 2, 0, axis=1))
         holes=[]
         for i,xhole in enumerate(xholes):
             holes.append(self.add_polygon(X=xhole, lcar=h))
             self.add_physical(holes[i].surface, label=200+i)
         # outer rectangle
+        rect = self.rect
         p1 = self.add_rectangle(rect[0], rect[1], rect[2], rect[3], 0, lcar=h, holes=holes)
         self.add_physical(p1.surface, label=100)
         for i in range(4): self.add_physical(p1.line_loop.lines[i], label=1000+i)
@@ -36,7 +45,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     geometry = Unitsquareholes(h=1)
     meshmesh = pygmsh.generate_mesh(geometry)
-    mesh = simplexmesh.SimplexMesh(data=meshdata)
+    mesh = simplexmesh.SimplexMesh(data=meshmesh)
     mesh.plotWithBoundaries()
     plt.show()
     mesh.plot(localnumbering=True)

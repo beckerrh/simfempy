@@ -6,6 +6,17 @@ from simfempy import fems
 #=================================================================#
 class Heat(solvers.solver.Solver):
     """
+    Class for the heat equation
+    After initialization, the function setMesh(mesh) has to be called
+    Then, solve() solves the stationary problem
+    Parameters in the coçnstructor:
+        fem: only p1 or cr1
+        problemdata:
+        rhocp
+        diff
+        reaction
+        method
+        plotk
     """
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
@@ -49,8 +60,12 @@ class Heat(solvers.solver.Solver):
             self.rhocp = np.vectorize(lambda i: 1234.56)
         if 'diff' in kwargs:
             self.kheat = np.vectorize(kwargs.pop('diff'))
+            if hasattr(self.problemdata,'kheat'): raise ValueError("diff given twice")
         else:
-            self.kheat = np.vectorize(lambda i: 0.123)
+            if hasattr(self.problemdata,'kheat'):
+                self.kheat = np.vectorize(self.problemdata.kheat)
+            else:
+                self.kheat = np.vectorize(lambda i: 0.123)
         if 'reaction' in kwargs:
             self.reaction = np.vectorize(kwargs.pop('reaction'))
         else:

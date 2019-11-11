@@ -12,6 +12,7 @@ except:
 # ------------------------------------- #
 class Unitsquare(geometry.Geometry):
     def define(self, h=1.):
+        print(f"h ={h}")
         self.reset()
         a = 1.0
         p = self.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
