@@ -29,7 +29,7 @@ class Backwardfacingstep3d(geometry.Geometry):
         self.add_physical(top, label=101+next)
         for i in range(next):
             self.add_physical(ext[i], label=101+i)
-        self.add_physical_volume(vol, label=10)
+        self.add_physical(vol, label=10)
         return self
 
 # ------------------------------------- #

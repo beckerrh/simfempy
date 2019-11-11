@@ -26,8 +26,8 @@ if __name__ == '__main__':
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
     geometry = Unitsquare(h=2)
-    meshmesh = pygmsh.generate_mesh(geometry)
-    mesh = simplexmesh.SimplexMesh(data=meshdata)
+    mesh = pygmsh.generate_mesh(geometry)
+    mesh = simplexmesh.SimplexMesh(mesh=mesh)
     mesh.plotWithBoundaries()
     plt.show()
     mesh.plot(localnumbering=True)

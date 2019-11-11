@@ -32,7 +32,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     geometry = Equilateral(h=2)
     meshmesh = pygmsh.generate_mesh(geometry)
-    mesh = simplexmesh.SimplexMesh(data=meshdata)
+    mesh = simplexmesh.SimplexMesh(data=meshmesh)
     mesh.plotWithBoundaries()
     plt.show()
     mesh.plot(localnumbering=True)

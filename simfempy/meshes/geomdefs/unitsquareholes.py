@@ -19,7 +19,7 @@ class Unitsquareholes(geometry.Geometry):
         if 'rect' in kwargs: self.rect = kwargs.pop("rect")
         if 'h' in kwargs: h = kwargs['h']
         else: h=None
-        super().__init__()
+        super().__init__(h)
 
     def define(self, h=0.1):
         self.reset()

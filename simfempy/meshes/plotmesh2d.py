@@ -83,7 +83,7 @@ def plotmesh(mesh, **kwargs):
     # clb = plt.colorbar(cnt)
     # clb.set_label("cellcolors")
     pltcolors = 'bgrcmykbgrcmyk'
-    patches=[]
+    patches = []
     for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
         patches.append(mpatches.Patch(color=pltcolors[i], label=color))
         for vertex in vertices:

@@ -42,7 +42,7 @@ class SimplexMesh(object):
     """
 
     def __repr__(self):
-        return "TriangleMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
+        return "SimplexMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
     def __init__(self, **kwargs):
         if 'mesh' in kwargs:
             self.geometry = 'own'
@@ -71,11 +71,14 @@ class SimplexMesh(object):
         self.nnodes = self.points.shape[0]
         if 'vertex' in cells.keys():
             self.vertices = cells['vertex'].reshape(-1)
-            self.vertex_labels = celldata['vertex']['gmsh:physical']
-            verticesoflabel = npext.unique_all(self.vertex_labels)
-            self.verticesoflabel={}
-            for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
-                self.verticesoflabel[color] = self.vertices[ind]
+            try:
+                self.vertex_labels = celldata['vertex']['gmsh:physical']
+                verticesoflabel = npext.unique_all(self.vertex_labels)
+                self.verticesoflabel={}
+                for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
+                    self.verticesoflabel[color] = self.vertices[ind]
+            except:
+                raise KeyError(f"keys for celldata {celldata.keys()} for celldata['vertex'] {celldata['vertex'].keys()}")
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._facedata = (cells['line'], celldata['line']['gmsh:physical'])
