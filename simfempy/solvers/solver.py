@@ -69,8 +69,6 @@ class Solver(object):
         return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
 
     def __init__(self, **kwargs):
-        self.ncomp = 1
-        if 'ncomp' in kwargs: self.ncomp = kwargs.pop('ncomp')
         if 'geometry' in kwargs:
             geometry = kwargs.pop('geometry')
             self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
@@ -81,13 +79,6 @@ class Solver(object):
             return
         self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
         self.ncomp = self.problemdata.ncomp
-
-        # temporary
-        # self.bdrycond = self.problemdata.bdrycond
-        # self.postproc = self.problemdata.postproc
-        # self.problemdata.rhs = self.problemdata.rhs
-        # temporary
-
         self.linearsolvers=[]
         self.linearsolvers.append('umf')
         self.linearsolvers.append('lgmres')

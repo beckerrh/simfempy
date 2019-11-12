@@ -20,7 +20,8 @@ from simfempy.tools import npext
 #=================================================================#
 class SimplexMesh(object):
     """
-    simplicial mesh, can be initialized from the output of pygmsh
+    simplicial mesh, can be initialized from the output of pygmsh.
+    Needs physical labels geometry objects of highest dimension and co-dimension one
 
     dimension, nnodes, ncells, nfaces: dimension, number of nodes, simplices, faces
     points: coordinates of the vertices of shape (nnodes,3)
@@ -59,6 +60,21 @@ class SimplexMesh(object):
             mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
         self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
 
+    def _checkPhyscalLabels(self, points, cells, celldata):
+        if 'vertex' in cells.keys():
+            if not 'vertex' in celldata.keys() or not 'gmsh:physical' in celldata['vertex'].keys():
+                raise KeyError(f"vertices given without physical_label")
+        if self.dimension == 2:
+            if not 'line' in celldata.keys() or not 'gmsh:physical' in celldata['line'].keys():
+                raise KeyError(f"lines given without physical_label")
+            if not 'triangle' in celldata.keys() or not 'gmsh:physical' in celldata['triangle'].keys():
+                raise KeyError(f"triangles given without physical_label")
+        else:
+            if not 'triangle' in celldata.keys() or not 'gmsh:physical' in celldata['triangle'].keys():
+                raise KeyError(f"triangles given without physical_label")
+            if not 'tetra' in celldata.keys() or not 'gmsh:physical' in celldata['tetra'].keys():
+                raise KeyError(f"tetras given without physical_label")
+
     def _initMeshPyGmsh(self, points, cells, celldata):
         if 'tetra' in cells.keys():
             self.dimension = 3
@@ -67,18 +83,16 @@ class SimplexMesh(object):
         else:
             self.dimension = 1
         assert points.shape[1] ==3
+        self._checkPhyscalLabels(points, cells, celldata)
         self.points = points
         self.nnodes = self.points.shape[0]
         if 'vertex' in cells.keys():
             self.vertices = cells['vertex'].reshape(-1)
-            try:
-                self.vertex_labels = celldata['vertex']['gmsh:physical']
-                verticesoflabel = npext.unique_all(self.vertex_labels)
-                self.verticesoflabel={}
-                for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
-                    self.verticesoflabel[color] = self.vertices[ind]
-            except:
-                raise KeyError(f"keys for celldata {celldata.keys()} for celldata['vertex'] {celldata['vertex'].keys()}")
+            self.vertex_labels = celldata['vertex']['gmsh:physical']
+            verticesoflabel = npext.unique_all(self.vertex_labels)
+            self.verticesoflabel={}
+            for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
+                self.verticesoflabel[color] = self.vertices[ind]
         if self.dimension==2:
             self.simplices = cells['triangle']
             self._facedata = (cells['line'], celldata['line']['gmsh:physical'])

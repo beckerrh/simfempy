@@ -118,14 +118,20 @@ class FemCR1(object):
             bdrydata.facesdirall = np.unique(np.union1d(bdrydata.facesdirall, facesdir))
         bdrydata.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int), bdrydata.facesdirall)
         bdrydata.facesdirflux = {}
-        for key, val in postproc.items():
-            type, data = val.split(":")
+        # for key, val in postproc.items():
+        #     type, data = val.split(":")
+        #     if type != "bdrydn": continue
+        #     colors = [int(x) for x in data.split(',')]
+        #     # bdrydata.facesdirflux[key] = np.empty(shape=(0), dtype=int)
+        #     for color in colors:
+        #         facesdir = self.mesh.bdrylabels[color]
+        #         # bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).flatten())
+        #         bdrydata.facesdirflux[color] = facesdir
+        for name, type in postproc.type.items():
             if type != "bdrydn": continue
-            colors = [int(x) for x in data.split(',')]
-            # bdrydata.facesdirflux[key] = np.empty(shape=(0), dtype=int)
+            colors = postproc.colors(name)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
-                # bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).flatten())
                 bdrydata.facesdirflux[color] = facesdir
         return bdrydata
 
@@ -216,8 +222,8 @@ class FemCR1(object):
         return np.sqrt(errv)
 
 
-    def computeBdryMean(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryMean(self, u, colors):
+        # colors = [int(x) for x in data.split(',')]
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
@@ -235,8 +241,8 @@ class FemCR1(object):
         else: uRmean=0
         return cR*(uRmean-uhmean)
 
-    def computeBdryDn(self, u, data, bdrydata, bdrycond):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryDn(self, u, colors, bdrydata, bdrycond):
+        # colors = [int(x) for x in data.split(',')]
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]

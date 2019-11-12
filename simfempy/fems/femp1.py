@@ -91,10 +91,18 @@ class FemP1(object):
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         if not postproc: return bdrydata
-        for key, val in postproc.items():
-            type,data = val.split(":")
+        # for key, val in postproc.items():
+        #     type,data = val.split(":")
+        #     if type != "bdrydn": continue
+        #     colors = [int(x) for x in data.split(',')]
+        #     # bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
+        #     for color in colors:
+        #         facesdir = self.mesh.bdrylabels[color]
+        #         # bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
+        #         bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].flatten())
+        for name, type in postproc.type.items():
             if type != "bdrydn": continue
-            colors = [int(x) for x in data.split(',')]
+            colors = postproc.colors(name)
             # bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
@@ -293,8 +301,8 @@ class FemP1(object):
         return np.sqrt(errv)
 
 
-    def computeBdryMean(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryMean(self, u, colors):
+        # colors = [int(x) for x in data.split(',')]
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
@@ -311,8 +319,8 @@ class FemP1(object):
         else: uRmean=0
         return cR*(uRmean-uhmean)
 
-    def computeBdryDn(self, u, data, bdrydata, bdrycond):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryDn(self, u, colors, bdrydata, bdrycond):
+        # colors = [int(x) for x in data.split(',')]
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
@@ -325,27 +333,27 @@ class FemP1(object):
                 bs, As = bdrydata.bsaved[color], bdrydata.Asaved[color]
                 flux[i] = np.sum(As * u - bs)
             else:
-                raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
+                raise NotImplementedError(f"computeBdryDn for condition '{bdrycond.type[color]}' color={color}")
         return flux
 
-    def computeBdryFct(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryFct(self, u, colors):
+        # colors = [int(x) for x in data.split(',')]
         nodes = np.empty(shape=(0), dtype=int)
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             nodes = np.unique(np.union1d(nodes, self.mesh.faces[faces].ravel()))
         return self.mesh.points[nodes], u[nodes]
 
-    def computePointValues(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computePointValues(self, u, colors):
+        # colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i,color in enumerate(colors):
             nodes = self.mesh.verticesoflabel[color]
             up[i] = u[nodes]
         return up
 
-    def computeMeanValues(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computeMeanValues(self, u, colors):
+        # colors = [int(x) for x in data.split(',')]
         up = np.empty(len(colors))
         for i, color in enumerate(colors):
             up[i] = self.computeMeanValue(u,color)

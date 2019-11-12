@@ -62,10 +62,14 @@ class Heat(solvers.solver.Solver):
             self.kheat = np.vectorize(kwargs.pop('diff'))
             if hasattr(self.problemdata,'kheat'): raise ValueError("diff given twice")
         else:
-            if hasattr(self.problemdata,'kheat'):
-                self.kheat = np.vectorize(self.problemdata.kheat)
+            # if hasattr(self.problemdata,'kheat'):
+            if 'kheat' in self.problemdata.datafct:
+                self.kheat = np.vectorize(self.problemdata.datafct['kheat'])
             else:
-                self.kheat = np.vectorize(lambda i: 0.123)
+                if 'kheat' in self.problemdata.dataparam:
+                    self.kheat = np.vectorize(lambda i: self.problemdata.dataparam['kheat'])
+                else:
+                    raise ValueError("'kheat' should be given in 'problemdata.datafct' or 'problemdata.dataparam'")
         if 'reaction' in kwargs:
             self.reaction = np.vectorize(kwargs.pop('reaction'))
         else:
@@ -83,7 +87,6 @@ class Heat(solvers.solver.Solver):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.problemdata.bdrycond)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
-        # print("bdrydata = ", self.bdrydata)
         self.kheatcell = self.kheat(self.mesh.cell_labels)
         self.rhocpcell = self.rhocp(self.mesh.cell_labels)
 
@@ -115,20 +118,34 @@ class Heat(solvers.solver.Solver):
             point_data['E'] = self.fem.tonode(e)
         info['postproc'] = {}
         if self.problemdata.postproc:
-            for key, val in self.problemdata.postproc.items():
-                type,data = val.split(":")
+            # for key, val in self.problemdata.postproc.items():
+            #     type,data = val.split(":")
+            #     if type == "bdrymean":
+            #         info['postproc'][key] = self.fem.computeBdryMean(u, data)
+            #     elif type == "bdryfct":
+            #         info['postproc'][key] = self.fem.computeBdryFct(u, data)
+            #     elif type == "bdrydn":
+            #         info['postproc'][key] = self.fem.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
+            #     elif type == "pointvalues":
+            #         info['postproc'][key] = self.fem.computePointValues(u, data)
+            #     elif type == "meanvalues":
+            #         info['postproc'][key] = self.fem.computeMeanValues(u, data)
+            #     else:
+            #         raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+            for name, type in self.problemdata.postproc.type.items():
+                colors = self.problemdata.postproc.colors(name)
                 if type == "bdrymean":
-                    info['postproc'][key] = self.fem.computeBdryMean(u, data)
+                    info['postproc'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == "bdryfct":
-                    info['postproc'][key] = self.fem.computeBdryFct(u, data)
+                    info['postproc'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.fem.computeBdryDn(u, data, self.bdrydata, self.problemdata.bdrycond)
+                    info['postproc'][name] = self.fem.computeBdryDn(u, colors, self.bdrydata, self.problemdata.bdrycond)
                 elif type == "pointvalues":
-                    info['postproc'][key] = self.fem.computePointValues(u, data)
+                    info['postproc'][name] = self.fem.computePointValues(u, colors)
                 elif type == "meanvalues":
-                    info['postproc'][key] = self.fem.computeMeanValues(u, data)
+                    info['postproc'][name] = self.fem.computeMeanValues(u, colors)
                 else:
-                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, name))
         assert self.kheatcell.shape[0] == self.mesh.ncells
         if self.plotk: cell_data['k'] = self.kheatcell
         return point_data, cell_data, info

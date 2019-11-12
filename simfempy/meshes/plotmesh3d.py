@@ -153,15 +153,15 @@ def meshWithData(**kwargs):
         plotter.add_mesh(grid2, scalars=un, stitle="U", showedges=True, interpolatebeforemap=True)
         plotter.remove_scalar_bar()
         cpos = plotter.show(title="U")
+    else:
+        plotter = pyvista.Plotter()
+        count=0
+        for pdn, pd in point_data.items():
+            # grid.plot(scalars=pd, stitle=pdn)
+            plotter.add_mesh(grid, scalars=pd, stitle=pdn,showedges=True,interpolatebeforemap=True)
+            count += 1
+        cpos = plotter.show()
     return
-
-    # count=0
-    # for pdn, pd in point_data.items():
-    #     # grid.plot(scalars=pd, stitle=pdn)
-    #     plotter.add_mesh(grid, scalars=pd, stitle=pdn,showedges=True,interpolatebeforemap=True)
-    #     count += 1
-    # cpos = plotter.plot()
-    # return
 
 # =================================================================#
 def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None,addplots=[]):
