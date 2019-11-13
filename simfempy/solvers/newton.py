@@ -35,8 +35,8 @@ def backtracking(computeResidual, x0, dx, resfirst, nit=50, omega=0.5, c=0.1, fi
 def newton(x, computeResidual, computeUpdate=None, nit=50, atol=1e-14, rtol=1e-10, atoldx=1e-14, rtoldx=1e-10, divx=1e8, firststep=1.0, verbose=False, jac=None):
     """
     Aims to solve F(x) = 0
-    computeResidual: F(x)
-    computeUpdate: F'(x) dx =  res
+    computeResidual: -F(x)
+    computeUpdate: gets dx from F'(x) dx =  res
     """
     x = np.asarray(x)
     assert x.ndim == 1
@@ -81,11 +81,11 @@ if __name__ == '__main__':
         return -f(x)
     def update(r, x):
         return r/df(x)
-    x = np.linspace(-1., 4.0)
-    x0 = -2.
     x0 = [3.]
-    # info = newton(x0, residual, jac=df, verbose=True)
-    info = newton(x0, residual, computeUpdate=update, verbose=True)
+    info = newton(x0, residual, jac=df, verbose=True)
+    info2 = newton(x0, residual, computeUpdate=update, verbose=True)
     print(('info=', info))
-    plt.plot(x, f(x), x, np.zeros_like(x))
+    assert info==info2
+    x = np.linspace(-1., 4.0)
+    plt.plot(x, f(x), [x[0], x[-1]], [0,0], '--r')
     plt.show()

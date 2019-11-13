@@ -45,7 +45,7 @@ class Heat(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolver = 'pyamg'
+        self.linearsolver = 'umf'
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':

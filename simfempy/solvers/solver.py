@@ -10,7 +10,6 @@ import copy
 import numpy as np
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
-import scipy.sparse as sparse
 
 import simfempy.tools.analyticalsolution
 import simfempy.tools.timer
@@ -86,6 +85,7 @@ class Solver(object):
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
+        # except: raise Warning("*** pyamg not found ***")
         except: pass
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
@@ -106,7 +106,7 @@ class Solver(object):
         self.timer.add('solve')
         point_data, cell_data, info = self.postProcess(u)
         self.timer.add('postp')
-        info['timer'] = self.timer.data
+        info['timer'] = self.timer
         info['iter'] = {'lin':niter}
         return point_data, cell_data, info
 
@@ -177,9 +177,11 @@ class Solver(object):
         # method = 'ownnewton'
         # method = 'ownnewtonls'
         if method == 'ownnewton':
-            u,res,nit = newton(self.residual, self.solvefornewton, u, rtol=1e-10, gtol=1e-14, maxiter=200)
+            import newton
+            u,res,nit = newton.newton(self.residual, self.solvefornewton, u, rtol=1e-10, gtol=1e-14, maxiter=200)
         elif method == 'ownnewtonls':
-            u,res,nit = newton(self.newtonresidual, self.solvefornewtonresidual, u, rtol=1e-10, gtol=1e-14, maxiter=200)
+            import newton
+            u,res,nit = newton.newton(self.newtonresidual, self.solvefornewtonresidual, u, rtol=1e-10, gtol=1e-14, maxiter=200)
         else:
             self.A = self.matrix(u)
             sol = optimize.root(self.newtonresidual, u, method=method)

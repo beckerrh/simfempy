@@ -48,7 +48,7 @@ def test(mesh, problemdata):
     heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
     heat.setMesh(mesh)
     point_data, cell_data, info = heat.solve()
-    print(f"fem={fem} time: {info['timer']}")
+    print(f"fem={fem} {info['timer']}")
     print(f"postproc: {info['postproc']}")
     simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=fem)
     plt.show()

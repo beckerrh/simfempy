@@ -7,6 +7,12 @@ class Timer():
         self.verbose = verbose
         self.tlast = time.time()
         self.data = {}
+    def __repr__(self):
+        tall = sum(self.data.values())
+        repr = f"\nTimer({self.name:}) total = {tall:8.2e}\n"
+        for name, t in self.data.items():
+            repr += f"\t{name:12s}: {100*t/tall:5.1f}%  ({t:8.2e})\n"
+        return repr
 
     def add(self, name):
         t = time.time()
@@ -19,10 +25,7 @@ class Timer():
         self.print()
 
     def print(self):
-        tall = sum(self.data.values())
-        print("Timer {:12s} {:12.2e}".format(self.name, tall))
-        for name, t in self.data.items():
-            print("{:12s}: {:5.1f}%  ({:8.2e})".format(name, 100*t/tall, t))
+        print(self)
 
     def reset(self):
         for name in self.data:
