@@ -81,12 +81,14 @@ class Solver(object):
         self.linearsolvers=[]
         self.linearsolvers.append('umf')
         self.linearsolvers.append('lgmres')
-        # self.linearsolvers.append('bicgstab')
+        self.linearsolvers.append('cg')
+        self.linearsolvers.append('bicgstab')
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
-        # except: raise Warning("*** pyamg not found ***")
-        except: pass
+        except:
+            import warnings
+            warnings.warn("*** pyamg not found (umf used instead)***")
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
 
@@ -113,10 +115,9 @@ class Solver(object):
     def linearSolver(self, A, b, u=None, solver = None, verbose=1):
         if solver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
+        if solver not in self.linearsolvers: solver = "umf"
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        # elif solver == 'scipy-umf_mmd':
-        #     return splinalg.spsolve(A, b, permc_spec='MMD_ATA')
         elif solver in ['gmres','lgmres','bicgstab','cg']:
             # defaults: drop_tol=0.0001, fill_factor=10
             M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)

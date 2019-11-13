@@ -11,20 +11,9 @@ import simfempy
 
 
 # ------------------------------------- #
-def rectangle():
-    geom = pygmsh.built_in.Geometry()
-    x, y = [-1, 1], [-1, 1]
-    h = 0.8
-    p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=0, lcar=h)
-    geom.add_physical(p.surface, label=100)
-    for i in range(len(p.lines)):
-        geom.add_physical(p.lines[i], label=1000 + i)
-    return pygmsh.generate_mesh(geom)
-
-# ------------------------------------- #
 def cube():
     geom = pygmsh.built_in.Geometry()
-    x, y, z = [-1, 1], [-1, 1], [-1, 1]
+    x, y, z = [-1, 1], [-1, 1], [-1, 2]
     h = 0.3
     p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
     geom.add_physical(p.surface, label=100)
@@ -73,46 +62,39 @@ def pygmshexample():
     return pygmsh.generate_mesh(geom)
 
 
-def createData():
+def createData(bdrylabels):
+    bdrylabels = list(bdrylabels)
+    labels_lat = bdrylabels[1:-1]
+    firstlabel = bdrylabels[0]
+    lastlabel = bdrylabels[-1]
+    labels_td = [firstlabel,lastlabel]
     data = simfempy.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
-    # bdrycond.type[1000] = "Neumann"
-    # bdrycond.type[1001] = "Dirichlet"
-    # bdrycond.type[1002] = "Neumann"
-    # bdrycond.type[1003] = "Dirichlet"
-    # bdrycond.fct[1000] = lambda x,y,z, nx, ny, nz: 0
-    # bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 100
-    # bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
-    bdrycond.set("Neumann", [101, 102, 103, 104])
-    bdrycond.set("Dirichlet", [100, 105])
-    bdrycond.fct[100] = lambda x,y,z: 200
-    bdrycond.fct[105] = lambda x,y,z: 100
+    bdrycond.set("Neumann", labels_lat)
+    bdrycond.set("Dirichlet", labels_td)
+    bdrycond.fct[firstlabel] = lambda x,y,z: 200
+    bdrycond.fct[lastlabel] = lambda x,y,z: 100
     postproc = data.postproc
     postproc.type['bdrymean'] = "bdrymean"
-    postproc.color['bdrymean'] = range(101,105)
+    postproc.color['bdrymean'] = labels_lat
     postproc.type['fluxn'] = "bdrydn"
-    postproc.color['fluxn'] = [100, 105]
-    def kheat(label):
-        if label==10: return 0.0001
-        return 1000.0
-    data.datafct["kheat"] = kheat
+    postproc.color['fluxn'] = labels_td
+    data.paramglobal["kheat"] = 0.0001
     return data
 
 # ------------------------------------- #
-#mesh = pygmshexample()
-mesh = cube()
-#mesh = rectangle()
+mesh = pygmshexample()
+#mesh = cube()
 mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 #simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 
-data = createData()
+data = createData(mesh.bdrylabels.keys())
 print("data", data)
 data.check(mesh)
 
-heat = simfempy.applications.heat.Heat(problemdata=data, fem='p1', plotk=True)
-heat.setMesh(mesh)
+heat = simfempy.applications.heat.Heat(problemdata=data, mesh=mesh)
 point_data, cell_data, info = heat.solve()
 print(f"{info['timer']}")
 print(f"{info['iter']}")
 print(f"postproc: {info['postproc']}")
-simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title="toto")
+simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data)

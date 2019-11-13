@@ -77,7 +77,7 @@ class ProblemData(object):
     - exact solution (if ever)
     - postprocess
     - datafct: dictionary string(name)->fct
-    - dataparam: dictionary string(name)->float
+    - paramglobal: dictionary string(name)->float
     """
     def __init__(self, bdrycond=None, rhs=None, rhscell=None, rhspoint = None, postproc=None, ncomp=-1):
         self.ncomp=ncomp
@@ -90,7 +90,8 @@ class ProblemData(object):
         self.rhspoint = rhspoint
         self.solexact = None
         self.datafct = {}
-        self.dataparam = {}
+        self.paramglobal = {}
+        self.paramcells = {}
 
     def _split2string(self, string):
         return '\n\t\t'+'\n\t\t'.join(str(string).split('\n'))
@@ -105,13 +106,20 @@ class ProblemData(object):
         if self.rhspoint: repr += f"\n\trhspoint={self.rhspoint}"
         if self.solexact: repr += f"\n\tsolexact={self.solexact}"
         if self.datafct: repr += f"\n\tdatafct={self.datafct}"
-        if self.dataparam: repr += f"\n\tdataparam={self.dataparam}"
+        if self.paramglobal: repr += f"\n\tparamglobal={self.paramglobal}"
+        if self.paramcells: repr += f"\n\tparamcells={self.paramcells}"
         return repr
+
+    def set_paramcells(self, name, colors, value):
+        if not name in self.paramcells: self.paramcells[name]={}
+        for color in colors: self.paramcells[name][color] = value
 
     def check(self, mesh):
         colors = mesh.bdrylabels.keys()
         self.bdrycond.check(colors)
         if self.postproc: self.postproc.check(colors)
+        for name in self.paramcells:
+            _check2setsequal_(set(self.paramcells[name]), set(mesh.cellsoflabel.keys()))
 
     def clear(self):
         """
