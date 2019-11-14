@@ -8,6 +8,7 @@ Created on Sun Dec  4 18:14:29 2016
 import time
 import copy
 import numpy as np
+import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 
@@ -21,8 +22,8 @@ import simfempy.applications.problemdata
 
 #=================================================================#
 class Solver(object):
-    def generatePoblemData(self, exactsolution, bdrycond, postproc=None, random=True):
-        problemdata = simfempy.applications.problemdata.ProblemData(bdrycond=bdrycond, postproc=postproc)
+    def generatePoblemDataForAnalyticalSolution(self, exactsolution, problemdata, random=True):
+        bdrycond = problemdata.bdrycond
         problemdata.ncomp = self.ncomp
         problemdata.solexact = self.defineAnalyticalSolution(exactsolution=exactsolution, random=random)
         problemdata.rhs = self.defineRhsAnalyticalSolution(problemdata.solexact)
@@ -51,16 +52,11 @@ class Solver(object):
                 problemdata.bdrycond.fctexact[type] = eval(cmd)
 
             for color in self.mesh.bdrylabels:
-                if problemdata.bdrycond.type[color] in ["Dirichlet","Robin"]:
-                # if problemdata.bdrycond.type[color] == "Dirichlet":
-                        problemdata.bdrycond.fct[color] = _solexactdir
+                if not color in bdrycond.type: raise KeyError(f"color={color} bdrycond={bdrycond}")
+                if bdrycond.type[color] in ["Dirichlet","Robin"]:
+                    bdrycond.fct[color] = _solexactdir
                 else:
-                    # if color in problemdata.bdrycond.param:
-                    #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact,{})".format(bdrycond.type[color],bdrycond.param[color])
-                    # else:
-                    #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(bdrycond.type[color])
-                    # problemdata.bdrycond.fct[color] = eval(cmd)
-                    problemdata.bdrycond.fct[color] = problemdata.bdrycond.fctexact[bdrycond.type[color]]
+                    bdrycond.fct[color] = bdrycond.fctexact[bdrycond.type[color]]
         return problemdata
 
     def defineAnalyticalSolution(self, exactsolution, random=True):
@@ -68,21 +64,7 @@ class Solver(object):
         return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
 
     def __init__(self, **kwargs):
-        if 'geometry' in kwargs:
-            geometry = kwargs.pop('geometry')
-            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
-            showmesh = True
-            if 'showmesh' in kwargs: showmesh = kwargs.pop('showmesh')
-            if showmesh:
-                self.mesh.plotWithBoundaries()
-            return
-        self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
-        self.ncomp = self.problemdata.ncomp
-        self.linearsolvers=[]
-        self.linearsolvers.append('umf')
-        self.linearsolvers.append('lgmres')
-        self.linearsolvers.append('cg')
-        self.linearsolvers.append('bicgstab')
+        self.linearsolvers=['umf', 'lgmres', 'bicgstab']
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
@@ -91,6 +73,14 @@ class Solver(object):
             warnings.warn("*** pyamg not found (umf used instead)***")
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
+        if 'geometry' in kwargs:
+            geometry = kwargs.pop('geometry')
+            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
+            if 'showmesh' in kwargs:
+                self.mesh.plotWithBoundaries()
+        self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
+        self.ncomp = self.problemdata.ncomp
+        assert self.ncomp != -1
 
     def setMesh(self, mesh):
         self.mesh = mesh
@@ -102,8 +92,6 @@ class Solver(object):
         self.timer.add('matrix')
         b,u = self.computeRhs()
         self.timer.add('rhs')
-        # A,b,u = self.boundary(A, b, u)
-        # self.timer.add('boundary')
         u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         self.timer.add('solve')
         point_data, cell_data, info = self.postProcess(u)
@@ -119,8 +107,18 @@ class Solver(object):
         if solver == 'umf':
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
         elif solver in ['gmres','lgmres','bicgstab','cg']:
-            # defaults: drop_tol=0.0001, fill_factor=10
-            M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
+            if solver == 'cg':
+                def gaussSeidel(A):
+                    dd = A.diagonal()
+                    D = spsp.dia_matrix(A.shape)
+                    D.setdiag(dd)
+                    L = spsp.tril(A, -1)
+                    U = spsp.triu(A, 1)
+                    return splinalg.factorized(D + L)
+                M2 = gaussSeidel(A)
+            else:
+                # defaults: drop_tol=0.0001, fill_factor=10
+                M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
             M_x = lambda x: M2.solve(x)
             M = splinalg.LinearOperator(A.shape, M_x)
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)

@@ -103,10 +103,10 @@ class CompareMethods(object):
         
     def fillInfo(self, iter, name, info, n):
         if not self.infos:
-            # print("info.keys", info.keys())
+            print("info.keys", info.keys())
             self.infos = {}
             for key2, info2 in info.items():
-                # print("key2", key2)
+                print("key2", key2)
                 self.infos[key2] = {}
                 for key3, info3 in info2.items():
                     self.infos[key2][key3] = {}

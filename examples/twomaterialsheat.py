@@ -34,9 +34,10 @@ def createData(bdrylabels):
     postproc.color['bdrymean'] = [1000,1002]
     postproc.type['fluxn'] = "bdrydn"
     postproc.color['fluxn'] = [1001,1003]
-    # data.datafct["kheat"] = lambda l,x,y,z: 0.1 if l==100 else 1000.
-    data.set_paramcells("kheat", [100], 0.1)
-    data.set_paramcells("kheat", [200,201,202], 100.0)
+    params = data.params
+    # params.fct_glob["kheat"] = lambda l,x,y,z: 0.1 if l==100 else 1000.
+    params.set_scal_cells("kheat", [100], 0.1)
+    params.set_scal_cells("kheat", [200,201,202], 100.0)
     return data
 
 # ------------------------------------- #

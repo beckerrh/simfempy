@@ -2,7 +2,7 @@ import time
 
 #=================================================================#
 class Timer():
-    def __init__(self, name='', verbose=1):
+    def __init__(self, name='', verbose=0):
         self.name = name
         self.verbose = verbose
         self.tlast = time.time()
@@ -14,6 +14,7 @@ class Timer():
             repr += f"\t{name:12s}: {100*t/tall:5.1f}%  ({t:8.2e})\n"
         return repr
 
+    def items(self): return self.data.items()
     def add(self, name):
         t = time.time()
         if name not in self.data: self.data[name] = 0

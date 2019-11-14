@@ -91,22 +91,11 @@ class FemP1(object):
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         if not postproc: return bdrydata
-        # for key, val in postproc.items():
-        #     type,data = val.split(":")
-        #     if type != "bdrydn": continue
-        #     colors = [int(x) for x in data.split(',')]
-        #     # bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
-        #     for color in colors:
-        #         facesdir = self.mesh.bdrylabels[color]
-        #         # bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
-        #         bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].flatten())
         for name, type in postproc.type.items():
             if type != "bdrydn": continue
             colors = postproc.colors(name)
-            # bdrydata.nodesdirflux[key] = np.empty(shape=(0), dtype=int)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
-                # bdrydata.nodesdirflux[key] = np.unique(np.union1d(bdrydata.nodesdirflux[key], np.unique(self.mesh.faces[facesdir].flatten())))
                 bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].flatten())
         return bdrydata
 
@@ -183,11 +172,6 @@ class FemP1(object):
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
-        # for key, nodes in nodesdirflux.items():
-        #     nb = nodes.shape[0]
-        #     help = sparse.dok_matrix((nb, nnodes))
-        #     for i in range(nb): help[i, nodes[i]] = 1
-        #     bdrydata.Asaved[key] = help.dot(A)
         for color, nodes in nodesdirflux.items():
             nb = nodes.shape[0]
             help = sparse.dok_matrix((nb, nnodes))
@@ -219,8 +203,6 @@ class FemP1(object):
         if u is None: u = np.zeros_like(b)
         elif u.shape != b.shape : raise ValueError("u.shape != b.shape {} != {}".format(u.shape, b.shape))
         x, y, z = self.mesh.points.T
-        # for key, nodes in nodesdirflux.items():
-        #     bdrydata.bsaved[key] = b[nodes]
         for color, nodes in nodesdirflux.items():
             bdrydata.bsaved[color] = b[nodes]
         if method == 'trad':
@@ -248,8 +230,6 @@ class FemP1(object):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
         x, y, z = self.mesh.points.T
-        # for key, nodes in nodesdirflux.items():
-        #     bdrydata.bsaved[key] = b[nodes]
         for color, nodes in nodesdirflux.items():
             bdrydata.bsaved[color] = b[nodes]
         if method == 'trad':

@@ -25,18 +25,20 @@ class Heat(solvers.solver.Solver):
     """
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
+            kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape[0])
             for i in range(self.mesh.dimension):
-                rhs -= self.problemdata.paramglobal['kheat'] * solexact.dd(i, i, x, y, z)
+                rhs -= kheat * solexact.dd(i, i, x, y, z)
             return rhs
         return _fctu
 
     def defineNeumannAnalyticalSolution(self, solexact):
         def _fctneumann(x, y, z, nx, ny, nz):
+            kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape[0])
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
-                rhs += self.problemdata.paramglobal['kheat'] * solexact.d(i, x, y, z) * normals[i]
+                rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctneumann
 
@@ -50,7 +52,8 @@ class Heat(solvers.solver.Solver):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolver = 'pyamg'
+        if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
+        else: self.linearsolver = 'pyamg'
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
@@ -59,14 +62,6 @@ class Heat(solvers.solver.Solver):
             self.fem = fems.femcr1.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if 'rhocp' in kwargs:
-            self.rhocp = np.vectorize(kwargs.pop('rhocp'))
-        else:
-            self.rhocp = np.vectorize(lambda i: 1234.56)
-        if 'reaction' in kwargs:
-            self.reaction = np.vectorize(kwargs.pop('reaction'))
-        else:
-            self.reaction = None
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
@@ -78,45 +73,20 @@ class Heat(solvers.solver.Solver):
         if 'mesh' in kwargs:
             self.setMesh(kwargs.pop('mesh'))
 
-    # def _computekheatcell_(self):
-    #     if 'kheat' in self.problemdata.datafct:
-    #         assert 'kheat' not in self.problemdata.paramglobal
-    #         assert 'kheat' not in self.problemdata.paramcells
-    #         xc, yc, zc = self.mesh.pointsc.T
-    #         kheat = np.vectorize(self.problemdata.datafct['kheat'])
-    #         self.kheatcell = kheat(self.mesh.cell_labels, xc, yc, zc)
-    #     elif 'kheat' in self.problemdata.paramglobal:
-    #         assert 'kheat' not in self.problemdata.datafct
-    #         assert 'kheat' not in self.problemdata.paramcells
-    #         self.kheatcell = np.full(self.mesh.ncells, self.problemdata.paramglobal['kheat'])
-    #     elif 'kheat' in self.problemdata.paramcells:
-    #         assert 'kheat' not in self.problemdata.paramglobal
-    #         assert 'kheat' not in self.problemdata.datafct
-    #         self.kheatcell = np.empty(self.mesh.ncells)
-    #         for color in self.problemdata.paramcells['kheat']:
-    #             self.kheatcell[self.mesh.cellsoflabel[color]] = self.problemdata.paramcells['kheat'][color]
-    #     else:
-    #         raise ValueError("'kheat' should be given in 'problemdata.datafct' or 'problemdata.paramglobal' or 'problemdata.paramcells'")
-
     def _computearrcell_(self, name):
-        if name in self.problemdata.datafct:
-            assert name not in self.problemdata.paramglobal
-            assert name not in self.problemdata.paramcells
+        params = self.problemdata.params
+        if name in params.fct_glob:
             xc, yc, zc = self.mesh.pointsc.T
-            fct = np.vectorize(self.problemdata.datafct[name])
+            fct = np.vectorize(params.fct_glob[name])
             arr = fct(self.mesh.cell_labels, xc, yc, zc)
-        elif name in self.problemdata.paramglobal:
-            assert name not in self.problemdata.datafct
-            assert name not in self.problemdata.paramcells
-            arr = np.full(self.mesh.ncells, self.problemdata.paramglobal[name])
-        elif name in self.problemdata.paramcells:
-            assert name not in self.problemdata.paramglobal
-            assert name not in self.problemdata.datafct
+        elif name in params.scal_glob:
+            arr = np.full(self.mesh.ncells, params.scal_glob[name])
+        elif name in params.scal_cells:
             arr = np.empty(self.mesh.ncells)
-            for color in self.problemdata.paramcells[name]:
-                arr[self.mesh.cellsoflabel[color]] = self.problemdata.paramcells[name][color]
+            for color in params.scal_cells[name]:
+                arr[self.mesh.cellsoflabel[color]] = params.scal_cells[name][color]
         else:
-            msg = f"{name} should be given in 'problemdata.datafct' or 'problemdata.paramglobal' or 'problemdata.paramcells'"
+            msg = f"{name} should be given in 'fct_glob' or 'scal_glob' or 'scal_cells' (problemdata.params)"
             raise ValueError(msg)
         return arr
 
@@ -125,6 +95,8 @@ class Heat(solvers.solver.Solver):
         self.fem.setMesh(self.mesh, self.problemdata.bdrycond)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
         self.kheatcell = self._computearrcell_('kheat')
+        params = self.problemdata.params
+        if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         self.rhocpcell = self._computearrcell_('rhocp')
 
     def solve(self, iter=0, dirname=None):
@@ -132,6 +104,8 @@ class Heat(solvers.solver.Solver):
         return self.solveLinear()
 
     def computeRhs(self, u=None):
+        if not hasattr(self.bdrydata,"A_inner_dir"):
+            raise ValueError("matrix() has to be called befor computeRhs()")
         b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata)
         return b,u
 
