@@ -79,7 +79,7 @@ def createData(bdrylabels):
     postproc.color['bdrymean'] = labels_lat
     postproc.type['fluxn'] = "bdrydn"
     postproc.color['fluxn'] = labels_td
-    data.paramglobal["kheat"] = 0.0001
+    data.params.scal_glob["kheat"] = 0.0001
     return data
 
 # ------------------------------------- #

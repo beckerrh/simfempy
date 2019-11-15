@@ -86,7 +86,8 @@ class Solver(object):
         self.mesh = mesh
         self.timer.reset()
 
-    def solveLinear(self):
+    def solveLinearProblem(self):
+        if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         self.timer.add('init')
         A = self.matrix()
         self.timer.add('matrix')
@@ -100,7 +101,61 @@ class Solver(object):
         info['iter'] = {'lin':niter}
         return point_data, cell_data, info
 
+
+    def solveNonlinearProblem(self, u=None, rtol=1e-10, gtol=1e-16, maxiter=100, checkmaxiter=True):
+        if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
+        self.timer.add('init')
+        A = self.matrix()
+        self.timer.add('matrix')
+        b,u = self.computeRhs(u)
+        self.timer.add('rhs')
+
+        
+
+
+        self.timer.add('solve')
+        point_data, cell_data, info = self.postProcess(u)
+        self.timer.add('postp')
+        info['timer'] = self.timer
+        info['iter'] = {'lin':niter}
+        return point_data, cell_data, info
+
+
+        method = 'broyden2'
+        method = 'anderson'
+        method = 'krylov'
+        method = 'df-sane'
+        # method = 'ownnewton'
+        # method = 'ownnewtonls'
+        if method == 'ownnewton':
+            import newton
+            u,res,nit = newton.newton(self.residual, self.solvefornewton, u, rtol=1e-10, gtol=1e-14, maxiter=200)
+        elif method == 'ownnewtonls':
+            import newton
+            u,res,nit = newton.newton(self.newtonresidual, self.solvefornewtonresidual, u, rtol=1e-10, gtol=1e-14, maxiter=200)
+        else:
+            self.A = self.matrix(u)
+            sol = optimize.root(self.newtonresidual, u, method=method)
+            u = sol.x
+            nit = sol.nit
+
+        # try:
+        #     u,res,nit = newton(self.residual, solve, u, rtol=1e-10, gtol=1e-14)
+        # except:
+        #     nit = -1
+        # print 'nit=', nit
+        t3 = time.time()
+        pp = self.postProcess(u)
+        t4 = time.time()
+        self.timer['rhs'] = t1-t0
+        self.timer['matrix'] = t2-t1
+        self.timer['solve'] = t3-t2
+        self.timer['postproc'] = t4-t3
+        return pp
+
     def linearSolver(self, A, b, u=None, solver = None, verbose=1):
+        if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
+            raise ValueError(f"A.shqpe = {A.shape} b.shape = {b.shape}")
         if solver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
         if solver not in self.linearsolvers: solver = "umf"
@@ -156,50 +211,6 @@ class Solver(object):
     def solvefornewtonresidual(self, x, b, redrate, iter):
         x = b
         return x
-
-    def solveNonlinear(self, u=None, rtol=1e-10, gtol=1e-16, maxiter=100, checkmaxiter=True):
-        t0 = time.time()
-        self.b = self.computeRhs()
-        if u is None:
-            u = np.zeros_like(self.b)
-        else:
-            assert u.shape == self.b.shape
-        self.du = np.zeros_like(self.b)
-        t1 = time.time()
-        self.A = self.matrix(u)
-        t2 = time.time()
-
-        method = 'broyden2'
-        method = 'anderson'
-        method = 'krylov'
-        method = 'df-sane'
-        # method = 'ownnewton'
-        # method = 'ownnewtonls'
-        if method == 'ownnewton':
-            import newton
-            u,res,nit = newton.newton(self.residual, self.solvefornewton, u, rtol=1e-10, gtol=1e-14, maxiter=200)
-        elif method == 'ownnewtonls':
-            import newton
-            u,res,nit = newton.newton(self.newtonresidual, self.solvefornewtonresidual, u, rtol=1e-10, gtol=1e-14, maxiter=200)
-        else:
-            self.A = self.matrix(u)
-            sol = optimize.root(self.newtonresidual, u, method=method)
-            u = sol.x
-            nit = sol.nit
-
-        # try:
-        #     u,res,nit = newton(self.residual, solve, u, rtol=1e-10, gtol=1e-14)
-        # except:
-        #     nit = -1
-        # print 'nit=', nit
-        t3 = time.time()
-        pp = self.postProcess(u)
-        t4 = time.time()
-        self.timer['rhs'] = t1-t0
-        self.timer['matrix'] = t2-t1
-        self.timer['solve'] = t3-t2
-        self.timer['postproc'] = t4-t3
-        return pp
 
 
 # ------------------------------------- #

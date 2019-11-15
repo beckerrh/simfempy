@@ -118,7 +118,6 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
     comp = simfempy.tools.comparemethods.CompareMethods(methods, h=h, paramname='dirichlet_al', verbose=verbose)
     params = [1, 2, 4, 10, 100,1000]
     result = comp.compare(geometry=geometry, params=params)
-    return print("result=",result)
 
 #================================================================#
 if __name__ == '__main__':

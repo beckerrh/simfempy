@@ -100,8 +100,7 @@ class Heat(solvers.solver.Solver):
         self.rhocpcell = self._computearrcell_('rhocp')
 
     def solve(self, iter=0, dirname=None):
-        if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
-        return self.solveLinear()
+        return self.solveLinearProblem()
 
     def computeRhs(self, u=None):
         if not hasattr(self.bdrydata,"A_inner_dir"):
