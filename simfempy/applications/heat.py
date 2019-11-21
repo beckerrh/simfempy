@@ -99,8 +99,13 @@ class Heat(solvers.solver.Solver):
         if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         self.rhocpcell = self._computearrcell_('rhocp')
 
-    def solve(self, iter=0, dirname=None):
-        return self.solveLinearProblem()
+    def residualNewton(self, u):
+        if not hasattr(self, 'du'): self.du = np.empty_like(u)
+        self.du[:] = 0
+        self.fem.formDiffusion(self.du, u, self.kheatcell)
+        self.du -= self.b
+        self.du = self.vectorDirichletZero(self.du, self.bdrydata)
+        return self.du
 
     def computeRhs(self, u=None):
         if not hasattr(self.bdrydata,"A_inner_dir"):
@@ -147,6 +152,7 @@ class Heat(solvers.solver.Solver):
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
         if self.plotk: cell_data['k'] = self.kheatcell
         return point_data, cell_data, info
+
 
 #=================================================================#
 if __name__ == '__main__':

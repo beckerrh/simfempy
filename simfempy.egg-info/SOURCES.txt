@@ -1,5 +1,8 @@
 README.md
 setup.py
+examples/__init__.py
+examples/extrude_test.py
+examples/twomaterialsheat.py
 simfempy/__about__.py
 simfempy/__init__.py
 simfempy.egg-info/PKG-INFO
@@ -40,6 +43,7 @@ simfempy/solvers/__init__.py
 simfempy/solvers/newton.py
 simfempy/solvers/optimize.py
 simfempy/solvers/solver.py
+simfempy/solvers/stoppingdata.py
 simfempy/tools/__init__.py
 simfempy/tools/analyticalsolution.py
 simfempy/tools/checkmmatrix.py
@@ -50,3 +54,4 @@ simfempy/tools/latexwriter.py
 simfempy/tools/matrix.py
 simfempy/tools/npext.py
 simfempy/tools/timer.py
+test/test.py

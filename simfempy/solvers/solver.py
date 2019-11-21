@@ -102,56 +102,38 @@ class Solver(object):
         return point_data, cell_data, info
 
 
-    def solveNonlinearProblem(self, u=None, rtol=1e-10, gtol=1e-16, maxiter=100, checkmaxiter=True):
+    def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         self.timer.add('init')
         A = self.matrix()
         self.timer.add('matrix')
-        b,u = self.computeRhs(u)
+        self.b,u = self.computeRhs(u)
+        self.du = np.empty_like(u)
         self.timer.add('rhs')
-
-        
-
-
-        self.timer.add('solve')
+        if method == 'newton':
+            from . import newton
+            u, nit = newton.newton(x0=u, f=self.residualNewton, computedx=self.solveForNewton, sdata=sdata, verbose=True)
+        elif method in ['broyden2','krylov', 'df-sane', 'anderson']:
+            sol = optimize.root(self.residualNewton, u, method=method)
+            u, nit = sol.x, sol.nit
+        else:
+            raise ValueError(f"unknown method {method}")
         point_data, cell_data, info = self.postProcess(u)
         self.timer.add('postp')
         info['timer'] = self.timer
-        info['iter'] = {'lin':niter}
+        info['iter'] = {'lin':nit}
         return point_data, cell_data, info
 
+    def residualNewton(self, u):
+        # print(f"self.b={self.b.shape}")
+        self.A = self.matrix()
+        return self.A.dot(u) - self.b
 
-        method = 'broyden2'
-        method = 'anderson'
-        method = 'krylov'
-        method = 'df-sane'
-        # method = 'ownnewton'
-        # method = 'ownnewtonls'
-        if method == 'ownnewton':
-            import newton
-            u,res,nit = newton.newton(self.residual, self.solvefornewton, u, rtol=1e-10, gtol=1e-14, maxiter=200)
-        elif method == 'ownnewtonls':
-            import newton
-            u,res,nit = newton.newton(self.newtonresidual, self.solvefornewtonresidual, u, rtol=1e-10, gtol=1e-14, maxiter=200)
-        else:
-            self.A = self.matrix(u)
-            sol = optimize.root(self.newtonresidual, u, method=method)
-            u = sol.x
-            nit = sol.nit
-
-        # try:
-        #     u,res,nit = newton(self.residual, solve, u, rtol=1e-10, gtol=1e-14)
-        # except:
-        #     nit = -1
-        # print 'nit=', nit
-        t3 = time.time()
-        pp = self.postProcess(u)
-        t4 = time.time()
-        self.timer['rhs'] = t1-t0
-        self.timer['matrix'] = t2-t1
-        self.timer['solve'] = t3-t2
-        self.timer['postproc'] = t4-t3
-        return pp
+    def solveForNewton(self, r, x):
+        # print(f"solveForNewton r={np.linalg.norm(r)}")
+        du, niter = self.linearSolver(self.A, r, x, verbose=0)
+        # print(f"solveForNewton du={np.linalg.norm(du)}")
+        return du
 
     def linearSolver(self, A, b, u=None, solver = None, verbose=1):
         if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
@@ -186,31 +168,35 @@ class Solver(object):
             res=[]
             # u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
             B = np.ones((A.shape[0], 1))
-            ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
-            u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, accel='gmres')
+            # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+            SA_build_args = {
+                'max_levels': 10,
+                'max_coarse': 25,
+                'coarse_solver': 'pinv2',
+                'symmetry': 'hermitian'}
+            smooth = ('energy', {'krylov': 'cg'})
+            SA_solve_args = {'cycle': 'V', 'maxiter': 15, 'tol': 1e-8}
+            strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
+            presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+            postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+            strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
+            presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+            postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+            ml = pyamg.smoothed_aggregation_solver(
+                A,
+                B=B,
+                smooth=smooth,
+                strength=strength,
+                presmoother=presmoother,
+                postsmoother=postsmoother,
+                **SA_build_args)
+            # u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, **SA_solve_args)
+            u= ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
 
-    def residual(self, u):
-        self.du[:]=0.0
-        return self.form(self.du, u)- self.b
-
-    def solvefornewton(self, x, b, redrate, iter):
-        self.A = self.matrix(x)
-        return splinalg.spsolve(self.A, b)
-        import pyamg
-        x = pyamg.solve(self.A, b, verb=True)
-        return x
-
-    def newtonresidual(self, u):
-        self.du = self.residual(u)
-        # self.A = self.matrix(u)
-        return splinalg.spsolve(self.A, self.du)
-    def solvefornewtonresidual(self, x, b, redrate, iter):
-        x = b
-        return x
 
 
 # ------------------------------------- #

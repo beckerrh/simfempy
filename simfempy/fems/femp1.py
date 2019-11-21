@@ -28,7 +28,7 @@ class FemP1(object):
         simps = self.mesh.simplices
         self.cols = np.tile(simps, self.nloc).reshape(-1)
         self.rows = np.repeat(simps, self.nloc).reshape(-1)
-        self.computeCellGrads()
+        self.cellgrads = self.computeCellGrads()
         self.massmatrix = self.computeMassMatrix()
         if bdrycond:
             self.robinmassmatrix = self.computeBdryMassMatrix(bdrycond, type="Robin")
@@ -38,7 +38,7 @@ class FemP1(object):
         scale = -1/self.mesh.dimension
         # print("dV", np.where(dV<0.0001))
         # print("dV", dV[dV<0.00001])
-        self.cellgrads = scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
+        return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
 
     def computeMassMatrix(self, lumped=False):
         nnodes = self.mesh.nnodes
@@ -108,6 +108,13 @@ class FemP1(object):
         A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
+
+    def formDiffusion(self, du, u, k):
+        graduh = np.einsum('nij,ni->nj', self.cellgrads, u[self.mesh.simplices])
+        graduh = np.einsum('ni,n->ni', graduh, self.mesh.dV*k)
+        # du += np.einsum('nj,nij->ni', graduh, self.cellgrads)
+        raise ValueError(f"graduh {graduh.shape} {du.shape}")
+        return du
 
     def computeRhs(self, u, problemdata, kheatcell, method, bdrydata):
         rhs = problemdata.rhs
@@ -226,32 +233,39 @@ class FemP1(object):
             b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
         return b, u, bdrydata
 
-    def boundaryvec(self, b, u, bdrycond, method, bdrydata):
-        nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
-        Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
-        x, y, z = self.mesh.points.T
-        for color, nodes in nodesdirflux.items():
-            bdrydata.bsaved[color] = b[nodes]
-        if method == 'trad':
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                if dirichlet:
-                    b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                else:
-                    b[nodes] = 0
-                u[nodes] = b[nodes]
-            b[nodesinner] -= A_inner_dir * u[nodedirall]
-        else:
-            for color, nodes in nodesdir.items():
-                dirichlet = bdrycond.fct[color]
-                if dirichlet:
-                    u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-                else:
-                    u[nodes] = 0
-                b[nodes] = 0
-            b[nodesinner] -= A_inner_dir * u[nodedirall]
-            b[nodedirall] += A_dir_dir * u[nodedirall]
-        return b, u, bdrydata
+    def vectorDirichletZero(self, du, bdrydata):
+        nodesdir = bdrydata.nodesdir
+        for color, nodes in nodesdir.items():
+            du[nodes] = 0
+        return du
+
+
+    # def boundaryvec(self, b, u, bdrycond, method, bdrydata):
+    #     nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
+    #     Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
+    #     x, y, z = self.mesh.points.T
+    #     for color, nodes in nodesdirflux.items():
+    #         bdrydata.bsaved[color] = b[nodes]
+    #     if method == 'trad':
+    #         for color, nodes in nodesdir.items():
+    #             dirichlet = bdrycond.fct[color]
+    #             if dirichlet:
+    #                 b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+    #             else:
+    #                 b[nodes] = 0
+    #             u[nodes] = b[nodes]
+    #         b[nodesinner] -= A_inner_dir * u[nodedirall]
+    #     else:
+    #         for color, nodes in nodesdir.items():
+    #             dirichlet = bdrycond.fct[color]
+    #             if dirichlet:
+    #                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
+    #             else:
+    #                 u[nodes] = 0
+    #             b[nodes] = 0
+    #         b[nodesinner] -= A_inner_dir * u[nodedirall]
+    #         b[nodedirall] += A_dir_dir * u[nodedirall]
+    #     return b, u, bdrydata
 
     def tonode(self, u):
         return u

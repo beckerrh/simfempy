@@ -9,7 +9,10 @@ Created on Mon Dec  5 15:38:16 2016
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
-import stoppingdata
+if __name__ == '__main__':
+    import stoppingdata
+else:
+    from . import stoppingdata
 
 #----------------------------------------------------------------------
 def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):

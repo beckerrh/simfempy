@@ -18,7 +18,7 @@ def rectangle():
     p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
     geom.add_physical(p.surface, label=100)
     for i in range(4): geom.add_physical(p.line_loop.lines[i], label=1000 + i)
-    return pygmsh.generate_mesh(geom)
+    return pygmsh.generate_mesh(geom, verbose=False)
 
 
 # ------------------------------------- #
@@ -44,7 +44,7 @@ mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 # simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 
 data = createData(mesh.bdrylabels.keys())
-print("data", data)
+# print("data", data)
 data.check(mesh)
 
 heat = simfempy.applications.heat.Heat(problemdata=data, mesh=mesh)

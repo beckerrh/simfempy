@@ -7,6 +7,7 @@ sys.path.insert(0, simfempypath)
 
 import pygmsh
 import simfempy
+import matplotlib.pyplot as plt
 
 
 # ------------------------------------- #
@@ -52,8 +53,9 @@ print("data", data)
 data.check(mesh)
 
 heat = simfempy.applications.heat.Heat(problemdata=data, mesh=mesh)
-point_data, cell_data, info = heat.solve()
+point_data, cell_data, info = heat.solveLinearProblem()
 print(f"{info['timer']}")
 print(f"{info['iter']}")
 print(f"postproc: {info['postproc']}")
 simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data)
+plt.show()

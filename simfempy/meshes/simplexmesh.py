@@ -116,7 +116,7 @@ class SimplexMesh(object):
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
-        print(self)
+        # print(self)
 
     def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):
         simplices = self.simplices
