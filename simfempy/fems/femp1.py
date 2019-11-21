@@ -121,6 +121,7 @@ class FemP1(object):
         rhscell = problemdata.rhscell
         rhspoint = problemdata.rhspoint
         bdrycond = problemdata.bdrycond
+        normals =  self.mesh.normals
         b = np.zeros(self.mesh.nnodes)
         if rhs:
             x, y, z = self.mesh.points.T
@@ -147,10 +148,10 @@ class FemP1(object):
             if bdrycond.type[color] != "Robin": continue
             nodes = np.unique(self.mesh.faces[faces].reshape(-1))
             x, y, z = self.mesh.points[nodes].T
-            help[nodes] = bdrycond.fct[color](x, y, z)
+            nx, ny, nz = normals[faces].T
+            help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
         b += self.robinmassmatrix*help
 
-        normals =  self.mesh.normals
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Neumann": continue

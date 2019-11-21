@@ -26,11 +26,13 @@ def rectangle():
 def createData(bdrylabels):
     data = simfempy.applications.problemdata.ProblemData()
     bdrycond = data.bdrycond
-    bdrycond.set("Neumann", [1000, 1002])
+    bdrycond.set("Robin", [1000])
+    bdrycond.set("Neumann", [1002])
     bdrycond.set("Dirichlet", [1001, 1003])
     bdrycond.fct[1001] = lambda x, y, z: 200
     bdrycond.fct[1003] = lambda x, y, z: 200
     bdrycond.fct[1000] = lambda x, y, z, nx, ny, nz: 10
+    bdrycond.param[1000] = 10
     postproc = data.postproc
     postproc.type['bdrymean'] = "bdrymean"
     postproc.color['bdrymean'] = [1000, 1002]
