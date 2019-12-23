@@ -27,36 +27,41 @@ class Solver(object):
         problemdata.ncomp = self.ncomp
         problemdata.solexact = self.defineAnalyticalSolution(exactsolution=exactsolution, random=random)
         problemdata.rhs = self.defineRhsAnalyticalSolution(problemdata.solexact)
-        if isinstance(bdrycond, (list, tuple)):
-            if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
-            for color in self.mesh.bdrylabels:
-                for icomp,bcs in enumerate(problemdata.bdrycond):
-                    if bcs.type[color] in ["Dirichlet","Robin"]:
-                        bcs.fct[color] = problemdata.solexact[icomp]
-                    else:
-                        bcs.fct[color] = eval("self.define{}AnalyticalSolution_{:d}(problemdata.solexact)".format(bcs.type[color],icomp))
+        # if isinstance(bdrycond, (list, tuple)):
+        #     if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
+        #     for color in self.mesh.bdrylabels:
+        #         for icomp,bcs in enumerate(problemdata.bdrycond):
+        #             # if bcs.type[color] in ["Dirichlet","Robin"]:
+        #             if bcs.type[color] in ["Dirichlet"]:
+        #                 bcs.fct[color] = problemdata.solexact[icomp]
+        #             else:
+        #                 bcs.fct[color] = eval("self.define{}AnalyticalSolution_{:d}(problemdata.solexact)".format(bcs.type[color],icomp))
+        # else:
+        if self.ncomp>1:
+            def _solexactdir(x, y, z):
+                return [problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
         else:
-            if self.ncomp>1:
-                def _solexactdir(x, y, z):
-                    return [problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
-            else:
-                def _solexactdir(x, y, z):
-                    return problemdata.solexact(x, y, z)
-            types = set(problemdata.bdrycond.types())
-            types.discard("Dirichlet")
-            types.discard("Robin")
-            types.add("Neumann")
-            problemdata.bdrycond.fctexact = {}
-            for type in types:
-                cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
-                problemdata.bdrycond.fctexact[type] = eval(cmd)
+            def _solexactdir(x, y, z):
+                return problemdata.solexact(x, y, z)
+        # types = set(problemdata.bdrycond.types())
+        # types.discard("Dirichlet")
+        # types.discard("Robin")
+        # types.add("Neumann")
+        # problemdata.bdrycond.fctexact = {}
+        # for type in types:
+        #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
+        #     problemdata.bdrycond.fctexact[type] = eval(cmd)
 
-            for color in self.mesh.bdrylabels:
-                if not color in bdrycond.type: raise KeyError(f"color={color} bdrycond={bdrycond}")
-                if bdrycond.type[color] in ["Dirichlet","Robin"]:
-                    bdrycond.fct[color] = _solexactdir
-                else:
-                    bdrycond.fct[color] = bdrycond.fctexact[bdrycond.type[color]]
+        for color in self.mesh.bdrylabels:
+            if not color in bdrycond.type: raise KeyError(f"color={color} bdrycond={bdrycond}")
+            if bdrycond.type[color] in ["Dirichlet"]:
+                bdrycond.fct[color] = _solexactdir
+            else:
+                # bdrycond.fct[color] = bdrycond.fctexact[bdrycond.type[color]]
+                type = bdrycond.type[color]
+                cmd = "self.define{}AnalyticalSolution(problemdata,{})".format(type, color)
+                print(f"cmd={cmd}")
+                bdrycond.fct[color] = eval(cmd)
         return problemdata
 
     def defineAnalyticalSolution(self, exactsolution, random=True):
@@ -168,29 +173,29 @@ class Solver(object):
             res=[]
             # u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
             B = np.ones((A.shape[0], 1))
-            # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
             SA_build_args = {
                 'max_levels': 10,
                 'max_coarse': 25,
                 'coarse_solver': 'pinv2',
                 'symmetry': 'hermitian'}
             smooth = ('energy', {'krylov': 'cg'})
-            SA_solve_args = {'cycle': 'V', 'maxiter': 15, 'tol': 1e-8}
             strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
             presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
             postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
             strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
             presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
             postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-            ml = pyamg.smoothed_aggregation_solver(
-                A,
-                B=B,
-                smooth=smooth,
-                strength=strength,
-                presmoother=presmoother,
-                postsmoother=postsmoother,
-                **SA_build_args)
+            ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+            # ml = pyamg.smoothed_aggregation_solver(
+            #     A,
+            #     B=B,
+            #     smooth=smooth,
+            #     strength=strength,
+            #     presmoother=presmoother,
+            #     postsmoother=postsmoother,
+            #     **SA_build_args)
             # u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, **SA_solve_args)
+            SA_solve_args = {'cycle': 'V', 'maxiter': 50, 'tol': 1e-12}
             u= ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)

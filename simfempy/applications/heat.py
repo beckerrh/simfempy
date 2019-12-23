@@ -32,7 +32,8 @@ class Heat(solvers.solver.Solver):
             return rhs
         return _fctu
 
-    def defineNeumannAnalyticalSolution(self, solexact):
+    def defineNeumannAnalyticalSolution(self, problemdata, color):
+        solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape[0])
@@ -41,6 +42,20 @@ class Heat(solvers.solver.Solver):
                 rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctneumann
+
+    def defineRobinAnalyticalSolution(self, problemdata, color):
+        solexact = problemdata.solexact
+        alpha = problemdata.bdrycond.param[color]
+        alpha = 1
+        def _fctrobin(x, y, z, nx, ny, nz):
+            kheat = self.problemdata.params.scal_glob['kheat']
+            rhs = np.zeros(x.shape[0])
+            normals = nx, ny, nz
+            rhs += alpha*solexact(x, y, z)
+            # for i in range(self.mesh.dimension):
+            #     rhs += kheat * solexact.d(i, x, y, z) * normals[i]
+            return rhs
+        return _fctrobin
 
     def setParameter(self, paramname, param):
         if paramname == "dirichlet_al": self.fem.dirichlet_al = param
@@ -121,6 +136,9 @@ class Heat(solvers.solver.Solver):
         if u is None: u = np.zeros_like(b)
         b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.problemdata.bdrycond, self.method, self.bdrydata)
         return b,u
+
+    def solve(self, iter, dirname):
+        return self.solveLinearProblem()
 
     def postProcess(self, u):
         info = {}

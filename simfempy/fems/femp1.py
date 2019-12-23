@@ -62,7 +62,7 @@ class FemP1(object):
                 nodes = self.mesh.faces[faces]
                 rows = np.append(rows, nodes)
                 cols = np.append(cols, nodes)
-                mass = np.repeat(scalemass*dS,self.mesh.dimension)
+                mass = np.repeat(scalemass*dS, self.mesh.dimension)
                 mat = np.append(mat, mass)
             return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
         else:
@@ -148,7 +148,10 @@ class FemP1(object):
             if bdrycond.type[color] != "Robin": continue
             nodes = np.unique(self.mesh.faces[faces].reshape(-1))
             x, y, z = self.mesh.points[nodes].T
-            nx, ny, nz = normals[faces].T
+            # print(f"normals {normals.shape}")
+            # raise ValueError(f"normals = {np.mean(normals, axis=0)}")
+            # nx, ny, nz = normals[faces].T
+            nx, ny, nz = np.mean(normals[faces], axis=0)
             help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
         b += self.robinmassmatrix*help
 
@@ -240,34 +243,6 @@ class FemP1(object):
             du[nodes] = 0
         return du
 
-
-    # def boundaryvec(self, b, u, bdrycond, method, bdrydata):
-    #     nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
-    #     Asaved, A_inner_dir, A_dir_dir = bdrydata.Asaved, bdrydata.A_inner_dir, bdrydata.A_dir_dir
-    #     x, y, z = self.mesh.points.T
-    #     for color, nodes in nodesdirflux.items():
-    #         bdrydata.bsaved[color] = b[nodes]
-    #     if method == 'trad':
-    #         for color, nodes in nodesdir.items():
-    #             dirichlet = bdrycond.fct[color]
-    #             if dirichlet:
-    #                 b[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-    #             else:
-    #                 b[nodes] = 0
-    #             u[nodes] = b[nodes]
-    #         b[nodesinner] -= A_inner_dir * u[nodedirall]
-    #     else:
-    #         for color, nodes in nodesdir.items():
-    #             dirichlet = bdrycond.fct[color]
-    #             if dirichlet:
-    #                 u[nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
-    #             else:
-    #                 u[nodes] = 0
-    #             b[nodes] = 0
-    #         b[nodesinner] -= A_inner_dir * u[nodedirall]
-    #         b[nodedirall] += A_dir_dir * u[nodedirall]
-    #     return b, u, bdrydata
-
     def tonode(self, u):
         return u
 
@@ -310,7 +285,8 @@ class FemP1(object):
     def comuteFluxOnRobin(self, u, faces, dS, uR, cR):
         uhmean =  np.sum(dS * np.mean(u[self.mesh.faces[faces]], axis=1))
         xf, yf, zf = self.mesh.pointsf[faces].T
-        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf))
+        nx, ny, nz = np.mean(self.mesh.normals[faces], axis=0)
+        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf, nx, ny, nz))
         else: uRmean=0
         return cR*(uRmean-uhmean)
 

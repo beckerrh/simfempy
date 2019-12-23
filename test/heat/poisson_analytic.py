@@ -56,7 +56,7 @@ def test_flux(geomname = "unitcube"):
     result = comp.compare(geometry=geometry, h=h)
 
 #----------------------------------------------------------------#
-def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=2, fems=['p1'],methods=['trad']):
+def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fems=['p1'],methods=['trad']):
     import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
     if geomname == "unitsquare":
@@ -110,7 +110,10 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
     heat = Heat(geometry=geometry, problemdata=data)
     colors = [c for c in data.bdrycond.colors()]
     data.bdrycond.clear()
-    data.bdrycond.set("Dirichlet", colors)
+    data.bdrycond.set("Neumann", [colors[0]])
+    data.bdrycond.set("Robin", [colors[1]])
+    data.bdrycond.param[colors[1]] = 1.2
+    data.bdrycond.set("Dirichlet", colors[2:])
     problemdata = heat.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
     method = 'p1-new'
     fem, meth  = method.split('-')
@@ -121,6 +124,7 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 
 #================================================================#
 if __name__ == '__main__':
+    test_analytic(exactsolution = 'Constant', geomname = "unitsquare", verbose=4)
     # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")
@@ -128,7 +132,7 @@ if __name__ == '__main__':
     # test_analytic(exactsolution = 'Linear', geomname = "unitcube")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")
 
-    test_dirichlet(exactsolution = 'Linear', geomname = "unitsquare")
+    # test_dirichlet(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")
 
     # test_solvers(geomname='unitsquare')

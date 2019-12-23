@@ -87,9 +87,6 @@ class CompareMethods(object):
                 if self.paramname != "ncells":
                     method.setParameter(self.paramname, param)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
-                # if self.vtk:
-                #     filename = "{}_{:02d}.vtk".format(name, iter)
-                #     mesh.write(filename=filename, dirname=self.dirname, point_data=point_data, cell_data=cell_data)
                 if self.plot:
                     from ..meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
