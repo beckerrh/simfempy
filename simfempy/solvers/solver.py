@@ -60,7 +60,7 @@ class Solver(object):
                 # bdrycond.fct[color] = bdrycond.fctexact[bdrycond.type[color]]
                 type = bdrycond.type[color]
                 cmd = "self.define{}AnalyticalSolution(problemdata,{})".format(type, color)
-                print(f"cmd={cmd}")
+                # print(f"cmd={cmd}")
                 bdrycond.fct[color] = eval(cmd)
         return problemdata
 

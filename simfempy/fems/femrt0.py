@@ -58,10 +58,10 @@ class FemRT0(object):
             scalec = 1 / dim / dim
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             x1 = scalea *np.einsum('nij,nij->n', p[simp], p[simp]) + scaleb* np.einsum('ni,ni->n', pc, pc)
-            mat = np.einsum('ni,nj, n->nij', dS, dS, x1)
             x2 = scalec *np.einsum('nik,njk->nij', p[simp], p[simp])
-            mat += np.einsum('ni,nj,nij->nij', dS, dS, x2)
             x3 = - scalec * np.einsum('nik,nk->ni', p[simp], pc)
+            mat = np.einsum('ni,nj, n->nij', dS, dS, x1)
+            mat += np.einsum('ni,nj,nij->nij', dS, dS, x2)
             mat += np.einsum('ni,nj,ni->nij', dS, dS, x3)
             mat += np.einsum('ni,nj,nj->nij', dS, dS, x3)
             if diffinvcell is None:
@@ -74,7 +74,6 @@ class FemRT0(object):
             # print("A (RT)", A)
             return A
 
-
         elif self.massproj=="L2":
             # RT avec projection L2
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
@@ -86,11 +85,106 @@ class FemRT0(object):
             rows = np.repeat(facesofcells, self.nloc).flatten()
             cols = np.tile(facesofcells, self.nloc).flatten()
             A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-            # print("A (RT)", A)
+            # print("A (RTM)", A)
             return A
 
 
-        elif self.massproj=="Tilde-RT":
+        elif self.massproj == "RT_Bar":
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            scale = 1/ (dim+1)
+            mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
+            mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.tocsr()
+        elif self.massproj == "Bar_RT":
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            scale = 1/ (dim+1)
+            mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
+            mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.tocsr().T
+
+        elif self.massproj == "Hat_RT":
+            # PG de type RT-Hat (Hat aligned with "m")
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            ps = p[simp][:, :, :dim]
+            ps2 = np.transpose(ps, axes=(2, 0, 1))
+            pc2 = np.repeat(pc[:, :dim].T[:, :, np.newaxis], nloc, axis=2)
+            pd = pc2 - ps2
+            scale = 1 / dim / dim
+            mat = np.einsum('kni, knj, ni, nj, n->nij', pd, pd, dS, dS, 1 / dV)
+            # pas la si projection L2
+            # mat += np.einsum('kni, kni, ni, nj, n->nij', pd, pd, dS, dS, dim / (dim + 2) / dV)
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.tocsr().T
+
+        elif self.massproj == "Hat_Hat":
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            ps = p[simp][:, :, :dim]
+            ps2 = np.transpose(ps, axes=(2, 0, 1))
+            pc2 = np.repeat(pc[:, :dim].T[:, :, np.newaxis], nloc, axis=2)
+            pd = pc2 - ps2
+            mloc = np.tile(2-dim, (dim+1, dim+1))
+            mloc.reshape(( (dim+1)**2))[::dim+2] += dim*dim
+            scale = (dim+1) / (dim+2) / dim**2
+            mat = np.einsum('kni, knj, ij, ni, nj, n->nij', pd, pd, mloc, dS, dS, 1 / dV)
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.tocsr()
+
+        elif self.massproj=="RT_Tilde":
+            # PG de type RT-Tilde (Hat aligned with "n")
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            dT = 1/linalg.norm(normals[facesofcells], axis=2)
+            ps = p[simp][:, :, :dim]
+            ps2 = np.transpose(ps, axes=(2, 0, 1))
+            pc2 = np.repeat(pc[:, :dim].T[:, :, np.newaxis], nloc, axis=2)
+            pd = pc2 - ps2
+            pn = np.transpose(normals[facesofcells][:,:,:dim], axes=(2,0,1))
+            # multiplié par dim !
+            scale = dim / dim / (dim+1)
+            mat = np.einsum('kni, knj, ni, nj, n->nij', pn, pd, dT, dS, diffinvcell)
+            mat += np.einsum('kni, kni, ni, nj, n->nij', pn, pd, dT, dS, dim/(dim+2) *diffinvcell)
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+            # A[np.abs(A)<1e-10] = 0
+            # A.eliminate_zeros()
+            # print("A (RTxTilde)", A)
+            return A
+
+        elif self.massproj=="Tilde_RT":
+            # PG de type RT-Tilde (Hat aligned with "n")
+            dS = sigma * linalg.norm(normals[facesofcells], axis=2)
+            dT = 1/linalg.norm(normals[facesofcells], axis=2)
+            ps = p[simp][:, :, :dim]
+            ps2 = np.transpose(ps, axes=(2, 0, 1))
+            pc2 = np.repeat(pc[:, :dim].T[:, :, np.newaxis], nloc, axis=2)
+            pd = pc2 - ps2
+            pn = np.transpose(normals[facesofcells][:,:,:dim], axes=(2,0,1))
+            # multiplié par d !
+            scale = dim / dim / (dim+1)
+            mat = np.einsum('kni, knj, ni, nj, n->nji', pn, pd, dT, dS, diffinvcell)
+            mat += np.einsum('kni, kni, ni, nj, n->nji', pn, pd, dT, dS, dim/(dim+2) *diffinvcell)
+            mat *= scale
+            rows = np.repeat(facesofcells, self.nloc).flatten()
+            cols = np.tile(facesofcells, self.nloc).flatten()
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.tocsr().T
+
+        elif self.massproj=="HatxRTOLD":
             # PG de type Tilde-RT
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -98,9 +192,6 @@ class FemRT0(object):
             pc2 = np.repeat(pc[:, :dim].T[:, :, np.newaxis], nloc, axis=2)
             pd = pc2 - ps2
             pf2 = pf[facesofcells][:, :, :dim]
-            # print("pd", pd.shape)
-            # print("pf2", pf2.shape)
-            # print("dS", dS.shape)
             scale = 1 / dim / dim
             mat = np.einsum('kni, nik, nj, ni, n->nij', pd, pf2, dS, dS, 1 / dV)
             mat -= np.einsum('kni, njk, nj, ni, n->nij', pd, ps, dS, dS, 1 / dV)
@@ -108,12 +199,11 @@ class FemRT0(object):
             rows = np.repeat(facesofcells, self.nloc).flatten()
             cols = np.tile(facesofcells, self.nloc).flatten()
             A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-            # print("A (BV)", A)
+            # print("A (HatxRT)", A)
             return A
 
-
-        elif self.massproj=="RT-Tilde":
-            # PG de type Tilde-RT
+        elif self.massproj=="RTxHatOLD":
+            # PG de type RT-Hat (Hat aligned with "m")
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
             ps2 = np.transpose(ps, axes=(2, 0, 1))
@@ -126,12 +216,10 @@ class FemRT0(object):
             mat *= scale
             rows = np.repeat(facesofcells, self.nloc).flatten()
             cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-            # print("A (BV)", A)
-            return A.T
+            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            return A.T.tocsr()
 
-
-        elif self.massproj=="Tilde-Tilde":
+        elif self.massproj=="HatxHatOLD":
             # G de type Tilde-Tilde
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -140,16 +228,6 @@ class FemRT0(object):
             pd = pc2 - ps2
             scale = (dim + 1) / dim**3
             mat = scale * np.einsum('ni, ni, kni, kni, n->ni', dS, dS, pd, pd, diffinvcell / dV)
-            rows = facesofcells.flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
-            # print("A", A)
-            return A
-
-
-        elif self.massproj=="Hat-RT":
-            # G de type Tilde-Tilde
-            scale = 1/(dim+1)*dim
-            mat = np.tile(scale * diffinvcell*dV, nloc)
             rows = facesofcells.flatten()
             A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
             # print("A", A)

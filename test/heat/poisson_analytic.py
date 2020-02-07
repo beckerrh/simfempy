@@ -1,7 +1,3 @@
-from os import sys, path
-simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(simfempypath)
-
 import simfempy
 from simfempy.meshes import geomdefs
 from simfempy.applications.heat import Heat

@@ -39,9 +39,7 @@ if __name__ == '__main__':
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
     geometry = Backwardfacingstep3d(h=2)
-    meshmesh = pygmsh.generate_mesh(geometry)
-    mesh = simplexmesh.SimplexMesh(data=meshdata)
+    meshdata = pygmsh.generate_mesh(geometry)
+    mesh = simplexmesh.SimplexMesh(mesh=meshdata)
     mesh.plotWithBoundaries()
-    plt.show()
-    mesh.plot(localnumbering=True)
     plt.show()

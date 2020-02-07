@@ -24,7 +24,7 @@ class LaplaceMixed(solvers.solver.Solver):
             return rhs
         return _fctu
 
-    def defineNeumannAnalyticalSolution(self, solexact):
+    def defineNeumannAnalyticalSolution(self, solexact, color):
         def _fctneumann(x, y, z, nx, ny, nz):
             rhs = np.zeros(x.shape[0])
             normals = nx, ny, nz
@@ -33,7 +33,7 @@ class LaplaceMixed(solvers.solver.Solver):
             return rhs
         return _fctneumann
 
-    def defineRobinAnalyticalSolution(self, solexact):
+    def defineRobinAnalyticalSolution(self, solexact, color):
         return solexact
 
     def __init__(self, **kwargs):
@@ -76,7 +76,7 @@ class LaplaceMixed(solvers.solver.Solver):
         self.diffcellinv = 1/self.diffcell
 
     def solve(self, iter, dirname):
-        return self.solveLinear()
+        return self.solveLinearProblem()
 
     def postProcess(self, u):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
@@ -96,18 +96,18 @@ class LaplaceMixed(solvers.solver.Solver):
             info['error'] = err
         info['postproc'] = {}
         if self.problemdata.postproc:
-            for key, val in self.problemdata.postproc.items():
-                type,data = val.split(":")
+            for name, type in self.problemdata.postproc.type.items():
+                colors = self.problemdata.postproc.colors(name)
                 if type == "bdrymean":
-                    info['postproc'][key] = self.computeBdryMean(pn, data)
+                    info['postproc'][name] = self.computeBdryMean(pn, colors)
                 elif type == "bdryfct":
-                    info['postproc'][key] = self.computeBdryFct(u, key, data)
+                    info['postproc'][name] = self.computeBdryFct(u, type, colors)
                 elif type == "bdrydn":
-                    info['postproc'][key] = self.computeBdryDn(u, data)
+                    info['postproc'][name] = self.computeBdryDn(u, colors)
                 elif type == "pointvalues":
-                    info['postproc'][key] = self.computePointValues(u, key, data)
+                    info['postproc'][name] = self.computePointValues(u, type, colors)
                 else:
-                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
+                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, colors))
         if self.plotdiff: cell_data['diff'] = self.diffcell
         return point_data, cell_data, info
 
@@ -160,14 +160,17 @@ class LaplaceMixed(solvers.solver.Solver):
     def computeRhs(self, u=None):
         xf, yf, zf = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
+        normals =  self.mesh.normals
         bsides = np.zeros(self.mesh.nfaces)
         bcells = np.zeros(self.mesh.ncells)
         if self.problemdata.rhs:
             bcells = -self.problemdata.rhs(xc, yc, zc) * self.mesh.dV
-
+        bdrycond = self.problemdata.bdrycond
         for color, faces in self.mesh.bdrylabels.items():
-            if self.problemdata.bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
-            ud = self.problemdata.bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
+            if bdrycond.type[color] not in ["Dirichlet","Robin"]: continue
+            # nx, ny, nz = np.mean(normals[faces], axis=0)
+            # ud = bdrycond.fct[color](xf[faces], yf[faces], zf[faces], nx, ny, nz)
+            ud = bdrycond.fct[color](xf[faces], yf[faces], zf[faces])
             # bsides[faces] = linalg.norm(self.mesh.normals[faces],axis=1) * ud
             bsides[faces] = self.femv.rhsDirichlet(faces, ud)
             if self.beta is not None:
