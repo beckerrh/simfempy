@@ -92,6 +92,7 @@ class FemRT0(object):
         elif self.massproj == "RT_Bar":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             scale = 1/ (dim+1)
+            scale = 2/9
             mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
             mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
             mat *= scale
@@ -102,6 +103,7 @@ class FemRT0(object):
         elif self.massproj == "Bar_RT":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             scale = 1/ (dim+1)
+            scale = 2/9
             mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
             mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
             mat *= scale

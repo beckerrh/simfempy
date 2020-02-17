@@ -51,16 +51,15 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2, h
     # methods['Tilde_RT'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="Tilde_RT")
     methods['RT_Bar'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="RT_Bar")
     methods['Bar_RT'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="Bar_RT")
-    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
-    result = comp.compare(geometry=geometry, h=h)
-    return result[3]['error']['pcL2']
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose, niter=3)
+    result = comp.compare(geometry=geometry)
 
 # ------------------------------------- #
 if __name__ == '__main__':
     # test_analytic(exactsolution="Constant")
-    test_analytic(exactsolution="Linear", geomname="equilateral", h = [1, 0.5, 0.2], verbose=2)
-    # test_analytic(exactsolution="Linear", geomname="equilateral", h = [1, 0.5, 0.2], verbose=4)
-    # test_analytic(exactsolution="Quadratic", geomname="unitsquare", h = [1, 0.5, 0.2, 0.1, 0.05, 0.025])
+    # test_analytic(exactsolution="Linear", geomname="equilateral", verbose=2)
+    # test_analytic(exactsolution="Linear", geomname="equilateral", verbose=4)
+    test_analytic(exactsolution="Linear", geomname="unitsquare")
     # test_analytic(exactsolution="Linear", geomname="unitcube")
     # test_analytic()
     # test_analytic(geomname="unitcube")

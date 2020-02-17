@@ -90,6 +90,9 @@ class LaplaceMixed(solvers.solver.Solver):
         point_data['p_1'] = pn
         if self.problemdata.solexact:
             err, pe, vexx = self.computeError(self.problemdata.solexact, u[nfaces:], vc, pn)
+            # print("vexx", vexx)
+            # print("u[:nfaces]", u[:nfaces])
+            # print("vc[i::dim]", vc[i::dim])
             cell_data['perr'] = np.abs(pe - u[nfaces:])
             for i in range(dim):
                 cell_data['verrx{:1d}'.format(i)] = np.abs(vexx[i] - vc[i::dim])
