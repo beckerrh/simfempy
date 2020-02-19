@@ -48,7 +48,7 @@ def createData(bdrylabels):
 # ------------------------------------- #
 mesh = rectangle()
 mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-# simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 
 data = createData(mesh.bdrylabels.keys())
 print("data", data)

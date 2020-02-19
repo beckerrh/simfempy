@@ -148,9 +148,11 @@ def meshWithData(**kwargs):
         plotter = pyvista.Plotter()
         plotter.renderer.SetBackground(255,255,255)
         plotter.add_axes()
-        plotter.add_mesh(grid, stitle="U=0", showedges=False, opacity=0.6, color='gray')
+        # plotter.add_mesh(grid, stitle="U=0", showedges=False, opacity=0.6, color='gray')
+        plotter.add_mesh(grid, stitle="U=0", opacity=0.6, color='gray')
         plotter.remove_scalar_bar()
-        plotter.add_mesh(grid2, scalars=un, stitle="U", showedges=True, interpolatebeforemap=True)
+        # plotter.add_mesh(grid2, scalars=un, stitle="U", showedges=True, interpolatebeforemap=True)
+        plotter.add_mesh(grid2, scalars=un, stitle="U")
         plotter.remove_scalar_bar()
         cpos = plotter.show(title="U")
     else:
@@ -158,7 +160,8 @@ def meshWithData(**kwargs):
         count=0
         for pdn, pd in point_data.items():
             # grid.plot(scalars=pd, stitle=pdn)
-            plotter.add_mesh(grid, scalars=pd, stitle=pdn,showedges=True,interpolatebeforemap=True)
+            # plotter.add_mesh(grid, scalars=pd, stitle=pdn,showedges=True,interpolatebeforemap=True)
+            plotter.add_mesh(grid, scalars=pd, stitle=pdn)
             count += 1
         cpos = plotter.show()
     return
