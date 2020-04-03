@@ -68,15 +68,14 @@ class LaplaceMixed(solvers.solver.Solver):
             self.plotdiff = kwargs.pop('plotdiff')
         else:
             self.plotdiff = False
+        if 'mesh' in kwargs:
+            self.setMesh(kwargs.pop('mesh'))
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.femv.setMesh(mesh)
         self.diffcell = self.diff(self.mesh.cell_labels)
         self.diffcellinv = 1/self.diffcell
-
-    def solve(self, iter, dirname):
-        return self.solveLinearProblem()
 
     def postProcess(self, u):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
@@ -289,4 +288,33 @@ class LaplaceMixed(solvers.solver.Solver):
 
 #=================================================================#
 if __name__ == '__main__':
-    print("Pas encore de test")
+    import simfempy
+    from simfempy.meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes import plotmesh
+    import pygmsh
+    import matplotlib.pyplot as plt
+    geometry = pygmsh.built_in.Geometry()
+    a = 1.0
+    h = 2
+    p = geometry.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
+    geometry.add_physical(p.surface, label=100)
+    for i in range(4): geometry.add_physical(p.line_loop.lines[i], label=1000 + i)
+    mesh = pygmsh.generate_mesh(geometry, verbose=False)
+    mesh = SimplexMesh(mesh=mesh, hmean=h)
+
+    data = simfempy.applications.problemdata.ProblemData()
+    bdrycond =  data.bdrycond
+    postproc = data.postproc
+    bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    data.params.scal_glob['kheat'] = 0.123
+    laplace = LaplaceMixed(mesh=mesh, problemdata=data, showmesh=False)
+    exactsolution = "Linear"
+    problemdata = laplace.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
+    laplace = LaplaceMixed(problemdata=problemdata, mesh=mesh)
+    print("A="laplace.A)
+    print("B="laplace.B)
+    point_data, cell_data, info = laplace.solve(dirname="Results")
+    print("point_data", point_data)
+    print("cell_data", cell_data)
+    plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title="Test", suptitle="LaplaceMixed")
+    plt.show()

@@ -4,7 +4,6 @@ import numpy as np
 import pygmsh
 import simfempy
 
-
 # ------------------------------------- #
 def rectangle():
     geom = pygmsh.built_in.Geometry()

@@ -83,6 +83,8 @@ class Solver(object):
             self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
             if 'showmesh' in kwargs:
                 self.mesh.plotWithBoundaries()
+        # if 'mesh' in kwargs:
+        #     self.setMesh(kwargs.pop('mesh'))
         self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
         self.ncomp = self.problemdata.ncomp
         assert self.ncomp != -1
@@ -90,6 +92,9 @@ class Solver(object):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.timer.reset()
+
+    def solve(self, iter=0, dirname="Results"):
+        return self.solveLinearProblem()
 
     def solveLinearProblem(self):
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
