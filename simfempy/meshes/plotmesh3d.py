@@ -2,9 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits import mplot3d
-from matplotlib import colors as mcolors
 
 #----------------------------------------------------------------#
 def _settitle(ax, text):

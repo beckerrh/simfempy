@@ -311,8 +311,8 @@ if __name__ == '__main__':
     exactsolution = "Linear"
     problemdata = laplace.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
     laplace = LaplaceMixed(problemdata=problemdata, mesh=mesh)
-    print("A="laplace.A)
-    print("B="laplace.B)
+    # print("A=",laplace.A)
+    # print("B=",laplace.B)
     point_data, cell_data, info = laplace.solve(dirname="Results")
     print("point_data", point_data)
     print("cell_data", cell_data)

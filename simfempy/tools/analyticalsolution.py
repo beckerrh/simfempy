@@ -36,17 +36,17 @@ class AnalyticalSolution():
         self.fct_zz = np.vectorize(sympy.lambdify('x,y,z', fzz),otypes=[float])
     def __repr__(self):
         return str(self.expr)
-    def __call__(self, x, y, z):
+    def __call__(self, x, y=0, z=0):
         return self.fct(x,y, z)
-    def x(self, x, y, z):
+    def x(self, x, y=0, z=0):
         return self.fct_x(x,y, z)
-    def y(self, x, y, z):
+    def y(self, x, y, z=0):
         return self.fct_y(x,y, z)
     def z(self, x, y, z):
         return self.fct_z(x,y, z)
-    def xx(self, x, y, z):
+    def xx(self, x, y=0, z=0):
         return self.fct_xx(x,y,z )
-    def yy(self, x, y, z):
+    def yy(self, x, y, z=0):
         return self.fct_yy(x,y,z)
     def zz(self, x, y, z):
         return self.fct_zz(x,y,z)
@@ -54,7 +54,7 @@ class AnalyticalSolution():
         if i==2:    return self.fct_z(x,y,z)
         elif i==1:  return self.fct_y(x,y,z)
         return self.fct_x(x,y,z)
-    def dd(self, i, j, x, y, z):
+    def dd(self, i, j, x, y, z=0):
         if i==2:    
             if j==2:    return self.fct_zz(x,y,z)
             elif j==1:  return self.fct_yz(x,y,z)
@@ -121,11 +121,17 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
 
 # ------------------------------------------------------------------- #
 if __name__ == '__main__':
-    uexact = AnalyticalSolution('x*x+2*y*y+ 4*z*z')
-    for (x,y,z) in [(0,0,0), (1,1,1), (1,0,1), (0,1,0)]:
-        print('Quadratic function', uexact, ' in x,y,z=:',x,y,z, ' equals: ', uexact(x,y,z))
-        print('grad=', uexact.x(x,y,z), uexact.y(x,y,z), uexact.z(x,y,z))
-        print('laplace=', uexact.xx(x,y,z) + uexact.yy(x,y,z) + uexact.zz(x,y,z))
+    u = AnalyticalSolution('x*x')
+    x = np.linspace(0,2,3)
+    print("u.xx(3)", u.xx(3))
+    print("u.x(x)", x, u.x(x))
+    print("u(x)", x, u(x))
+
+    # uexact = AnalyticalSolution('x*x+2*y*y+ 4*z*z')
+    # for (x,y,z) in [(0,0,0), (1,1,1), (1,0,1), (0,1,0)]:
+    #     print('Quadratic function', uexact, ' in x,y,z=:',x,y,z, ' equals: ', uexact(x,y,z))
+    #     print('grad=', uexact.x(x,y,z), uexact.y(x,y,z), uexact.z(x,y,z))
+    #     print('laplace=', uexact.xx(x,y,z) + uexact.yy(x,y,z) + uexact.zz(x,y,z))
 
     
     
