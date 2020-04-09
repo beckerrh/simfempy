@@ -11,6 +11,14 @@ def unique_all(a):
     vals, ind_start = np.unique(a_s, return_index=True)
     return vals, np.split(ind_s, ind_start[1:])
 
+def creatdict_unique_all(cl):
+    clunique = unique_all(cl)
+    clinv = {}
+    for color, ind in zip(clunique[0], clunique[1]):
+        clinv[color] = ind
+    return clinv
+
+
 # ------------------------------------- #
 if __name__ == '__main__':
     a = np.array([1, 7, 3, 1, 6, 7, 1, 6, 1, 7])

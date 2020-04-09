@@ -60,56 +60,68 @@ class SimplexMesh(object):
             mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
         self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
 
-    def _checkPhyscalLabels(self, points, cells, celldata):
-        if 'vertex' in cells.keys():
-            if not 'vertex' in celldata.keys() or not 'gmsh:physical' in celldata['vertex'].keys():
-                raise KeyError(f"vertices given without physical_label")
-        if self.dimension == 2:
-            if not 'line' in celldata.keys() or not 'gmsh:physical' in celldata['line'].keys():
-                raise KeyError(f"lines given without physical_label")
-            if not 'triangle' in celldata.keys() or not 'gmsh:physical' in celldata['triangle'].keys():
-                raise KeyError(f"triangles given without physical_label")
-        else:
-            if not 'triangle' in celldata.keys() or not 'gmsh:physical' in celldata['triangle'].keys():
-                raise KeyError(f"triangles given without physical_label")
-            if not 'tetra' in celldata.keys() or not 'gmsh:physical' in celldata['tetra'].keys():
-                raise KeyError(f"tetras given without physical_label")
-
     def _initMeshPyGmsh(self, points, cells, celldata):
-        if 'tetra' in cells.keys():
+        assert points.shape[1] ==3
+        self.points = points
+        self.nnodes = self.points.shape[0]
+        keys = []
+        for key, cellblock in cells:
+            keys.append(key)
+        # print("keys", keys)
+        #     print("key cellblock",key, cellblock)
+        if 'tetra' in keys:
             self.dimension = 3
-        elif 'triangle' in cells.keys():
+        elif 'triangle' in keys:
             self.dimension = 2
         else:
             self.dimension = 1
-        assert points.shape[1] ==3
-        self._checkPhyscalLabels(points, cells, celldata)
-        self.points = points
-        self.nnodes = self.points.shape[0]
-        if 'vertex' in cells.keys():
-            self.vertices = cells['vertex'].reshape(-1)
-            self.vertex_labels = celldata['vertex']['gmsh:physical']
-            verticesoflabel = npext.unique_all(self.vertex_labels)
-            self.verticesoflabel={}
-            for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
-                self.verticesoflabel[color] = self.vertices[ind]
-        if self.dimension==2:
-            self.simplices = cells['triangle']
-            self._facedata = (cells['line'], celldata['line']['gmsh:physical'])
-            self._constructFacesFromSimplices(cells['line'], celldata['line']['gmsh:physical'])
-            self.cell_labels = celldata['triangle']['gmsh:physical']
+        cds = celldata['gmsh:physical']
+        # print("type(cds)", type(cds))
+        # print("cds", cds)
+        if len(cds) != len(keys):
+            raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cds)}")
+
+        # first attempt, bad because 'append' copies data...
+        _cells = {}
+        _labels = {}
+        for (key, cellblock), cd in zip(cells,cds):
+            if len(cellblock) != len(cd):
+                raise ValueError(f"mismatch in {key} {len(cellblock)} {len(cd)}")
+            if not key in _cells.keys():
+                _cells[key] = cellblock
+                _labels[key] = cd
+            else:
+                _cells[key] = np.append(_cells[key], cellblock, axis=0)
+                _labels[key] = np.append(_labels[key], cd, axis=0)
+        if self.dimension==1:
+            self.simplices = _cells['line']
+            self._facedata = (_cells['vertex'], _labels['vertex'])
+            self.cell_labels = _labels['line']
+        elif self.dimension==2:
+            self.simplices = _cells['triangle']
+            self._facedata = (_cells['line'], _labels['line'])
+            self.cell_labels = _labels['triangle']
         else:
-            self.simplices = cells['tetra']
-            self._facedata = (cells['triangle'], celldata['triangle']['gmsh:physical'])
-            self._constructFacesFromSimplices(cells['triangle'], celldata['triangle']['gmsh:physical'])
-            self.cell_labels = celldata['tetra']['gmsh:physical']
-        cellloflabel = npext.unique_all(self.cell_labels)
-        self.cellsoflabel = {}
-        for color, ind in zip(cellloflabel[0], cellloflabel[1]):
-            self.cellsoflabel[color] = ind
+            self.simplices = _cells['tetra']
+            self._facedata = (_cells['triangle'], _labels['triangle'])
+            self.cell_labels = _labels['tetra']
+        self._constructFacesFromSimplices(self._facedata)
+        self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        if self.dimension > 1 and 'vertex' in _cells.keys():
+            self.vertices = _cells['vertex'].reshape(-1)
+            self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
+
+        # cellloflabel = npext.unique_all(self.cell_labels)
+        # self.cellsoflabel = {}
         # for color, ind in zip(cellloflabel[0], cellloflabel[1]):
-        #     print("color", color)
-        #     print("split", cell_labels[ind])
+        #     self.cellsoflabel[color] = ind
+        # if 'vertex' in _cells.keys():
+        #     self.vertices = _cells['vertex'].reshape(-1)
+        #     self.vertex_labels = _labels['vertex']
+        #     verticesoflabel = npext.unique_all(self.vertex_labels)
+        #     self.verticesoflabel={}
+        #     for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
+        #         self.verticesoflabel[color] = self.vertices[ind]
 
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
@@ -118,7 +130,8 @@ class SimplexMesh(object):
         self._constructNormalsAndAreas()
         # print(self)
 
-    def _constructFacesFromSimplices(self, bdryfacesgmsh, bdrylabelsgmsh):
+    def _constructFacesFromSimplices(self, facedata):
+        bdryfacesgmsh, bdrylabelsgmsh = facedata
         simplices = self.simplices
         ncells = simplices.shape[0]
         nnpc = simplices.shape[1]
@@ -146,27 +159,6 @@ class SimplexMesh(object):
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
         self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
-    # def _constructCellLabels(self, simpgmsh, labelsgmsh):
-    #     if self.simplices.shape != simpgmsh.shape:
-    #         msg ="wrong shapes self.simplices={} simpgmsh={}".format(self.simplices.shape,simpgmsh.shape)
-    #         raise ValueError(msg)
-    #     simpsorted = np.sort(self.simplices, axis=1)
-    #     labelssorted = np.sort(simpgmsh, axis=1)
-    #     assert simpsorted.shape == labelssorted.shape
-    #     if self.dimension==2:
-    #         dts = "{0}, {0}, {0}".format(simpsorted.dtype)
-    #         dtl = "{0}, {0}, {0}".format(labelssorted.dtype)
-    #         sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2'), axis=0).flatten()
-    #         lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2'), axis=0).flatten()
-    #     else:
-    #         dts = "{0}, {0}, {0}, {0}".format(simpsorted.dtype)
-    #         dtl = "{0}, {0}, {0}, {0}".format(labelssorted.dtype)
-    #         sp = np.argsort(simpsorted.view(dts), order=('f0','f1','f2','f3'), axis=0).flatten()
-    #         lp = np.argsort(labelssorted.view(dtl), order=('f0','f1','f2','f3'), axis=0).flatten()
-    #     spi = np.empty(sp.size, sp.dtype)
-    #     spi[sp] = np.arange(sp.size)
-    #     perm = lp[spi]
-    #     self.cell_labels = labelsgmsh[perm]
 
     def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
         simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors

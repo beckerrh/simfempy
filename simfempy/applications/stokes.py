@@ -19,11 +19,11 @@ class Stokes(solvers.solver.Solver):
         solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
         if exactsolution == 'Linear':
             # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('0'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('0'))
         elif exactsolution == 'Quadratic':
             # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
             # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('x+y'))
         else:
             raise NotImplementedError("unknown function '{}'".format(exactsolution))
         return solexact

@@ -1,10 +1,13 @@
+KAPUTT:
 
-gmsh refine
+    * p1 Robin (09/04/20)
+
 
 MYSTERE
-elasticity 2d sym mais 3d non
+    * elasticity 2d sym mais 3d non
+    * pourquoi deux instanciations pour exact solution ?
 
+PERF
+    * flatten -> ravel ?!! non: reshape ! (09/04/20)
+    * avoid np.append in simplexmesh !!! (09/04/20)
 
-flatten -> ravel ?!!
-
-pourqoi deux instanciations pour exact solution ?

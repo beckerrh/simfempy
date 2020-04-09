@@ -200,7 +200,7 @@ class Solver(object):
             #     postsmoother=postsmoother,
             #     **SA_build_args)
             # u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, **SA_solve_args)
-            SA_solve_args = {'cycle': 'V', 'maxiter': 50, 'tol': 1e-12}
+            SA_solve_args = {'cycle': 'V', 'maxiter': 50, 'tol': 1e-14}
             u= ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
