@@ -58,6 +58,9 @@ class SimplexMesh(object):
             # with open("toto.geo",'w') as file:
             #     file.write(code)
             mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
+            # print("mesh.points=",mesh.points)
+            # print("mesh.cells=", mesh.cells)
+            # print("mesh.cell_data=", mesh.cell_data)
         self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
 
     def _initMeshPyGmsh(self, points, cells, celldata):
@@ -93,6 +96,7 @@ class SimplexMesh(object):
             else:
                 _cells[key] = np.append(_cells[key], cellblock, axis=0)
                 _labels[key] = np.append(_labels[key], cd, axis=0)
+        # print("_labels", _labels)
         if self.dimension==1:
             self.simplices = _cells['line']
             self._facedata = (_cells['vertex'], _labels['vertex'])
@@ -107,6 +111,7 @@ class SimplexMesh(object):
             self.cell_labels = _labels['tetra']
         self._constructFacesFromSimplices(self._facedata)
         self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        self.verticesoflabel = {}
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
             self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
@@ -143,7 +148,10 @@ class SimplexMesh(object):
         s = "{0}" + (nnpc-2)*", {0}"
         s = s.format(allfaces.dtype)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
-        perm = np.argsort(allfaces.view(s), order=order, axis=0).flatten()
+        if self.dimension==1:
+            perm = np.argsort(allfaces, axis=0).flatten()
+        else:
+            perm = np.argsort(allfaces.view(s), order=order, axis=0).flatten()
         allfacescorted = allfaces[perm]
         self.faces, indices = np.unique(allfacescorted, return_inverse=True, axis=0)
         locindex = np.tile(np.arange(0,nnpc), ncells)
@@ -209,16 +217,17 @@ class SimplexMesh(object):
         for i in range(len(colors)):
             self.bdrylabels[colors[i]] = -np.ones( (counts[i]), dtype=np.int32)
         bdryfacesgmsh = np.sort(bdryfacesgmsh)
-        if self.dimension==2:
-            dtb = "{0}, {0}".format(bdryfacesgmsh.dtype)
-            dtf = "{0}, {0}".format(bdryfaces.dtype)
-            bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0','f1'), axis=0).flatten()
-            fp = np.argsort(bdryfaces.view(dtf), order=('f0','f1'), axis=0).flatten()
+        nnpc = self.simplices.shape[1]
+        s = "{0}" + (nnpc-2)*", {0}"
+        dtb = s.format(bdryfacesgmsh.dtype)
+        dtf = s.format(bdryfaces.dtype)
+        order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        if self.dimension==1:
+            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).flatten()
+            fp = np.argsort(bdryfaces.view(dtf), axis=0).flatten()
         else:
-            dtb = "{0}, {0}, {0}".format(bdryfacesgmsh.dtype)
-            dtf = "{0}, {0}, {0}".format(bdryfaces.dtype)
-            bp = np.argsort(bdryfacesgmsh.view(dtb), order=('f0','f1','f2'), axis=0).flatten()
-            fp = np.argsort(bdryfaces.view(dtf), order=('f0','f1','f2'), axis=0).flatten()
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).flatten()
+            fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).flatten()
         bpi = np.empty(bp.size, bp.dtype)
         bpi[bp] = np.arange(bp.size)
         perm = bdryids[fp[bpi]]
@@ -233,12 +242,18 @@ class SimplexMesh(object):
         # print ("self.bdrylabels", self.bdrylabels)
 
     def _constructNormalsAndAreas(self):
-        if self.dimension==2:
+        elem = self.simplices
+        self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
+        if self.dimension==1:
+            x = self.points[:,0]
+            self.normals = np.stack((np.ones(self.nfaces), np.zeros(self.nfaces), np.zeros(self.nfaces)), axis=-1)
+            dx1 = x[elem[:, 1]] - x[elem[:, 0]]
+            self.dV = np.abs(dx1)
+        elif self.dimension==2:
             x,y = self.points[:,0], self.points[:,1]
             sidesx = x[self.faces[:, 1]] - x[self.faces[:, 0]]
             sidesy = y[self.faces[:, 1]] - y[self.faces[:, 0]]
             self.normals = np.stack((-sidesy, sidesx, np.zeros(self.nfaces)), axis=-1)
-            elem = self.simplices
             dx1 = x[elem[:, 1]] - x[elem[:, 0]]
             dx2 = x[elem[:, 2]] - x[elem[:, 0]]
             dy1 = y[elem[:, 1]] - y[elem[:, 0]]
@@ -256,7 +271,6 @@ class SimplexMesh(object):
             sidesy = x2*z1 - x1*z2
             sidesz = x1*y2 - x2*y1
             self.normals = 0.5*np.stack((sidesx, sidesy, sidesz), axis=-1)
-            elem = self.simplices
             dx1 = x[elem[:, 1]] - x[elem[:, 0]]
             dx2 = x[elem[:, 2]] - x[elem[:, 0]]
             dx3 = x[elem[:, 3]] - x[elem[:, 0]]
@@ -276,7 +290,6 @@ class SimplexMesh(object):
                 xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
-        self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
 
     def write(self, filename, dirname = None, point_data=None):
         cell_data_meshio = {}

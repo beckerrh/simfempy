@@ -1,10 +1,14 @@
 import matplotlib.pyplot as plt
-try:
-    import plotmesh2d
-    import plotmesh3d
-except ModuleNotFoundError:
-    from . import plotmesh2d
-    from . import plotmesh3d
+from . import plotmesh1d, plotmesh2d, plotmesh3d
+
+# try:
+#     import plotmesh1d
+#     import plotmesh2d
+#     import plotmesh3d
+# except ModuleNotFoundError:
+#     from . import plotmesh1d
+#     from . import plotmesh2d
+#     from . import plotmesh3d
 
 
 #----------------------------------------------------------------#
@@ -21,7 +25,9 @@ def _getDim(meshdata):
 #=================================================================#
 def plotmesh(mesh, **kwargs):
     dim, meshdataismesh = _getDim(mesh)
-    if dim==2:
+    if dim==1:
+        plotmesh1d.plotmesh(mesh, **kwargs)
+    elif dim == 2:
         plotmesh2d.plotmesh(mesh, **kwargs)
     else:
         plotmesh3d.plotmesh(mesh, **kwargs)
@@ -30,9 +36,12 @@ def plotmesh(mesh, **kwargs):
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):
     dim, meshdataismesh = _getDim(meshdata)
-    if dim==2:
-        kwargs={}
-        kwargs['ax'] = ax
+    kwargs = {}
+    kwargs['ax'] = ax
+    if dim==1:
+        x, lines = meshdata.points[:, 0], meshdata.simplices
+        plotmesh1d.meshWithBoundaries(x, lines, **kwargs)
+    elif dim==2:
         if meshdataismesh:
             x, y, tris = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices
             kwargs['lines'] = meshdata.faces

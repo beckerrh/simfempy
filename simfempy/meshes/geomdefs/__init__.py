@@ -1,4 +1,5 @@
 from . import geometry
+from . import unitline
 from . import unitsquare
 from . import unitsquareholes
 from . import unitcube

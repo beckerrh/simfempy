@@ -133,7 +133,18 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
             r = (4 * np.random.rand() - 2) / 3
         else:
             p, q, r = perm[i%ncomp]
-        if dim==2:
+        if dim==1:
+            if function == 'Constant':
+                fct = '{:3.1f}'.format(p)
+            elif function == 'Linear':
+                fct = '{:3.1f} * x'.format(p)
+            elif function == 'Quadratic':
+                fct = '{:3.1f}*x*x'.format(p)
+            elif function == 'Sinus':
+                fct = 'sin({:3.1f}*x)'.format(p)
+            else:
+                raise NotImplementedError("unknown analytic solution: {}".format(function))
+        elif dim == 2:
             if function == 'Constant':
                 fct = '{:3.1f}'.format(p)
             elif function == 'Linear':

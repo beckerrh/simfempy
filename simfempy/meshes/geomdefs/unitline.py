@@ -10,13 +10,15 @@ except:
     import geometry
 
 # ------------------------------------- #
-class Unitsquare(geometry.Geometry):
+class Unitline(geometry.Geometry):
     def define(self, h=1.):
         self.reset()
-        a = 1.0
-        p = self.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
-        self.add_physical(p.surface, label=100)
-        for i in range(4): self.add_physical(p.line_loop.lines[i], label=1000 + i)
+        p0 = self.add_point([0,0,0], lcar=h)
+        p1 = self.add_point([1,0,0], lcar=h)
+        p = self.add_line(p0, p1)
+        self.add_physical(p0, label=10000)
+        self.add_physical(p1, label=10001)
+        self.add_physical(p, label=1000)
 
 # ------------------------------------- #
 if __name__ == '__main__':
@@ -24,10 +26,8 @@ if __name__ == '__main__':
     sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
     import pygmsh, simplexmesh
     import matplotlib.pyplot as plt
-    geometry = Unitsquare(h=1)
+    geometry = Unitline(h=0.2)
     mesh = pygmsh.generate_mesh(geometry)
     mesh = simplexmesh.SimplexMesh(mesh=mesh)
     mesh.plotWithBoundaries()
     plt.show()
-    # mesh.plot(localnumbering=True)
-    # plt.show()

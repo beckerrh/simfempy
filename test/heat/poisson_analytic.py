@@ -7,7 +7,10 @@ def getGeometryAndData(geomname = "unitcube"):
     data = simfempy.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
     postproc = data.postproc
-    if geomname == "unitsquare":
+    if geomname == "unitline":
+        bdrycond.set("Dirichlet", [10000,10001])
+        geometry = geomdefs.unitline.Unitline()
+    elif geomname == "unitsquare":
         bdrycond.set("Neumann", [1000, 1002])
         bdrycond.set("Dirichlet", [1001])
         bdrycond.set("Robin", [1003])
@@ -35,9 +38,8 @@ def getGeometryAndData(geomname = "unitcube"):
 def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fems=['p1'],methods=['trad']):
     import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
-    if geomname == "unitsquare":
-        h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
-    elif geomname == "unitcube":
+    h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
+    if geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125]
     if exactsolution == "Linear":  h = h[:-3]
     heat = Heat(geometry=geometry, problemdata=data)
@@ -127,7 +129,8 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(exactsolution = 'Constant', geomname = "unitsquare", verbose=4)
-    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    test_analytic(exactsolution = 'Linear', geomname = "unitline")
+    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")
 

@@ -80,15 +80,16 @@ def plotmesh(mesh, **kwargs):
         ax.set_ylabel(r'y')
     celllabels = mesh.cell_labels
     cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-    # clb = plt.colorbar(cnt)
-    # clb.set_label("cellcolors")
-    pltcolors = 'bgrcmykbgrcmyk'
-    patches = []
-    for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
-        patches.append(mpatches.Patch(color=pltcolors[i], label=color))
-        for vertex in vertices:
-            ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
-    ax.legend(handles=patches)
+    clb = plt.colorbar(cnt)
+    clb.set_label("cellcolors")
+    if len(mesh.verticesoflabel):
+        pltcolors = 'bgrcmykbgrcmyk'
+        patches = []
+        for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
+            patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+            for vertex in vertices:
+                ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
+        ax.legend(handles=patches)
     _settitle(ax, title)
 
 
