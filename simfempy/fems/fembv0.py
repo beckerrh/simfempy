@@ -42,7 +42,7 @@ class FemBV0(object):
         rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),nloc)
         cols = np.tile(facesofcells.ravel(), dim)
         mat = np.einsum('ni, jni, n->jni', dS, pd, 1/dV)
-        return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
+        return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
 
 
         # pour les tilde
@@ -50,7 +50,7 @@ class FemBV0(object):
         # cols = np.tile(facesofcells.ravel(), dim)
         # dS = linalg.norm(normals[facesofcells], axis=2)
         # mat = np.einsum('nij, ni, n->jni', normals[facesofcells][:,:,:dim], 1/dS, dV/(dim+1))
-        # return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
+        # return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
 
         # pour les hat
         dS = sigma * linalg.norm(normals[facesofcells], axis=2)
@@ -62,7 +62,7 @@ class FemBV0(object):
         cols = np.tile(facesofcells.ravel(), dim)
         scale = 1/dim
         mat = scale*np.einsum('ni, jni->jni', dS, pd)
-        return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
+        return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
 
     def toCell(self, v):
         return self.Mtocell.dot(v)
@@ -84,8 +84,8 @@ class FemBV0(object):
         # # print("pd**2", np.einsum('kni,kni->ni', pd, pd))
         # # print("dS2", dS2)
         # # print("mat", mat)
-        # rows = facesOfCells.flatten()
-        # A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
+        # rows = facesOfCells.ravel()
+        # A = sparse.coo_matrix((mat.ravel(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
         # print("A", A)
         # # self.mesh.plotWithNumbering()
         # return A
@@ -111,9 +111,9 @@ class FemBV0(object):
 
         mat *= scale
 
-        rows = np.repeat(facesofcells, self.nloc).flatten()
-        cols = np.tile(facesofcells, self.nloc).flatten()
-        A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        rows = np.repeat(facesofcells, self.nloc).ravel()
+        cols = np.tile(facesofcells, self.nloc).ravel()
+        A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
         # print("A (BV)", A)
         return A
 
@@ -126,8 +126,8 @@ class FemBV0(object):
         # print("normal", normals[facesofcells][:,:,:dim])
         scale = 1/dim/(dim+1)
         mat = scale*np.einsum('nij, nij, ni->ni', pd, normals[facesofcells][:,:,:dim], sigma)
-        rows = facesofcells.flatten()
-        A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
+        rows = facesofcells.ravel()
+        A = sparse.coo_matrix((mat.ravel(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
         # print("A", A)
         # stop
         return A
@@ -144,8 +144,8 @@ class FemBV0(object):
         # scale = (dim+1)/dim**3 * 4/5
         scale = (dim+1)/dim**2
         mat = scale*np.einsum('ni, ni, jni, jni, n->ni', dS, dS, pd, pd, diffinvcell/dV)
-        rows = facesofcells.flatten()
-        A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
+        rows = facesofcells.ravel()
+        A = sparse.coo_matrix((mat.ravel(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
         # print("A", A)
         return A
 
@@ -153,8 +153,8 @@ class FemBV0(object):
     def constructDiv(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         rows = np.repeat(np.arange(ncells), self.nloc)
-        cols = facesofcells.flatten()
-        mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).flatten()
+        cols = facesofcells.ravel()
+        mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).ravel()
         return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces)).tocsr()
 
     def reconstruct(self, p, vc, diffinv):

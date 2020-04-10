@@ -45,7 +45,7 @@ class FemP1(object):
         scalemass = 1 / self.nloc / (self.nloc+1);
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
-        mass = np.einsum('n,kl->nkl', self.mesh.dV, massloc).flatten()
+        mass = np.einsum('n,kl->nkl', self.mesh.dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
     def computeBdryMassMatrix(self, bdrycond, type, lumped=False):
@@ -96,7 +96,7 @@ class FemP1(object):
             colors = postproc.colors(name)
             for color in colors:
                 facesdir = self.mesh.bdrylabels[color]
-                bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].flatten())
+                bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
 
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):
@@ -104,7 +104,7 @@ class FemP1(object):
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
+        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.ravel()
         A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)

@@ -8,6 +8,6 @@ MYSTERE
     * pourquoi deux instanciations pour exact solution ?
 
 PERF
-    * flatten -> ravel ?!! non: reshape ! (09/04/20)
+    * ravel -> reshape ??? (09/04/20)
     * avoid np.append in simplexmesh !!! (09/04/20)
 

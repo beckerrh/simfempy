@@ -64,7 +64,7 @@ def plotmesh(mesh, **kwargs):
     ntets = tets.shape[0]
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
     offset = 5*np.arange(ntets)
-    cells = np.insert(tets, 0, 4, axis=1).flatten()
+    cells = np.insert(tets, 0, 4, axis=1).ravel()
     grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
 
     plotter = pyvista.Plotter()
@@ -130,7 +130,7 @@ def meshWithData(**kwargs):
     ntets = tets.shape[0]
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
     offset = 5*np.arange(ntets)
-    cells = np.insert(tets, 0, 4, axis=1).flatten()
+    cells = np.insert(tets, 0, 4, axis=1).ravel()
     grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
 
     if translate_point_data:

@@ -148,7 +148,7 @@ class Stokes(solvers.solver.Solver):
         matA = np.zeros(ncells*nloc*nloc).reshape(ncells, nloc, nloc)
         for i in range(ncomp):
             matA += np.einsum('nk,nl->nkl', cellgrads[:, :, i], cellgrads[:, :, i])
-        matA = ( matA.T*dV*self.mucell).T.flatten()
+        matA = ( matA.T*dV*self.mucell).T.ravel()
         cols = np.tile(facesOfCells, nloc).reshape(ncells, nloc, nloc)
         rows = cols.swapaxes(1, 2)
         A = scipy.sparse.coo_matrix((matA, (rows.reshape(-1), cols.reshape(-1))), shape=(nfaces, nfaces)).tocsr()

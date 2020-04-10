@@ -25,8 +25,8 @@ class FemCR1(object):
     def setMesh(self, mesh, bdrycond=None):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
-        self.cols = np.tile(self.mesh.facesOfCells, self.nloc).flatten()
-        self.rows = np.repeat(self.mesh.facesOfCells, self.nloc).flatten()
+        self.cols = np.tile(self.mesh.facesOfCells, self.nloc).ravel()
+        self.rows = np.repeat(self.mesh.facesOfCells, self.nloc).ravel()
         self.computeFemMatrices()
         self.massmatrix = self.massMatrix()
         if bdrycond:
@@ -40,7 +40,7 @@ class FemCR1(object):
         scalemass = (2-dim) / (dim+1) / (dim+2)
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
-        self.mass = np.einsum('n,kl->nkl', dV, massloc).flatten()
+        self.mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
 
     def massMatrix(self):
         nfaces = self.mesh.nfaces
@@ -90,7 +90,7 @@ class FemCR1(object):
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.flatten()
+        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.ravel()
         A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
         A += self.robinmassmatrix
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
@@ -125,7 +125,7 @@ class FemCR1(object):
         #     # bdrydata.facesdirflux[key] = np.empty(shape=(0), dtype=int)
         #     for color in colors:
         #         facesdir = self.mesh.bdrylabels[color]
-        #         # bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).flatten())
+        #         # bdrydata.facesdirflux[key] = np.unique(np.union1d(bdrydata.facesdirflux[key], facesdir).ravel())
         #         bdrydata.facesdirflux[color] = facesdir
         for name, type in postproc.type.items():
             if type != "bdrydn": continue

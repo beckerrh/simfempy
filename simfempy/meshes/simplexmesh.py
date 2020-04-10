@@ -149,9 +149,9 @@ class SimplexMesh(object):
         s = s.format(allfaces.dtype)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
         if self.dimension==1:
-            perm = np.argsort(allfaces, axis=0).flatten()
+            perm = np.argsort(allfaces, axis=0).ravel()
         else:
-            perm = np.argsort(allfaces.view(s), order=order, axis=0).flatten()
+            perm = np.argsort(allfaces.view(s), order=order, axis=0).ravel()
         allfacescorted = allfaces[perm]
         self.faces, indices = np.unique(allfacescorted, return_inverse=True, axis=0)
         locindex = np.tile(np.arange(0,nnpc), ncells)
@@ -223,11 +223,11 @@ class SimplexMesh(object):
         dtf = s.format(bdryfaces.dtype)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
         if self.dimension==1:
-            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).flatten()
-            fp = np.argsort(bdryfaces.view(dtf), axis=0).flatten()
+            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), axis=0).ravel()
         else:
-            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).flatten()
-            fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).flatten()
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
         bpi = np.empty(bp.size, bp.dtype)
         bpi[bp] = np.arange(bp.size)
         perm = bdryids[fp[bpi]]

@@ -68,7 +68,7 @@ class FemCR1(femcr1.FemCR1):
         mat = np.zeros(shape=(ncells, nlocncomp, nlocncomp))
         for icomp in range(ncomp):
             mat[:, icomp::ncomp, icomp::ncomp] = ((matxx + matyy + matzz).T * self.mesh.dV * k[icomp]).T
-        A = sparse.coo_matrix((mat.flatten(), (self.rowssys, self.colssys)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        A = sparse.coo_matrix((mat.ravel(), (self.rowssys, self.colssys)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
         return self.matrixDirichlet(A, bdrycond, method, bdrydata)
 
     def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):

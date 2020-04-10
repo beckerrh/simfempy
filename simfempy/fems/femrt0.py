@@ -40,7 +40,7 @@ class FemRT0(object):
         rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),nloc)
         cols = np.tile(facesofcells.ravel(), dim)
         mat = np.einsum('ni, jni, n->jni', dS, pd, 1/dV)
-        return  sparse.coo_matrix((mat.flatten(), (rows.flatten(), cols.flatten())), shape=(dim*ncells, nfaces))
+        return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
 
     def toCell(self, v):
         return self.Mtocell.dot(v)
@@ -68,9 +68,9 @@ class FemRT0(object):
                 mat = np.einsum("nij, n -> nij", mat, 1/dV)
             else:
                 mat = np.einsum("nij, n -> nij", mat, diffinvcell / dV  )
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # print("A (RT)", A)
             return A
 
@@ -82,9 +82,9 @@ class FemRT0(object):
             pc2 = np.repeat(pc[:,:dim].T[:, :, np.newaxis], nloc, axis=2)
             pd = pc2 -ps2
             mat = np.einsum('kni,knj, ni, nj, n->nij', pd, pd, dS, dS, diffinvcell / dV)
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # print("A (RTM)", A)
             return A
 
@@ -96,9 +96,9 @@ class FemRT0(object):
             mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
             mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr()
         elif self.massproj == "Bar_RT":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
@@ -107,9 +107,9 @@ class FemRT0(object):
             mat = np.einsum('ni, nj, n->nij', -dS, 1/dS, dV)
             mat.reshape( ( mat.shape[0], (dim+1)**2) ) [:,::dim+2] *= -dim
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
         elif self.massproj == "Hat_RT":
@@ -124,9 +124,9 @@ class FemRT0(object):
             # pas la si projection L2
             # mat += np.einsum('kni, kni, ni, nj, n->nij', pd, pd, dS, dS, dim / (dim + 2) / dV)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
         elif self.massproj == "Hat_Hat":
@@ -140,9 +140,9 @@ class FemRT0(object):
             scale = (dim+1) / (dim+2) / dim**2
             mat = np.einsum('kni, knj, ij, ni, nj, n->nij', pd, pd, mloc, dS, dS, 1 / dV)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr()
 
         elif self.massproj=="RT_Tilde":
@@ -159,9 +159,9 @@ class FemRT0(object):
             mat = np.einsum('kni, knj, ni, nj, n->nij', pn, pd, dT, dS, diffinvcell)
             mat += np.einsum('kni, kni, ni, nj, n->nij', pn, pd, dT, dS, dim/(dim+2) *diffinvcell)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # A[np.abs(A)<1e-10] = 0
             # A.eliminate_zeros()
             # print("A (RTxTilde)", A)
@@ -181,9 +181,9 @@ class FemRT0(object):
             mat = np.einsum('kni, knj, ni, nj, n->nji', pn, pd, dT, dS, diffinvcell)
             mat += np.einsum('kni, kni, ni, nj, n->nji', pn, pd, dT, dS, dim/(dim+2) *diffinvcell)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
         elif self.massproj=="HatxRTOLD":
@@ -198,9 +198,9 @@ class FemRT0(object):
             mat = np.einsum('kni, nik, nj, ni, n->nij', pd, pf2, dS, dS, 1 / dV)
             mat -= np.einsum('kni, njk, nj, ni, n->nij', pd, ps, dS, dS, 1 / dV)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # print("A (HatxRT)", A)
             return A
 
@@ -216,9 +216,9 @@ class FemRT0(object):
             mat = np.einsum('kni, nik, nj, ni, n->nij', pd, pf2, dS, dS, 1 / dV)
             mat -= np.einsum('kni, njk, nj, ni, n->nij', pd, ps, dS, dS, 1 / dV)
             mat *= scale
-            rows = np.repeat(facesofcells, self.nloc).flatten()
-            cols = np.tile(facesofcells, self.nloc).flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, cols)), shape=(nfaces, nfaces))
+            rows = np.repeat(facesofcells, self.nloc).ravel()
+            cols = np.tile(facesofcells, self.nloc).ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.T.tocsr()
 
         elif self.massproj=="HatxHatOLD":
@@ -230,8 +230,8 @@ class FemRT0(object):
             pd = pc2 - ps2
             scale = (dim + 1) / dim**3
             mat = scale * np.einsum('ni, ni, kni, kni, n->ni', dS, dS, pd, pd, diffinvcell / dV)
-            rows = facesofcells.flatten()
-            A = sparse.coo_matrix((mat.flatten(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
+            rows = facesofcells.ravel()
+            A = sparse.coo_matrix((mat.ravel(), (rows, rows)), shape=(nfaces, nfaces)).tocsr()
             # print("A", A)
             return A
 
@@ -241,8 +241,8 @@ class FemRT0(object):
     def constructDiv(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         rows = np.repeat(np.arange(ncells), self.nloc)
-        cols = facesofcells.flatten()
-        mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).flatten()
+        cols = facesofcells.ravel()
+        mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).ravel()
         return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces)).tocsr()
 
     def reconstruct(self, p, vc, diffinv):
