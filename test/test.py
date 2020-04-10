@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import simfempy.applications.heat as heat
 
 #================================================================#
 class TestAnalytical(unittest.TestCase):
@@ -11,6 +12,9 @@ class TestAnalytical(unittest.TestCase):
             else:
                 if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
 #---------------------------
+    def test_poisson1d(self):
+        from heat.poisson_analytic import test_analytic
+        self._check(test_analytic(exactsolution = 'Linear', geomname = "unitline", verbose=0))
     def test_poisson2d(self):
         from heat.poisson_analytic import test_analytic
         self._check(test_analytic(exactsolution = 'Linear', geomname = "unitsquare", verbose=0))

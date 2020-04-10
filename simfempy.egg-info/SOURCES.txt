@@ -27,6 +27,7 @@ simfempy/fems/femp1sys.py
 simfempy/fems/femrt0.py
 simfempy/meshes/__init__.py
 simfempy/meshes/plotmesh.py
+simfempy/meshes/plotmesh1d.py
 simfempy/meshes/plotmesh2d.py
 simfempy/meshes/plotmesh3d.py
 simfempy/meshes/pygmshext.py
@@ -37,6 +38,7 @@ simfempy/meshes/geomdefs/backwardfacingstep3d.py
 simfempy/meshes/geomdefs/equilateral.py
 simfempy/meshes/geomdefs/geometry.py
 simfempy/meshes/geomdefs/unitcube.py
+simfempy/meshes/geomdefs/unitline.py
 simfempy/meshes/geomdefs/unitsquare.py
 simfempy/meshes/geomdefs/unitsquareholes.py
 simfempy/solvers/__init__.py
