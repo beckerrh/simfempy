@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
-import simfempy.meshes
 
 geom = pygmsh.built_in.Geometry()
 poly = geom.add_polygon([
@@ -28,7 +27,7 @@ for i,ex in enumerate(ext):
 geom.add_physical_volume(vol, label=111)
 
 # data = pygmsh.generate_mesh(geom)
-data = simfempy.meshes.gmsh.generate_mesh(geom, msh_filename='toto', bin=False)
-mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+data = OLD.simfempy.meshes.gmsh.generate_mesh(geom, msh_filename='toto', bin=False)
+mesh = OLD.simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+OLD.simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 plt.show()

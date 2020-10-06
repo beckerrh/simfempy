@@ -5,7 +5,7 @@
 *.pyc
 dist
 build
-simfempy.egg-info
+OLD/simfempy.egg-info
 
 # PyCharm
 *.bak
