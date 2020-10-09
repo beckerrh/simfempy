@@ -1,7 +1,7 @@
 import pygmsh
 import numpy as np
-from OLD.simfempy.tools import npext
-from OLD.simfempy.meshes import pygmshext
+from simfempy.tools import npext
+from simfempy.meshes import pygmshext
 
 
 # ----------------------------------------------------------------#

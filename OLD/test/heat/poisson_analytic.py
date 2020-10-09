@@ -34,7 +34,7 @@ def getGeometryAndData(geomname = "unitcube"):
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fems=['p1'],methods=['trad']):
-    import OLD.simfempy.tools.comparemethods
+    import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
     h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
     if geomname == "unitcube":
@@ -52,13 +52,13 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fe
     for fem in fems:
         for method in methods:
             sims[fem+method] = Heat(problemdata=problemdata, fem=fem, method=method)
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(sims, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(sims, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']
 
 #----------------------------------------------------------------#
 def test_flux(geomname = "unitcube"):
-    import OLD.simfempy.tools.comparemethods
+    import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
     colors = [c for c in data.bdrycond.colors()]
     data.bdrycond.clear()
@@ -72,7 +72,7 @@ def test_flux(geomname = "unitcube"):
     for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')
         methods[method] = Heat(problemdata=data, fem=fem, method=meth, linearsolver='umf')
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(methods, verbose=2)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=2)
     h = [2, 1, 0.5, 0.25, 0.125]
     result = comp.compare(geometry=geometry, h=h)
 
@@ -100,7 +100,7 @@ def test_solvers(geomname='unitcube', fem = 'p1', method='trad'):
 
 #----------------------------------------------------------------#
 def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
-    import OLD.simfempy.tools.comparemethods
+    import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
     if geomname == "unitsquare":
         h = 0.06
@@ -118,7 +118,7 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
     method = 'p1-new'
     fem, meth  = method.split('-')
     methods = {method: Heat(problemdata=problemdata, fem=fem, method=meth)}
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(methods, h=h, paramname='dirichlet_al', verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, h=h, paramname='dirichlet_al', verbose=verbose)
     params = [1, 2, 4, 10, 100,1000]
     result = comp.compare(geometry=geometry, params=params)
 

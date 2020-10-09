@@ -33,7 +33,7 @@ def getGeometryAndData(geomname = "unitcube", h=None):
 
 # ------------------------------------- #
 def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2, h=None):
-    import OLD.simfempy.tools.comparemethods
+    import simfempy.tools.comparemethods
     geometry, data, h = getGeometryAndData(geomname, h)
     laplace = LaplaceMixed(geometry=geometry, problemdata=data, showmesh=False)
     problemdata = laplace.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
@@ -49,7 +49,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2, h
     # methods['Tilde_RT'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="Tilde_RT")
     methods['RT_Bar'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="RT_Bar")
     methods['Bar_RT'] = LaplaceMixed(problemdata=problemdata, linearsolver=linearsolver, massproj="Bar_RT")
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose, niter=3)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose, niter=3)
     result = comp.compare(geometry=geometry)
 
 # ------------------------------------- #

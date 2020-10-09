@@ -7,7 +7,7 @@ sys.path.append(simfempypath)
 
 import matplotlib.pyplot as plt
 import pygmsh
-from OLD.simfempy.meshes import pygmshext
+from simfempy.meshes import pygmshext
 
 
 #================================================================#

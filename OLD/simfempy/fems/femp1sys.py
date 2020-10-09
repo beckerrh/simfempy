@@ -12,9 +12,9 @@ import scipy.sparse as sparse
 from OLD.simfempy.fems import femp1
 
 try:
-    from OLD.simfempy.meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
-    from ..meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 
 
 # =================================================================#

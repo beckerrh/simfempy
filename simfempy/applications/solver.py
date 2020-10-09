@@ -11,7 +11,6 @@ import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
 import scipy.optimize as optimize
 
-from OLD import simfempy
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 

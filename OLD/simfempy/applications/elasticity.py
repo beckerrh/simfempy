@@ -2,7 +2,8 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
-from OLD.simfempy import tools
+from simfempy import tools
+
 
 #=================================================================#
 class Elasticity(OLD.simfempy.solvers.solver.Solver):

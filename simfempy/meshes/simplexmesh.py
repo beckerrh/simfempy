@@ -8,14 +8,6 @@ import os
 import meshio
 import numpy as np
 from scipy import sparse
-from OLD.simfempy.tools import npext
-
-
-# try:
-#     import geomdefs
-# except ModuleNotFoundError:
-#     from . import geomdefs
-
 
 #=================================================================#
 class SimplexMesh(object):
@@ -49,94 +41,82 @@ class SimplexMesh(object):
             self.geometry = 'own'
             mesh = kwargs.pop('mesh')
         else:
-            import pygmsh
-            self.geometry = kwargs.pop('geometry')
-            if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
-            else: hmean = 1
-            self.geometry.define(hmean)
-            # code = self.geometry.get_code()
-            # with open("toto.geo",'w') as file:
-            #     file.write(code)
-            mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
-            # print("mesh.points=",mesh.points)
-            # print("mesh.cells=", mesh.cells)
-            # print("mesh.cell_data=", mesh.cell_data)
-        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
+            raise KeyError("Can only work with mesh (at the moment)")
+        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_sets)
 
-    def _initMeshPyGmsh(self, points, cells, celldata):
+    def _check_cell_set(self, dim, cellkeys, cell_sets):
+        gkeys=set()
+        for k in cell_sets.keys():
+            ks = k.split(":")
+            if len(ks) != 2 or ks[0] not in ['N','L','S','V']:
+                msg = "Physical label must be of the form\n"
+                msg += "\t'X:id' with X=N|L|S|V meaning(node|line|surface|volume\n"
+                msg += f"\tgiven label: '{k}'"
+                raise ValueError(msg)
+            gkeys.add(ks[0])
+        # if len(gkeys) != len(cellkeys):
+        #     msg = "Not enough physical labels:\n"
+        #     msg += f"\tcell keys: {cellkeys}\n"
+        #     msg += f"\tphysical keys: {gkeys}"
+        #     raise ValueError(msg)
+
+    def _initMeshPyGmsh(self, points, cells, cell_sets):
         assert points.shape[1] ==3
         self.points = points
         self.nnodes = self.points.shape[0]
-        keys = []
+        cellkeys = []
         for key, cellblock in cells:
-            keys.append(key)
+            print(key, " ---> ", cellblock)
+            cellkeys.append(key)
         # print("keys", keys)
         #     print("key cellblock",key, cellblock)
-        if 'tetra' in keys:
+        if 'tetra' in cellkeys:
             self.dimension = 3
-        elif 'triangle' in keys:
+        elif 'triangle' in cellkeys:
             self.dimension = 2
         else:
             self.dimension = 1
-        cds = celldata['gmsh:physical']
+        self._check_cell_set(self.dimension, cellkeys, cell_sets)
+        # cds = celldata['gmsh:physical']
         # print("type(cds)", type(cds))
         # print("cds", cds)
-        if len(cds) != len(keys):
-            raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cds)}")
+        # print("cells", type(cells))
+        # for c in cells: print(type(c))
 
-        # first attempt, bad because 'append' copies data...
         _cells = {}
-        _labels = {}
-        for (key, cellblock), cd in zip(cells,cds):
-            if len(cellblock) != len(cd):
-                raise ValueError(f"mismatch in {key} {len(cellblock)} {len(cd)}")
+        for (key, cellblock) in cells:
             if not key in _cells.keys():
                 _cells[key] = cellblock
-                _labels[key] = cd
             else:
                 _cells[key] = np.append(_cells[key], cellblock, axis=0)
-                _labels[key] = np.append(_labels[key], cd, axis=0)
-        # print("_labels", _labels)
         if self.dimension==1:
             self.simplices = _cells['line']
-            self._facedata = (_cells['vertex'], _labels['vertex'])
-            self.cell_labels = _labels['line']
+            # self._facedata = (_cells['vertex'], _labels['vertex'])
+            # self.cell_labels = _labels['line']
         elif self.dimension==2:
             self.simplices = _cells['triangle']
-            self._facedata = (_cells['line'], _labels['line'])
-            self.cell_labels = _labels['triangle']
+            # self._facedata = (_cells['line'], _labels['line'])
+            # self.cell_labels = _labels['triangle']
         else:
             self.simplices = _cells['tetra']
-            self._facedata = (_cells['triangle'], _labels['triangle'])
-            self.cell_labels = _labels['tetra']
-        self._constructFacesFromSimplices(self._facedata)
-        self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
-        self.verticesoflabel = {}
-        if self.dimension > 1 and 'vertex' in _cells.keys():
-            self.vertices = _cells['vertex'].reshape(-1)
-            self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
-
-        # cellloflabel = npext.unique_all(self.cell_labels)
-        # self.cellsoflabel = {}
-        # for color, ind in zip(cellloflabel[0], cellloflabel[1]):
-        #     self.cellsoflabel[color] = ind
-        # if 'vertex' in _cells.keys():
-        #     self.vertices = _cells['vertex'].reshape(-1)
-        #     self.vertex_labels = _labels['vertex']
-        #     verticesoflabel = npext.unique_all(self.vertex_labels)
-        #     self.verticesoflabel={}
-        #     for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
-        #         self.verticesoflabel[color] = self.vertices[ind]
-
+            # self._facedata = (_cells['triangle'], _labels['triangle'])
+            # self.cell_labels = _labels['tetra']
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
+        self._constructFacesFromSimplices()
         self.pointsf = self.points[self.faces].mean(axis=1)
+        X = ['N', 'L', 'S', 'V']
+        self._constructBoundaryLabels(cell_sets, X[self.dimension-1])
+        # self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        # self.verticesoflabel = {}
+        # if self.dimension > 1 and 'vertex' in _cells.keys():
+        #     self.vertices = _cells['vertex'].reshape(-1)
+        #     self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
         self._constructNormalsAndAreas()
         # print(self)
 
-    def _constructFacesFromSimplices(self, facedata):
-        bdryfacesgmsh, bdrylabelsgmsh = facedata
+    def _constructFacesFromSimplices(self):
         simplices = self.simplices
         ncells = simplices.shape[0]
         nnpc = simplices.shape[1]
@@ -166,42 +146,12 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+        # self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
 
-    def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
-        simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
-        count=0
-        for i in range(len(simps)):
-            for idim in range(self.dimension+1):
-                if i > neighbrs[i, idim]: count +=1
-        self.nfaces = count
-        self.faces = np.empty(shape=(self.nfaces,self.dimension), dtype=int)
-        self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
-        self.facesOfCells = np.zeros(shape=(self.ncells, self.dimension+1), dtype=int)
-        count=0
-        for i in range(len(simps)):
-            for idim in range(self.dimension+1):
-                j = neighbrs[i, idim]
-                if i<j: continue
-                mask = np.array( [ii !=idim for ii in range(self.dimension+1)] )
-                self.faces[count] = np.sort(simps[i,mask])
-                self.facesOfCells[i, idim] = count
-                self.cellsOfFaces[count, 0] = i
-                if j > -1:
-                    for jdim in range(self.dimension+1):
-                        if neighbrs[j, jdim] == i:
-                            self.facesOfCells[j, jdim] = count
-                            self.cellsOfFaces[count, 1] = j
-                            break
-                count +=1
-        # for i in range(len(simps)):
-        #     print("self.facesOfCells {} {}".format(i,self.facesOfCells[i]))
-        # for i in range(self.nfaces):
-        #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
-        # bdries
-        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+    def _constructBoundaryLabels(self, cell_sets, X):
+        self.bdrylabels = {}
 
-    def _constructBoundaryLabels(self, bdryfacesgmsh, bdrylabelsgmsh):
+    def _constructBoundaryLabelsOld(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
         assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
@@ -293,12 +243,9 @@ class SimplexMesh(object):
 
     def write(self, filename, dirname = None, point_data=None):
         cell_data_meshio = {}
-
         if hasattr(self,'vertex_labels'):
             cell_data_meshio['vertex'] = {}
             cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
-
-
         if self.dimension ==2:
             cells = {'triangle': self.simplices}
             cells['line'] = self._facedata[0]
@@ -338,30 +285,30 @@ class SimplexMesh(object):
             plt.show()
 
     def plot(self, **kwargs):
-        from OLD.simfempy.meshes import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.plotmesh(self, **kwargs)
     def plotWithBoundaries(self):
         # from . import plotmesh
-        from OLD.simfempy.meshes import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.meshWithBoundaries(self)
     def plotWithNumbering(self, **kwargs):
         # from . import plotmesh
-        from OLD.simfempy.meshes import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.plotmeshWithNumbering(self, **kwargs)
     def plotWithData(self, **kwargs):
         # from . import plotmesh
-        from OLD.simfempy.meshes import plotmesh
+        from simfempy.meshes import plotmesh
         plotmesh.meshWithData(self, **kwargs)
 
 
 #=================================================================#
 if __name__ == '__main__':
-    import geomdefs
-    geometry = geomdefs.unitsquare.Unitsquare()
-    mesh = SimplexMesh(geometry=geometry, hmean=2)
+    import testmesh
     import plotmesh
     import matplotlib.pyplot as plt
+    m = testmesh.mesh2d(mesh_size=0.5)
+    mesh = SimplexMesh(mesh=m)
     fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
-    plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
-    plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)
+    # plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
+    # plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)

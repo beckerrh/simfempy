@@ -2,8 +2,7 @@ import numpy as np
 import scipy.sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
-from OLD.simfempy import fems
-import OLD.simfempy.tools.iterationcounter
+import simfempy.tools.iterationcounter
 
 # =================================================================#
 class Stokes(OLD.simfempy.solvers.solver.Solver):
@@ -17,11 +16,11 @@ class Stokes(OLD.simfempy.solvers.solver.Solver):
         solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
         if exactsolution == 'Linear':
             # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-            solexact.append(OLD.simfempy.tools.analyticalsolution.AnalyticalSolution3d('0'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('0'))
         elif exactsolution == 'Quadratic':
             # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
             # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
-            solexact.append(OLD.simfempy.tools.analyticalsolution.AnalyticalSolution3d('x+y'))
+            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('x+y'))
         else:
             raise NotImplementedError("unknown function '{}'".format(exactsolution))
         return solexact
@@ -478,7 +477,7 @@ class Stokes(OLD.simfempy.solvers.solver.Solver):
             return u, 1
         elif solver == 'gmres':
             nfaces, ncells, ncomp, pstart = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.pstart
-            counter = OLD.simfempy.tools.iterationcounter.IterationCounter(name=solver)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
             if self.pmean:
                 A, B, C = Ain
                 nall = ncomp*nfaces + ncells + 1

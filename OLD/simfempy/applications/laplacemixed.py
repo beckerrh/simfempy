@@ -2,7 +2,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
 import scipy.sparse.linalg as splinalg
-import OLD.simfempy.tools.iterationcounter
+import simfempy.tools.iterationcounter
 
 
 #=================================================================#
@@ -244,7 +244,7 @@ class LaplaceMixed(OLD.simfempy.solvers.solver.Solver):
             return u
         elif solver == 'gmres':
             nfaces, ncells = self.mesh.nfaces, self.mesh.ncells
-            counter = OLD.simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
             # Aall = self._to_single_matrix(Ain)
             # M2 = splinalg.spilu(Aall, drop_tol=0.2, fill_factor=2)
             # M_x = lambda x: M2.solve(x)
@@ -286,8 +286,8 @@ class LaplaceMixed(OLD.simfempy.solvers.solver.Solver):
 
 #=================================================================#
 if __name__ == '__main__':
-    from OLD.simfempy.meshes.simplexmesh import SimplexMesh
-    from OLD.simfempy.meshes import plotmesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes import plotmesh
     import pygmsh
     import matplotlib.pyplot as plt
     geometry = pygmsh.built_in.Geometry()

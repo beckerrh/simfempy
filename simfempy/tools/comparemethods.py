@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from OLD.simfempy import LatexWriter
-from OLD.simfempy.meshes.simplexmesh import SimplexMesh
+from simfempy.meshes.simplexmesh import SimplexMesh
 
 
 #=================================================================#
@@ -87,7 +87,7 @@ class CompareMethods(object):
                     method.setParameter(self.paramname, param)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.plot:
-                    from ..meshes import plotmesh
+                    from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
                     plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=name, suptitle=suptitle)
                 self.fillInfo(iter, name, info, len(params))

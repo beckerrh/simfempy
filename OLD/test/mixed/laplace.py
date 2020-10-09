@@ -45,7 +45,7 @@ def getGeometryAndData(geomname = "unitcube"):
 
 # ------------------------------------- #
 def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
-    import OLD.simfempy.tools.comparemethods
+    import simfempy.tools.comparemethods
     geometry, data = getGeometryAndData(geomname)
     laplace = LaplaceMixed(geometry=geometry, problemdata=data)
     problemdata = laplace.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
@@ -54,7 +54,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     linearsolver = 'gmres'
     h = [1.0, 0.5, 0.25, 0.125]
     methods['RT'] = LaplaceMixed(problemdata=problemdata, fem='rt0', linearsolver=linearsolver)
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     return result[3]['error']['pcL2']
 

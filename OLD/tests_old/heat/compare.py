@@ -4,15 +4,14 @@ simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
 
 from OLD import simfempy
-from OLD.simfempy.meshes import geomdefs
 from OLD.simfempy import Heat
 from OLD.simfempy.applications.laplacemixed import LaplaceMixed
-import OLD.simfempy.tools.comparemethods
+import simfempy.tools.comparemethods
 
 
 #----------------------------------------------------------------#
 def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
-    class InterfaceGeometry2d(OLD.simfempy.meshes.geomdefs.geometry.Geometry):
+    class InterfaceGeometry2d(simfempy.meshes.geomdefs.geometry.Geometry):
         def __init__(self, radius):
             self.radius = radius
             super().__init__()
@@ -25,7 +24,7 @@ def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
             self.add_physical(p1.surface, label=100)
             for i,line in enumerate(p1.line_loop.lines):
                 self.add_physical(line, label=1000+i)
-    class InterfaceGeometry3d(OLD.simfempy.meshes.geomdefs.geometry.Geometry):
+    class InterfaceGeometry3d(simfempy.meshes.geomdefs.geometry.Geometry):
         def __init__(self, radius):
             self.radius = radius
             super().__init__()
@@ -79,7 +78,7 @@ def getGeometryProblemDataInterface(dim=2, kin=1, kex=1):
     else:
         geometry = InterfaceGeometry3d(radius=radius)
 
-    mesh = OLD.simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry)
+    mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry)
     mesh.plotWithBoundaries()
     import matplotlib.pyplot as plt
     plt.show()
@@ -112,7 +111,7 @@ def getGeometryProblemData(geomname = "unitcube", exactsolution="Linear"):
         bdrycond.param[1003] = 11
         postproc['bdrymean'] = "bdrymean:1000,1002"
         postproc['bdrydn'] = "bdrydn:1001"
-        geometry = OLD.simfempy.meshes.geomdefs.unitsquare.Unitsquare()
+        geometry = simfempy.meshes.geomdefs.unitsquare.Unitsquare()
     elif geomname == "unitcube":
         bdrycond.type[100] = "Neumann"
         bdrycond.type[105] = "Neumann"
@@ -124,7 +123,7 @@ def getGeometryProblemData(geomname = "unitcube", exactsolution="Linear"):
         bdrycond.param[104] = 10
         postproc['bdrymean'] = "bdrymean:100,105"
         postproc['bdrydn'] = "bdrydn:101,102"
-        geometry = OLD.simfempy.meshes.geomdefs.unitcube.Unitcube()
+        geometry = simfempy.meshes.geomdefs.unitcube.Unitcube()
     heat = Heat(geometry=geometry, showmesh=False)
     problemdata = heat.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
     return geometry, problemdata
@@ -137,7 +136,7 @@ def test_analytic(geometry, problemdata, h, verbose=2):
     methods['p1'] = Heat(problemdata=problemdata, fem='p1')
     methods['cr1'] = Heat(problemdata=problemdata, fem='cr1')
     methods['rt0'] = LaplaceMixed(problemdata=problemdata)
-    comp = OLD.simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
 
     comp.compare(geometry=geometry, h=h)
 
