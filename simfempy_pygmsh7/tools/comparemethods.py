@@ -8,9 +8,8 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import matplotlib.pyplot as plt
 
-from simfempy.tools.latexwriter import LatexWriter
-from simfempy.meshes.simplexmesh import SimplexMesh
-import simfempy.meshes.pygmshext
+from OLD.simfempy import LatexWriter
+from simfempy_pygmsh7.meshes.simplexmesh import SimplexMesh
 
 
 #=================================================================#
@@ -75,7 +74,7 @@ class CompareMethods(object):
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
                 if gmshrefine:
-                    mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
+                    mesh = OLD.simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
                     mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
@@ -88,7 +87,7 @@ class CompareMethods(object):
                     method.setParameter(self.paramname, param)
                 point_data, cell_data, info = method.solve(iter, self.dirname)
                 if self.plot:
-                    from ..meshes import plotmesh
+                    from simfempy_pygmsh7.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
                     plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=name, suptitle=suptitle)
                 self.fillInfo(iter, name, info, len(params))

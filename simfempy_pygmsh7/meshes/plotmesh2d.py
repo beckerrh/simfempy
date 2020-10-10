@@ -78,11 +78,15 @@ def plotmesh(mesh, **kwargs):
         ax.set_aspect(aspect='equal')
         ax.set_xlabel(r'x')
         ax.set_ylabel(r'y')
-    celllabels = mesh.cell_labels
-    cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-    clb = plt.colorbar(cnt)
-    clb.set_label("cellcolors")
-    if len(mesh.verticesoflabel):
+    if hasattr(mesh,'cell_labels'):
+        celllabels = mesh.cell_labels
+        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+        clb = plt.colorbar(cnt)
+        clb.set_label("cellcolors")
+    else:
+        print(f"{x=}\n{y=}\n{tris=}")
+        ax.triplot(x, y, triangles=tris)
+    if hasattr(mesh,'verticesoflabel'):
         pltcolors = 'bgrcmykbgrcmyk'
         patches = []
         for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
@@ -192,7 +196,6 @@ def mesh(x, y, tris, **kwargs):
     _settitle(ax, title)
 
 #=================================================================#
-# def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
 def meshWithData(**kwargs):
     """
     point_data  : dictionary name->data

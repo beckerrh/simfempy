@@ -4,7 +4,7 @@ import numpy as np
 simfempypath = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(simfempypath)
 
-import simfempy
+import simfempy_pygmsh7
 import pygmsh
 import matplotlib.pyplot as plt
 
@@ -30,11 +30,11 @@ def createMesh():
         # print("mesh.cell_data_dict", mesh.cell_data_dict)
         # print(mesh.cell_data_dict["gmsh:physical"])
         mesh.write('heat.vtu')
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+    return simfempy_pygmsh7.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ---------------------------------------------------------------- #
 def createData():
-    data = simfempy.applications.problemdata.ProblemData()
+    data = simfempy_pygmsh7.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
     bdrycond.type[1000] = "Neumann"
     bdrycond.type[1001] = "Dirichlet"
@@ -59,18 +59,18 @@ def createData():
 # ---------------------------------------------------------------- #
 def test(mesh, problemdata):
     fem = 'p1' # or fem = 'cr1
-    heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
+    heat = simfempy_pygmsh7.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
     heat.setMesh(mesh)
     point_data, cell_data, info = heat.solve()
     print(f"fem={fem} {info['timer']}")
     print(f"postproc: {info['postproc']}")
-    simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=fem)
+    simfempy_pygmsh7.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=fem)
     plt.show()
 
 # ================================================================c#
 
 mesh = createMesh()
-simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+simfempy_pygmsh7.meshes.plotmesh.meshWithBoundaries(mesh)
 # problemdata = createData()
 # print("problemdata", problemdata)
 # problemdata.check(mesh)

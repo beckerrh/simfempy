@@ -1,8 +1,4 @@
-from . import applications
-from . import fems
-from . import meshes
-from . import solvers
-from . import tools
+from . import applications, meshes, fem, tools
 
 from .__about__ import __author__, __author_email__, __version__, __website__
 __all__ = [

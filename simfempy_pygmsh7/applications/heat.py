@@ -1,10 +1,9 @@
-import time
 import numpy as np
-from simfempy import solvers
-from simfempy import fems
+
+from . import solver
 
 #=================================================================#
-class Heat(solvers.solver.Solver):
+class Heat(solver.Solver):
     """
     Class for the heat equation
     After initialization, the function setMesh(mesh) has to be called
@@ -72,9 +71,9 @@ class Heat(solvers.solver.Solver):
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
-            self.fem = fems.femp1.FemP1()
+            self.fem = OLD.simfempy.fems.femp1.FemP1()
         elif fem == 'cr1':
-            self.fem = fems.femcr1.FemCR1()
+            self.fem = OLD.simfempy.fems.femcr1.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
         if 'method' in kwargs:
