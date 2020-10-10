@@ -20,6 +20,8 @@ class SimplexMesh(object):
     pointsc: coordinates of the barycenters of cells (ncells,3)
     pointsf: coordinates of the barycenters of faces (nfaces,3)
 
+    cells: dictionary of all given cells
+    cells_phys: dictionary of all given cells with physical labels
     simplices: node ids of simplices of shape (ncells, dimension+1)
     faces: node ids of faces of shape (nfaces, dimension)
 
@@ -35,86 +37,90 @@ class SimplexMesh(object):
     """
 
     def __repr__(self):
-        return "SimplexMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
-    def __init__(self, **kwargs):
-        if 'mesh' in kwargs:
-            self.geometry = 'own'
-            mesh = kwargs.pop('mesh')
-        else:
+        msg = f"SimplexMesh({self.name}): dim({self.dimension})/nnodes({self.nnodes})/ncells({self.ncells})/nfaces({self.nfaces})"
+        msg += f" Physical labels:\n"
+        for k,v in self.cells_phys.items():
+            msg += f"\t{k} --> {v.keys()}\n"
+        return msg
+    def __init__(self, mesh=None, name='no_name'):
+        if mesh is None:
             raise KeyError("Can only work with mesh (at the moment)")
-        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_sets)
-
-    def _check_cell_set(self, dim, cellkeys, cell_sets):
-        gkeys=set()
-        for k in cell_sets.keys():
-            ks = k.split(":")
-            if len(ks) != 2 or ks[0] not in ['N','L','S','V']:
-                msg = "Physical label must be of the form\n"
-                msg += "\t'X:id' with X=N|L|S|V meaning(node|line|surface|volume\n"
-                msg += f"\tgiven label: '{k}'"
-                raise ValueError(msg)
-            gkeys.add(ks[0])
-        # if len(gkeys) != len(cellkeys):
-        #     msg = "Not enough physical labels:\n"
-        #     msg += f"\tcell keys: {cellkeys}\n"
-        #     msg += f"\tphysical keys: {gkeys}"
-        #     raise ValueError(msg)
-
-    def _initMeshPyGmsh(self, points, cells, cell_sets):
-        assert points.shape[1] ==3
-        self.points = points
+        self.mesh = mesh
+        self.name = name
+        # points
+        self.points = mesh.points
+        assert self.points.shape[1] ==3
         self.nnodes = self.points.shape[0]
-        cellkeys = []
-        for key, cellblock in cells:
-            print(key, " ---> ", cellblock)
-            cellkeys.append(key)
-        # print("keys", keys)
-        #     print("key cellblock",key, cellblock)
-        if 'tetra' in cellkeys:
-            self.dimension = 3
-        elif 'triangle' in cellkeys:
-            self.dimension = 2
-        else:
-            self.dimension = 1
-        self._check_cell_set(self.dimension, cellkeys, cell_sets)
-        # cds = celldata['gmsh:physical']
-        # print("type(cds)", type(cds))
-        # print("cds", cds)
-        # print("cells", type(cells))
-        # for c in cells: print(type(c))
-
-        _cells = {}
-        for (key, cellblock) in cells:
-            if not key in _cells.keys():
-                _cells[key] = cellblock
-            else:
-                _cells[key] = np.append(_cells[key], cellblock, axis=0)
-        if self.dimension==1:
-            self.simplices = _cells['line']
-            # self._facedata = (_cells['vertex'], _labels['vertex'])
-            # self.cell_labels = _labels['line']
-        elif self.dimension==2:
-            self.simplices = _cells['triangle']
-            # self._facedata = (_cells['line'], _labels['line'])
-            # self.cell_labels = _labels['triangle']
-        else:
-            self.simplices = _cells['tetra']
-            # self._facedata = (_cells['triangle'], _labels['triangle'])
-            # self.cell_labels = _labels['tetra']
-        assert self.dimension+1 == self.simplices.shape[1]
+        # Get all relevant data : 1) cells
+        cellkeys = [m[0] for m in mesh.cells]
+        self.cells = {}
+        for key, cellblock in mesh.cells:
+            if key in self.cells.keys():
+                raise ValueError(f"Multiple key '{key}' given in cells")
+            self.cells[key] = cellblock
+        # Get all relevant data : 2) physical
+        def errmsg(k):
+            msg = "Physical label must be of the form\n"
+            msg += "\t'X:id' with X=N|L|S|V meaning(node|line|surface|volume\n"
+            msg += f"\tgiven label: '{k}'"
+            return msg
+        def errmsg2(k):
+            return f"Multiple key '{k}' given in cells"
+        ct = {'N':'vertex','L':'line','S':'triangle','V':'tetra'}
+        self.cells_phys = {'vertex':{}, 'line':{}, 'triangle':{}, 'tetra':{}}
+        for k,v in mesh.point_sets.items():
+            ks = k.split(":")
+            if len(ks) != 2 or ks[0] != ct.keys()[0]: raise ValueError(errmsg(k))
+            if ks[1] in self.cells_phys['vertex'].keys(): raise ValueError(errmsg2(ks[1]))
+            self.cells_phys['vertex'][ks[1]] = v[0]
+        for k,v in mesh.cell_sets.items():
+            ks = k.split(":")
+            if len(ks) != 2 or ks[0] not in ct.keys(): raise ValueError(errmsg(k))
+            if ks[1] in self.cells_phys[ct[ks[0]]].keys(): raise ValueError(errmsg2(ks[1]))
+            # print(f"{ks=} {v=}", len(v))
+            for i,vi in enumerate(v)    :
+                if isinstance(vi, np.ndarray): break
+            self.cells_phys[ct[ks[0]]][ks[1]] = v[i]
+        # numbering is with respect to all cells, so we hav eto correct it
+        n, cklast = 0, cellkeys[0]
+        for ck in cellkeys[1:]:
+            # print(f"{cklast=} {self.cells[cklast].shape=}")
+            n += self.cells[cklast].shape[0]
+            cklast = ck
+            # print(f"{ck=}")
+            for k,v in self.cells_phys[ck].items():
+                v -= n
+        # for k,v in self.cells.items():
+        #     print(f"Cells {k=} {v=}")
+        # for k,v in self.cells_phys.items():
+        #     print(f"Cells Phys {k=} {v=}")
+        # set dimension
+        self.dimension = 1
+        if 'tetra' in cellkeys: self.dimension = 3
+        elif 'triangle' in cellkeys: self.dimension = 2
+        # set simplices
+        if self.dimension==1: simpkey, facekey = 'line', 'vertex'
+        elif self.dimension==2: simpkey, facekey = 'triangle', 'line'
+        else: simpkey, facekey = 'tetra', 'triangle'
+        self.simplices = self.cells[simpkey]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
+        # set cell_labels
+        self.cell_labels = np.zeros(self.ncells)
+        for k,v in self.cells_phys[simpkey].items():
+            self.cell_labels[v] = k
+        # compute faces
         self._constructFacesFromSimplices()
         self.pointsf = self.points[self.faces].mean(axis=1)
-        X = ['N', 'L', 'S', 'V']
-        self._constructBoundaryLabels(cell_sets, X[self.dimension-1])
-        # self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
-        # self.verticesoflabel = {}
-        # if self.dimension > 1 and 'vertex' in _cells.keys():
-        #     self.vertices = _cells['vertex'].reshape(-1)
-        #     self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
+        # compute boundary faces
+        # set faces_labels
+        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        faces_labels = np.zeros(len(bdryids))
+        for k,v in self.cells_phys[facekey].items():
+            faces_labels[v] = k
+        self._constructBoundaryLabels(bdryids, self.cells[facekey], faces_labels)
+        # compute normals
         self._constructNormalsAndAreas()
-        # print(self)
 
     def _constructFacesFromSimplices(self):
         simplices = self.simplices
@@ -146,14 +152,8 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-        # self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
 
-    def _constructBoundaryLabels(self, cell_sets, X):
-        self.bdrylabels = {}
-
-    def _constructBoundaryLabelsOld(self, bdryfacesgmsh, bdrylabelsgmsh):
-        # bdries
-        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+    def _constructBoundaryLabels(self, bdryids, bdryfacesgmsh, bdrylabelsgmsh):
         assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
         bdryfaces = np.sort(self.faces[bdryids],axis=1)
         nbdryfaces = len(bdryids)
@@ -241,33 +241,6 @@ class SimplexMesh(object):
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
 
-    def write(self, filename, dirname = None, point_data=None):
-        cell_data_meshio = {}
-        if hasattr(self,'vertex_labels'):
-            cell_data_meshio['vertex'] = {}
-            cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
-        if self.dimension ==2:
-            cells = {'triangle': self.simplices}
-            cells['line'] = self._facedata[0]
-            cell_data_meshio['line']={}
-            cell_data_meshio['line']['gmsh:physical'] = self._facedata[1]
-            cell_data_meshio['triangle']={}
-            cell_data_meshio['triangle']['gmsh:physical'] = self.cell_labels
-        else:
-            cells = {'tetra': self.simplices}
-            cells['triangle'] = self._facedata[0]
-            cell_data_meshio['triangle']={}
-            cell_data_meshio['triangle']['gmsh:physical'] = self._facedata[1]
-            cell_data_meshio['tetra']={}
-            cell_data_meshio['tetra']['gmsh:physical'] = self.cell_labels
-        if dirname is not None:
-            dirname = dirname + os.sep + "mesh"
-            if not os.path.isdir(dirname) :
-                os.makedirs(dirname)
-            filename = os.path.join(dirname, filename)
-        print("cell_data_meshio['line']['gmsh:physical']", cell_data_meshio['line']['gmsh:physical'])
-        meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio, file_format='gmsh2-ascii')
-
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
         for ic in range(self.ncells):
@@ -308,7 +281,9 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     m = testmesh.mesh2d(mesh_size=0.5)
     mesh = SimplexMesh(mesh=m)
+    # plotmesh.plotmesh(mesh)
     fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
+    plt.show()
     # plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
     # plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)
