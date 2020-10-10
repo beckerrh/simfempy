@@ -45,7 +45,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     geometry = Unitsquareholes(h=1)
     meshmesh = pygmsh.generate_mesh(geometry)
-    mesh = simplexmesh.SimplexMesh(data=meshmesh)
+    mesh = simplexmesh.SimplexMesh(mesh=meshmesh)
     mesh.plotWithBoundaries()
     plt.show()
     mesh.plot(localnumbering=True)

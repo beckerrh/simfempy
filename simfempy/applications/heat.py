@@ -137,7 +137,7 @@ class Heat(solvers.solver.Solver):
         b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.problemdata.bdrycond, self.method, self.bdrydata)
         return b,u
 
-    def solve(self, iter, dirname):
+    def solve(self, iter=100, dirname='Run'):
         return self.solveLinearProblem()
 
     def postProcess(self, u):
