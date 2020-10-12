@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from simfempy.tools.latexwriter import LatexWriter
-from simfempy.meshes.simplexmesh import SimplexMesh
 import simfempy.meshes.pygmshext
 
 
@@ -60,10 +59,12 @@ class CompareMethods(object):
         self.parameters = []
         self.infos = None
         
-    def compare(self, geometry, h=None, params=None):
+    # def compare(self, geometry, h=None, params=None):
+    def compare(self, createMesh, h=None, params=None):
         if self.paramname == "ncells":
             if h is None:
-                mesh = SimplexMesh(geometry=geometry)
+                mesh = createMesh(self.h)
+                # mesh = SimplexMesh(geometry=geometry)
                 gmshrefine = True
                 if self.niter ==-1: raise KeyError("please give 'niter'")
                 params = [mesh.ncells*mesh.dimension**i for i in range(self.niter)]
@@ -71,13 +72,15 @@ class CompareMethods(object):
                 params = h
                 gmshrefine = False
         else:
-            mesh = SimplexMesh(geometry=geometry, hmean=self.h)
+            mesh = createMesh(self.h)
+            # mesh = SimplexMesh(geometry=geometry, hmean=self.h)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
                 if gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
-                    mesh = SimplexMesh(geometry=geometry, hmean=param)
+                    mesh = createMesh(param)
+                    # mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)

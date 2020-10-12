@@ -1,5 +1,5 @@
 import simfempy
-from simfempy.meshes import geomdefs
+import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.heat import Heat
 
 #----------------------------------------------------------------#
@@ -8,8 +8,8 @@ def getGeometryAndData(geomname = "unitcube"):
     bdrycond =  data.bdrycond
     postproc = data.postproc
     if geomname == "unitline":
+        createMesh = testmeshes.unitline
         bdrycond.set("Dirichlet", [10000,10001])
-        geometry = geomdefs.unitline.Unitline()
     elif geomname == "unitsquare":
         bdrycond.set("Neumann", [1000, 1002])
         bdrycond.set("Dirichlet", [1001])
@@ -19,7 +19,7 @@ def getGeometryAndData(geomname = "unitcube"):
         postproc.color['bdrymean'] = [1000, 1002]
         postproc.type['fluxn'] = "bdrydn"
         postproc.color['fluxn'] = [1001, 1003]
-        geometry = geomdefs.unitsquare.Unitsquare()
+        createMesh = testmeshes.unitsquare
     elif geomname == "unitcube":
         bdrycond.set("Neumann", [100, 105])
         bdrycond.set("Dirichlet", [101, 102])
@@ -30,24 +30,25 @@ def getGeometryAndData(geomname = "unitcube"):
         postproc.color['bdrymean'] = [100, 105]
         postproc.type['fluxn'] = "bdrydn"
         postproc.color['fluxn'] = [101,102,103,104]
-        geometry = geomdefs.unitcube.Unitcube()
+        createMesh = testmeshes.unitcube
     data.params.scal_glob['kheat'] = 0.123
-    return geometry, data
+    return createMesh, data
 
 #----------------------------------------------------------------#
-def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fems=['p1'],methods=['trad']):
+def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fems=['p1'], methods=['trad']):
     import simfempy.tools.comparemethods
-    geometry, data = getGeometryAndData(geomname)
+    createMesh, data = getGeometryAndData(geomname)
     h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
     if geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125]
     if exactsolution == "Linear":  h = h[:-3]
-    heat = Heat(geometry=geometry, problemdata=data)
+    heat = Heat(mesh=createMesh(h[0]), problemdata=data)
     colors = [c for c in data.bdrycond.colors()]
     data.bdrycond.clear()
     data.bdrycond.set("Neumann", [colors[0]])
     # data.bdrycond.set("Robin", [colors[1]])
-    # data.bdrycond.param[colors[1]] = 1.2
+    # data.bdrycond.param[colors[1]] = 1000000
+    # data.bdrycond.set("Dirichlet", colors[2:])
     data.bdrycond.set("Dirichlet", colors[1:])
     problemdata = heat.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
     sims = {}
@@ -55,7 +56,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fe
         for method in methods:
             sims[fem+method] = Heat(problemdata=problemdata, fem=fem, method=method)
     comp = simfempy.tools.comparemethods.CompareMethods(sims, verbose=verbose)
-    result = comp.compare(geometry=geometry, h=h)
+    result = comp.compare(createMesh=createMesh, h=h)
     return result[3]['error']
 
 #----------------------------------------------------------------#
@@ -129,8 +130,8 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(exactsolution = 'Constant', geomname = "unitsquare", verbose=4)
-    test_analytic(exactsolution = 'Linear', geomname = "unitline")
-    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    # test_analytic(exactsolution = 'Linear', geomname = "unitline")
+    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")
 

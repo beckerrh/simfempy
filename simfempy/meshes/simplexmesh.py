@@ -49,18 +49,19 @@ class SimplexMesh(object):
             self.geometry = 'own'
             mesh = kwargs.pop('mesh')
         else:
-            import pygmsh
-            self.geometry = kwargs.pop('geometry')
-            if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
-            else: hmean = 1
-            self.geometry.define(hmean)
-            # code = self.geometry.get_code()
-            # with open("toto.geo",'w') as file:
-            #     file.write(code)
-            mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
-            # print("mesh.points=",mesh.points)
-            # print("mesh.cells=", mesh.cells)
-            # print("mesh.cell_data=", mesh.cell_data)
+            raise KeyError("Needs a mesh (no longer geometry)")
+            # import pygmsh
+            # self.geometry = kwargs.pop('geometry')
+            # if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
+            # else: hmean = 1
+            # self.geometry.define(hmean)
+            # # code = self.geometry.get_code()
+            # # with open("toto.geo",'w') as file:
+            # #     file.write(code)
+            # mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
+            # # print("mesh.points=",mesh.points)
+            # # print("mesh.cells=", mesh.cells)
+            # # print("mesh.cell_data=", mesh.cell_data)
         self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
 
     def _initMeshPyGmsh(self, points, cells, celldata):
@@ -115,19 +116,6 @@ class SimplexMesh(object):
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
             self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
-
-        # cellloflabel = npext.unique_all(self.cell_labels)
-        # self.cellsoflabel = {}
-        # for color, ind in zip(cellloflabel[0], cellloflabel[1]):
-        #     self.cellsoflabel[color] = ind
-        # if 'vertex' in _cells.keys():
-        #     self.vertices = _cells['vertex'].reshape(-1)
-        #     self.vertex_labels = _labels['vertex']
-        #     verticesoflabel = npext.unique_all(self.vertex_labels)
-        #     self.verticesoflabel={}
-        #     for color, ind in zip(verticesoflabel[0], verticesoflabel[1]):
-        #         self.verticesoflabel[color] = self.vertices[ind]
-
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
@@ -168,38 +156,38 @@ class SimplexMesh(object):
             else: self.cellsOfFaces[f,1] = cell
         self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
 
-    def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
-        simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
-        count=0
-        for i in range(len(simps)):
-            for idim in range(self.dimension+1):
-                if i > neighbrs[i, idim]: count +=1
-        self.nfaces = count
-        self.faces = np.empty(shape=(self.nfaces,self.dimension), dtype=int)
-        self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
-        self.facesOfCells = np.zeros(shape=(self.ncells, self.dimension+1), dtype=int)
-        count=0
-        for i in range(len(simps)):
-            for idim in range(self.dimension+1):
-                j = neighbrs[i, idim]
-                if i<j: continue
-                mask = np.array( [ii !=idim for ii in range(self.dimension+1)] )
-                self.faces[count] = np.sort(simps[i,mask])
-                self.facesOfCells[i, idim] = count
-                self.cellsOfFaces[count, 0] = i
-                if j > -1:
-                    for jdim in range(self.dimension+1):
-                        if neighbrs[j, jdim] == i:
-                            self.facesOfCells[j, jdim] = count
-                            self.cellsOfFaces[count, 1] = j
-                            break
-                count +=1
-        # for i in range(len(simps)):
-        #     print("self.facesOfCells {} {}".format(i,self.facesOfCells[i]))
-        # for i in range(self.nfaces):
-        #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
-        # bdries
-        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
+    # def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
+    #     simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
+    #     count=0
+    #     for i in range(len(simps)):
+    #         for idim in range(self.dimension+1):
+    #             if i > neighbrs[i, idim]: count +=1
+    #     self.nfaces = count
+    #     self.faces = np.empty(shape=(self.nfaces,self.dimension), dtype=int)
+    #     self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
+    #     self.facesOfCells = np.zeros(shape=(self.ncells, self.dimension+1), dtype=int)
+    #     count=0
+    #     for i in range(len(simps)):
+    #         for idim in range(self.dimension+1):
+    #             j = neighbrs[i, idim]
+    #             if i<j: continue
+    #             mask = np.array( [ii !=idim for ii in range(self.dimension+1)] )
+    #             self.faces[count] = np.sort(simps[i,mask])
+    #             self.facesOfCells[i, idim] = count
+    #             self.cellsOfFaces[count, 0] = i
+    #             if j > -1:
+    #                 for jdim in range(self.dimension+1):
+    #                     if neighbrs[j, jdim] == i:
+    #                         self.facesOfCells[j, jdim] = count
+    #                         self.cellsOfFaces[count, 1] = j
+    #                         break
+    #             count +=1
+    #     # for i in range(len(simps)):
+    #     #     print("self.facesOfCells {} {}".format(i,self.facesOfCells[i]))
+    #     # for i in range(self.nfaces):
+    #     #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
+    #     # bdries
+    #     self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
 
     def _constructBoundaryLabels(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries

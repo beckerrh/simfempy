@@ -13,6 +13,7 @@ class BoundaryConditions(object):
     type: dictionary int->string
     fct: dictionary int->callable
     param: dictionary int->float
+    Information can be set with the 'set' function
     """
     def __init__(self, colors=None):
         if colors is None:

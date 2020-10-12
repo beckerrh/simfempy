@@ -46,14 +46,14 @@ class Heat(solvers.solver.Solver):
     def defineRobinAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         alpha = problemdata.bdrycond.param[color]
-        alpha = 1
+        # alpha = 1
         def _fctrobin(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape[0])
             normals = nx, ny, nz
             rhs += alpha*solexact(x, y, z)
-            # for i in range(self.mesh.dimension):
-            #     rhs += kheat * solexact.d(i, x, y, z) * normals[i]
+            for i in range(self.mesh.dimension):
+                rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctrobin
 
@@ -174,4 +174,4 @@ class Heat(solvers.solver.Solver):
 
 #=================================================================#
 if __name__ == '__main__':
-    print("Pas encore de test")
+    print("Pas de test")

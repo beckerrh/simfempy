@@ -1,5 +1,6 @@
 # just to make sure the local simfempy is found first
-from os import sys, path
+from os import path
+import sys
 simfempypath = path.dirname(path.dirname(path.abspath(__file__)))
 sys.path.insert(0,simfempypath)
 # just to make sure the local simfempy is found first

@@ -78,11 +78,11 @@ class Solver(object):
             warnings.warn("*** pyamg not found (umf used instead)***")
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
-        if 'geometry' in kwargs:
-            geometry = kwargs.pop('geometry')
-            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
-            if 'showmesh' in kwargs:
-                self.mesh.plotWithBoundaries()
+        # if 'geometry' in kwargs:
+        #     geometry = kwargs.pop('geometry')
+        #     self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
+        #     if 'showmesh' in kwargs:
+        #         self.mesh.plotWithBoundaries()
         # if 'mesh' in kwargs:
         #     self.setMesh(kwargs.pop('mesh'))
         self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))

@@ -146,6 +146,7 @@ class FemP1(object):
         help = np.zeros(self.mesh.nnodes)
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Robin": continue
+            if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
             nodes = np.unique(self.mesh.faces[faces].reshape(-1))
             x, y, z = self.mesh.points[nodes].T
             # print(f"normals {normals.shape}")
