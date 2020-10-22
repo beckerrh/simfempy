@@ -119,7 +119,7 @@ class Heat(Application):
         self.kheatcell = self._computearrcell_('kheat')
         # params = self.problemdata.params
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
-        self.rhocpcell = self._computearrcell_('rhocp')
+        # self.rhocpcell = self._computearrcell_('rhocp')
 
     def residualNewton(self, u):
         if not hasattr(self, 'du'): self.du = np.empty_like(u)

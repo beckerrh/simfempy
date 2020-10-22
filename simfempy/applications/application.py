@@ -56,12 +56,6 @@ class Application(object):
             warnings.warn("*** pyamg not found (umf used instead)***")
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
-        if 'defgeom' in kwargs:
-            self.defgeom = kwargs.pop('defgeom')
-            mesh = pygmsh.generate_mesh(self.defgeom())
-            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-        if 'mesh' in kwargs:
-            self.mesh = kwargs.pop('mesh')
         if 'problemdata' in kwargs:
             # self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
             self.problemdata = kwargs.pop('problemdata')
@@ -76,16 +70,24 @@ class Application(object):
                 self.random_exactsolution = False
         else:
             self._generatePDforES = False
+        if 'defgeom' in kwargs:
+            self.defgeom = kwargs.pop('defgeom')
+            mesh = pygmsh.generate_mesh(self.defgeom())
+            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+        if 'mesh' in kwargs:
+            self.mesh = kwargs.pop('mesh')
+        self._setMeshCalled = False
 
     def setMesh(self, mesh):
         self.mesh = mesh
-        if self._generatePDforES:
+        self._setMeshCalled = True
+        if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
 
 
     def static(self, iter=100, dirname='Run'):
-        self.setMesh()
+        if not self._setMeshCalled: self.setMesh(self.mesh)
         self.timer.reset()
         return self.solveLinearProblem()
 
