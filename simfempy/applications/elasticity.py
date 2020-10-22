@@ -7,7 +7,7 @@ from simfempy import fems
 from simfempy import tools
 
 #=================================================================#
-class Elasticity(solvers.solver.Solver):
+class Elasticity(solvers.solver.Application):
     """
     """
     YoungPoisson = {}

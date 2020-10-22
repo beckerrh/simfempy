@@ -57,8 +57,7 @@ class CompareMethods(object):
             if 'niter' in kwargs: self.niter = kwargs.pop("niter")
             else: self.niter = -1
         self.parameters = []
-        self.infos = None
-        
+
     # def compare(self, geometry, h=None, params=None):
     def compare(self, createMesh, h=None, params=None):
         if self.paramname == "ncells":
@@ -80,21 +79,22 @@ class CompareMethods(object):
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
                     mesh = createMesh(param)
-                    # mesh = SimplexMesh(geometry=geometry, hmean=param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)
             for name, method in self.methods.items():
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
-                if self.paramname != "ncells":
-                    method.setParameter(self.paramname, param)
-                point_data, cell_data, info = method.solve(iter, self.dirname)
+                if self.paramname != "ncells": method.setParameter(self.paramname, param)
+                result = method.solve(iter, self.dirname)
                 if self.plot:
                     from ..meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
-                    plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=name, suptitle=suptitle)
-                self.fillInfo(iter, name, info, len(params))
+                    plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle)
+                resdict = result.info.copy()
+                resdict.update(result.data['global'])
+                # print(resdict)
+                self.fillInfo(iter, name, resdict, len(params))
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)
         if self.latex:
@@ -102,22 +102,17 @@ class CompareMethods(object):
         return  self.methods.keys(), self.paramname, self.parameters, self.infos
         
     def fillInfo(self, iter, name, info, n):
-        if not self.infos:
-            # print("info.keys", info.keys())
+        if not hasattr(self, 'infos'):
+            # first time - we have to generate some data
             self.infos = {}
             for key2, info2 in info.items():
-                # print("key2", key2)
                 self.infos[key2] = {}
                 for key3, info3 in info2.items():
                     self.infos[key2][key3] = {}
-                    # print("key3", key3,"info3", info3)
                     for name2 in self.methods.keys():
                         self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
-                    self.infos[key2][key3][name][iter] = info3
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
-                # for name in self.methods.keys():
-                # print("name", name, "key2", key2, "key3", key3, "info3", info3)
                 self.infos[key2][key3][name][iter] = np.sum(info3)
                 
     def generateLatex(self, names, paramname, parameters, infos):

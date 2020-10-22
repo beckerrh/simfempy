@@ -42,19 +42,19 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", verbose=1, fe
     if geomname == "unitcube":
         h = [2.0, 1.0, 0.5, 0.25, 0.125]
     if exactsolution == "Linear":  h = h[:-3]
-    heat = Heat(mesh=createMesh(h[0]), problemdata=data)
+    # heat = Heat(mesh=createMesh(h[0]), problemdata=data)
     colors = [c for c in data.bdrycond.colors()]
     data.bdrycond.clear()
     data.bdrycond.set("Neumann", [colors[0]])
-    # data.bdrycond.set("Robin", [colors[1]])
-    # data.bdrycond.param[colors[1]] = 1000000
-    # data.bdrycond.set("Dirichlet", colors[2:])
-    data.bdrycond.set("Dirichlet", colors[1:])
-    problemdata = heat.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
+    data.bdrycond.set("Robin", [colors[1]])
+    data.bdrycond.param[colors[1]] = 1.2
+    data.bdrycond.set("Dirichlet", colors[2:])
+    # data.bdrycond.set("Dirichlet", colors[1:])
+    # problemdata = heat.generatePoblemDataForAnalyticalSolution(exactsolution=exactsolution, problemdata=data, random=False)
     sims = {}
     for fem in fems:
         for method in methods:
-            sims[fem+method] = Heat(problemdata=problemdata, fem=fem, method=method)
+            sims[fem+method] = Heat(problemdata=data, fem=fem, method=method, exactsolution=exactsolution, random=False)
     comp = simfempy.tools.comparemethods.CompareMethods(sims, verbose=verbose)
     result = comp.compare(createMesh=createMesh, h=h)
     return result[3]['error']
@@ -130,8 +130,8 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(exactsolution = 'Constant', geomname = "unitsquare", verbose=4)
-    # test_analytic(exactsolution = 'Linear', geomname = "unitline")
-    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    test_analytic(exactsolution = 'Linear', geomname = "unitline")
+    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")
 

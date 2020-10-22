@@ -3,7 +3,7 @@ from simfempy import solvers
 from simfempy import fems
 
 #=================================================================#
-class Elliptic(solvers.solver.Solver):
+class Elliptic(solvers.solver.Application):
     """
     """
     def defineRhsAnalyticalSolution(self, solexact):

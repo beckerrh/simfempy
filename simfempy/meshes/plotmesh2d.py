@@ -206,8 +206,11 @@ def meshWithData(**kwargs):
     point_data, cell_data, quiver_cell_data = None, None, None
     numbering = False
     title, suptitle = None, None
-    if 'point_data' in kwargs: point_data = kwargs['point_data']
-    if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
+    # if 'point_data' in kwargs: point_data = kwargs['point_data']
+    # if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
+    if 'data' in kwargs:
+        point_data = kwargs['data']['point']
+        cell_data = kwargs['data']['cell']
     if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
     if 'numbering' in kwargs: numbering = kwargs['numbering']
     if 'title' in kwargs: title = kwargs['title']

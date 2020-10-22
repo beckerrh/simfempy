@@ -13,26 +13,6 @@ import matplotlib.pyplot as plt
 
 
 # ------------------------------------- #
-def cube():
-    geom = pygmsh.built_in.Geometry()
-    x, y, z = [-1, 1], [-1, 1], [-1, 2]
-    h = 0.3
-    p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
-    geom.add_physical(p.surface, label=100)
-    axis = [0, 0, z[1] - z[0]]
-    top, vol, ext = geom.extrude(p.surface, axis, rotation_axis=axis, \
-                                 point_on_axis=[0, 0, 0], angle=2 / 12 * np.pi)
-    geom.add_physical(top, label=101+len(ext))
-    for i in range(len(ext)):
-        geom.add_physical(ext[i], label=101+i)
-    geom.add_physical(vol, label=10)
-    # code = geom.get_code()
-    # file = open("toto.geo", 'w')
-    # file.write(code)
-    return pygmsh.generate_mesh(geom)
-
-
-# ------------------------------------- #
 def pygmshexample():
     geom = pygmsh.built_in.Geometry()
     # Draw a cross.
@@ -86,18 +66,17 @@ def createData(bdrylabels):
 
 # ------------------------------------- #
 mesh = pygmshexample()
-#mesh = cube()
 mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-#simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
+# simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
 
 data = createData(mesh.bdrylabels.keys())
 print("data", data)
 data.check(mesh)
 
 heat = simfempy.applications.heat.Heat(problemdata=data, mesh=mesh)
-point_data, cell_data, info = heat.solveLinearProblem()
-print(f"{info['timer']}")
-print(f"{info['iter']}")
-print(f"postproc: {info['postproc']}")
-simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data)
+result = heat.static()
+print(f"{result.info['timer']}")
+print(f"{result.info['iter']}")
+print(f"postproc: {result.data['global']['postproc']}")
+simfempy.meshes.plotmesh.meshWithData(mesh, data=result.data)
 plt.show()

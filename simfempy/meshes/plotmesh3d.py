@@ -118,8 +118,11 @@ def meshWithData(**kwargs):
     if addplots is None: addplots=[]
     point_data, cell_data, quiver_cell_data, translate_point_data = None, None, None, None
     title, suptitle = None, None
-    if 'point_data' in kwargs: point_data = kwargs['point_data']
-    if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
+    if 'data' in kwargs:
+        point_data = kwargs['data']['point']
+        cell_data = kwargs['data']['cell']
+    # if 'point_data' in kwargs: point_data = kwargs['point_data']
+    # if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
     if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
     if 'translate_point_data' in kwargs: translate_point_data = kwargs['translate_point_data']
     if 'numbering' in kwargs: numbering = kwargs['numbering']
@@ -129,9 +132,10 @@ def meshWithData(**kwargs):
     xyz = np.stack((x, y, z)).T
     ntets = tets.shape[0]
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
-    offset = 5*np.arange(ntets)
     cells = np.insert(tets, 0, 4, axis=1).ravel()
-    grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
+    grid = pyvista.UnstructuredGrid(cells, cell_type, xyz)
+    # offset = 5*np.arange(ntets)
+    # grid = pyvista.UnstructuredGrid(offset, cells, cell_type, xyz)
 
     if translate_point_data:
         assert len(point_data.keys()) ==3

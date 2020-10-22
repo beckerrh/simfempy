@@ -11,7 +11,7 @@ import scipy.linalg as linalg
 from simfempy import solvers
 
 
-class RaviartThomas(solvers.solver.Solver):
+class RaviartThomas(solvers.solver.Application):
     """
     Fct de base de RT0 = sigma * 0.5 * |S|/|K| (x-x_N)
     """
@@ -21,7 +21,6 @@ class RaviartThomas(solvers.solver.Solver):
     def setMesh(self, mesh):
         self.mesh = mesh
         self.pointsf = self.mesh.points[self.mesh.faces].mean(axis=1)
-        from simfempy import meshes
         # meshes.plotmesh.plotmeshWithNumbering(self.mesh, localnumbering=True)
 
     def solve(self):

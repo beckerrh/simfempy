@@ -1,5 +1,1 @@
-from . import problemdata
-from . import elliptic
-from . import heat
-from . import elasticity
-from . import laplacemixed
+from . import application, heat

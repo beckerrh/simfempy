@@ -9,7 +9,20 @@ import pygmsh
 import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------- #
-def createMesh(h=0.1):
+def main():
+    problemdata = createData()
+    heat = simfempy.applications.heat.Heat(defgeom=createGeom, problemdata=problemdata)
+    heat.static()
+    simfempy.meshes.plotmesh.meshWithBoundaries(heat.mesh)
+    result = heat.static()
+    print(f"{result.info['timer']}")
+    print(f"postproc: {result.data['global']['postproc']}")
+    simfempy.meshes.plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat example")
+    plt.show()
+
+
+# ---------------------------------------------------------------- #
+def createGeom(h=0.1):
     lcar = h
     rect = [-1, 1, -1, 1]
     geom = pygmsh.built_in.Geometry()
@@ -27,6 +40,7 @@ def createMesh(h=0.1):
     p = geom.add_rectangle(*rect, z=0.0, lcar=0.1, holes=holes)
     geom.add_physical(p.surface, label=100)
     for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=1000 + i)
+    return geom
     mesh = pygmsh.generate_mesh(geom)
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
@@ -58,21 +72,8 @@ def createData():
     # params.fct_glob["kheat"] = kheat
     return data
 
-# ---------------------------------------------------------------- #
-def test(mesh, problemdata):
-    fem = 'p1' # or fem = 'cr1
-    heat = simfempy.applications.heat.Heat(problemdata=problemdata, fem=fem, plotk=True)
-    heat.setMesh(mesh)
-    point_data, cell_data, info = heat.solve()
-    print(f"fem={fem} {info['timer']}")
-    print(f"postproc: {info['postproc']}")
-    simfempy.meshes.plotmesh.meshWithData(mesh, point_data=point_data, cell_data=cell_data, title=fem)
-    plt.show()
 
 # ================================================================c#
 
-mesh = createMesh()
-simfempy.meshes.plotmesh.meshWithBoundaries(mesh)
-problemdata = createData()
-problemdata.check(mesh)
-test(mesh, problemdata)
+
+main()

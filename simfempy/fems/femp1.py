@@ -100,6 +100,8 @@ class FemP1(object):
         return bdrydata
 
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):
+        # alpha = problemdata.bdrycond.param[color]
+        # print(f"??? {alpha=}")
         nnodes = self.mesh.nnodes
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])

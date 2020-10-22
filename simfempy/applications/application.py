@@ -7,6 +7,7 @@ Created on Sun Dec  4 18:14:29 2016
 
 import time
 import copy
+import pygmsh
 import numpy as np
 import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
@@ -21,49 +22,26 @@ import simfempy.applications.problemdata
 #from mumps import DMumpsContext
 
 #=================================================================#
-class Solver(object):
-    def generatePoblemDataForAnalyticalSolution(self, exactsolution, problemdata, random=True):
-        bdrycond = problemdata.bdrycond
-        problemdata.ncomp = self.ncomp
-        problemdata.solexact = self.defineAnalyticalSolution(exactsolution=exactsolution, random=random)
-        problemdata.rhs = self.defineRhsAnalyticalSolution(problemdata.solexact)
-        # if isinstance(bdrycond, (list, tuple)):
-        #     if len(bdrycond) != self.ncomp: raise ValueError("length of bdrycond ({}) has to equal ncomp({})".format(len(bdrycond),self.ncomp))
-        #     for color in self.mesh.bdrylabels:
-        #         for icomp,bcs in enumerate(problemdata.bdrycond):
-        #             # if bcs.type[color] in ["Dirichlet","Robin"]:
-        #             if bcs.type[color] in ["Dirichlet"]:
-        #                 bcs.fct[color] = problemdata.solexact[icomp]
-        #             else:
-        #                 bcs.fct[color] = eval("self.define{}AnalyticalSolution_{:d}(problemdata.solexact)".format(bcs.type[color],icomp))
-        # else:
+class Application(object):
+    def generatePoblemDataForAnalyticalSolution(self):
+        bdrycond = self.problemdata.bdrycond
+        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
+        self.problemdata.rhs = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
         if self.ncomp>1:
             def _solexactdir(x, y, z):
-                return [problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+                return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
         else:
             def _solexactdir(x, y, z):
-                return problemdata.solexact(x, y, z)
-        # types = set(problemdata.bdrycond.types())
-        # types.discard("Dirichlet")
-        # types.discard("Robin")
-        # types.add("Neumann")
-        # problemdata.bdrycond.fctexact = {}
-        # for type in types:
-        #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
-        #     problemdata.bdrycond.fctexact[type] = eval(cmd)
-
+                return self.problemdata.solexact(x, y, z)
         for color in self.mesh.bdrylabels:
             if not color in bdrycond.type: raise KeyError(f"color={color} bdrycond={bdrycond}")
             if bdrycond.type[color] in ["Dirichlet"]:
                 bdrycond.fct[color] = _solexactdir
             else:
-                # bdrycond.fct[color] = bdrycond.fctexact[bdrycond.type[color]]
                 type = bdrycond.type[color]
-                cmd = "self.define{}AnalyticalSolution(problemdata,{})".format(type, color)
+                cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
                 # print(f"cmd={cmd}")
                 bdrycond.fct[color] = eval(cmd)
-        return problemdata
-
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
@@ -78,26 +56,45 @@ class Solver(object):
             warnings.warn("*** pyamg not found (umf used instead)***")
         self.linearsolver = 'umf'
         self.timer = simfempy.tools.timer.Timer(verbose=0)
-        # if 'geometry' in kwargs:
-        #     geometry = kwargs.pop('geometry')
-        #     self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
-        #     if 'showmesh' in kwargs:
-        #         self.mesh.plotWithBoundaries()
-        # if 'mesh' in kwargs:
-        #     self.setMesh(kwargs.pop('mesh'))
-        self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
-        self.ncomp = self.problemdata.ncomp
-        assert self.ncomp != -1
+        if 'defgeom' in kwargs:
+            self.defgeom = kwargs.pop('defgeom')
+            mesh = pygmsh.generate_mesh(self.defgeom())
+            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+        if 'mesh' in kwargs:
+            self.mesh = kwargs.pop('mesh')
+        if 'problemdata' in kwargs:
+            # self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
+            self.problemdata = kwargs.pop('problemdata')
+            self.ncomp = self.problemdata.ncomp
+            assert self.ncomp != -1
+        if 'exactsolution' in kwargs:
+            self.exactsolution = kwargs.pop('exactsolution')
+            self._generatePDforES = True
+            if 'random' in kwargs:
+                self.random_exactsolution = kwargs.pop('random')
+            else:
+                self.random_exactsolution = False
+        else:
+            self._generatePDforES = False
 
     def setMesh(self, mesh):
         self.mesh = mesh
+        if self._generatePDforES:
+            self.generatePoblemDataForAnalyticalSolution()
+            self._generatePDforES = False
+
+
+    def static(self, iter=100, dirname='Run'):
+        self.setMesh()
         self.timer.reset()
+        return self.solveLinearProblem()
 
     def solve(self, iter=0, dirname="Results"):
         return self.solveLinearProblem()
 
     def solveLinearProblem(self):
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
+        result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
         A = self.matrix()
         self.timer.add('matrix')
@@ -105,11 +102,11 @@ class Solver(object):
         self.timer.add('rhs')
         u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         self.timer.add('solve')
-        point_data, cell_data, info = self.postProcess(u)
+        result.setData(self.postProcess(u))
         self.timer.add('postp')
-        info['timer'] = self.timer
-        info['iter'] = {'lin':niter}
-        return point_data, cell_data, info
+        result.info['timer'] = self.timer
+        result.info['iter'] = {'lin':niter}
+        return result
 
 
     def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):

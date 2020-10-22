@@ -102,8 +102,8 @@ class Params(object):
         for name in self.scal_glob:
             if name in self.scal_cells: raise ValueError(f"key '{name}' given twice")
             if name in self.fct_glob: raise ValueError(f"key '{name}' given twice")
-            if not isinstance(self.scal_glob[name], float):
-                raise ValueError(f"in 'scal_glob' key '{name}' doesnt have floats")
+            if not isinstance(self.scal_glob[name], (int,float)):
+                raise ValueError(f"in 'scal_glob' key '{name}' doesnt have floats but is {self.scal_glob[name]}")
         for name in self.scal_cells:
             if name in self.scal_glob: raise ValueError(f"key '{name}' given twice")
             if name in self.fct_glob: raise ValueError(f"key '{name}' given twice")
@@ -168,3 +168,21 @@ class ProblemData(object):
         self.postproc = None
         for color in self.bdrycond.fct:
             self.bdrycond.fct[color] = None
+
+# ---------------------------------------------------------------- #
+class Results(object):
+    """
+    Contains results from an application:
+    - point_data, side_data, cell_data, gobal_data
+    - info on iteration
+    """
+    def __init__(self):
+        self.data = {"point":{}, "side":{}, "cell":{}, "global":{}}
+        self.info = {}
+    def setData(self, data):
+        if len(data) != 4:
+            raise ValueError("expect four data (point, side, cell, global)")
+        self.data["point"] = data[0]
+        self.data["side"] = data[1]
+        self.data["cell"] = data[2]
+        self.data["global"] = data[3]

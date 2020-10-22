@@ -1,12 +1,15 @@
-import time
 import numpy as np
-from simfempy import solvers
 from simfempy import fems
+from simfempy.applications.application import Application
 
 #=================================================================#
-class Heat(solvers.solver.Solver):
+class Heat(Application):
     """
-    Class for the heat equation
+    Class for the (stationary) heat equation
+    $$
+    -\div(kheat \nabla u) = f         domain
+    kheat\nabla\cdot n + alpha u = g  bdry
+    $$
     After initialization, the function setMesh(mesh) has to be called
     Then, solve() solves the stationary problem
     Parameters in the coçnstructor:
@@ -18,11 +21,37 @@ class Heat(solvers.solver.Solver):
         rhocp
         kheat
         reaction
+        alpha
         they can either be given as global constant, cell-wise constants, or global function
         - global constant is taken from problemdata.paramglobal
         - cell-wise constants are taken from problemdata.paramcells
         - problemdata.paramglobal is taken from problemdata.datafct and are called with arguments (color, xc, yc, zc)
     """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
+        else: self.linearsolver = 'pyamg'
+        fem = 'p1'
+        if 'fem' in kwargs: fem = kwargs.pop('fem')
+        if fem == 'p1':
+            self.fem = fems.femp1.FemP1()
+        elif fem == 'cr1':
+            self.fem = fems.femcr1.FemCR1()
+        else:
+            raise ValueError("unknown fem '{}'".format(fem))
+        if 'method' in kwargs:
+            self.method = kwargs.pop('method')
+        else:
+            self.method="trad"
+    def _checkProblemData(self):
+        self.problemdata.check(self.mesh)
+        bdrycond = self.problemdata.bdrycond
+        for color in self.mesh.bdrylabels:
+            if not color in bdrycond.type: raise ValueError(f"color={color} not in bdrycond={bdrycond}")
+            if bdrycond.type[color] in ["Robin"]:
+                if not color in bdrycond.param:
+                    raise ValueError(f"Robin condition needs paral 'alpha' color={color} bdrycond={bdrycond}")
+
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -31,7 +60,6 @@ class Heat(solvers.solver.Solver):
                 rhs -= kheat * solexact.dd(i, i, x, y, z)
             return rhs
         return _fctu
-
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
@@ -42,10 +70,10 @@ class Heat(solvers.solver.Solver):
                 rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctneumann
-
     def defineRobinAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         alpha = problemdata.bdrycond.param[color]
+        print(f"??? {alpha=}")
         # alpha = 1
         def _fctrobin(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -64,29 +92,6 @@ class Heat(solvers.solver.Solver):
                 raise NotImplementedError("{} has no paramater '{}'".format(self, self.paramname))
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
-        else: self.linearsolver = 'pyamg'
-        fem = 'p1'
-        if 'fem' in kwargs: fem = kwargs.pop('fem')
-        if fem == 'p1':
-            self.fem = fems.femp1.FemP1()
-        elif fem == 'cr1':
-            self.fem = fems.femcr1.FemCR1()
-        else:
-            raise ValueError("unknown fem '{}'".format(fem))
-        if 'method' in kwargs:
-            self.method = kwargs.pop('method')
-        else:
-            self.method="trad"
-        if 'plotk' in kwargs:
-            self.plotk = kwargs.pop('plotk')
-        else:
-            self.plotk = False
-        if 'mesh' in kwargs:
-            self.setMesh(kwargs.pop('mesh'))
 
     def _computearrcell_(self, name):
         params = self.problemdata.params
@@ -107,11 +112,13 @@ class Heat(solvers.solver.Solver):
 
     def setMesh(self, mesh):
         super().setMesh(mesh)
+        # if mesh is not None: self.mesh = mesh
+        self._checkProblemData()
         self.fem.setMesh(self.mesh, self.problemdata.bdrycond)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
         self.kheatcell = self._computearrcell_('kheat')
-        params = self.problemdata.params
-        if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
+        # params = self.problemdata.params
+        # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         self.rhocpcell = self._computearrcell_('rhocp')
 
     def residualNewton(self, u):
@@ -137,39 +144,34 @@ class Heat(solvers.solver.Solver):
         b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.problemdata.bdrycond, self.method, self.bdrydata)
         return b,u
 
-    def solve(self, iter=100, dirname='Run'):
-        return self.solveLinearProblem()
-
     def postProcess(self, u):
-        info = {}
-        cell_data = {}
-        point_data = {}
+        point_data, side_data, cell_data, global_data = {}, {}, {}, {}
         point_data['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
-            info['error'] = {}
-            info['error']['pnL2'], info['error']['pcL2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            info['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
+            global_data['error'] = {}
+            global_data['error']['pnL2'], global_data['error']['pcL2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             point_data['E'] = self.fem.tonode(e)
-        info['postproc'] = {}
+        global_data['postproc'] = {}
         if self.problemdata.postproc:
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == "bdrymean":
-                    info['postproc'][name] = self.fem.computeBdryMean(u, colors)
+                    global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == "bdryfct":
-                    info['postproc'][name] = self.fem.computeBdryFct(u, colors)
+                    global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == "bdrydn":
-                    info['postproc'][name] = self.fem.computeBdryDn(u, colors, self.bdrydata, self.problemdata.bdrycond)
+                    global_data['postproc'][name] = self.fem.computeBdryDn(u, colors, self.bdrydata, self.problemdata.bdrycond)
                 elif type == "pointvalues":
-                    info['postproc'][name] = self.fem.computePointValues(u, colors)
+                    global_data['postproc'][name] = self.fem.computePointValues(u, colors)
                 elif type == "meanvalues":
-                    info['postproc'][name] = self.fem.computeMeanValues(u, colors)
+                    global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
                 else:
                     raise ValueError("unknown postprocess '{}' for key '{}'".format(type, name))
         if self.kheatcell.shape[0] != self.mesh.ncells:
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
-        if self.plotk: cell_data['k'] = self.kheatcell
-        return point_data, cell_data, info
+        cell_data['k'] = self.kheatcell
+        return point_data, side_data, cell_data, global_data
 
 
 #=================================================================#

@@ -2,13 +2,12 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse
 import scipy.sparse.linalg as splinalg
-import simfempy
 from simfempy import solvers
 import simfempy.tools.iterationcounter
 
 
 #=================================================================#
-class LaplaceMixed(solvers.solver.Solver):
+class LaplaceMixed(solvers.solver.Application):
     """
     """
     def defineRhsAnalyticalSolution(self, solexact):

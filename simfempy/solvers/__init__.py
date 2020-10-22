@@ -1,4 +1,1 @@
-from . import solver
-from . import newton
-from . import optimize
-from . import stoppingdata
+from . import newton, optimize, stoppingdata

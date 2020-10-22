@@ -8,7 +8,7 @@ import simfempy.tools.analyticalsolution
 import simfempy.tools.iterationcounter
 
 # =================================================================#
-class Stokes(solvers.solver.Solver):
+class Stokes(solvers.solver.Application):
     """
     """
     def generatePoblemData(self, **kwargs):
