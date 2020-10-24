@@ -1,0 +1,613 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Introduction}\label{sec:introduction}
+%==========================================
+%
+These notes describe the implementation of simple finite element methods in \pack{Python}. The language, together with its extensions \pack{numpy}, \pack{scipy} and \pack{matplotlib}, offers an environment similar to \pack{MatLab}: access to standard numerical algorithm libraries, vectorization, and simple and extendable plotting facilities.
+
+\pack{Python} is a perfect tool to access and combine independent libraries.
+
+We us the following packages:
+\begin{itemize}
+\item \pack{pygmsh} for mesh generation. It provides a convenient interface to the \pack{Gmsh} mesh generator.
+\item \pack{pyamg} for solution of the algebraic systems.
+\item \pack{vtki} in addition to \pack{matplotlib} for visualization. It provides a convenient interface to the visualization tool kit \pack{vtk}.
+\item \pack{scipy.sparse} for sparse matrices
+\item \pack{scipy.optimize} for optimization algorithms
+\end{itemize}
+%
+%-------------------------------------------------------------------------
+\subsection{Partial differential equations}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+We consider partial differential equations written in weak form as
+%
+\begin{equation}\label{eq:PDE}
+u\in V:\quad a(u)(v) = l(v)\quad\forall v\in V,
+\end{equation}
+%
+with a (not necessarily linear) form $a:V\times V\to\R$ representing a weak form of the PDE and a continuous linear form $l:V\to\R$ representing data, defined on a reflexive Banach space $V$.
+%
+\begin{example}[label=example:Poisson]
+Let $\Omega\subset\R^d$, $1\le d\le 3$ be a bounded regular domain with trace operator $\gamma:H^1(\Omega)\to H^{\frac12}(\partial\Omega)$. Given $f\in L^2(\Omega)$, the homogenous Dirichlet problem consists in 
+solving the equations $\gamma(u) = 0$ and $-\divv( k\nabla u) = f$ in $\Omega$. Here $k$ is a strictly positive diffusion constant. 
+A standard weak formulation is
+%
+\begin{equation}\label{eq:Poisson}
+u\in\underbrace{H^1_0(\Omega)}_{V}:\quad \underbrace{\int_{\Omega}k\nabla u\cdot \nabla v}_{a(u,v)} = \underbrace{\int_{\Omega} fv}_{l(v)} \quad\forall v\in  \underbrace{H^1_0(\Omega)}_{V}.
+\end{equation}
+%
+(\ref{eq:Dirichlet}) expresses the first-order condition for the minimization of the quadratic convex energy $E(u):= \frac12\tnorm{u}^2 - l(u)$ on $H^1_0(\Omega)$, where 
+$\tnorm{u} := \sqrt{a(u,u)} = \norm{k^{\frac12}\nabla u}$ is the energy norm.
+
+Other weak formulations, employing an Lagrange multiplier or the mixed method, allow to formulate 
+the non-homogenous Dirichlet problem $\gamma(u) = \gamma(\udir)$, where $\udir\in H^{\frac12}(\partial\Omega)$, in the form (\ref{eq:PDE}).
+
+In (\ref{subsec:PoissonP1Dirichlet}) we discuss implementations of Dirichlet boundary conditions for standard finite element methods.
+\end{example}
+%
+
+In many cases, it is interesting to highlight the dependance of 
+$a$ on parameters $q\in Q$ and we write $a(q,u)(v)$. We throughout suppose that $a$ is differentiable with respect to $u$ and $q$ and write $a'_u(q,u)(\delta u, v)$ for its derivative with respect to $u$. 
+In general we suppose the parameter space $Q$ to be of finite dimension.
+
+%
+%-------------------------------------------------------------------------
+\subsection{Optimisation}\label{subsec:Optimization}
+%-------------------------------------------------------------------------
+%
+Let $Q$ be another Hilbert space (in many applications finite-dimensional), $\Qad\subset Q$ the set of admissible parameters (or controls) and $J:Q\times V \to \R$ a twice continuously differentiable function.
+Then we consider the following optimization problem.
+%
+\begin{equation}\label{eq:OptProblem}
+\min\SetDef{J(q,u)}{  (q,u)\in \Qad\times V:\; a(q,u)(v) = l(v)\quad\forall v\in V}
+\end{equation}
+%
+Supposing that the state equation has a unique solution, we define the solution operator $S:Q\to V$ as 
+the solution of the PDE-constraint in (\ref{eq:OptProblem}) for fixed $q$. We suppose 
+ $S$ to be equally twice continuously differentiable.
+Then we can also introduce the reduced cost $\hat J(q) := J(q,S(q))$ and end up with the minimization problem
+%
+\begin{equation}\label{eq:OptProblemReduced}
+\min\SetDef{\hat J(q) }{q\in \Qad}.
+\end{equation}
+%
+In the unconstrained case, $\Qad= Q$, a sufficient optimality conditions for a local minimizer $q^*$ (\ref{eq:OptProblemReduced}) is the existence of $\gamma>0$ such that
+%
+\begin{equation}\label{eq:SOCondition}
+{\hat J}'(q^*)(p) = 0,\quad {\hat J}''(q^*)(p,p)\ge \gamma \norm{p}_Q^2\quad \forall p\in Q.
+\end{equation}
+%
+%---------------------------------------
+\begin{remark}\label{rmk:}
+Let $\Qad\subset Q$ be closed convex. A typical example is the constraint $a\le q \le b$. Then in order to allow for a minimizer on the boundary of $\Qad$, the first-order necessary condition reads
+%
+\begin{equation}\label{eq:FOnec}
+\hat J'(q^*)(p-q^*) \ge 0\quad \forall p\in \Qad.
+\end{equation}
+%
+In this introdcution, we stick to the unconstrained case $\Qad= Q$.
+\end{remark}
+%
+
+%
+%---------------------------------------
+\begin{example}[\textbf{Least-squares problems}]\label{example:LeastSquares}
+Let $c:V\to C$ be a linear continuous measurement operator and $\cD\in C$ be given measurements. Then 
+the residuals and least-squares functional are given by
+%
+\begin{equation}\label{eq:LSredisuals}
+r(u) := c(u) - \cD,\quad J(u) := \frac12\norm{r(u)}^2_C.
+\end{equation}
+%
+Of special interest is the finite dimensional case $C=\R^{n_C}$:
+%
+\begin{equation}\label{eq:LSredisualsFD}
+r^j(u) := c_j(u) - \cD_j,\quad J(u) := \frac12\sum_{j=1}^{n_C} r^j(u)^2.
+\end{equation}
+%
+%
+With $\alpha\ge0$ and a reference parameter state $q_0\in Q$ we then consider the regularized least-squares problem as a constrained minimization problem 
+%
+\margincomment{Mention generalizations!}
+%
+\begin{equation}\label{eq:OptProblemLS}
+\min\SetDef{J(u) + \frac{\alpha}{2}\norm{q-q_0}^2_Q }{  (q,u)\in \Qad\times V:\; a(q,u)(v) = l(v)\quad\forall v\in V}
+\end{equation}
+\end{example}
+%
+A special case is the following
+%---------------------------------------
+\begin{example}[\textbf{Linear-quadratic problem}]\label{example:LQ}
+%
+Here the control-to-state map is (affine) linear, i.e.,
+%
+\begin{equation}\label{eq:LQState}
+a(q,u)(v) = a(u,v) - b(q,v)
+\end{equation}
+%
+with two linear forms $a$ for the state and $b$ for the control, and we consider the least-squares problem 
+(\ref{eq:OptProblemLS}).
+
+As a specific finite-dimensional example, we consider an extension of the second-order order PDE introduced in example~(\ref{example:Poisson}).
+Let $\omega_i^{Q}\subset\Omega$, $1\le i\le n_Q$ and $\omega_j^{C}\subset\Omega$, $1\le j\le n_C$ be regular subdomains. We consider the variant of the Poisson problem (\ref{eq:Poisson}):
+%
+\begin{equation}\label{eq:PoissonOC}
+%
+\begin{aligned}
+&u\in H^1_0(\Omega):\quad \int_{\Omega}k\nabla u\cdot \nabla v = \int_{\Omega} fv 
++ \sum_{i=1}^{n_Q} \int_{\omega_i^{Q}} q_i v\quad\forall v\in  H^1_0(\Omega),\\
+&c_j(u) := \int_{\omega_j^{C}}u,\quad 1\le j\le n_C.
+\end{aligned}
+%
+\end{equation}
+%
+The aim is now to find $q^*_i$ such that the cost least-squares residuals (\ref{eq:LSredisualsFD}) are minimized.
+\end{example}
+%
+%---------------------------------------
+\begin{example}[\textbf{Bilinear problems}]\label{example:BilinearProblem}
+Frequently the unknown parameters are coefficients in the PDE model, as for example the diffusion coefficient $k$ in 
+(\ref{eq:Poisson}). Then the state equation has the form
+%
+\begin{equation}\label{eq:StateBilinear}
+a(q)(u, v) = l(v)
+\end{equation}
+%
+This expresses the fact that $u$ enters the equation linearly. As in the diffusion coefficient example, one often has in addition $a''_{qq}=0$, which leads to a bilinear mapping $(q,u)\to a$.
+\end{example}
+%
+As a further subclass we have the following type of problems, which arise for example in topology optimization.
+%
+%---------------------------------------
+\begin{example}[\textbf{Compliance minimization}]\label{example:ComplianceProblem}
+In addition to the state equation (\ref{eq:StateBilinear}), we suppose that
+%
+\begin{equation}\label{eq:CostCompliance}
+J(q,u) = \alpha \norm{q-q_0}_Q^2 +  l(u) \;\mbox{and}\; \mbox{$a(q)$ symmetric}.
+\end{equation}
+%
+Since $a(q)$ is symmetric, it is the derivative of a quadratic (internal) energy and the solution to 
+(\ref{eq:StateBilinear}) minimizes the total energy
+%
+\begin{equation}\label{eq:}
+E(q)(u) := \frac12a(q)(u,u) - l(u).
+\end{equation}
+%
+then, for $u$ solving (\ref{eq:StateBilinear}), i.e. minimizing total energy, we have 
+%
+\begin{align*}
+\frac12 l(u) =  l(u) - \frac12 a(q)(u, u) =   - E(q)(u),
+\end{align*}
+%
+so minimizing $l(u(q))$ (over $q$) amounts to maximizing $E(q)(u)$ (over $q$), which often can be interpreted as the stiffness.
+
+It also follows, that an alternative definition is
+\begin{equation}\label{eq:CostCompliance2}
+J(q,u) = \alpha \norm{q-q_0}_Q^2- E(q)(u).
+\end{equation}
+\end{example}
+%%
+%
+%-------------------------------------------------------------------------
+\subsection{Optimisation algorithms}\label{subsec:OptimizationAlgorithms}
+%-------------------------------------------------------------------------
+%
+We consider algorithms based on the reduced cost functional $j$. This implies that the state and possible additional equations have to be solved accurately, which can be avoided by the use of SQP algorithms. 
+Our main motivation is, that the presented approach leads to a simple implementation based on standard optimization tools.
+
+Typical minimization algorithms are summarized in Algorithm~\ref{algo:general}.
+ 
+\begin{tcolorbox}
+\begin{algorithm}[H]
+\caption{General algorithm for unconstrained minimization of $\hat J(q)$\label{algo:general}} 
+\label{algorithm:generic0} 
+%
+\begin{enumerate}[align=left]
+\item[(0)] Input: stopping criteria and $q_{0}$, set $k=0$.
+\item[(1)] If stopping criteria satisfied, return informations.
+\item[(2)] $\displaystyle q_{k+1} = q_{k} + d_{k}.$
+%
+\begin{enumerate}[align=left,labelwidth=2.5cm]
+\item[(Step-size)] $d_{k}-t_k p_k$, where $t_k$ is defined by a step-size rule.
+%
+\begin{enumerate}[align=left,labelwidth=2.5cm]
+\item[(Gradient)] $p_k = -g_k$, $g_k:= \nabla j(q_k)$.
+\item[(Newton)] $H_kp_k = -g_k$, $H_k:= \nabla^2 j(q_k)$.
+\item[(App. Newton)] $\tilde H_kp_k = -g_k$, $\tilde H_k$ approximation to $H_k$
+\end{enumerate}
+%
+\item[(Trust-region)] $d_{k}=\argmin\Set{ Q_k(d):\; \norm{d}\le\Delta}$, where $Q_k(d) + \hat J(q_k)$ is an approximation of $\hat J(q_k+d)$.
+%
+\begin{enumerate}[align=left,labelwidth=2.5cm]
+\item[(Quadratic model)] $Q_k(d) = \transpose{d}g_k + \frac12\transpose{d}H_k$ d.
+\end{enumerate}
+%
+\end{enumerate}
+\item[(3)] Increment $k$ et return to (1).
+\end{enumerate}
+%
+\end{algorithm}
+\end{tcolorbox}
+
+Of course, in order to obtain a practical method from Algorithm~\ref{algo:general}, many details have to be fixed, concerning algorithmical questions, but also the input and output of information, especially stopping criteria. 
+
+The theory of optimization algorithms is concerned with convergence of iterates $(q_k)$ towards a (local) minimizer 
+$q^*$, the speed of convergence (in terms of number of iterations), the dependence on initial conditions.
+
+Modern optimization algorithms use a globalization approach in order to enlarge the domain of initial conditions from which convergence can be achieved, and avoid convergence to stationary points at which the second-order condition is not satisfies. We can expect to converge towards a local minimizer, however, finding global minimizers in the non-convex case remains very difficult.
+
+Standard reference on numerical optimization are  Dennis-Schnabel \cite{DennisSchnabel96}, Fletcher \cite{Fletcher01}, Nesterov \cite{Nesterov04}, Nocedal-Wright \cite{NocedalWright06} et Ortega-Rheinboldt \cite{OrtegaRheinboldt00}.
+
+%
+%-------------------------------------------------------------------------
+\subsection{Computation of the derivatives}\label{subsec:ComputationDerivativesReduces}
+%
+Crucial to the optimization algorithms sketched in subsection~\ref{subsec:OptimizationAlgorithms} is the computation of derivatives of the reduced functional.
+As an example, we consider in this introduction the nonlinear least-squares problems introduced in example~\ref{example:LeastSquares} with finite-dimensional parameters and measurements. The other examples are treated in subsection \ref{subsec:OT_ComputationOfDerivatives}.
+
+The derivatives of the reduced cost can  be computed in different ways. 
+Denote by $(e_i)$, $1\le i\le n_Q$ an orthonormal basis of $Q$. In the direct approach we solve the tangent equations
+%
+\begin{equation}\label{eq:TangentEquation}
+a'_u(q,u)(\delta u_i, v) = -a'_q(q,u)(e_i, v)\quad \forall v\in V. 
+\end{equation}
+%
+and obtain
+%
+\begin{equation}\label{eq:GradDirect}
+\hat J'(q)(e_i) = \scp{c(u)-\cD}{c(\delta u_i)}_C + \alpha\scp{q-q_0}{e_i}_Q.
+\end{equation}
+%
+For the Hessian, the $n_Q(n_Q+1)/2$ additional equations (for $j\le i$)
+%
+\begin{equation}\label{eq:SecondTangentEquation}
+a'_u(q,u)(\delta^2 u_{ij}, v) = -a''(q,u)(e_i, e_j, \delta u_i, \delta u_j, v)\quad \forall v\in V, 
+\end{equation}
+%
+where 
+%
+\begin{align*}
+a''(q,u)(e_i,e_j,\delta u_i,\delta u_j,v):=&a''_{qq}(q,u)(e_i, e_j, v)+a''_{qu}(q,u)(e_i, \delta u_j, v)
+\\&+a''_{qu}(q,u)(e_j, \delta u_i, v)+a''_{uu}(q,u)(\delta u_i, \delta u_j, v)
+\end{align*}
+% 
+are solved to get
+%
+\begin{equation}\label{eq:HessianDirect}
+\hat J''(q)(e_i,e_j) = \underbrace{\scp{c(u)-\cD}{c(\delta^2 u_{ij})}_C}_{=:M_{ij}} +\scp{c(\delta u_i)}{c(\delta u_j)}_C + \alpha\scp{e_i}{e_j}_Q.
+\end{equation}
+%
+%
+\begin{remark}\label{rmk:}
+In a zero-residual problem, i.e. the data are matched exactly, we also have $M(q^*)=0$ at an optimizer $q^*$, and the second-order condition is satisfies. However, $\alpha>0$ in general leads to $M(q^*)\ne0$.
+\end{remark}
+%
+\begin{remark}\label{rmk:}
+The Gau\ss-Newton method uses the approximation to the Hessian obtained by skipping $M$, avoiding the solution of (\ref{eq:SecondTangentEquation}) and rendering the approximation positive.
+\end{remark}
+%
+Alternatively (indirect or adjoint method), we can solve the adjoint equation
+%
+\begin{equation}\label{eq:AdjointEquation}
+a'_u(q,u)(v, z) = J'(u)(v) = \scp{c(u)-\cD}{c(v)}_C \quad \forall v\in V. 
+\end{equation}
+%
+and obtain with $\scp{c(u)-\cD}{c(\delta u_i)}_C = a'_u(q,u)(\delta u_i, z) = -a'_q(q,u)(e_i, z)$ the alternative formula
+%
+\begin{equation}\label{eq:GradInDirect}
+\hat J'(q)(e_i) = -a'_q(q,u)(e_i, z) + \alpha\scp{q-q_0}{e_i}_Q.
+\end{equation}
+%
+For the second-derivative of $j$, the term $M$ in (\ref{eq:HessianDirect}) can now be expressed by means of 
+(\ref{eq:AdjointEquation}):
+%
+\begin{align*}
+M_{ij} = \scp{c(u)-\cD}{c(\delta u_{ij})}_C = a'_u(q,u)(\delta u_{ij}, z) = -a''(q,u)(e_i, e_j, \delta u_i, \delta u_j, z).
+\end{align*}
+%
+
+
+In Table~\ref{tab:nsolve} we summarize the number of required equations to be solved for computation of the derivatives.
+\begin{table}[!htpb]
+\begin{center}
+\begin{tabular}{c|c|c}
+       & Gradient & Newton\\\hline
+direct & $1 + n_Q$ & $1 + n_Q(n_Q+2)/2$\\
+ajoint & $2$ & $2 + n_Q$
+\end{tabular}
+\end{center}
+\caption{Number of equations to be solved for different types of algorithms.}
+\label{tab:nsolve}
+\end{table}
+%
+
+The sufficient optimality condition (\ref{eq:SOCondition}) can be expressed by means of the Lagrange function
+%
+\begin{equation}\label{eq:}
+\mathcal L(q,u,z) := J(q,u)+ l(z) - a(q,u)(z).
+\end{equation}
+%
+The first-order condition reads in the unconstrained case $\Qad=Q$
+%
+\begin{equation}\label{eq:FOLagrange}
+\mathcal L'(q^*,u^*,z^*)(\delta q, \delta u,\delta z) = 0 \quad\Leftrightarrow\quad 
+%
+\left\{
+\begin{aligned}
+&a(q^*,u^*)(\delta z) &=& l(\delta z)\\
+&a'_u(q^*,u^*)(\delta u, z) &=& J'_u(q^*,u^*)(\delta u)\\
+&J'_q(q^*,u^*)(\delta q) &=& a'_q(q^*,u^*)(\delta q)
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+The first two equations on the right of (\ref{eq:FOLagrange}) allow its third equation to express the stationarity of the reduced cost. These three equations are also called optimality system.
+
+The second-order condition in terms of the Lagrangian is
+%
+\begin{equation}\label{eq:SOLagrange}
+\mathcal L''_{qu,qu}(q^*,u^*,z^*)(p, p,w,w) \ge 0 \quad \forall (p,w)\in \Set{\mathcal L''_{qu,z}(q^*,u^*,z^*)(p, w,\delta z) = 0\quad \forall \delta z}
+\end{equation}
+%
+%
+\begin{example}[continues=example:LQ]
+For the unconstrained linear-quadratic problem the optimality system is given by
+%
+\begin{equation}\label{eq:OSLQ}
+%
+\left\{
+\begin{aligned}
+&a(u^*,v) = l(v) + b(q^*,v)&\;&\forall v\in V,\\
+&a(v, z^*) = \scp{c(u^*)-\cD}{Cv}&\;&\forall v\in V,\\
+&\alpha\scp{q^*-q_0}{p}+b(z^*,p) =0&\;&\forall p\in Q.
+\end{aligned}
+\right.
+\quad\Leftrightarrow\quad 
+%
+\left\{
+\begin{aligned}
+&A u^* = l + Bq^*,\\
+&A^* z = \transpose{c}(c(u^*)-\cD),\\
+&\alpha q^* + B^* z= 0.
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+We have $\delta u_{ij}=0$ and thus $M=0$, such that $\hat J''(q)(e_i,e_j) = \scp{c(\delta u_i)}{c(\delta u_j)}_C + \alpha\scp{e_i}{e_j}_Q$, where  $\delta u_i = \delta u(e_i)$ with
+%
+\begin{equation}\label{eq:TangentLQ}
+a(\delta u(p),v) = b(p,v)\quad\forall v\in V.
+\end{equation}
+%
+The positivity of the Hessian then follows from the condition that $C\circ S\circ B$ has full rank, which implies that there are at least as many observations as controls.
+\end{example}
+%
+
+
+%
+%-------------------------------------------------------------------------
+\subsection{Meshes and finite element discretization}\label{subsec:MeshesAndFem}
+%-------------------------------------------------------------------------
+%
+We consider a family of admissible meshes $\mathcal H$, and denote by $h\in\mathcal H$ a single simplicial mesh, which is a regular (in the usual sense of \cite{Ciarlet02}) partition of the computational domain $\Omega$ (or an approximation to it, if $\Omega$ is not a polygon or polyhedron in two or three dimensions, respectively).
+This notation allows indexing with $h$ to indicate the dependence on the mesh in standard way.
+
+The finite element method is considered as a technique to define discrete function spaces for given $h\in\mathcal H$, such as the piecewise polynomials $D_h^k\subset L^{\infty}(\Omega)$ (for $k\ge0$) and continuous polynomials 
+$P_h^k\subset H^1(\Omega)$ (for $k\ge1$). With such spaces $V_h\subset V$, the discretization of the PDE (\ref{eq:PDE}) reads:
+%
+\begin{equation}\label{eq:PDEh}
+u_h\in V_h:\quad a(u_h)(v) = l(v)\quad\forall v\in V_h.
+\end{equation}
+%
+Some of the main objectives of numerical analysis is to poof convergence $u_h\to u$, as $h\to0$ in a certain sense, provide estimates for the error $u-u_h$ in various norms, assuming $u$ to have some smoothness, and provide estimators, which can be used to assert the accuracy of an approximate solution and to devise adaptive algorithms. 
+
+As an example, we consider the discretization of the Poisson problem.
+%
+\begin{example}[continues=example:Poisson]
+%
+Let $P^k_h\subset H^1(\Omega)$ denote the Lagrange finite elements of polynomial order $k\ge1$. We define 
+$V_h:=\SetDef{v\in P^k_h}{\gamma(v)=0}$.
+
+\begin{equation}\label{eq:Poissonh}
+u_h\in V_h:\quad \int_{\Omega}k\nabla u_h\cdot \nabla v = \int_{\Omega} fv \quad\forall v\in  V_h.
+\end{equation}
+%
+Due to the conformity $V_h\subset H^1_0(\Omega)$ we have for $v\in V_h $ that 
+$\int_{\Omega} fv = \int_{\Omega}\nabla u\cdot \nabla v$ and (\ref{eq:Poissonh}) becomes the first-order necessary condition for $\inf\SetDef{\norm{\nabla(u-w_h)}^2}{w_h\in V_h}$, i.e. $u_h$ is the Ritz-projection 
+of $u$ on $V_h$ with respect to the energy-product: $u_h=R_h(u)$. We obtain Céa's lemma
+%
+\begin{equation}\label{eq:cea}
+\norm{\nabla(u-u_h)} \le \norm{\nabla(u-w_h)}\quad \forall w_h\in W_h,
+\end{equation}
+%
+which can be turned into a priori error estimates by means of an interpolation operator. Typically, if $u\in H^{k+1}(\Omega)$ we have
+%
+\begin{equation}\label{eq:eeap}
+\norm{\nabla(u-u_h)} \lesssim h^k\, \norm{u}_{H^{k+1}(\Omega)}.
+\end{equation}
+%
+A posteriori error estimates do not need a smoothness assumption
+%
+\begin{equation}\label{eq:est}
+\norm{\nabla(u-u_h)} \lesssim \eta_h(u_h).
+\end{equation}
+%
+There are different ways to obtain an estimator $\eta_h$.
+%
+\end{example}
+%
+
+Standard reference on finite element methods are \cite{Braess13}\cite{BrennerScott08}\cite{ErnGuermond04}.
+%
+%-------------------------------------------------------------------------
+\subsection{Optimization and discretization}\label{subsec:OptimizationAndDiscretization}
+%-------------------------------------------------------------------------
+%
+The discrete analog of the optimization problem (\ref{eq:OptProblem}) is: 
+%
+\begin{equation}\label{eq:OptProblemh}
+\min\SetDef{J(q_h,u_h) }{  (q_h,u_h)\in \Qadh\times V_h:\; a(q_h,u_h)(v) = l(v)\quad\forall v\in V_h},
+\end{equation}
+%
+where $\Qadh \subset Q_h$ is the set of discrete admissible controls, and $Q_h\subset Q$ an approximation of the control space. One frequently has $\Qadh = Q_h \cap \Qad$. 
+Of special interest is the finite-dimensional case, supposing $\Qadh=\Qad$.
+
+
+In (\ref{eq:OptProblemh}) we have replaced the continuous solution operator $S:Q\to V$ by the discrete one $S_h:Q\to V_h$. The discrete cost functional is now $\hat J'_h(q) = J(q, S_h(q))$ and its discrete gradient is given by
+%
+\begin{equation}\label{eq:GradReducedCost}
+\begin{split}
+\hat J'_h(q)(p) = J'_q(q,u_h)(p) - a'_q(q,u_h)(p,z_h)\quad \mbox{where $u_h$ and $z_h$ solve}\\
+%
+\left\{
+\begin{aligned}
+a(q,u_h)(v)=&l(v)\;&\forall v\in V_h,\\
+a'_u(q,u_h)(v,z_h)=&J'_u(q,u_h)(v)\;&\forall v\in V_h.
+\end{aligned}
+\right.
+%
+\end{split}
+\end{equation}
+%
+
+
+The discrete optimality 
+condition, in the unconstrained case $\Qadh=Q_h$, can be written by means of the Lagrangian as
+%
+\begin{equation}\label{eq:DiscreteOSLagrange}
+\mathcal L'_{quz}(q^*_h, u^*_h,z^*_h)(\delta q_h, \delta u_h,\delta z_h)=0\quad \forall (\delta q_h, \delta u_h,\delta z_h)\in Q_h\times V_h\times W_h.
+\end{equation}
+%
+
+The variational approach to discretization has several benefits. First it follows that all results of  Section~\ref{subsec:Optimization} concerning the continuous problem carry over to the discrete problem, especially the formulae for the derivatives of the reduced cost functional. This implies that the discrete optimality system is the discretization of the continuous one. There is no ambiguity concerning the order of discretization and optimisation.
+
+The discretization produces errors due to the replacement of $S$ by $S_h$, which 
+leads to errors in all unknowns. Let us first remark that the error in the state $u$ can be estimated by the usual finite element techniques and a bound the error in control.
+The second remark is that the error in control is related to the error in gradient of the reduced cost.
+Let us discuss this in the framework of the linear-quadratic problem.
+
+%---------------------------------------
+\begin{example}[continues=example:LQ]
+The discrete optimality system for the unconstrained problem is
+%
+\begin{equation}\label{eq:OSLQh}
+%
+\left\{
+\begin{aligned}
+&a(u^*_h,v) = l(v) + b(q^*_h,v)&\quad&\forall v\in V_h,\\
+&a(v, z^*_h) = \scp{c(u^*_h)-\cD}{Cv}&\quad&\forall v\in V_h,\\
+&\alpha\scp{q^*_h-q_0}{p}+b(z^*_h,p) =0&\quad&\forall p\in Q_h.
+\end{aligned}
+\right.
+%
+\end{equation}
+\end{example}
+%
+Let us introduce
+\begin{align*}
+u^h\in V:\quad a(u^h, v) = l(v) + b(q^*_h,v)\quad \forall v\in V.
+\end{align*}
+Then we can estimate $u^h- u^*_h$ in standard way. It remains to estimate $\delta u :=u^*-u^h$, for which we have
+\begin{align*}
+a(\delta u, v) = b(q^*-q^*_h, v)\quad \forall v\in V.
+\end{align*}
+Then we have (with constant depending on continuity of $B$ and coercivity of $A$)
+%
+\begin{align*}
+\norm{u^*-u^h}_V \lesssim \norm{q^*-q^*_h}_Q.
+\end{align*}
+%
+and it follows that
+%
+\begin{align*}
+\norm{u^*-u^*_h}_V \le \norm{u^*-u^h}_V + \norm{u^h-u^*_h}_V \lesssim \norm{q^*-q^*_h}_Q + \norm{u^h-u^*_h}_V
+\end{align*}
+%
+
+
+For the error in optimal control, $q^*-q^*_h$, we suppose that $q^*$ is a minimizer satisfying the second-order condition (\ref{eq:SOCondition}). We suppose that it even holds on a neighborhood, in which $q^*_h$ resides. Then we have with $p:=q^*_h-q^*$ and $p_h\in Q_h$
+%
+\begin{align*}
+\gamma \norm{q^*-q^*_h}^2_Q \le& \int_0^1\hat J''(q^* + sp)(p,p)\,ds = \hat J'(q^*_h)(p) - \hat J'(q^*)(p)\\ 
+=& \hat J'(q^*_h)(p) - \hat J_h'(q^*_h)(p) +  \hat J_h'(q^*_h)(p-p_h).
+\end{align*}
+%
+Clearly, if $Q_h=Q$ we can take $p_h=p$ and the last term vanishes.
+We restrict ourselves to this case here.
+
+It follows that estimation of the control error is closely related to estimating the first-order condition at $q^*_h$, for which we wish to bound $\hat J'(q_h^*)(p)$ for any $p\in Q$.
+
+Let $q\in Q_h$ be arbitrary. We wish to bound the error in gradient $\hat J'(q)(p) - \hat J_h'(q)(p)$ for $p\in Q$. In addition to the continuous and discrete equations
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&a(u, v) = l(v) + b(q,v)&\; \forall v\in V\\
+&a(v,z) = \scp{c(u)-\cD}{c(v)}_C&\; \forall v\in V\\
+&a(\delta u,v) = b(p,v)&\; \forall v\in V
+\end{aligned}
+\right.
+%
+\qquad
+%
+\left\{
+\begin{aligned}
+&a(u_h, v) = l(v) + b(q,v)&\; \forall v\in V_h\\
+&a(v,z_h) = \scp{c(u_h)-\cD}{c(v)}_C&\; \forall v\in V_h\\
+&a(\delta u_h,v) = b(p,v)&\; \forall v\in V_h
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+we define $z^h=z^h(u_h)$
+%
+\begin{align*}
+z^h\in V:\quad a(v,z^h) = \scp{c(u_h)-\cD}{c(v)}_C.
+\end{align*}
+%
+We then have from (\ref{eq:GradReducedCost})
+%
+\begin{align*}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& \left( \alpha\scp{q-q_0}{p} + b(p,z)\right) - \left( \alpha\scp{q-q_0}{p} + b(p,z_h)\right)\\
+=& b(p,z - z_h) = a(\delta u,z - z_h) = a(\delta u,z^h - z_h) + a(\delta u,z - z^h).
+\end{align*}
+%
+The first term can be bounded as
+%
+\begin{align*}
+a(\delta u,z^h - z_h) \lesssim  \norm{p} \times\tnorm{z^h - z_h}.
+\end{align*}
+%
+For the second term we have
+%
+\begin{align*}
+a(\delta u,z - z^h) =& \scp{c(u-u_h)}{c(\delta u)}_C \lesssim \norm{p} \times\tnorm{u - u_h}.
+\end{align*}
+%
+It follows that
+%
+\begin{equation}\label{eq:}
+\norm{\nabla \hat J(q)} \lesssim \tnorm{z^h - z^*_h} + \tnorm{u - u_h}.
+\end{equation}
+
+
+For $q=q_h^*$ and $p=q_h^*-q^*$ we have
+%
+\begin{equation}\label{eq:}
+\norm{q^*-q^*_h} + \norm{\nabla \hat J(q^*_h)} \lesssim \tnorm{z^h(u^*_h) - z^*_h} + \tnorm{u^h - u_h}.
+\end{equation}
+%
+
+
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+
+

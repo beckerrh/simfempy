@@ -1,0 +1,114 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Linear elements for the Elasticity problem}\label{sec:}
+%==========================================
+%
+Let $\Omega\subset \R^d$, $d=2,3$ be the computational domain. 
+We suppose to have a disjoined partition of its boundary: $\partial\Omega=\GammaD\cup\GammaN$.
+The linear elasticity problem is given as
+%
+\begin{equation}\label{eq:LinearElasticity}
+%
+\left\{
+\begin{aligned}
+&\;\divv\sigma = -f \quad \mbox{in $\Omega$}\\
+&\;u = \uD \quad \mbox{in $\GammaD$}\\
+&\;\sigma_n = g \quad \mbox{in $\GammaN$},
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+where $u$ is the displacement $\eps_{ij}=\frac12\left(\frac{\partial u_i}{\partial x_j}+\frac{\partial u_j}{\partial x_i}\right)$ the strain tensor and $\sigma$ the stress tensor, related to the strain by the constitutive equation
+%
+\begin{equation}\label{eq:LinearElasticityConstitutive}
+\sigma = \mathcal C\, \eps(u).
+\end{equation}
+% 
+The system (\ref{eq:LinearElasticity}) can be derived from continuum mechanics under the assumption of small displacements (and small displacement gradients!), which is the geometric linearization. In addition, the material law, which describes how geometrical changes produce stress in the material, is assumed linear (Hooke's law). 
+For an isotropic homogenous, only two parameters, the Young module $E$ and Poisson's ration $\nu$ are needed to define the (in principal) forth-order tensor $\mathcal C$. It is customary to write the (\ref{eq:LinearElasticityConstitutive}) as
+%
+\begin{equation}\label{eq:LinearElasticityConstitutive2}
+\begin{bmatrix}
+\sigma_{11}\\ \sigma_{22}\\ \sigma_{33}\\ \sigma_{12}\\ \sigma_{13}\\ \sigma_{23}
+\end{bmatrix}
+=
+\frac{E}{(1+\nu)(1-2\nu)}
+\begin{bmatrix}
+1-\nu& \nu& \nu& & & & \\
+\nu& 1-\nu& \nu& & 0& & \\
+\nu& \nu& 1-\nu& & & & \\
+& & & 1-2\nu& & & \\
+& & 0& & 1-2\nu& & \\
+& & & & & 1-2\nu&
+\end{bmatrix}
+\begin{bmatrix}
+\eps_{11}\\ \eps_{22}\\ \eps_{33}\\ \eps_{12}\\ \eps_{13}\\ \eps_{23}
+\end{bmatrix}
+\end{equation}
+%
+or alternatively (writing the matrix as a multiple of identity plus upper left corner)
+%
+\begin{equation}\label{eq:LinearElasticityConstitutive3}
+\sigma = \frac{E}{1+\nu}\eps + \frac{E\nu}{(1+\nu)(1-2\nu)}\trace(\eps) I
+\end{equation}
+%
+%
+The elasticity problem (\ref{eq:LinearElasticity}) is the first-order condition for the minimization of the quadratic energy
+%
+\begin{equation}\label{eq:LinearElasticityEnergy}
+\mathcal E := \frac12\int_{\Omega}\sigma:\eps - \int_{\Omega}f\cdot u - \int_{\GammaN}g\cdot u.
+\end{equation}
+%
+By means of (\ref{eq:LinearElasticityConstitutive3}) we have
+%
+\begin{align*}
+\int_{\Omega}\sigma:\eps = \underbrace{\frac{E}{1+\nu}}_{=:2\mu}\int_{\Omega}\eps:\eps + \underbrace{\frac{E\nu}{(1+\nu)(1-2\nu)}}_{=:\lambda}\int_{\Omega}\left(\trace(\eps)\right)^2,
+\end{align*}
+%
+and convexity of the energy follows from the conditions
+%
+\begin{equation}\label{eq:CondEllipticity}
+\mu> 0, \lambda\ge0 \quad\Rightarrow\quad E>0,\quad 0\le \nu <  \frac12.
+\end{equation}
+%
+Energy minimization then leads to the weak formulation of (\ref{eq:LinearElasticity}):
+%
+\begin{equation}\label{eq:}
+u\in \uD + V:\; 2\mu\int_{\Omega}\eps(u):\eps(v)+\lambda\int_{\Omega}\divv(u)\divv(v) 
+= \int_{\Omega} f\cdot v + \int_{\partial\Omega} gv_n,
+\end{equation}
+%
+where $V=H^1_0(\Omega)^3$. With the integration by parts (for sufficiently smooth $u$)
+%
+\begin{equation}\label{eq:IPPElasticity}
+\begin{split}
+\int_{\Omega}\eps:\eps(v) =& \int_{\Omega}\eps:\nabla v = - \int_{\Omega}\divv\eps\cdot v
++ \int_{\partial\Omega}\eps n\cdot v\\
+\int_{\Omega}\divv u \divv v =& - \int_{\Omega}\nabla\divv u \cdot v + \int_{\partial\Omega}\divv u v_n
+\end{split}\end{equation}
+% 
+we have
+%
+\begin{align*}
+\int_{\Omega} \left( f + 2\mu\divv\eps(u)+\lambda\nabla\divv(u)\right) \cdot v
+= \int_{\partial\Omega} \left( 2\mu \eps +\lambda\divv(u) I \right)n\cdot v
+= \int_{\partial\Omega}\sigma n \cdot v
+\end{align*}
+%
+From (\ref{eq:LinearElasticityConstitutive3}) we have (since $\trace(I)=3$)
+%
+\begin{align*}
+\sigma = 2\mu\eps + \lambda\trace(\eps) I\quad\Rightarrow\quad \trace(\sigma) = 
+2\mu\trace(\eps) + 3\lambda\trace(\eps)\quad\Rightarrow\quad 
+\eps = \frac{1}{2\mu}\left( \sigma - \frac{\lambda}{2\mu+3\lambda}\trace(\sigma)\right)
+\end{align*}
+%
+
+
+%
+%
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================

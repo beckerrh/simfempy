@@ -1,0 +1,112 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Mixed finite element methods}\label{sec:}
+%==========================================
+%
+One frequently encounters equations of the form
+%
+\begin{equation}\label{eq:SaddlePointSystem}
+\mathcal A \begin{bmatrix}x\\y\end{bmatrix}= \begin{bmatrix}f\\g\end{bmatrix},\quad \mathcal A=
+\begin{bmatrix}
+A & \transpose{B}\\
+B & 0
+\end{bmatrix}.
+\end{equation}
+%
+For example, if $A$ is symmetric positive, such a system arises in the constrained minimization problem
+%
+\begin{align*}
+\inf \Set{ E(x) :\; x\in V,\; Bx=g },\quad  E(x) := \frac12 \scp{A x}{x} ) -\scp{f}{x},
+\end{align*}
+%
+since it expresses the stationarity of the Lagrangian
+%
+\begin{align*}
+\mathcal L(x,y) = E(x)+ \scp{Bx-g}{y}.
+\end{align*}
+
+%
+Under the assumption that $A$ is an isomorphism, we can use block-elimination to obtain a single equation in $y$. This can be done by the block-factorization
+%
+\begin{equation}\label{eq:SystemFactorized}
+\mathcal A = \begin{bmatrix}
+A & \transpose{B}\\
+B & 0
+\end{bmatrix}
+= 
+\begin{bmatrix}
+I & 0\\
+BA^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+A & 0\\
+0 & S
+\end{bmatrix}
+\begin{bmatrix}
+I & A^{-1}\transpose{B}\\
+0 & I
+\end{bmatrix},
+\end{equation}
+%
+with the Schur complement
+%
+%
+\begin{equation}\label{eq:Schur}
+S := - BA^{-1}\transpose{B}.
+\end{equation}
+%
+Now the question of regularity of the whole system $\mathcal A$ is equivalent to the regularity of $S$.
+
+If $S$ is regular we then have
+%
+\begin{align*}
+{\mathcal A}^{-1}
+= 
+\begin{bmatrix}
+I & -A^{-1}\transpose{B}\\
+0 & I
+\end{bmatrix}
+\begin{bmatrix}
+A^{-1} & 0\\
+0 & S^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+I & 0\\
+-BA^{-1} & I
+\end{bmatrix}
+\end{align*}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Iterative solution}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Using the factorization (\ref{eq:SystemFactorized}), the system (\ref{eq:SaddlePointSystem}) can be solved in three steps:
+%
+\begin{equation}\label{eq:}
+%
+\left\{
+\begin{aligned}
+&A \tilde x &&= f\\
+&S y &&= g-B\tilde x\\
+&A(x-\tilde x) &&=  - \transpose{B} y
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+The first computes $\tilde x$, the solution neglecting the constraints. The last step computes a correction to $\tilde x$ in order to satisfy the constraint, requiring the multiplier $y$ to solve the second equation.
+%
+%-------------------------------------------------------------------------
+\subsection{Discreization}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+
+
+
