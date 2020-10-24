@@ -26,6 +26,7 @@ class Application(object):
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
+        print("self.problemdata.solexact", self.problemdata.solexact)
         self.problemdata.rhs = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
         if self.ncomp>1:
             def _solexactdir(x, y, z):
@@ -85,6 +86,22 @@ class Application(object):
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
 
+    def compute_cell_vector_from_params(self, name, params):
+        if name in params.fct_glob:
+            xc, yc, zc = self.mesh.pointsc.T
+            fct = np.vectorize(params.fct_glob[name])
+            arr = fct(self.mesh.cell_labels, xc, yc, zc)
+        elif name in params.scal_glob:
+            arr = np.full(self.mesh.ncells, params.scal_glob[name])
+        elif name in params.scal_cells:
+            arr = np.empty(self.mesh.ncells)
+            for color in params.scal_cells[name]:
+                arr[self.mesh.cellsoflabel[color]] = params.scal_cells[name][color]
+        else:
+            msg = f"{name} should be given in 'fct_glob' or 'scal_glob' or 'scal_cells' (problemdata.params)"
+            raise ValueError(msg)
+        return arr
+
 
     def static(self, iter=100, dirname='Run'):
         if not self._setMeshCalled: self.setMesh(self.mesh)
@@ -100,7 +117,7 @@ class Application(object):
         self.timer.add('init')
         A = self.matrix()
         self.timer.add('matrix')
-        b,u = self.computeRhs()
+        b, u = self.computeRhs()
         self.timer.add('rhs')
         u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         self.timer.add('solve')
