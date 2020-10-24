@@ -1,0 +1,317 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Optimisation techniques}\label{sec:OptimisationTechniques}
+%==========================================
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Unconstrained minimization algorithms}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Constrained minimization algorithms}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+
+%
+%-------------------------------------------------------------------------
+\subsection{Computation of derivatives}\label{subsec:OT_ComputationOfDerivatives}
+%-------------------------------------------------------------------------
+%
+We first consider a general minimization problem and derive the derivatives of the reduced functional 
+via the Lagrangian approach.
+Then we look at some specific problems.
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{The general case}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+Let us consider the Lagrangian
+%
+\begin{equation}\label{eq:GerenarlLagrange}
+\mathcal L(q,u,z) = J(q,u) + l(z) - a(q,u)(z).
+\end{equation}
+%
+Let $q$ be given. With the state $u=u(q)$ and co-state $z=z(u(q))$ defined by 
+%
+\begin{equation}\label{eq:GeneralStateCostate}
+\mathcal L'_z(q,u)(v)=0,\quad \mathcal L'_u(q,u,z)(v)=0 \quad \forall v\in V,
+\end{equation}
+%
+we can express the gradient of the reduced functional as
+%
+\begin{equation}\label{eq:GeneralGrad}
+\hat J'(q)(p) = \mathcal L'_q(q,u,z)(p)\quad \mbox{where $u$ and $z$ solve (\ref{eq:GeneralStateCostate}).}
+\end{equation}
+%
+For the computation of the second-order derivatives, we introduce, for $p$ given, $\delta u=\delta u(p)$ and $\delta z=\delta z(\delta u(p))$ as the solutions to
+%
+\begin{equation}\label{eq:GeneralSecondStateCostate}
+\left\{
+%
+\begin{aligned}
+\mathcal L''_{uz}(q,u)(\delta u, v)=& -\mathcal L''_{qz}(q,u)(p, v)&\quad&\forall v\in V,\\
+\mathcal L''_{uz}(q,u)(v,\delta z)=&-\mathcal L''_{qu}(q,u,z)(p, v)-\mathcal L''_{uu}(q,u,z)(\delta u, v)&\quad&\forall v\in V.
+\end{aligned}
+%
+\right.
+\end{equation}
+%
+Then we have the formula for the  Hessian
+%
+\begin{equation}\label{eq:GeneralHessian}
+%
+\left\{
+\begin{aligned}
+\hat J''(q)(p,p) =& \mathcal L''_{qq}(q,u,z)(p,p) + \mathcal L''_{qu}(q,u,z)(p,\delta u) 
++ \mathcal L''_{qz}(q,u)(p,\delta z)\\
+&\mbox{where $u$ and $z$ solve (\ref{eq:GeneralStateCostate}) and $\delta u$ and $\delta z$ solve (\ref{eq:GeneralSecondStateCostate}).} 
+\end{aligned}
+\right.
+%
+\end{equation}
+This is the form given in \cite{BeckerMeidnerVexler07}. 
+%
+%---------------------------------------
+\begin{remark}\label{rmk:}
+In practice, we don't need to solve (\ref{eq:GeneralSecondStateCostate}) since
+%
+\begin{align*}
+\mathcal L''_{qz}(q,u)(p,\delta z) =& -\mathcal L''_{uz}(q,u)(\delta u, \delta z)\\
+=& \mathcal L''_{qu}(q,u,z)(p, \delta u)+\mathcal L''_{uu}(q,u,z)(\delta u, \delta u)
+\end{align*}
+%
+and we have the alternative formula for the Hessian:
+%
+\begin{equation}\label{eq:GeneralHessian2}
+\hat J''(q)(p,p) = \mathcal L''_{qq}(q,u,z)(p,p) + 2\mathcal L''_{qu}(q,u,z)(p,\delta u) 
++ \mathcal L''_{uu}(q,u,z)(\delta u, \delta u).
+\end{equation}
+\end{remark}
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{The LS problem (Example~\ref{example:LeastSquares})}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+For the least-squares problem we have the Lagrangian
+%
+\begin{equation}\label{eq:LSLagrangian}
+\mathcal L(q,u,z) = \frac12\norm{r(u)}^2_C + \frac{\alpha}{2}\norm{q-q_0}^2_Q + l(z) - a(q,u)(z),\quad
+r(u) := c(u) - \Cd.
+\end{equation}
+%
+%
+with state and co-state equations
+\begin{equation}\label{eq:LSStateCostate}
+a(q,u) = l(v)\quad\forall v\in V,\qquad
+a'_u(q,u)(v,z) =J'(u)(v)\quad\forall v\in V.
+\end{equation}
+and the formula for the gradient becomes
+%
+\begin{equation}\label{eq:LSGrad}
+\hat J'(q)(p) = -a'_q(q,u)(p,z)\quad \mbox{where $u$ and $z$ solve (\ref{eq:LSStateCostate}).}
+\end{equation}
+
+Furthermore, $\delta u=\delta u(p)$ and $\delta z=\delta z(p)$ are given by
+%
+\begin{equation}\label{eq:LSSecondStateCostate}
+\left\{
+%
+\begin{aligned}
+&a'_u(q,u)(\delta u, v)= -a'_q(q,u)(p, v)&\quad&\forall v\in V\\
+&a'_u(q,u)(v,\delta z) =J''(\delta u,v)-a''_{uu}(q,u)(\delta u, v,z)-a''_{qu}(q,u)(p,v,z)&\quad&\forall v\in V.
+\end{aligned}
+%
+\right.
+\end{equation}
+%
+such that the Hessian is 
+%
+\begin{equation}\label{eq:LSHessian}
+%
+\begin{aligned}
+\hat J''(q)(p,p) =& \alpha\norm{p}^2_Q -a''_{qq}(q,u)(p,p,z)-a''_{qu}(q,u)(p,\delta u,z)-a'_q(q,u)(p, \delta z)\\
+=& \alpha\norm{p}^2_Q -a''_{qq}(q,u)(p,p,z)-2a''_{qu}(q,u)(p,\delta u,z) 
++ J''(\delta u,\delta u)-a''_{uu}(q,u)(\delta u, \delta u,z)
+\end{aligned}
+%
+\end{equation}
+%
+Typical algorithms for least-squares are based on the information 
+\[
+(r_j(S(q)))_{1\le j\le n_C}\;\mbox{and}\;(\frac{\partial r_j}{\partial e_i}(S(q)))_{1\le j\le n_C, 1\le i\le n_Q}.
+\]
+such that
+\[
+\hat J(q) = \frac{\alpha}{2}\norm{q-q_0}^2 + \frac12 \transpose{r}r,\quad
+\nabla \hat J(q) = \alpha(q-q_0) + \transpose{Dr}{r}\quad
+\nabla^2 \hat J(q) = \alpha I + \transpose{Dr}{Dr} + M,
+\]
+where, when required, $M$ can be computed by means of $z$ as
+%
+\begin{align*}
+M_{ij} = -a''_{qq}(q,u)(e_i,e_j,z)-2a''_{qu}(q,u)(e_j,\delta u(e_j),z) 
+-a''_{uu}(q,u)(\delta u(e_i), \delta u(e_j),z)
+\end{align*}
+%
+
+
+
+Due to linearity of $c_j$ we have
+%
+\begin{align*}
+r_j(S(q)) = c_j(u)-\cD_j,\quad \frac{\partial r_j}{\partial e_i}(S(q))) = c_j(\delta u(e_i)).
+\end{align*}
+%
+with $n_Q$ equations to be solved. By means of the additional adjoint equation for $z$ we 
+can compute the hessian.
+
+Alternatively we can solve the $n_C$ equations
+%
+\begin{equation}\label{eq:}
+a'_u(q,u)(v,  w_j)= c_j(v)\quad\forall v\in V
+\end{equation}
+%
+and the gradient can be computed by
+%
+\begin{align*}
+\frac{\partial r_j}{\partial e_i}(S(q))) = c_j(\delta u(e_i)) = -a'_q(q,u)(e_i, w_j)
+\end{align*}
+%
+
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{The LQ problem (Example~\ref{example:LQ})}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+For the linear-quadratic problem we have the Lagrangian
+%
+\begin{equation}\label{eq:LQLagrangian}
+\mathcal L(q,u,z) = J(u) + \frac{\alpha}{2}\norm{q-q_0}^2_Q + l(z) + b(q,z) - a(u,z)
+\end{equation}
+%
+with state and co-state equations
+\begin{equation}\label{eq:LQStateCostate}
+a(u, v)= l(v) + b(q, v)\quad\forall v\in V,\qquad
+a(v,z) =J'(u)(v)\quad\forall v\in V.
+\end{equation}
+and the formula for the gradient becomes
+%
+\begin{equation}\label{eq:LQGrad}
+\hat J'(q)(p) = b(p,z)\quad \mbox{where $u$ and $z$ solve (\ref{eq:LQStateCostate}).}
+\end{equation}
+
+Furthermore, $\delta u$ and $\delta z$ are given by
+%
+\begin{equation}\label{eq:LQSecondStateCostate}
+\left\{
+%
+\begin{aligned}
+&a(\delta u, v)= b(p, v)&\quad&\forall v\in V\\
+&a(v,\delta z) =J''(\delta u,v)&\quad&\forall v\in V.
+\end{aligned}
+%
+\right.
+\end{equation}
+%
+such that the Hessian is simply
+%
+\begin{equation}\label{eq:LQHessian}
+\hat J''(q)(p,p) = \alpha\norm{p}^2_Q + b(p,\delta z) = \alpha\norm{p}^2_Q + J''(\delta u,\delta u).
+\end{equation}
+%
+
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Bilinear problem (example~\ref{example:BilinearProblem})}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+For the bilinear problem we have the Lagrangian
+%
+\begin{equation}\label{eq:BiliLagrangian}
+\mathcal L(q,u,z) = J(q,u) + l(z) - a(q)(u,z)
+\end{equation}
+%
+and we have the state and adjoint equations
+%
+\begin{equation}\label{eq:BiLiStateCostate}
+a(q)(u,v)  = l(v)\quad \forall v\in V,\qquad  a(q)(v,z)=J'_u(q,u)(v) \quad \forall v\in V,
+\end{equation}
+%
+%
+and the formula for the gradient becomes
+%
+\begin{equation}\label{eq:BiLiGrad}
+\hat J'(q)(p) = J_q'(q,u)(p) - a'_q(q)(p,u,z)\quad \mbox{where $u$ and $z$ solve (\ref{eq:BiLiStateCostate}).}
+\end{equation}
+Furthermore, $\delta u$ and $\delta z$ are given by
+%
+\begin{equation}\label{eq:BiLiSecondStateCostate}
+\left\{
+%
+\begin{aligned}
+a(q)(\delta u, v)=& -a'_q(q)(p,u,v)\quad\forall v\in V\\
+a(q)(v,\delta z)=& J''_{u,u}(q,u)(\delta u, v)-a'_q(q)(p,v,z)\quad\forall v\in V.
+\end{aligned}
+%
+\right.
+\end{equation}
+%
+such that the Hessian is
+%
+\begin{align*}
+\hat J''(q)(p,p) =&J_{qq}''(q,u)(p,p) - a'_q(q)(p,\delta u, z) - a'_q(q)(p,u, \delta z)\\
+=&J_{qq}''(q,u)(p,p) - 2a'_q(q)(p,\delta u, z) +  J_{uu}''(q,u)(\delta u,\delta u)
+\end{align*}
+%
+We obtain the second-order condition for a least-squares zero-residual problem ($z=0$).
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Compliance minimization (example~\ref{example:ComplianceProblem})}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+For the compliance we have the special form
+%
+\begin{equation}\label{eq:CompliLagrangian}
+\mathcal L(q,u,z) = \alpha\norm{q-q_0}^2 + l(u) + l(z) - a(q)(u,z)
+\end{equation}
+%
+leading to the identical state and adjoint equations (since $a(q)$ is symmetric)
+%
+\begin{equation}\label{eq:CompCostate}
+a(q)(u,v)  = l(v)\quad \forall v\in V,\quad a(q)(v,z)=l(v) \quad \forall v\in V\quad\Rightarrow\quad z=u
+\end{equation}
+%
+%
+and the formula for the gradient becomes
+%
+\begin{equation}\label{eq:CompGrad}
+\hat J'(q)(p) = \alpha\scp{q-q_0}{p}_Q-a'_q(q)(p,u,u)\quad \mbox{where $u$ solves (\ref{eq:CompCostate}).}
+\end{equation}
+
+Furthermore, $\delta u=\delta z$ is given by
+%
+\begin{equation}\label{eq:CompSecondStateCostate}
+a(q)(\delta u, v)= -a'_q(q)(p,v,u)\quad\forall v\in V
+\end{equation}
+%
+such that the Hessian is
+%
+\begin{equation}\label{eq:CompHessian}
+%&\hat J''(q)(p,p) =& \mathcal L''_{qq}(q,u,z)(p,p) + \mathcal L''_{uu}(q,u,z)(\delta u,\delta u)-2\mathcal L''_{uz}(q,u)(\delta u,\delta z) \\
+\hat J''(q)(p,p) = \alpha\norm{p}^2_Q -2a'_q(q)(p,\delta u,u) = \alpha\norm{p}^2_Q +2a(q)(\delta u,\delta u).
+\end{equation}
+%
+From (\ref{eq:CompHessian}) the convexity of the problem follows.
+
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+

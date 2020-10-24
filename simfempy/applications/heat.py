@@ -34,7 +34,8 @@ class Heat(Application):
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
-            self.fem = fems.femp1.FemP1()
+            # self.fem = fems.femp1.FemP1()
+            self.fem = fems.p1.P1()
         elif fem == 'cr1':
             self.fem = fems.femcr1.FemCR1()
         else:
@@ -93,33 +94,32 @@ class Heat(Application):
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
 
-    def _computearrcell_(self, name):
-        params = self.problemdata.params
-        if name in params.fct_glob:
-            xc, yc, zc = self.mesh.pointsc.T
-            fct = np.vectorize(params.fct_glob[name])
-            arr = fct(self.mesh.cell_labels, xc, yc, zc)
-        elif name in params.scal_glob:
-            arr = np.full(self.mesh.ncells, params.scal_glob[name])
-        elif name in params.scal_cells:
-            arr = np.empty(self.mesh.ncells)
-            for color in params.scal_cells[name]:
-                arr[self.mesh.cellsoflabel[color]] = params.scal_cells[name][color]
-        else:
-            msg = f"{name} should be given in 'fct_glob' or 'scal_glob' or 'scal_cells' (problemdata.params)"
-            raise ValueError(msg)
-        return arr
-
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # if mesh is not None: self.mesh = mesh
         self._checkProblemData()
-        self.fem.setMesh(self.mesh, self.problemdata.bdrycond)
+        self.fem.setMesh(self.mesh)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
-        self.kheatcell = self._computearrcell_('kheat')
-        # params = self.problemdata.params
+        params = self.problemdata.params
+        self.kheatcell = self.compute_cell_vector_from_params('kheat', params)
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         # self.rhocpcell = self._computearrcell_('rhocp')
+
+    def matrix(self):
+        bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
+        A = self.fem.matrixDiffusion(self.kheatcell, bdrycond, method, bdrydata)
+        lumped = True
+        self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
+        A += self.Arobin
+        A, self.bdrydata = self.fem.matrixDirichlet(A, bdrycond, method, bdrydata)
+        return A
+
+    def computeRhs(self, u=None):
+        if not hasattr(self.bdrydata,"A_inner_dir"):
+            raise ValueError("matrix() has to be called befor computeRhs()")
+        b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata, self.Arobin)
+        return b,u
+
 
     def residualNewton(self, u):
         if not hasattr(self, 'du'): self.du = np.empty_like(u)
@@ -128,16 +128,6 @@ class Heat(Application):
         self.du -= self.b
         self.du = self.vectorDirichletZero(self.du, self.bdrydata)
         return self.du
-
-    def computeRhs(self, u=None):
-        if not hasattr(self.bdrydata,"A_inner_dir"):
-            raise ValueError("matrix() has to be called befor computeRhs()")
-        b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata)
-        return b,u
-
-    def matrix(self):
-        A, self.bdrydata = self.fem.matrixDiffusion(self.kheatcell, self.problemdata.bdrycond, self.method, self.bdrydata)
-        return A
 
     def boundaryvec(self, b, u=None):
         if u is None: u = np.zeros_like(b)

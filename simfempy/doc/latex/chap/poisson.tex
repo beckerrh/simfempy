@@ -1,0 +1,277 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Linear elements for the Poisson problem}\label{sec:PoissonP1}
+%==========================================
+%
+Let $\Omega\subset \R^d$, $d=2,3$ be the computational domain. We suppose to have a disjoined partition of its boundary:
+$\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
+%
+The Poisson problem, arising in many fields as electrostatics and potential flow, is:
+%
+\begin{equation}\label{eq:Poisson}
+%
+\left\{
+\begin{aligned}
+&-\divv\left(\kdiff \nabla u\right) = f \quad \mbox{in $\Omega$},&\qquad&
+u = \uD \quad \mbox{in $\GammaD$}\\
+&\kdiff\frac{\partial u}{\partial n} = \uN \quad \mbox{in $\GammaN$},&\qquad&
+c_R u + \kdiff\frac{\partial u}{\partial n}= c_R\uR \quad \mbox{in $\GammaR$}
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+We consider the more general convection-diffusion equation with a possibly varying diffusion 
+$k$ and a convection field $\beta$
+%
+\begin{equation}\label{eq:ConvectionDiffusion}
+%
+\left\{
+\begin{aligned}
+&\divv\left(\beta u\right)-\divv\left(\kdiff\nabla u\right) = f \quad \mbox{in $\Omega$}&\qquad&
+u = \uD \quad \mbox{in $\GammaD$}\\
+&\kdiff\frac{\partial u}{\partial n} = \uN \quad \mbox{in $\GammaN$}&\qquad&
+c_R u + \kdiff\frac{\partial u}{\partial n}= c_R\uR \quad \mbox{in $\GammaR$}.
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Implementations of Dirichlet condition}\label{subsec:PoissonP1Dirichlet}
+%-------------------------------------------------------------------------
+%
+We write the discrete space $V_h$ as a direct sum $V_h = \Vint_h \oplus \Vdir_h$, with $\Vdir_h$ corresponding to the discrete functions not vanishing on $\GammaD$. 
+Splitting the matrix and right-hand side vector correspondingly, and letting $u^D_h\in \Vdir_h$ be an approximation of the Dirichlet data $\uD$ we have the traditional way to implement Dirichlet boundary conditions:
+%
+\begin{equation}\label{eq:DirTrad}
+\begin{bmatrix}
+\bdryint{A} & 0\\
+0 & I
+\end{bmatrix}
+\begin{bmatrix}
+\bdryint{u}_h\\
+\bdrydir{u}_h
+\end{bmatrix}
+=
+\begin{bmatrix}
+\bdryint{f} - \Aintdir u^D_h\\
+u^D_h
+\end{bmatrix}.
+\end{equation}
+%
+It is not necessary to replace the diagonal part by the identity matrix, since $\bdrydir{A}$ is easily seen to be a regular matrix. We then have the alternative formulation   
+%
+\begin{equation}\label{eq:DirNew}
+\begin{bmatrix}
+\bdryint{A} & 0\\
+0 & \bdrydir{A}
+\end{bmatrix}
+\begin{bmatrix}
+\bdryint{u}_h\\
+\bdrydir{u}_h
+\end{bmatrix}
+=
+\begin{bmatrix}
+\bdryint{f} - \Aintdir u^D_h\\
+\bdrydir{A}u^D_h
+\end{bmatrix}.
+\end{equation}
+%
+Let us now derive a variational formulation for (\ref{eq:DirNew}), supposing for simplicity that $\partial\Omega=\GammaD$. We consider the Poisson problem (\ref{eq:Poisson}), which corresponds to minimization of
+the energy
+%
+\begin{align*}
+E(u) := \frac12\int_{\Omega}\kdiff\nabla u\cdot\nabla u-\int_{\Omega}fu
+\end{align*}
+%
+under the constraint of Dirichlet condition. We can handle this with the Lagrangian
+%
+\begin{align*}
+\mathcal L(u,\lambda) := E(u) + \scp{u-\uD}{\lambda}_{\Gamma}, 
+\end{align*}
+%
+where $\lambda$ is a multiplier ($\lambda\in H^{-\frac12}(\Gamma)$ and $\scp{\cdot}{\cdot}_{\Gamma}$ is the duality pairing between $H^{\frac12}(\Gamma)$ and $H^{-\frac12}(\Gamma)$).
+
+An integration by parts shows that $\lambda=-k\frac{\partial u}{\partial n}$.
+The idea of Nitsche's method is then to eliminate the multiplier in the Lagrangian, giving
+%
+\begin{equation}\label{eq:NitscheDirichlet}
+\widetilde{\mathcal L}(u) := E(u) - \int_{\Gamma}k\frac{\partial u}{\partial n}\left(u-\uD\right)
++\int_{\Gamma}\frac{r}{2}\left(u-\uD\right)^2, 
+\end{equation}
+%
+an energy which makes only sens for sufficiently smooth $u$, but certainly on the discrete level.
+We have also added in (\ref{eq:NitscheDirichlet}) an augmented Lagrangian term with parameter $r$.
+Differentiation of $\widetilde{\mathcal L}$ leads to Nitsche's method.
+
+An alternative proposed in \cite{Becker18} to replace the flux term in (\ref{eq:NitscheDirichlet}) 
+and to change the metric of the augmented Lagrangian term using the space splitting introduced above:
+%
+\begin{equation}\label{eq:NewNitscheDirichlet}
+\widehat{\mathcal L}(u) := E(u) -E'(u)(\bdrydir{u}-\uD) + \frac{r}{2} E''(\bdrydir{u}-\uD,\bdrydir{u}-\uD).
+\end{equation}
+%
+Then we have
+
+%
+\begin{align*}
+\widehat{\mathcal L}'(u)(v) =& E'(u)(v) - E'(u,\bdrydir{v}) - E''(v,\bdrydir{u}-\uD) + r E''(\bdrydir{u}-\uD, \bdrydir{v})\\
+=& E'(u)(\bdryint{v}) - E''(\bdrydir{u}-\uD, \bdryint{v}) + (r-1)E''(\bdrydir{u}-\uD, \bdrydir{v})
+\end{align*}
+%
+which gives the system, for $r=2$,
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&\int_{\Omega}k\nabla \bdryint{u}\cdot \bdryint{v} = \int_{\Omega}f\bdryint{v} -\int_{\Omega}k\nabla \uD\cdot \bdryint{v},\\
+&\int_{\Omega}k\nabla \bdrydir{u}\cdot \bdrydir{v} = \int_{\Omega}k\nabla \uD\cdot \bdrydir{v}.
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+the matrix of which is (\ref{eq:DirNew}).
+%
+%-------------------------------------------------------------------------
+\subsection{Computation of the flux on Robin boundary}\label{subsec:PoissonP1Dirichlet}
+%-------------------------------------------------------------------------
+%
+%
+\begin{equation}\label{eq:}
+J(u_h) := c_R\int_{\GammaR}\left(\uR-u\right)
+\end{equation}
+% 
+Then we have with $v\in V_h$ such that $\bdrydir{v}_h=1$
+%
+\begin{align*}
+J(u_h) = c_R\int_{\GammaR}\left(\uR-u\right)v = \int_{\Omega}\nabla u_h\cdot\nabla v - \int_{\Omega}fv.
+\end{align*}
+%
+
+%
+%-------------------------------------------------------------------------
+\subsection{$P_1$ elements}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+%-------------------------------------------------------------------------
+\subsection{$CR_1$ elements}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+The relation with the $d+1$ Crouzeix-Raviart basis functions $\psi_i$ is given by 
+%
+\begin{align*}
+\psi_i = 1 - d\lambda_i
+\end{align*}
+%
+
+
+ 
+%
+%-------------------------------------------------------------------------
+\subsection{Parameter identification}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+%
+\begin{align*}
+&\mbox{Find $q^*\in \Qad\subset \R^{n_Q}$ such that}\\
+&q^* = \argmin\SetDef{\frac{\alpha}{2}\norm{q-q_0}^2 +J(u)}{  (q,u)\in \Qad\times V:\; u = S(q)}\\
+%
+&\left\{\;
+\begin{aligned}
+&u = S(q) \quad:\Leftrightarrow\quad a(u,v) = l(v) + b(q)\quad\forall v\in V\\
+&J(u) = \frac12 \sum_{j=1}^{n_C} \left( c_j(u) - \cD_j \right)^2\\
+&b(q,v) = \sum_{j=1}^{n_C} q_i b_i(v)
+\end{aligned}
+\right.\\
+&\quad\Rightarrow\quad
+q^*_i = P_{\Qad}\left(q_{0,i} - \frac{1}{\alpha} b_i(z^*)\right)\qquad a(v,z^*) = J'(u)(v)\quad\forall v\in V
+\end{align*}
+%
+
+Then the finite element discretization on mesh $h\in\mathcal H$ leads to $(q_h^*, u_h^*, z_h^*) \in \Qadh\times V_h\times V_h$.
+We suppose $\Qadh = Q_h \cap \Qad$, $V_h\subset V$. Then a standard error estimator is
+%
+\begin{equation}\label{eq:}
+\eta_h(u^*_h) + \eta_h(z^*_h)
+\end{equation}
+%
+where 
+%
+\begin{align*}
+&\eta_h(u^*_h) \simeq \norm{u^h-u^*_h}_V, \quad \eta_h(z^*_h) \simeq \norm{z^h-z^*_h}_V\\
+&\left\{\;
+\begin{aligned}
+a(u^h,v) =& l(v) + b(q_h)\quad\forall v\in V\\
+a(v,z^h) =& J'(u^*_h)(v)\quad\forall v\in V
+\end{aligned}
+\right.
+\end{align*}
+%
+
+
+%
+%-------------------------------------------------------------------------
+\subsection{A EIT problem}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+We consider the problem of finding parameters $q$ in the diffusion coefficient $C=C(q)$. As an example, for 
+subdomains $\omega_i$, $1\le i\le n_Q$, we have
+%
+\begin{align*}
+&\omega_i\subset \Omega,\quad 1\le i\le n_Q,\qquad \Gamma_j \subset \partial\Omega,\quad 1\le j \le n_C\\
+&\kdiff(q)(x) = \begin{cases}
+q_i I & x\in\omega_i,\\
+\kdiff^0 & \mbox{else}.
+\end{cases}
+\qquad c_j(u) = \int_{\Gamma_j} k\frac{\partial u}{\partial n}\quad (1\le j\le n_C).\\
+&a(q,u)(z) = \int_{\Omega} \kdiff\nabla u\cdot\nabla z + \sum_{j=1}^{n_C}c_R\int_{\Gamma_j}uz,\qquad 
+l(z) = \sum_{j=1}^{n_C}c_R\int_{\Gamma_j}\uR z.
+\end{align*}
+%
+with $\kdiff^0$ fixed, for example $\kdiff^0=q_0 I$ and $n_Q$ positive parameters $q_i$. 
+In general one imposes the constraints $q_i\ge q_0>0$.
+
+We wish to identify the unknown parameters $q_i$ by measurements of fluxes $c_j(u) = \int_{\Gamma_j}$, $1\le j\le n_C$.
+
+%
+%-------------------------------------------------------------------------
+\subsection{Dirichlet control}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+%
+\begin{align*}
+&\mbox{Find $q^*\in \Qad\subset \R^{n_Q}$ such that}\\
+&q^* = \argmin\SetDef{\frac{\alpha}{2}\norm{q-q_0}^2 +J(u)}{  (q,u)\in \Qad\times V:\; u = S(q)}\\
+%
+&\left\{\;
+\begin{aligned}
+&\;u = S(q)\\ 
+&\;-\divv(k\nabla u) = f\\
+&\;\Rest{u}{\Gamma} = g(q):= \sum_{i=1}^{n_Q} q_i \Rest{g_i}{\Gamma}\qquad \mbox{($g_i\in H^1(\Omega)$ given)}.
+\end{aligned}
+\right.
+%
+\end{align*}
+
+We can formulate the Lagriangian
+%
+\begin{equation}\label{eq:NewNitscheDirichlet}
+\mathcal L(q,u,z) := \frac{\alpha}{2}\norm{q-q_0}^2 +J(u) +l(\bdryint{z}) - \left(a(\bdryint{u},\bdryint{z}) + a(\bdrydir{u},\bdrydir{z}) + a(g(q),\bdryint{z}) - a(g(q),\bdrydir{z}) \right)
+\end{equation}
+%
+
+
+
+%
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================

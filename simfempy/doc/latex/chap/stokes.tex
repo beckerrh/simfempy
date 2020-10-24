@@ -1,0 +1,119 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Linear elements for the Stokes problem}\label{sec:}
+%==========================================
+%
+Let $\Omega\subset \R^d$, $d=2,3$ be the computational domain. We suppose to have a disjoined partition of its boundary:
+$\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
+%
+\begin{equation}\label{eq:}
+%
+\left\{
+\begin{aligned}
+-\divv\left(\mu\nabla v\right) + \nabla p = f \quad \mbox{in $\Omega$}\\
+\divv v  = g \quad \mbox{in $\Omega$}\\
+v = \vD \quad \mbox{in $\GammaD$}\\
+\mu\frac{\partial v}{\partial n} + p n = \vN \quad \mbox{in $\GammaN$}\\
+c_R v + \mu\frac{\partial v}{\partial n} + p n = \vR \quad \mbox{in $\GammaR$}\\
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Implementations of Dirichlet condition}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+We write the discrete velocity space $V_h$ as a direct sum $V_h = \Vint_h \oplus \Vdir_h$, with $\Vdir_h$ corresponding to the discrete functions not vanishing on $\GammaD$. 
+Splitting the matrix and right-hand side vector correspondingly, and letting $u^D_h\in \Vdir_h$ be an approximation of the Dirichlet data $\vD$ we have the traditional way to implement Dirichlet boundary conditions:
+%
+\begin{equation}\label{eq:StokesDirTrad}
+\begin{bmatrix}
+\bdryint{A} & 0 & -\transpose{\bdryint{B}}\\
+0 & I & 0 \\
+\bdryint{B} & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+\bdryint{v}_h\\
+\bdrydir{v}_h\\
+p_h
+\end{bmatrix}
+=
+\begin{bmatrix}
+\bdryint{f} - \Aintdir v^D_h\\
+v^D_h\\
+g - \bdrydir{B} v^D_h
+\end{bmatrix}.
+\end{equation}
+%
+As for the Poisson problem, we obtain an alternative formulation   
+%
+\begin{equation}\label{eq:StokesDirNew}
+\begin{bmatrix}
+\bdryint{A} & 0 & -\transpose{\bdryint{B}}\\
+0 & \bdrydir{A} & 0 \\
+\bdryint{B} & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+\bdryint{v}_h\\
+\bdrydir{v}_h\\
+p_h
+\end{bmatrix}
+=
+\begin{bmatrix}
+\bdryint{f} - \Aintdir v^D_h\\
+\bdrydir{A} v^D_h\\
+g - \bdrydir{B} v^D_h
+\end{bmatrix}.
+\end{equation}
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Pressure mean}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+If all boundary conditions are Dirichlet, the pressure is only determined up to a constant. In order to impose the zero mean on the pressure, let $C$ the matrix of size $(1,nc)$
+%
+\begin{equation}\label{eq:StokesDirPmean}
+\begin{bmatrix}
+A  & -\transpose{B}& 0\\
+B & 0 & \transpose{C}\\
+0 & C & 0
+\end{bmatrix}
+\begin{bmatrix}
+v\\
+p\\
+\lambda
+\end{bmatrix}
+=
+\begin{bmatrix}
+f\\
+g\\
+0
+\end{bmatrix}.
+\end{equation}
+%
+Let us considered solution of (\ref{eq:StokesDirPmean}) with $S=BA^{-1}\transpose{B}$, $T=CS^{-1}\transpose{C}$
+%
+\begin{equation}\label{eq:}
+%
+\left\{
+\begin{aligned}
+&A \tilde v &&= f\\
+&S \tilde p &&= g-B\tilde v\\
+&T \lambda &&= -C\tilde p\\
+&S (p-\tilde p) &&= \transpose{C} \lambda\\
+&A(v-\tilde v) &&=  \transpose{B} p
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+
+%
+%
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================

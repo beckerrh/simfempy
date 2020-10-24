@@ -1,0 +1,121 @@
+% !TEX root = simfempy.tex
+%
+%
+%----------------------------------------
+% parameters
+%
+\newcommand{\kdiff}{k}
+\newcommand{\kdiffinv}{k_{\rm inv}}
+
+%----------------------------------------
+% domain
+\newcommand{\GammaD}{\Gamma_{\rm D}}
+\newcommand{\GammaN}{\Gamma_{\rm N}}
+\newcommand{\GammaR}{\Gamma_{\rm R}}
+\newcommand{\udir}{u^{\rm D}}
+\newcommand{\uD}{u^{\rm D}}
+\newcommand{\uN}{u^{\rm N}}
+\newcommand{\uR}{u^{\rm R}}
+\newcommand{\pD}{p^{\rm D}}
+\newcommand{\pN}{p^{\rm N}}
+\newcommand{\pR}{p^{\rm R}}
+\newcommand{\vD}{v^{\rm D}}
+\newcommand{\vN}{v^{\rm N}}
+\newcommand{\vR}{v^{\rm R}}
+\newcommand{\bdryint}[1]{{#1}^{\rm int}}
+\newcommand{\bdrydir}[1]{{#1}^{\rm dir}}
+\newcommand{\Vint}{\bdryint{V}}
+\newcommand{\Vdir}{\bdrydir{V}}
+\newcommand{\Aintdir}{{A}^{\rm int, dir}}
+\newcommand{\Adirint}{{A}^{\rm dir, int}}
+%----------------------------------------
+% Language
+\newcommand{\pack}[1]{\textsl{#1}}
+%----------------------------------------
+% Optimization
+\newcommand{\Qad}{Q_{\rm ad}}
+\newcommand{\Qadh}{Q_{{\rm ad},h}}
+\newcommand{\Cd}{c_{\rm D}}
+\newcommand{\cD}{c^{\rm D}}
+%----------------------------------------
+% FEM
+\newcommand{\CR}{C\!R}
+\newcommand{\RT}{R\!T}
+\newcommand{\Hdiv}{H_{\rm div}}
+%----------------------------------------
+% numbers
+\newcommand{\R}{\mathbb R}
+\newcommand{\N}{\mathbb N}
+\newcommand{\C}{\mathbb C}
+\newcommand{\Z}{\mathbb Z}
+%----------------------------------------
+% sets and functions
+\newcommand{\argmin}{\operatorname{argmin}}
+\newcommand{\Set}[1]{\left\{#1\right\}} 
+\newcommand{\SetDef}[2]{\left\{#1\;\middle|\;#2\right\}} 
+\newcommand{\vect}[1]{\operatorname{Vect}(#1)}
+\newcommand{\supp}[1]{\operatorname{supp}(#1)}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\scp}[2]{\left\langle#1,#2\right\rangle}
+\newcommand{\sgn}[1]{\operatorname{sgn}(#1)}
+\newcommand{\Rest}[2]{{#1}_{|_{#2}}}
+\makeatletter
+\newcommand{\opnorm}{\@ifstar\@opnorms\@opnorm}
+\newcommand{\@opnorms}[1]{%
+  \left|\mkern-1.5mu\left|\mkern-1.5mu\left|
+   #1
+  \right|\mkern-1.5mu\right|\mkern-1.5mu\right|
+}
+\newcommand{\@opnorm}[2][]{%
+  \mathopen{#1|\mkern-1.5mu#1|\mkern-1.5mu#1|}
+  #2
+  \mathclose{#1|\mkern-1.5mu#1|\mkern-1.5mu#1|}
+}
+\makeatother
+\newcommand{\tnorm}[1]{\opnorm{#1}}
+%----------------------------------------
+% diff
+\newcommand{\divv}{\operatorname{div}}
+\newcommand{\grad}{\operatorname{grad}}
+\newcommand{\gradS}{\operatorname{grad}_{\rm s}}
+\newcommand{\rot}{\operatorname{rot}}
+\newcommand{\dd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\dn}[1]{\dd{#1}{n}}
+%----------------------------------------
+% linear algebra
+\newcommand{\transpose}[1]{{#1}^{\mathsf{T}}} 
+\newcommand{\transposeInv}[1]{{#1}^{\mathsf{-T}}} 
+\newcommand{\trace}{\operatorname{tr}} 
+\newcommand{\adj}{\operatorname{adj}} 
+\newcommand{\diag}{\operatorname{diag}}
+%----------------------------------------
+% meshes
+\newcommand{\Sides}{\mathcal S}
+\newcommand{\Cells}{\mathcal K}
+\newcommand{\Nodes}{\mathcal N}
+\newcommand{\NodesInt}{{\mathcal N}^{int}}
+\newcommand{\level}{\operatorname{lev}}
+\newcommand{\SidesInt}{\mathcal S^{\rm int}}
+\newcommand{\SidesBound}{\mathcal S^{\partial}}
+%
+\newcommand{\In}[1]{#1^{\rm in}}
+\newcommand{\Ex}[1]{#1^{\rm ex}}
+\newcommand{\InDe}[2]{#1^{{\rm in}_{#2}}}
+\newcommand{\ExDe}[2]{#1^{{\rm ex}_{#2}}}
+%
+\newcommand{\Kin}{K^{\rm{\footnotesize{in}}}}
+\newcommand{\Kex}{K^{\rm{\footnotesize{ex}}}}
+\newcommand{\inS}[1]{{#1}^{\rm{\footnotesize{in}}}_{S}}
+\newcommand{\exS}[1]{{#1}^{\rm{\footnotesize{ex}}}_{S}}
+\newcommand{\inSs}[1]{{#1}^{\rm{\footnotesize{in}}}}
+\newcommand{\exSs}[1]{{#1}^{\rm{\footnotesize{ex}}}}
+\newcommand{\meanS}[1]{\{#1\}_{S}}
+\newcommand{\jumpS}[1]{[#1]_{S}}
+\newcommand{\jump}[1]{[#1]}
+\newcommand{\mean}[1]{\{#1\}}
+\newcommand{\intS}{\int_{\Sides_{h}}}
+\newcommand{\intSInt}{\int_{\SidesInt_{h}}}
+\newcommand{\intSBound}{\int_{\SidesBound_{h}}}
+\newcommand{\intK}{\int_{\Cells_{h}}}
+%

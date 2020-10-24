@@ -1,0 +1,58 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Finite elements on simplices}\label{sec:}
+%==========================================
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Simplices}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+We consider an arbitrary non-degenerate simplex $K=(x_0,x_1,\ldots, x_{d})$. The (signed) volume of $K$ is given by
+%
+\begin{equation}\label{eq:}
+|K| = \frac{1}{d!} \det(x_1-x_{0},\ldots, x_{d}-x_{0})= \frac{1}{d!} \det(1,x_{0},x_1\ldots, x_{d})\quad 1=\transpose{(1,\ldots,1)}.
+\end{equation}
+%
+The $d+1$ sides $S_k$ (co-dimension one, $d-1$-simplices or facets) are defined by
+$S_k=(x_0,\ldots, \cancel{x_k}, \ldots, x_{d})$. The height is $d_k=|P_{S_k}x_k - x_k|$, where $P_S$ is the orthogonal projection on the hyperplane associated to $S_k$. We have
+%
+\begin{align*}
+d_k = d\frac{|K|}{|S_k|} \qquad\mbox{(and for $d=3 \; |S_k| = \frac12 |u\times v| $)}
+\end{align*}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{Integration on simplices}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+Any polynomial in the barycentric coordinates can be integrated exactly.
+%
+\begin{equation}\label{eq:}
+\int_K \prod_{i=1}^{d+1}\lambda_i^{n_i} \,dv = d!|K|\frac{\prod\limits_{i=1}^{d+1} n_i!}{\left( \sum\limits_{i=1}^{d+1} n_i + d\right)!}
+\end{equation}
+%
+see \cite{EisenbergMalvern73}, \cite{VermolenSegal18}.
+%
+
+%
+%-------------------------------------------------------------------------
+\subsection{Finite elements}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+The $d+1$ basis functions of the $P^1$ (Courant) element are the barycentric coordinates 
+$\lambda_i$ defined as being affine with respect to the coordinates and $\lambda_i(x_j)=\delta_{ij}$. Their constant gradient is given by
+%
+\begin{align*}
+\nabla \lambda_i = - \frac{1}{d_i}\vec{n_i}. 
+\end{align*}
+%
+%
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+

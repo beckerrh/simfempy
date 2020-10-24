@@ -1,0 +1,14 @@
+\boolfalse {citerequest}\boolfalse {citetracker}\boolfalse {pagetracker}\boolfalse {backtracker}\relax 
+\babel@toc {english}{}
+\defcounter {refsection}{1}\relax 
+\contentsline {section}{\numberline {1}Heat equation}{2}{section.1}%
+\defcounter {refsection}{1}\relax 
+\contentsline {section}{Appendices}{3}{section*.2}%
+\defcounter {refsection}{2}\relax 
+\contentsline {section}{\numberline {A}Finite elements on simplices}{4}{appendix.1.A}%
+\defcounter {refsection}{2}\relax 
+\contentsline {subsection}{\numberline {A.1}Simplices}{4}{subsection.1.A.1}%
+\defcounter {refsection}{2}\relax 
+\contentsline {subsection}{\numberline {A.2}Integration on simplices}{4}{subsection.1.A.2}%
+\defcounter {refsection}{2}\relax 
+\contentsline {subsection}{\numberline {A.3}Finite elements}{4}{subsection.1.A.3}%

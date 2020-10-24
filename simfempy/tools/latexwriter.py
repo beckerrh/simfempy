@@ -38,7 +38,6 @@ class TableData(object):
                 for k in values.keys():
                     self.valformat[k] = "{{:{}}}".format(valformat[k])
         self.rotatenames = False
-
     def computePercentage(self):
         self.values = dict((k+"(\%)", v) for k, v in self.values.items())
         self.values['sum'] = np.zeros(len(self.n))
@@ -53,7 +52,6 @@ class TableData(object):
         for key in self.values.keys():
             self.valformat[key] = "{:8.2f}"
         self.valformat['sum'] = "{:10.2e}"
-
     def computeDiffs(self):
         n, values, keys = self.n, self.values, list(self.values.keys())
         for key in keys:
@@ -64,7 +62,6 @@ class TableData(object):
             values[key2] = valorder
             self.valformat[key2] = self.valformat[key]
             self.valformat[key2] = self.valformat[key]
-
     def computeReductionRate(self, dim, diff=False):
         n, values, keys = self.n, self.values, list(self.values.keys())
         if not isinstance(n[0],(int,float)): raise ValueError("n must be int or float")
@@ -90,26 +87,28 @@ class TableData(object):
 
 #=================================================================#
 class LatexWriter(object):
-    def __init__(self, dirname="Resultslatextest", filename=None):
-        if filename is None:
-            filename = dirname + ".tex"
-        else:
-            if filename[-4:] != '.tex':
-                filename += '.tex'
-        self.dirname = dirname + os.sep + "tex"
-        if not os.path.isdir(self.dirname) :
-            os.makedirs(self.dirname)
+    # def __init__(self, dirname="Resultslatextest", filename=None):
+    def __init__(self, **kwargs):
+        self.dirname = "Resultslatextest"
+        if "dirname" in kwargs: self.dirname = kwargs.pop("dirname")
+        filename = self.dirname + ".tex"
+        if "filename" in kwargs: filename = kwargs.pop("filename")
+        if filename[-4:] != '.tex': filename += '.tex'
+        self.dirname += os.sep + "tex"
+        if not os.path.isdir(self.dirname): os.makedirs(self.dirname)
         self.latexfilename = os.path.join(self.dirname, filename)
+        self.author, self.title = self.__class__.__name__, "No title given"
+        if "title" in kwargs: self.title = kwargs.pop("title")
+        if "author" in kwargs: self.author = kwargs.pop("author")
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
 
     def append(self, **kwargs):
         if 'name' in kwargs: name = kwargs.pop('name')
-        else: name = 'table{:d}'.format(self.countdata)
+        else: name = 'table_{:d}'.format(self.countdata+1)
         self.countdata += 1
         tabledata = TableData(**kwargs)
-
         if 'diffandredrate' in kwargs and kwargs.pop('diffandredrate'):
             tabledata.computeDiffs()
             tabledata.computeReductionRate(kwargs.pop('dim'), diff=True)
@@ -118,7 +117,6 @@ class LatexWriter(object):
         if 'percentage' in kwargs and kwargs.pop('percentage'):
             tabledata.computePercentage()
         self.data[name] = tabledata
-
     def write(self):
         self.latexfile = open(self.latexfilename, "w")
         self.writePreamble()
@@ -126,33 +124,32 @@ class LatexWriter(object):
             self.writeTable(name=key, tabledata=tabledata)
         self.writePostamble()
         self.latexfile.close()
-
     def __del__(self):
         try:
             self.latexfile.close()
         except:
             pass
-
     def writeTable(self, name, tabledata):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
+        nname = nname.replace('_', '')
+        name = name.replace('_', '')
         keys_to_write = sorted(values.keys())
         size = len(keys_to_write)
         if size==0: return
-        texta ='%\n%---\n%\n\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
+        texta ='\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
         texta += 'r|' + size*'|r' + '}\n'
         self.latexfile.write(texta)
         if tabledata.rotatenames:
-            itemformated = "\sw{%s} &" %nname.replace('_','')
+            itemformated = "\sw{%s} &" %nname
             for i in range(size-1):
                 itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','')
             itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','')
         else:
-            itemformated = "%15s " %nname.replace('_','')
+            itemformated = "%15s " %nname
             for i in range(size):
                 itemformated += " & %15s " %keys_to_write[i].replace('_','')
             itemformated += "\\\\\\hline\hline\n"
         self.latexfile.write(itemformated)
-
         for texline in range(len(n)):
             itemformated = nformat.format(n[texline])
             for i in range(size):
@@ -160,15 +157,22 @@ class LatexWriter(object):
                 itemformated += '&'+valformat[key].format(values[key][texline])
             itemformated += "\\\\\\hline\n"
             self.latexfile.write(itemformated)
-        texte='\\end{tabular}\n\\caption{%s}' %(name.replace('_','\_'))
-        texte += "\n\\end{center}\n\\label{fig:ref}\n\\end{table}\n%\n%---\n%\n" 
+        # texte = '\\end{tabular}\n\\caption{%s}' %(name)
+        texte = f"\\end{{tabular}}\n\\caption{{{name}}}"
+        texte += f"\n\\end{{center}}\n\\label{{tab:{name}}}\n\\end{{table}}\n"
+        texte += f"%\n%{30*'-'}\n%\n"
         self.latexfile.write(texte)
 
     def writePreamble(self, name="none", rotatenames=False):
-        texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n\\usepackage{times}\n\\usepackage{graphicx}\n\\usepackage{rotating}\n'
+        texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n'
+        texta += '\\usepackage{times,graphicx,rotating,subfig}\n'
         if rotatenames:
             texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
-        texta = texta + self.sep + '\\begin{document}\n' + self.sep + '\n'
+        texta += f"\\author{{{self.author}}}\n"
+        texta += f"\\title{{{self.title}}}\n"
+        texta += self.sep + '\\begin{document}\n' + self.sep + '\n'
+        texta += "\\maketitle\n"
+        texta += f"%\n%{30*'-'}\n%\n"
         self.latexfile.write(texta)
 
     def writePostamble(self):
@@ -181,24 +185,29 @@ class LatexWriter(object):
         os.chdir(self.dirname)
         filename = os.path.basename(self.latexfilename)
         command = "pdflatex " + filename
-        result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if result:
-            raise ValueError("command pdflatex not found")
+        try:
+            result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            if result: raise ValueError("command pdflatex not found")
+        except: pass
         command = "open " + filename.replace('.tex', '.pdf')
-        subprocess.call(command, shell=True)
+        try: subprocess.call(command, shell=True)
+        except: pass
 
 
 # ------------------------------------- #
 if __name__ == '__main__':
     n = [i**2 for i in range(1, 10)]
     values={}
-    values['u'] = np.power(n,-2.) + 0.1*np.random.rand((len(n)))
-    values['v'] = np.power(n,-3.) + 0.1*np.random.rand((len(n)))
+    values['u'] = np.power(n,-2.) + 0.01*np.random.rand((len(n)))
+    values['v'] = np.power(n,-3.) + 0.01*np.random.rand((len(n)))
     latexwriter = LatexWriter()
     latexwriter.append(n=n, nname='n', values=values, diffandredrate=True, dim=2)
     values2={}
     values2[1] = [1,2,3]
     values2[2] = [4,5,6]
     latexwriter.append(n=['a','b','c'], nname='letter', nformat="10s", values=values2, percentage=True)
+    values3={}
+    values3['1'] = np.linspace(1,3,5)
+    latexwriter.append(n=np.arange(5), nname= 'toto', nformat="4d", values=values3)
     latexwriter.write()
     latexwriter.compile()

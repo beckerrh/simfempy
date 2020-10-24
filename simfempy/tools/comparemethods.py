@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  4 18:14:29 2016
-
 @author: becker
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
-
 from simfempy.tools.latexwriter import LatexWriter
 import simfempy.meshes.pygmshext
-
-
 #=================================================================#
 class CompareMethods(object):
     """
@@ -26,29 +21,21 @@ class CompareMethods(object):
     def __init__(self, methods, **kwargs):
         self.methods = methods
         self.dirname = "Results"
-        import os
-        print("self.dirname=", self.dirname, "", os.getcwd())
         self.latex = True
-        self.vtk = True
-        self.plot = True
-        self.plotpostprocs = True
+        self.plot = False
+        self.plotpostprocs = False
         if 'clean' in kwargs and kwargs.pop("clean")==True:
             import os, shutil
             try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
             except: pass
         if 'latex' in kwargs: self.latex = kwargs.pop("latex")
-        if 'vtk' in kwargs: self.vtk = kwargs.pop("vtk")
         if 'plot' in kwargs: self.plot = kwargs.pop("plot")
         if 'plotpostprocs' in kwargs: self.plotpostprocs = kwargs.pop("plotpostprocs")
-
         if 'verbose' in kwargs:
             verbose = int(kwargs.pop("verbose"))
-            self.latex, self.vtk, self.plot, self.plotpostprocs = False, False, False, False
             if verbose > 0: self.latex = True
-            if verbose > 1: self.vtk = True
-            if verbose > 2: self.plotpostprocs = True
-            if verbose > 3: self.plot = True
-
+            if verbose > 1: self.plotpostprocs = True
+            if verbose > 2: self.plot = True
         if 'h' in kwargs:
             self.h = kwargs.pop("h")
             self.paramname = kwargs.pop("paramname")
@@ -57,13 +44,11 @@ class CompareMethods(object):
             if 'niter' in kwargs: self.niter = kwargs.pop("niter")
             else: self.niter = -1
         self.parameters = []
-
-    # def compare(self, geometry, h=None, params=None):
     def compare(self, createMesh, h=None, params=None):
+        self.createMesh = createMesh
         if self.paramname == "ncells":
             if h is None:
                 mesh = createMesh(self.h)
-                # mesh = SimplexMesh(geometry=geometry)
                 gmshrefine = True
                 if self.niter ==-1: raise KeyError("please give 'niter'")
                 params = [mesh.ncells*mesh.dimension**i for i in range(self.niter)]
@@ -91,6 +76,7 @@ class CompareMethods(object):
                     from ..meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
                     plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle)
+                    plt.show()
                 resdict = result.info.copy()
                 resdict.update(result.data['global'])
                 # print(resdict)
@@ -100,7 +86,6 @@ class CompareMethods(object):
         if self.latex:
             self.generateLatex(self.methods.keys(), self.paramname, self.parameters, self.infos)
         return  self.methods.keys(), self.paramname, self.parameters, self.infos
-        
     def fillInfo(self, iter, name, info, n):
         if not hasattr(self, 'infos'):
             # first time - we have to generate some data
@@ -114,9 +99,14 @@ class CompareMethods(object):
         for key2, info2 in info.items():
             for key3, info3 in info2.items():
                 self.infos[key2][key3][name][iter] = np.sum(info3)
-                
     def generateLatex(self, names, paramname, parameters, infos):
-        latexwriter = LatexWriter(dirname=self.dirname)
+        mesh = self.createMesh.__name__
+        title = f"mesh({mesh})\\\\"
+        for name, method in self.methods.items():
+            title += f"{name}\\\\"
+        title = title[:-2]
+        # print("title = ", title)
+        latexwriter = LatexWriter(dirname=self.dirname, title=title, author=self.__class__.__name__)
         for key, val in infos.items():
             kwargs = {'n': parameters, 'nname': paramname}
             if key == 'iter':
@@ -147,13 +137,10 @@ class CompareMethods(object):
                     latexwriter.append(**kwargs)
         latexwriter.write()
         latexwriter.compile()
-        
     def computeOrder(self, ncells, values, dim):
         fnd = float(ncells[-1]) / float(ncells[0])
         order = -dim * np.log(values[-1] / values[0]) / np.log(fnd)
         return np.power(ncells, -order / dim), np.round(order,2)
-
-
     def plotPostprocs(self, names, paramname, parameters, infos):
         nmethods = len(names)
         self.reds = np.outer(np.linspace(0.2,0.8,nmethods),[0,1,1])
@@ -192,8 +179,6 @@ class CompareMethods(object):
             cc += 1
         plt.tight_layout()
         plt.show()
-
 # ------------------------------------- #
-
 if __name__ == '__main__':
     print("so far no test")

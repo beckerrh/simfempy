@@ -1,0 +1,620 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Error estimation for optimisation}\label{sec:errestopt}
+%==========================================
+%
+We take up the optimization problem (\ref{eq:OptProblem}) with additional control constraints $\Qad\subset Q$. 
+%
+\begin{equation}\label{eq:OptProblemQad}
+\min\SetDef{J(q,u) }{  (q,u)\in \Qad\times V:\; a(q,u)(v) = l(v)\quad\forall v\in V}
+\end{equation}
+%
+and its discretization based on $V_h\subset V$:
+%
+\begin{equation}\label{eq:OptProblemQadh}
+\min\SetDef{J(q,u)  }{  (q,u)\in \Qadh\times V_h:\; a(q,u)(v) = l(v)\quad\forall v\in V_h}.
+\end{equation}
+%
+Supposing the control-to-state map $S$ and its discretization $S_h$ to be well defined, (\ref{eq:OptProblemQad}) and (\ref{eq:OptProblemQadh}) amount to the minimization of $\hat J$ and $\hat J_h$, respectively.
+Let $q^*\in\Qad$ and $q^*_h\in\Qadh$ be solutions, such that
+%
+\begin{equation}\label{eq:FO}
+\hat J'(q^*)(p-q^*) \ge 0\quad \forall p\in \Qad,\qquad \hat J_h'(q^*_h)(p-q^*_h) \ge 0\quad \forall p\in \Qadh.
+\end{equation}
+%
+Supposing the second-order condition (\ref{eq:SOCondition}) to hold for $p := (q^*_h-q^*)$, we have for arbitrary $p_h\in\Qadh$
+%
+\begin{align*}
+\gamma \norm{q^*_h-q^*}_Q^2 \le& \int_0^1 \hat J''(q^*+sp)(p,p) = \hat J'(q^*_h)(p) - \hat J'(q^*)(p)&\\
+\le& \hat J'(q^*_h)(p) &\quad(\Qadh\subset\Qad\;\Rightarrow\; \hat J'(q^*)(p) \ge 0)\\
+=& \hat J'(q^*_h)(p) + \hat J_h'(q^*_h)(p_h - q_h^*) &\quad(\hat J_h'(q^*_h)(p_h - q_h^*)\ge 0)\\
+=& \hat J'(q^*_h)(p) - \hat J_h'(q^*_h)(p) + \hat J_h'(q^*_h)(p_h - q^*) &
+\end{align*}
+%
+Below, we will first consider the more general error in gradient.
+%
+%-------------------------------------------------------------------------
+\subsection{Error in control}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Using the assumption that $\hat J$ is strictly convex in a neighborhood of a local minimizer $q^*$, in which 
+a discrete local minimizer $q^*_h$ resides.
+
+Then we have
+%
+\begin{align*}
+\gamma \norm{q^*_h-q^*}_Q^2 \le&  \hat J(q^*_h) - \hat J(q^*) = \left( \hat J(q^*_h)- \hat J_h(q^*_h)\right) + 
+\left(  \hat J_h(q^*_h)- \hat J(q^*)-\right)
+\end{align*}
+%
+Following \cite{Becker06}, we express the reduced functionals by means of the Lagrangian, introducing
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+a'_u(q^*_h,u^*_h)()
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+Then we have
+%
+\begin{align*}
+.
+\end{align*}
+%
+
+
+ 
+%
+%-------------------------------------------------------------------------
+\subsection{LS problem}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Error in gradient}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&a(q,u)(v) = l(v)&\; \forall v\in V\\
+&a'_u(q,u)(v, z) = \scp{cu-\cD}{cv}_C&\; \forall v\in V\\
+&a'_u(q,u)(\delta u,v) = -a'_q(q,u)(p,v)&\; \forall v\in V\\
+\end{aligned}
+\right.
+%
+\qquad
+%
+\left\{
+\begin{aligned}
+&a(q,u_h)(v) = l(v)&\; \forall v\in V_h\\
+&a'_u(q,u_h)(v, z_h) = \scp{cu_h-\cD}{cv}_C&\; \forall v\in V_h\\
+&a'_u(q,u_h)(\delta u_h,v) = -a'_q(q,u_h)(p,v)&\; \forall v\in V_h\\
+&a'_u(q,u_h)(v,\delta z_h) = \scp{c(\delta u_h)}{cv}_C&\; \forall v\in V_h
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+we define $z^h=z^h(u_h)$
+%
+\begin{alignat*}{3}
+&\delta u^h\in V&:&\quad a'_u(q,u_h)(\delta u^h,v) = -a'_q(q,u_h)(p,v)\; &\forall& v\in V\\
+&\delta z^h\in V&:&\quad a'_u(q,u_h)(v,\delta z^h) = \scp{c(\delta u_h)}{cv}_C\; &\forall& v\in V\\
+&z^h\in V&:&\quad a'_u(q,u_h)(v, z^h) = \scp{cu_h-\cD}{cv}_C\; &\forall& v\in V.
+\end{alignat*}
+%
+%---------------------------------------
+\begin{theorem}\label{thm:ErrorGradRep}
+We have
+%
+\begin{equation}\label{eq:ErrorGradRep}
+\begin{split}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& a'_u(q,u_h)(u-u_h,\delta z^{h}-\delta z_h) + a'_u(q,u_h)(\delta u^h-\delta u_h,z^h-z_h)\\
+&+\scp{c(u-u_h)}{c(\delta u^h-\delta u_h)}_C + \mathcal R,
+\end{split}
+\end{equation}
+%
+with
+%
+\begin{equation}\label{eq:ErrorGradRemainder}
+\mathcal R = \scp{c(u)-\cD}{c(\delta u-\delta u^h)}_C = a'_u(q,u)(\delta u-\delta u^h, z).
+\end{equation}
+%
+\end{theorem}
+%
+%---------------------------------------
+\begin{proof}
+
+Then we have $\delta u = S'(q)(p)$ and $\delta u_h = S_h'(q)(p)$
+%
+\begin{align*}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& \left( \alpha\scp{q-q_0}{p} + \scp{c(u)-\cD}{c(S'(q)(p))}_C\right)\\ 
+&- \left( \alpha\scp{q-q_0}{p} + \scp{c(u_h)-\cD}{c(S_h'(q)(p))}_C\right)\\ 
+\stackrel{\mbox{\small(def $\delta u$,$\delta u_h$)}}{=}&\scp{c(u)-\cD}{c(\delta u)}_C - \scp{c(u_h)-\cD}{c(\delta u_h)}_C\\
+\stackrel{\mbox{}}{=}& \scp{c(u-u_h)}{c(\delta u_h)}_C + \scp{c(u)-\cD}{c(\delta u-\delta u_h)}_C\\
+\stackrel{\mbox{}}{=}& \scp{c(u-u_h)}{c(\delta u_h)}_C + \scp{c(u_h)-\cD}{c(\delta u^h-\delta u_h)}_C
++ A\\
+\stackrel{\mbox{\small(def $\delta z^h,z^h$)}}{=}& a'_u(q,u_h)(u-u_h,\delta z^{h}) + a'_u(q,u_h)(\delta u^h-\delta u_h,z^h) + A
+\end{align*}
+%
+with
+%
+%
+\begin{align*}
+A =& \scp{c(u)-\cD}{c(\delta u-\delta u_h)}_C - \scp{c(u_h)-\cD}{c(\delta u^h-\delta u_h)}_C\\
+=& \scp{c(u-u_h)}{c(\delta u^h-\delta u_h)}_C + \scp{c(u)-\cD}{c(\delta u-\delta u^h)}_C
+\end{align*}
+%
+%
+\begin{align*}
+\scp{c(u)-\cD}{c(\delta u-\delta u^h)}_C =& a'_u(q,u)(\delta u-\delta u^h, z)\\
+=& a'_u(q,u)(\delta u, z)- a'_u(q,u_h)(\delta u^h, z) + \overbrace{a''_{uu}(q,\overline{u u_h})(\delta u^h, u-u_h,z)}^{=: \mathcal S_1}\\
+=& a'_q(q,u_h)(p,z) - a'_q(q,u)(p,z) + \mathcal S_1\\
+=& a''_{qu}(q,\overline{u u_h})(p, u-u_h,z)  + \mathcal S_1
+\end{align*}
+%
+\end{proof}
+%
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Error in control}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Error in Hessian}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+\begin{align*}
+\hat J''(q)(p,p) - \hat J_h''(q)(p,p) =& \left( \scp{c(u)-\cD}{c(S''(q)(p,p))}_C + \scp{c(S'(q)(p))}{c(S'(q)(p))}_C\right)\\ 
+&- \left( \scp{c(u)-\cD}{c(S_h''(q)(p,p))}_C + \scp{c(S_h'(q)(p))}{c(S_h'(q)(p))}_C\right)\\ 
+=&
+\end{align*}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{The LQ problem}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&a(u,v) = l(v)+b(q,v)&\; \forall v\in V\\
+&a(v, z) = \scp{cu-\cD}{cv}_C&\; \forall v\in V\\
+&a(\delta u,v) = b(p,v)&\; \forall v\in V\\
+\end{aligned}
+\right.
+%
+\qquad
+%
+\left\{
+\begin{aligned}
+&a(u_h,v) = l(v)+b(q,v)&\; \forall v\in V_h\\
+&a(v, z_h) = \scp{cu_h-\cD}{cv}_C&\; \forall v\in V_h\\
+&a(\delta u_h,v) = b(p,v)&\; \forall v\in V_h\\
+&a(v,\delta z_h) = \scp{c(\delta u_h)}{cv}_C&\; \forall v\in V_h
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+we define $z^h=z^h(u_h)$
+%
+\begin{alignat*}{3}
+&\delta z^h\in V&:&\quad a(v,\delta z^h) = \scp{c(\delta u_h)}{cv}_C\; &\forall& v\in V\\
+&z^h\in V&:&\quad a(v, z^h) = \scp{cu_h-\cD}{cv}_C\; &\forall& v\in V.
+\end{alignat*}
+%
+%---------------------------------------
+\begin{theorem}\label{thm:}
+We have
+%
+\begin{equation}\label{eq:ErrorGradRepLQ}
+\begin{split}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& a(u-u_h,\delta z^{h}-\delta z_h) + a(\delta u-\delta u_h,z^h-z_h)\\
+&+\scp{c(u-u_h)}{c(\delta u-\delta u_h)}_C.
+\end{split}
+\end{equation}
+%
+\end{theorem}
+%
+%---------------------------------------
+\begin{proof}
+Then we have ${\delta u = S’(q)(p)}$ and ${\delta u_h = S_h’(q)(p)}$
+%
+\begin{align*}
+\hat J’(q)(p) - \hat J'_h(q)(p) =& \left( \alpha\scp{q-q_0}{p}_Q + \scp{c(u)-\cD}{c(S’(q)(p))}_C\right)\\ 
+&- \left( \alpha\scp{q-q_0}{p} + \scp{c(u_h)-\cD}{c(S_h’(q)(p))}_C\right)\\ 
+\stackrel{\mbox{\small(def $\delta u$,$\delta u_h$)}}{=}&\scp{c(u)-\cD}{c(\delta u)}_C - \scp{c(u_h)-\cD}{c(\delta u_h)}_C\\
+\stackrel{\mbox{}}{=}& \scp{c(u-u_h)}{c(\delta u_h)}_C + \scp{c(u)-\cD}{c(\delta u-\delta u_h)}_C\\
+\stackrel{\mbox{\small(def $\delta z^h, z^h$)}}{=}& a(u-u_h,\delta z^{h}) + a(\delta u-\delta u_h,z^h)+\scp{c(u-u_h)}{c(\delta u-\delta u_h)}_C 
+\end{align*}
+%
+\end{proof}
+%
+%---------------------------------------
+\begin{corollary}\label{cor:}
+%
+\begin{equation}\label{eq:}
+\hat J'(q)(p) - \hat J_h'(q)(p) \lesssim \left( \norm{u-u_h}_V + \norm{z^h-z_h}_V \right) \norm{p}_Q.
+\end{equation}
+%
+\end{corollary}
+%
+
+Let
+%
+\begin{align*}
+w^j\in V:\; a(v,w^j) = c_j(v)\quad\forall v\in V,\qquad w_h^j\in V:\; a(v,w^j)= c_j(v)\quad\forall v\in V_h.
+\end{align*}
+%
+Then
+%
+\begin{align*}
+&R_j = c_j(u) - \cD = a(u,w^j) - \cD = l(w^j) - \cD,\\
+&a(v, \sum_{j=1}^{n_C} R_j w_j) = \sum_{j=1}^{n_C} R_j c_j(v) = \scp{\cD-c(u)}{c(v)}_C\quad\Rightarrow\quad 
+z = \sum_{j=1}^{n_C} R_j w_j\\
+&\frac{\partial R_j}{\partial e_i} = c_j(\delta u_i) = a(\delta u_i,w^j) = b(e_i, w^j)\\
+&a(v, \sum_{j=1}^{n_C}  \frac{\partial R_j}{\partial e_i}w_j) = \sum_{j=1}^{n_C}c_j(\delta u_i) c_j(v) = \scp{c(\delta u^i)}{c(v)}_C\quad\Rightarrow\quad \delta z_i = \sum_{j=1}^{n_C} \frac{\partial R_j}{\partial e_i} w_j
+\end{align*}
+%
+%
+\begin{align*}
+\scp{c(u-u_h)}{c(\delta u-\delta u_h)}_C = \sum_{j=1}^{n_C} c_j(u-u_h)c_j(\delta u^i-\delta u^i_h)
+\end{align*}
+%
+
+%
+%---------------------------------------
+\begin{corollary}\label{cor:}
+%
+\begin{equation}\label{eq:}
+\begin{split}
+\norm{\nabla \hat J'(q)- \nabla\hat J_h'(q)}_Q \lesssim& \sum_{i=1}^{n_Q} \norm{\delta u^i-\delta u^i_h}_V\,\norm{z^h-z_h}_V +  \sum_{i=1}^{n_Q} \norm{u- u_h}_V\,\norm{\delta z^{i,h}-\delta z_h^i}_V\\
+&  \sum_{i=1}^{n_Q}\sum_{j=1}^{n_C} \norm{w^j- w^j_h}^2_V\,\norm{u- u_h}_V\,\norm{\delta u^i-\delta u^i_h}_V
+\end{split}
+\end{equation}
+%
+\end{corollary}
+
+%
+%-------------------------------------------------------------------------
+\subsection{The Bilinear problem}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&a(q)(u,v) = l(v)&\; \forall v\in V\\
+&a(q)(v, z) = \scp{cu-\cD}{cv}_C&\; \forall v\in V\\
+&a(q)(\delta u,v) = -a(p)(u,v)&\; \forall v\in V\\
+\end{aligned}
+\right.
+%
+\qquad
+%
+\left\{
+\begin{aligned}
+&a(q)(u_h,v) = l(v)&\; \forall v\in V_h\\
+&a(q)(v, z_h) = \scp{cu_h-\cD}{cv}_C&\; \forall v\in V_h\\
+&a(q)(\delta u_h,v) = -a(p)(u_h,v)&\; \forall v\in V_h\\
+&a(q)(v,\delta z_h) = \scp{c(\delta u_h)}{cv}_C&\; \forall v\in V_h
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+we define $z^h=z^h(u_h)$
+%
+\begin{alignat*}{3}
+&\delta u^h\in V&:&\quad a(q)(\delta u^h,v) = -a(p)(u_h,v)\; &\forall& v\in V\\
+&\delta z^h\in V&:&\quad a(q)(v,\delta z^h) = \scp{c(\delta u_h)}{cv}_C\; &\forall& v\in V\\
+&z^h\in V&:&\quad a(q)(v, z^h) = \scp{cu_h-\cD}{cv}_C\; &\forall& v\in V.
+\end{alignat*}
+%
+%---------------------------------------
+\begin{theorem}\label{thm:}
+We have
+%
+\begin{equation}\label{eq:ErrorGradRepLQ}
+\begin{split}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& a(q)(u-u_h,\delta z^{h}-\delta z_h) + a(q)(\delta u^h-\delta u_h,z^h-z_h)\\
+&+\scp{c(u-u_h)}{c(\delta u^h-\delta u_h)}_C + \mathcal R.
+\end{split}
+\end{equation}
+%
+%
+with
+%
+\begin{equation}\label{eq:ErrorGradRemainder}
+\mathcal R = \scp{c(u)-\cD}{c(\delta u-\delta u^h)}_C = a(q)(\delta u-\delta u^h, z)= a(p)(u_h-u,z).
+\end{equation}
+%
+\end{theorem}
+%
+%
+%---------------------------------------
+\begin{corollary}\label{cor:}
+%
+\begin{equation}\label{eq:}
+\hat J'(q)(p) - \hat J_h'(q)(p) \lesssim \left( \norm{u-u_h}_V + \norm{z^h-z_h}_V \right) \norm{p}_Q.
+\end{equation}
+%
+\end{corollary}
+%
+
+Let
+%
+\begin{align*}
+w^j\in V:\; a(v,w^j) = c_j(v)\quad\forall v\in V,\qquad w_h^j\in V:\; a(v,w^j)= c_j(v)\quad\forall v\in V_h.
+\end{align*}
+%
+Then
+%
+\begin{align*}
+&R_j = c_j(u) - \cD = a(u,w^j) - \cD = l(w^j) - \cD,\\
+&a(v, \sum_{j=1}^{n_C} R_j w_j) = \sum_{j=1}^{n_C} R_j c_j(v) = \scp{\cD-c(u)}{c(v)}_C\quad\Rightarrow\quad 
+z = \sum_{j=1}^{n_C} R_j w_j\\
+&\frac{\partial R_j}{\partial e_i} = c_j(\delta u_i) = a(\delta u_i,w^j) = b(e_i, w^j)\\
+&a(v, \sum_{j=1}^{n_C}  \frac{\partial R_j}{\partial e_i}w_j) = \sum_{j=1}^{n_C}c_j(\delta u_i) c_j(v) = \scp{c(\delta u^i)}{c(v)}_C\quad\Rightarrow\quad \delta z_i = \sum_{j=1}^{n_C} \frac{\partial R_j}{\partial e_i} w_j
+\end{align*}
+%
+%
+\begin{align*}
+\scp{c(u-u_h)}{c(\delta u-\delta u_h)}_C = \sum_{j=1}^{n_C} c_j(u-u_h)c_j(\delta u^i-\delta u^i_h)
+\end{align*}
+%
+
+%
+%---------------------------------------
+\begin{corollary}\label{cor:}
+%
+\begin{equation}\label{eq:}
+\begin{split}
+\norm{\nabla \hat J'(q)- \nabla\hat J_h'(q)}_Q \lesssim& \sum_{i=1}^{n_Q} \norm{\delta u^i-\delta u^i_h}_V\,\norm{z^h-z_h}_V +  \sum_{i=1}^{n_Q} \norm{u- u_h}_V\,\norm{\delta z^{i,h}-\delta z_h^i}_V\\
+&  \sum_{i=1}^{n_Q}\sum_{j=1}^{n_C} \norm{w^j- w^j_h}^2_V\,\norm{u- u_h}_V\,\norm{\delta u^i-\delta u^i_h}_V
+\end{split}
+\end{equation}
+%
+\end{corollary}
+
+
+
+%
+%-------------------------------------------------------------------------
+\subsection{The general case}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Let $q,p\in Q$. Our purpose is to estimate the error in gradient
+%
+\begin{equation}\label{eq:ErrorInGrad}
+ \hat J'(q)(p) - \hat J_h'(q)(p).
+\end{equation}
+%
+%
+Assume we have the solutions to the following equations for $u_h,z_h,\delta u_h, \delta z_h\in V_h$
+%
+\begin{subequations}\label{eq:GeneralDiscrete}
+\begin{align}
+\label{eq:GeneralDiscreteUZ}
+&\mathcal L'_{z}(q,u_h)(v)= 0,\quad \mathcal L'_{u}(q,u_h,z_h)(v)= 0&\quad\forall v\in V_h\\
+&\mathcal L''_{uz}(q,u_h)(\delta u_h, v)= -\mathcal L''_{qz}(q,u_h,z_h)(p, v)&\quad\forall v\in V_h\\
+&\mathcal L''_{uz}(q,u_h)(v,\delta z_h)=-\mathcal L''_{qu}(q,u_h,z_h)(p, v)-\mathcal L''_{uu}(q,u_h,z_h)(\delta u_h, v)&\quad\forall v\in V_h
+\end{align}
+\end{subequations}
+%
+The discrete quantities are Galerkin projections of  $u,z^h,\delta u^h, \delta z^h\in V$, which solve
+%
+\begin{subequations}\label{eq:GeneralDiscreteContinuous}
+\begin{align}
+\label{eq:GeneralDiscreteContinuousUZ}
+&\mathcal L'_{z}(q,u)(v)= 0,\quad \mathcal L'_{u}(q,u_h,z^h)(v)= 0&\quad\forall v\in V\\
+\label{eq:GeneralDiscreteContinuousDU}
+&\mathcal L''_{uz}(q,u_h)(\delta u^h, v)= -\mathcal L''_{qz}(q,u_h,z_h)(p, v)&\quad\forall v\in V\\
+\label{eq:GeneralDiscreteContinuousDZ}
+&\mathcal L''_{uz}(q,u_h)(v,\delta z^h)=-\mathcal L''_{qu}(q,u_h,z_h)(p, v)-\mathcal L''_{uu}(q,u_h,z_h)(\delta u_h, v)&\quad\forall v\in V
+\end{align}
+\end{subequations}
+%
+In addition, in order to express the gradient of $\hat J$, let $u,z,\delta u, \delta z\in V$ be the 
+solutions to
+%
+\begin{subequations}\label{eq:GeneralContinuous}
+\begin{align}
+\label{eq:GeneralContinuousZ}
+&\mathcal L'_{u}(q,u,z)(v)= 0&\quad\forall v\in V\\
+\label{eq:GeneralContinuousDU}
+&\mathcal L''_{uz}(q,u)(\delta u, v)= -\mathcal L''_{qz}(q,u,z)(p, v)&\quad\forall v\in V\\
+\label{eq:GeneralContinuousDZ}
+&\mathcal L''_{uz}(q,u)(v,\delta z)=-\mathcal L''_{qu}(q,u,z)(p, v)-\mathcal L''_{uu}(q,u,z)(\delta u, v)&\quad\forall v\in V
+\end{align}
+\end{subequations}
+%
+We assume to have estimators for
+%
+\begin{equation}\label{eq:}
+%
+\left\{
+\begin{aligned}
+\tnorm{u-u_h},\quad \tnorm{z^h-z_h},\quad \tnorm{\delta u^h-\delta u_h},\quad \tnorm{\delta z^h-\delta z_h}\\
+\tnorm{v}^2 \lesssim \mathcal L''_{uz}(q,u)(v,v),\quad \mathcal L''_{uz}(q,u)(v,w) \lesssim \tnorm{v}\times \tnorm{w}.
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+
+%---------------------------------------
+\begin{proposition}\label{prop:}
+%
+Let $q,p\in Q$ be arbitrary and $u,u_h, z^h, z_h, \delta u^h,\delta u_h, \delta z^h,\delta z_h$ be defined in 
+(\ref{eq:GeneralDiscrete}, \ref{eq:GeneralDiscreteContinuous}). Then we have
+\begin{equation}\label{eq:}
+%
+\left\{
+\begin{aligned}
+&\hat J'(q)(p) - \hat J_h'(q)(p) = E + \mathcal R\\ 
+&E := \mathcal L''_{uz}(q,u_h)(\delta u^h-\delta u_h, z^h - z_h) + \mathcal L''_{uz}(q,u_h)(u-u_h, \delta z^h-\delta z_h)\\
+&\mathcal R =
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+\end{proposition}
+%
+%---------------------------------------
+\begin{proof}
+We first have by (\ref{eq:GeneralGrad})
+%
+\begin{align*}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& \mathcal L'_q(q,u,z)(p) - \mathcal L'_q(q,u_h,z_h)(p)
+\end{align*}
+%
+Then we have by linearization
+%
+\begin{align*}
+\mathcal L'_q(q,u,z)(p) - \mathcal L'_q(q,u_h,z_h)(p) &= \mathcal L''_{qu}(q,u_h,z_h)(p,u-u_h) + \mathcal L''_{qz}(q,u_h,z_h)(p,z-z_h) + \mathcal R_1
+\end{align*}
+%
+with
+%
+\begin{align*}
+\mathcal R_1 := \frac12\left(
+\mathcal L'''_{quu}(q, u_s, z_s)(p, u-u_h, u-u_h) + 2\mathcal L'''_{quz}(q, u_s)(p, z-z_h, u-u_h)  \right).
+\end{align*}
+%
+Now using (\ref{eq:GeneralDiscreteContinuousDU}) and (\ref{eq:GeneralDiscreteContinuousDZ}) we have
+%
+\begin{multline*}
+\mathcal L''_{qu}(q,u_h,z_h)(p,u-u_h) + \mathcal L''_{qz}(q,u_h,z_h)(p,z-z_h) =
+\mathcal L''_{uu}(q,u_h,z_h)(\delta u_h,u_h-u)\\
++\mathcal L''_{uz}(q,u_h)(u_h-u,\delta z^h)
++ \mathcal L''_{uz}(q,u_h)(\delta u^h, z_h-z)
+\end{multline*}
+%
+With the first equations in (\ref{eq:GeneralDiscreteUZ}) and (\ref{eq:GeneralDiscreteContinuousUZ}) we have 
+for $v\in V_h$
+%
+\begin{align*}
+\mathcal L''_{uz}(q,u_h)(u-u_h,v) = \mathcal L'_{z}(q,u)(v) -\mathcal L'_{z}(q,u_h)(v)+ \mathcal R_2(v)
+= \mathcal R_2(v)
+\end{align*}
+%
+with
+%
+\begin{align*}
+\mathcal R_2(v) = \frac12 \mathcal L'''_{uuz}(q,u_s)(u-u_h,u-u_h,v)
+\end{align*}
+%
+
+such that
+%
+\begin{align*}
+\mathcal L''_{uz}(q,u_h)(u_h-u,\delta z^h) = \mathcal L''_{uz}(q,u_h)(u_h-u,\delta z^h-\delta z_h) + \mathcal R_2(\delta z_h).
+\end{align*}
+%
+Next we have by (\ref{eq:GeneralDiscreteContinuousUZ}) and (\ref{eq:GeneralContinuousZ}) for $v\in V$
+%
+\begin{align*}
+\mathcal L''_{uz}(q,u_h)(v,z^h-z)= \mathcal L'_{u}(q,u_h,z^h)(v) - \mathcal L'_{u}(q,u,z)(v) +
+\mathcal R_3(v) = \mathcal R_3(v) .
+\end{align*}
+%
+such that
+%
+\begin{align*}
+\mathcal L''_{uz}(q,u_h)(\delta u^h, z_h-z) =& \mathcal L''_{uz}(q,u_h)(\delta u^h, z_h-z^h)
++ \mathcal L''_{uz}(q,u_h)(z^h-z)\\
+=& \mathcal L''_{uz}(q,u_h)(\delta u^h-\delta u_h, z_h-z^h) + \mathcal R_3(\delta u^h)
+\end{align*}
+%
+\end{proof}
+%
+%
+%
+%-------------------------------------------------------------------------
+\subsection{LQ problem}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+%
+Let $q\in Q_h=Q$ be arbitrary. We wish to bound the error in gradient $\hat J'(q)(p) - \hat J_h'(q)(p)$ for $p\in Q$. In addition to the continuous and discrete equations
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+&a(u, v) = l(v) + b(q,v)&\; \forall v\in V\\
+&a(v,z) = \scp{c(u)-\Cd}{c(v)}_C&\; \forall v\in V\\
+&a(\delta u,v) = b(p,v)&\; \forall v\in V\\
+&a(v,\delta z) = \scp{c(\delta u)}{c(v)}_C&\; \forall v\in V\\
+&a(v,w^j) = c^j(v)&\; \forall v\in V
+\end{aligned}
+\right.
+%
+\qquad
+%
+\left\{
+\begin{aligned}
+&a(u_h, v) = l(v) + b(q,v)&\; \forall v\in V_h\\
+&a(v,z_h) = \scp{c(u_h)-\Cd}{c(v)}_C&\; \forall v\in V_h\\
+&a(\delta u_h,v) = b(p,v)&\; \forall v\in V_h\\
+&a(v,\delta z_h) = \scp{c(\delta u_h)}{c(v)}_C&\; \forall v\in V_h\\
+&a(v,w^j_h) = c^j(v)&\; \forall v\in V_h
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+we define $z^h=z^h(u_h)$
+%
+\begin{alignat*}{3}
+&z^h\in V:&\quad& a(v,z^h) = \scp{c(u_h)-\Cd}{c(v)}_C&\quad \forall v\in V,\\
+&\delta z^h\in V:&\quad& a(v,\delta z^h) = \scp{c(\delta u_h)}{c(v)}_C&\; \forall v\in V.
+\end{alignat*}
+%
+We then have from (\ref{eq:GradReducedCost})
+%
+\begin{align*}
+\hat J'(q)(p) - \hat J_h'(q)(p) =& \left( \alpha\scp{q-q_0}{p} + b(p,z)\right) - \left( \alpha\scp{q-q_0}{p} + b(p,z_h)\right)\\
+=& b(p,z - z_h) = a(\delta u,z - z_h) = a(\delta u,z^h - z_h) + a(\delta u,z - z^h).
+\end{align*}
+%
+The first term can be bounded as
+%
+\begin{align*}
+a(\delta u,z^h - z_h) = a(\delta u-\delta u_h,z^h - z_h) \le  \tnorm{\delta u-\delta u_h} \times\tnorm{z^h - z_h}.
+\end{align*}
+%
+For the second term we have
+%
+\begin{align*}
+a(\delta u,z - z^h) =& \scp{c(u-u_h)}{c(\delta u)}_C = \scp{c(u-u_h)}{c(\delta u_h)}_C + \scp{c(u-u_h)}{c(\delta u-\delta u_h)}_C\\
+=& a(u-u_h,\delta z^h - \delta z_h) + \sum_{j=1}^{n_C} a(u-u_h, w^j-w^j_h)a(\delta u-\delta u_h, w^j-w^j_h)
+\end{align*}
+%
+
+
+
+
+
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+
