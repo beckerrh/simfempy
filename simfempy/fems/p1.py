@@ -152,20 +152,21 @@ class P1(object):
             # nx, ny, nz = normals[faces].T
             nx, ny, nz = np.mean(normals[faces], axis=0)
             help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
-        b += robinmassmatrix*help
-
+        print("help", help)
+        # b += robinmassmatrix*help
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Neumann": continue
+            if bdrycond.type[color] != "Neumann" and bdrycond.type[color] != "Robin": continue
             if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS[:,np.newaxis]
             assert(dS.shape[0] == len(faces))
-            x1, y1, z1 = self.mesh.pointsf[faces].T
+            xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
-            bS = scale * bdrycond.fct[color](x1, y1, z1, nx, ny, nz) * dS
+            bS = scale * bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
             np.add.at(b, self.mesh.faces[faces].T, bS)
+        print(f"{bdrycond.hasExactSolution()=}")
         if bdrycond.hasExactSolution():
             for color, faces in self.mesh.bdrylabels.items():
                 if bdrycond.type[color] != "Robin": continue
@@ -175,8 +176,8 @@ class P1(object):
                 assert (dS.shape[0] == len(faces))
                 x1, y1, z1 = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS.T
-                bS = scale * bdrycond.fctexact["Neumann"](x1, y1, z1, nx, ny, nz) * dS
-                np.add.at(b, self.mesh.faces[faces].T, bS)
+                bS = scale * bdrycond.fctexact["Robin"](x1, y1, z1, nx, ny, nz) * dS
+                # np.add.at(b, self.mesh.faces[faces].T, bS)
         return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
 
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):

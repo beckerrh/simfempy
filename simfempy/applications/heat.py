@@ -74,7 +74,6 @@ class Heat(Application):
     def defineRobinAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         alpha = problemdata.bdrycond.param[color]
-        print(f"??? {alpha=}")
         # alpha = 1
         def _fctrobin(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -108,8 +107,9 @@ class Heat(Application):
     def matrix(self):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         A = self.fem.matrixDiffusion(self.kheatcell, bdrycond, method, bdrydata)
-        lumped = True
+        lumped = False
         self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
+        print("self.Arobin", self.Arobin)
         A += self.Arobin
         A, self.bdrydata = self.fem.matrixDirichlet(A, bdrycond, method, bdrydata)
         return A
@@ -118,6 +118,7 @@ class Heat(Application):
         if not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
         b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata, self.Arobin)
+        print("b", b)
         return b,u
 
 

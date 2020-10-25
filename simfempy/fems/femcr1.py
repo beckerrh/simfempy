@@ -48,24 +48,23 @@ class FemCR1(object):
         return self.massmatrix
 
     # def computeRhs(self, u, rhs, kheatcell, bdrycond, method, bdrydata):
-    def computeRhs(self, u, problemdata, kheatcell, method, bdrydata):
+    def computeRhs(self, u, problemdata, kheatcell, method, bdrydata, robinmassmatrix):
         rhs = problemdata.rhs
         rhscell = problemdata.rhscell
         rhspoint = problemdata.rhspoint
         bdrycond = problemdata.bdrycond
+        normals =  self.mesh.normals
         b = np.zeros(self.mesh.nfaces)
         if rhscell:
             x, y, z = self.mesh.pointsf.T
             b += self.massmatrix * rhscell(x, y, z)
-
         help = np.zeros(self.mesh.nfaces)
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Robin": continue
             xf, yf, zf = self.mesh.pointsf[faces].T
-            help[faces] = bdrycond.fct[color](xf, yf, zf)
-        b += self.robinmassmatrix*help
-
-        normals =  self.mesh.normals
+            nx, ny, nz = np.mean(normals[faces], axis=0)
+            help[faces] = bdrycond.fct[color](xf, yf, zf, nx, ny, nz)
+        b += robinmassmatrix*help
         for color, faces in self.mesh.bdrylabels.items():
             if bdrycond.type[color] != "Neumann": continue
             normalsS = normals[faces]
@@ -82,9 +81,8 @@ class FemCR1(object):
                 normalsS = normalsS/dS[:,np.newaxis]
                 xf, yf, zf = self.mesh.pointsf[faces].T
                 nx, ny, nz = normalsS.T
-                b[faces] += bdrycond.fctexact["Neumann"](xf, yf, zf, nx, ny, nz) * dS
+                b[faces] += bdrycond.fctexact["Robin"](xf, yf, zf, nx, ny, nz) * dS
         return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
-
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):
         nfaces = self.mesh.nfaces
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
@@ -92,10 +90,8 @@ class FemCR1(object):
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*k).T.ravel()
         A = sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-        A += self.robinmassmatrix
-        return self.matrixDirichlet(A, bdrycond, method, bdrydata)
-
-    def computeBdryMassMatrix(self, bdrycond, type):
+        return A
+    def computeBdryMassMatrix(self, bdrycond, bdrycondtype, lumped):
         nfaces = self.mesh.nfaces
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
@@ -108,7 +104,6 @@ class FemCR1(object):
             rows = np.append(rows, faces)
             mat = np.append(mat, bdrycond.param[color] * dS)
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-
     def prepareBoundary(self, colorsdir, postproc):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=int)
@@ -134,7 +129,6 @@ class FemCR1(object):
                 facesdir = self.mesh.bdrylabels[color]
                 bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-
     def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -161,7 +155,6 @@ class FemCR1(object):
             b[facesinner] -= bdrydata.A_inner_dir * u[facesdirall]
             b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
         return b, u, bdrydata
-
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -196,7 +189,6 @@ class FemCR1(object):
             help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
-
     def grad(self, ic):
         normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
         grads = -normals/self.mesh.dV[ic]
@@ -204,14 +196,12 @@ class FemCR1(object):
         # print("### chsg", chsg, "normals", normals)
         grads[chsg] *= -1.
         return grads
-
     def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.pointsf.T
         xc, yc, zc = self.mesh.pointsc.T
         e = solexact(x, y, z) - uh
         ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.facesOfCells], axis=1)
         return np.sqrt( np.dot(e, self.massmatrix*e) ), np.sqrt(np.sum(ec**2* self.mesh.dV)), e
-
     def computeErrorFluxL2(self, solexact, diffcell, uh):
         xc, yc, zc = self.mesh.pointsc.T
         graduh = np.einsum('nij,ni->nj', self.cellgrads, uh[self.mesh.facesOfCells])
@@ -220,8 +210,6 @@ class FemCR1(object):
             solxi = solexact.d(i, xc, yc, zc)
             errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
         return np.sqrt(errv)
-
-
     def computeBdryMean(self, u, colors):
         # colors = [int(x) for x in data.split(',')]
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))
@@ -232,12 +220,15 @@ class FemCR1(object):
             omega[i] = np.sum(dS)
             mean[i] = np.sum(dS*u[faces])
         return mean/omega
-
-
     def comuteFluxOnRobin(self, u, faces, dS, uR, cR):
         uhmean =  np.sum(dS * u[faces])
         xf, yf, zf = self.mesh.pointsf[faces].T
-        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf))
+        normalsS = self.mesh.normals[faces]
+        dS = linalg.norm(normalsS, axis=1)
+        normalsS = normalsS / dS[:, np.newaxis]
+        assert (dS.shape[0] == len(faces))
+        nx, ny, nz = normalsS.T
+        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf, nx, ny, nz))
         else: uRmean=0
         return cR*(uRmean-uhmean)
 
