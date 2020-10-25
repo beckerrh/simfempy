@@ -249,13 +249,13 @@ class FemP1(object):
     def tonode(self, u):
         return u
 
-    def grad(self, ic):
-        normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
-        grads = 0.5*normals/self.mesh.dV[ic]
-        chsg =  (ic == self.mesh.cellsOfFaces[self.mesh.facesOfCells[ic,:],0])
-        # print("### chsg", chsg, "normals", normals)
-        grads[chsg] *= -1.
-        return grads
+    # def grad(self, ic):
+    #     normals = self.mesh.normals[self.mesh.facesOfCells[ic,:]]
+    #     grads = 0.5*normals/self.mesh.dV[ic]
+    #     chsg =  (ic == self.mesh.cellsOfFaces[self.mesh.facesOfCells[ic,:],0])
+    #     # print("### chsg", chsg, "normals", normals)
+    #     grads[chsg] *= -1.
+    #     return grads
 
     def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.points.T
