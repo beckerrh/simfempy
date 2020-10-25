@@ -53,7 +53,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
     for c in colors: data.bdrycond.param[c] = 1.
     # data.bdrycond.set("Dirichlet", colors[2:])
     sims = {}
-    exactsolution = "1 + x"
+    exactsolution = "10 + x"
     for fem in fems:
         for method in methods:
             sims[fem+method] = Heat(problemdata=data, fem=fem, method=method, exactsolution=exactsolution, random=False)

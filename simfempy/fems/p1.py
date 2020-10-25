@@ -104,8 +104,6 @@ class P1(object):
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
         return  sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-        A += self.robinmassmatrix
-        return self.matrixDirichlet(A, bdrycond, method, bdrydata)
 
     def formDiffusion(self, du, u, k):
         graduh = np.einsum('nij,ni->nj', self.cellgrads, u[self.mesh.simplices])

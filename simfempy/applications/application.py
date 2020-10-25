@@ -120,6 +120,7 @@ class Application(object):
         b, u = self.computeRhs()
         self.timer.add('rhs')
         u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
+        print(f"{u=}")
         self.timer.add('solve')
         result.setData(self.postProcess(u))
         self.timer.add('postp')
