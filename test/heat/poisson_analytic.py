@@ -42,18 +42,18 @@ def getGeometryAndData(geomname = "unitcube"):
 def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], methods=['new']):
     import simfempy.tools.comparemethods
     createMesh, data = getGeometryAndData(geomname)
-    h = [2, 1,  0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
+    h = [1,  0.5, 0.25, 0.125, 0.06, 0.03, 0.02]
     if geomname == "unitcube":
-        h = [2.0, 1.0, 0.5, 0.25, 0.125]
-    if exactsolution == "Constant" or exactsolution == "Linear":  h = h[:1]
+        h = [1.0, 0.5, 0.25, 0.125]
+    if exactsolution == "Constant" or exactsolution == "Linear":  h = h[:3]
     colors = list(data.bdrycond.colors())
     data.bdrycond.clear()
-    data.bdrycond.set("Robin", colors[0:])
-    # data.bdrycond.set("Neumann", [colors[1]])
-    for c in colors: data.bdrycond.param[c] = 1.
-    # data.bdrycond.set("Dirichlet", colors[2:])
+    data.bdrycond.set("Robin", colors[0])
+    data.bdrycond.set("Neumann", colors[1])
+    data.bdrycond.param[colors[0]] = 1.
+    data.bdrycond.set("Dirichlet", colors[2:])
     sims = {}
-    exactsolution = "10 + x"
+    # exactsolution = "10 + x"
     for fem in fems:
         for method in methods:
             sims[fem+method] = Heat(problemdata=data, fem=fem, method=method, exactsolution=exactsolution, random=False)
@@ -135,8 +135,8 @@ if __name__ == '__main__':
     # test_analytic(exactsolution = 'Constant', geomname = "unitsquare")
 
     # test_analytic(exactsolution = 'Linear', geomname = "unitline")
-    test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
-    # test_analytic(exactsolution = 'Linear', geomname = "unitcube")
+    # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
+    test_analytic(exactsolution = 'Linear', geomname = "unitcube")
 
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")

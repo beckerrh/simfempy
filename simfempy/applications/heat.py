@@ -106,10 +106,10 @@ class Heat(Application):
 
     def matrix(self):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
-        A = self.fem.matrixDiffusion(self.kheatcell, bdrycond, method, bdrydata)
+        A = self.fem.matrixDiffusion(self.kheatcell)
         lumped = False
         self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
-        print("self.Arobin", self.Arobin)
+        # print("self.Arobin", self.Arobin)
         A += self.Arobin
         A, self.bdrydata = self.fem.matrixDirichlet(A, bdrycond, method, bdrydata)
         return A
@@ -117,8 +117,13 @@ class Heat(Application):
     def computeRhs(self, u=None):
         if not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
-        b, u, self.bdrydata = self.fem.computeRhs(u, self.problemdata, self.kheatcell, self.method, self.bdrydata, self.Arobin)
-        print("b", b)
+        bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
+        b = np.zeros(self.fem.nunknowns())
+        b = self.fem.computeRhs(b, self.problemdata.rhs)
+        b = self.fem.computeRhsCell(b, self.problemdata.rhscell)
+        b = self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
+        b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
+        b, u, self.bdrydata = self.fem.vectorDirichlet(b, u, bdrycond, method, bdrydata)
         return b,u
 
 

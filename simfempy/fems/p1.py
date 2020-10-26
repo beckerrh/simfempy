@@ -20,7 +20,6 @@ class P1(object):
     def __init__(self, mesh=None):
         if mesh is not None: self.setMesh(mesh)
         self.dirichlet_al = 10
-
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
@@ -29,14 +28,13 @@ class P1(object):
         self.rows = np.repeat(simps, self.nloc).reshape(-1)
         self.cellgrads = self.computeCellGrads()
         self.massmatrix = self.computeMassMatrix()
-
+    def nunknowns(self): return self.mesh.nnodes
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
         # print("dV", np.where(dV<0.0001))
         # print("dV", dV[dV<0.00001])
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
-
     def computeMassMatrix(self, coeff=1):
         nnodes = self.mesh.nnodes
         scalemass = 1 / self.nloc / (self.nloc+1);
@@ -44,7 +42,6 @@ class P1(object):
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
         mass = np.einsum('n,kl->nkl', coeff*self.mesh.dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-
     def computeBdryMassMatrix(self, bdrycond, bdrycondtype, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
@@ -75,7 +72,6 @@ class P1(object):
                 massloc.reshape((nloc*nloc))[::nloc+1] *= 2
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-
     def prepareBoundary(self, colorsdir, postproc):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
@@ -94,67 +90,50 @@ class P1(object):
                 facesdir = self.mesh.bdrylabels[color]
                 bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
-
-    def matrixDiffusion(self, coeff, bdrycond, method, bdrydata):
-        # alpha = problemdata.bdrycond.param[color]
-        # print(f"??? {alpha=}")
+    def matrixDiffusion(self, coeff):
         nnodes = self.mesh.nnodes
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
         return  sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-
-    def formDiffusion(self, du, u, k):
+    def formDiffusion(self, du, u, coeff):
         graduh = np.einsum('nij,ni->nj', self.cellgrads, u[self.mesh.simplices])
-        graduh = np.einsum('ni,n->ni', graduh, self.mesh.dV*k)
+        graduh = np.einsum('ni,n->ni', graduh, self.mesh.dV*coeff)
         # du += np.einsum('nj,nij->ni', graduh, self.cellgrads)
         raise ValueError(f"graduh {graduh.shape} {du.shape}")
         return du
 
-    def computeRhs(self, u, problemdata, kheatcell, method, bdrydata, robinmassmatrix):
-        rhs = problemdata.rhs
-        rhscell = problemdata.rhscell
-        rhspoint = problemdata.rhspoint
-        bdrycond = problemdata.bdrycond
+    def computeRhs(self, b, rhs):
+        if rhs is None: return b
+        x, y, z = self.mesh.points.T
+        b += self.massmatrix * rhs(x, y, z)
+        return b
+    def computeRhsCell(self, b, rhscell):
+        if rhscell is None: return b
+        scale = 1 / (self.mesh.dimension + 1)
+        for label, fct in rhscell.items():
+            if fct is None: continue
+            cells = self.mesh.cellsoflabel[label]
+            xc, yc, zc = self.mesh.pointsc[cells].T
+            bC = scale * fct(xc, yc, zc) * self.mesh.dV[cells]
+            # print("bC", bC)
+            np.add.at(b, self.mesh.simplices[cells].T, bC)
+        return b
+    def computeRhsPoint(self, b, rhspoint):
+        if rhspoint is None: return b
+        for label, fct in rhspoint.items():
+            if fct is None: continue
+            points = self.mesh.verticesoflabel[label]
+            xc, yc, zc = self.mesh.points[points].T
+            # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
+            b[points] += fct(xc, yc, zc)
+        return b
+    def computeRhsBoundary(self, b, bdrycond, types):
         normals =  self.mesh.normals
-        b = np.zeros(self.mesh.nnodes)
-        if rhs:
-            x, y, z = self.mesh.points.T
-            b += self.massmatrix * rhs(x, y, z)
-        if rhscell:
-            scale = 1/(self.mesh.dimension+1)
-            for label,fct in rhscell.items():
-                if fct is None: continue
-                cells = self.mesh.cellsoflabel[label]
-                xc, yc, zc = self.mesh.pointsc[cells].T
-                bC = scale*fct(xc, yc, zc)*self.mesh.dV[cells]
-                # print("bC", bC)
-                np.add.at(b, self.mesh.simplices[cells].T, bC)
-        if rhspoint:
-            for label,fct in rhspoint.items():
-                if fct is None: continue
-                points = self.mesh.verticesoflabel[label]
-                xc, yc, zc = self.mesh.points[points].T
-                # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
-                b[points] += fct(xc, yc, zc)
-
-        help = np.zeros(self.mesh.nnodes)
-        for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Robin": continue
-            if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
-            nodes = np.unique(self.mesh.faces[faces].reshape(-1))
-            x, y, z = self.mesh.points[nodes].T
-            # print(f"normals {normals.shape}")
-            # raise ValueError(f"normals = {np.mean(normals, axis=0)}")
-            # nx, ny, nz = normals[faces].T
-            nx, ny, nz = np.mean(normals[faces], axis=0)
-            help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
-        print("help", help)
-        # b += robinmassmatrix*help
         scale = 1 / self.mesh.dimension
         for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] != "Neumann" and bdrycond.type[color] != "Robin": continue
+            if bdrycond.type[color] not in types: continue
             if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
@@ -164,19 +143,87 @@ class P1(object):
             nx, ny, nz = normalsS.T
             bS = scale * bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
             np.add.at(b, self.mesh.faces[faces].T, bS)
-        print(f"{bdrycond.hasExactSolution()=}")
-        if bdrycond.hasExactSolution():
-            for color, faces in self.mesh.bdrylabels.items():
-                if bdrycond.type[color] != "Robin": continue
-                normalsS = normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                normalsS = normalsS / dS[:, np.newaxis]
-                assert (dS.shape[0] == len(faces))
-                x1, y1, z1 = self.mesh.pointsf[faces].T
-                nx, ny, nz = normalsS.T
-                bS = scale * bdrycond.fctexact["Robin"](x1, y1, z1, nx, ny, nz) * dS
-                # np.add.at(b, self.mesh.faces[faces].T, bS)
-        return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
+        # help = np.zeros(self.mesh.nnodes)
+        # for color, faces in self.mesh.bdrylabels.items():
+        #     if bdrycond.type[color] != "Robin": continue
+        #     if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
+        #     nodes = np.unique(self.mesh.faces[faces].reshape(-1))
+        #     x, y, z = self.mesh.points[nodes].T
+        #     # print(f"normals {normals.shape}")
+        #     # raise ValueError(f"normals = {np.mean(normals, axis=0)}")
+        #     # nx, ny, nz = normals[faces].T
+        #     nx, ny, nz = np.mean(normals[faces], axis=0)
+        #     help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
+        # # print("help", help)
+        # b += robinmassmatrix*help
+        return b
+
+    # def computeRhs(self, u, problemdata, kheatcell, method, bdrydata, robinmassmatrix):
+    #     rhs = problemdata.rhs
+    #     rhscell = problemdata.rhscell
+    #     rhspoint = problemdata.rhspoint
+    #     bdrycond = problemdata.bdrycond
+    #     b = np.zeros(self.mesh.nnodes)
+    #     if rhs:
+    #         x, y, z = self.mesh.points.T
+    #         b += self.massmatrix * rhs(x, y, z)
+    #     if rhscell:
+    #         scale = 1/(self.mesh.dimension+1)
+    #         for label,fct in rhscell.items():
+    #             if fct is None: continue
+    #             cells = self.mesh.cellsoflabel[label]
+    #             xc, yc, zc = self.mesh.pointsc[cells].T
+    #             bC = scale*fct(xc, yc, zc)*self.mesh.dV[cells]
+    #             # print("bC", bC)
+    #             np.add.at(b, self.mesh.simplices[cells].T, bC)
+    #     if rhspoint:
+    #         for label,fct in rhspoint.items():
+    #             if fct is None: continue
+    #             points = self.mesh.verticesoflabel[label]
+    #             xc, yc, zc = self.mesh.points[points].T
+    #             # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
+    #             b[points] += fct(xc, yc, zc)
+    #
+    #     help = np.zeros(self.mesh.nnodes)
+    #     for color, faces in self.mesh.bdrylabels.items():
+    #         if bdrycond.type[color] != "Robin": continue
+    #         if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
+    #         nodes = np.unique(self.mesh.faces[faces].reshape(-1))
+    #         x, y, z = self.mesh.points[nodes].T
+    #         # print(f"normals {normals.shape}")
+    #         # raise ValueError(f"normals = {np.mean(normals, axis=0)}")
+    #         # nx, ny, nz = normals[faces].T
+    #         nx, ny, nz = np.mean(normals[faces], axis=0)
+    #         help[nodes] = bdrycond.fct[color](x, y, z, nx, ny, nz)
+    #     # print("help", help)
+    #     b += robinmassmatrix*help
+    #     scale = 1 / self.mesh.dimension
+    #     for color, faces in self.mesh.bdrylabels.items():
+    #         if bdrycond.type[color] != "Neumann" and bdrycond.type[color] != "Robin": continue
+    #         if bdrycond.type[color] != "Neumann" and bdrycond.type[color]: continue
+    #         if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
+    #         normalsS = normals[faces]
+    #         dS = linalg.norm(normalsS,axis=1)
+    #         normalsS = normalsS/dS[:,np.newaxis]
+    #         assert(dS.shape[0] == len(faces))
+    #         xf, yf, zf = self.mesh.pointsf[faces].T
+    #         nx, ny, nz = normalsS.T
+    #         bS = scale * bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
+    #         np.add.at(b, self.mesh.faces[faces].T, bS)
+    #     return b
+        # print(f"{bdrycond.hasExactSolution()=}")
+        # if bdrycond.hasExactSolution():
+        #     for color, faces in self.mesh.bdrylabels.items():
+        #         if bdrycond.type[color] != "Robin": continue
+        #         normalsS = normals[faces]
+        #         dS = linalg.norm(normalsS, axis=1)
+        #         normalsS = normalsS / dS[:, np.newaxis]
+        #         assert (dS.shape[0] == len(faces))
+        #         x1, y1, z1 = self.mesh.pointsf[faces].T
+        #         nx, ny, nz = normalsS.T
+        #         bS = scale * bdrycond.fctexact["Robin"](x1, y1, z1, nx, ny, nz) * dS
+        #         # np.add.at(b, self.mesh.faces[faces].T, bS)
+        # return self.vectorDirichlet(b, u, bdrycond, method, bdrydata)
 
     def matrixDirichlet(self, A, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux

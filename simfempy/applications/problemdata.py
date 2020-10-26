@@ -30,13 +30,17 @@ class BoundaryConditions(object):
         self.type = {}
         self.fct = {}
         self.param = {}
-    def hasExactSolution(self):
-        return hasattr(self, 'fctexact')
+    # def hasExactSolution(self):
+    #     return hasattr(self, 'fctexact')
     def colors(self):
         return self.type.keys()
     def types(self):
         return self.type.values()
     def set(self, type, colors, fcts=None):
+        if isinstance(colors, int):
+            self.type[colors] = type
+            if fcts: self.fct[colors] = fcts
+            return
         for i,color in enumerate(colors):
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]
