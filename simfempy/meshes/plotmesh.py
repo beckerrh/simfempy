@@ -63,7 +63,13 @@ def meshWithData(meshdata, **kwargs):
     """
     newkwargs = kwargs.copy()
 
-    if dim==2:
+    if dim==1:
+        if meshdataismesh:
+            newkwargs['x'] = meshdata.points[:,0]
+        else:
+            newkwargs['x'] = meshdata[0]
+        plotmesh1d.meshWithData(**newkwargs)
+    elif dim==2:
         if meshdataismesh:
             newkwargs['x'] = meshdata.points[:,0]
             newkwargs['y'] = meshdata.points[:,1]
@@ -77,7 +83,7 @@ def meshWithData(meshdata, **kwargs):
             newkwargs['xc'] = meshdata.pointsc[3]
             newkwargs['yc'] = meshdata.pointsc[4]
         return plotmesh2d.meshWithData(**newkwargs)
-    else:
+    elif dim==3:
         if meshdataismesh:
             newkwargs['x'] = meshdata.points[:,0]
             newkwargs['y'] = meshdata.points[:,1]
@@ -95,6 +101,8 @@ def meshWithData(meshdata, **kwargs):
             newkwargs['yc'] = meshdata.pointsc[5]
             newkwargs['zc'] = meshdata.pointsc[6]
         return plotmesh3d.meshWithData(**newkwargs)
+    else:
+        raise ValueError(f"wrong dimension {dim=}")
 
 #=================================================================#
 def plotmeshWithNumbering(meshdata, **kwargs):

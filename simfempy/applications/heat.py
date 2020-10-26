@@ -107,11 +107,12 @@ class Heat(Application):
     def matrix(self):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         A = self.fem.matrixDiffusion(self.kheatcell)
+        self.M = self.fem.computeMassMatrix()
         lumped = False
         self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
         # print("self.Arobin", self.Arobin)
         A += self.Arobin
-        A, self.bdrydata = self.fem.matrixDirichlet(A, bdrycond, method, bdrydata)
+        A, self.bdrydata = self.fem.matrixDirichlet(A, method, bdrydata)
         return A
 
     def computeRhs(self, u=None):
@@ -119,10 +120,12 @@ class Heat(Application):
             raise ValueError("matrix() has to be called befor computeRhs()")
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         b = np.zeros(self.fem.nunknowns())
-        b = self.fem.computeRhs(b, self.problemdata.rhs)
+        b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
         b = self.fem.computeRhsCell(b, self.problemdata.rhscell)
         b = self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
-        b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
+        # b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
+        b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann"])
+        b = self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"],self.Arobin)
         b, u, self.bdrydata = self.fem.vectorDirichlet(b, u, bdrycond, method, bdrydata)
         return b,u
 
@@ -145,9 +148,10 @@ class Heat(Application):
         point_data['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
             global_data['error'] = {}
-            global_data['error']['pnL2'], global_data['error']['pcL2'], e = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            global_data['error']['pcL2'], ec = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            global_data['error']['pnL2'], e = self.fem.computeErrorL2Mass(self.problemdata.solexact, u, self.M)
             global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
-            point_data['E'] = self.fem.tonode(e)
+            cell_data['E'] = ec
         global_data['postproc'] = {}
         if self.problemdata.postproc:
             for name, type in self.problemdata.postproc.type.items():

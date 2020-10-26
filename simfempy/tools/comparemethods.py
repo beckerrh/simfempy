@@ -123,7 +123,7 @@ class CompareMethods(object):
                     newdict={}
                     for key2, val2 in val.items():
                         newdict["{}".format(key2)] = val2[name]
-                    kwargs['name'] = '{}_{}'.format(key, name)
+                    kwargs['name'] = '{}-{}'.format(key, name)
                     kwargs['values'] = newdict
                     kwargs['percentage'] = True
                     latexwriter.append(**kwargs)
@@ -131,10 +131,19 @@ class CompareMethods(object):
                 kwargs['redrate'] = (key=="error") and (paramname=="ncells")
                 kwargs['diffandredrate'] = not kwargs['redrate'] and (paramname=="ncells")
                 kwargs['dim'] = self.dim
-                for key2, val2 in val.items():
-                    kwargs['name'] = '{}_{}'.format(key,key2)
-                    kwargs['values'] = val2
+                if key=="error" and len(self.methods)==1:
+                    newdict={}
+                    for key2, val2 in val.items():
+                        newdict["{}".format(key2)] = val2[name]
+                    kwargs['name'] = '{}-{}'.format(key, name)
+                    kwargs['values'] = newdict
                     latexwriter.append(**kwargs)
+                else:
+                    for key2, val2 in val.items():
+                        print(f"{key=} {key2=}")
+                        kwargs['name'] = '{}-{}'.format(key,key2)
+                        kwargs['values'] = val2
+                        latexwriter.append(**kwargs)
         latexwriter.write()
         latexwriter.compile()
     def computeOrder(self, ncells, values, dim):

@@ -192,7 +192,6 @@ def mesh(x, y, tris, **kwargs):
     _settitle(ax, title)
 
 #=================================================================#
-# def meshWithData(x, y, tris, xc, yc, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
 def meshWithData(**kwargs):
     """
     point_data  : dictionary name->data

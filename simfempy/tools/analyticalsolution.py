@@ -149,37 +149,25 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
         random: use random coefficients
     """
     solexact = []
-    if not random:
-        from itertools import permutations
-        perm = list(permutations((3.3, 2.2, 1.1)))
-    for i in range(ncomp):
+    from itertools import permutations
+    def _p(i, n):
         if random:
-            p = (4 * np.random.rand() - 2) / 3
-            q = (4 * np.random.rand() - 2) / 3
-            r = (4 * np.random.rand() - 2) / 3
+            p = (4 * np.random.rand(n) - 2) / 3
         else:
-            p, q, r = perm[i%ncomp]
-        vars = ['x', 'y', 'z']
-        fct = '{:3.1f}'.format(p)
-        if random: p =  (4 * np.random.rand() - 2) / 3
-        else: p = 1.1
-        if function == 'Constant':
-            pass
-        elif function == 'Linear' or function == 'Quadratic':
-            if random: p = (4 * np.random.rand(dim) - 2) / 3
-            else: p = [1.1*(4-d) for d in range(dim)]
+            p = [1.1 * (4 - d) for d in range(n)]
+        perm = list(permutations(p))
+        return perm[i % ncomp]
+    vars = ['x', 'y', 'z']
+    for i in range(ncomp):
+        fct = '{:3.1f}'.format(_p(i,1)[0])
+        if function == 'Linear' or function == 'Quadratic':
+            p = _p(i, dim)
             for d in range(dim): fct += "+{:3.1f}*{:1s}".format(p[d], vars[d])
-        elif function == 'Quadratic':
-            if random:
-                p = (4 * np.random.rand(dim) - 2) / 3
-            else:
-                p = [1.1 * (4 - d) for d in range(dim)]
-            for d in range(dim): fct += "+{:3.1f}*{:1s}**2".format(p[d], vars[d])
+            if function == 'Quadratic':
+                p = _p(i, dim)
+                for d in range(dim): fct += "+{:3.1f}*{:1s}**2".format(p[d], vars[d])
         elif function == 'Sinus':
-            if random:
-                p = (4 * np.random.rand(dim) - 2) / 3
-            else:
-                p = [1.1 * (4 - d) for d in range(dim)]
+            p = _p(i, dim)
             for d in range(dim): fct += "+{:3.1f}*sin({:1s})".format(p[d], vars[d])
         else:
             fct = function

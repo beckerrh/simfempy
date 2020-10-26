@@ -23,7 +23,7 @@ class TableData(object):
         self.n = kwargs.pop('n')
         for k,v in values.items():
             if len(self.n) != len(v):
-                raise ValueError("wrong lengths: n({}) value({})".format(len(self.n), len(v)))
+                raise ValueError(f"wrong lengths: n({len(self.n)}) value({len(v)})\n{values=}")
         self.nname = kwargs.pop('nname')
         self.nformat = "{:15d}"
         if 'nformat' in kwargs:
