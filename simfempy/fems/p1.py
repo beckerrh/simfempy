@@ -28,7 +28,7 @@ class P1(object):
         self.rows = np.repeat(simps, self.nloc).reshape(-1)
         self.cellgrads = self.computeCellGrads()
     def nunknowns(self): return self.mesh.nnodes
-    def prepareBoundary(self, colorsdir, postproc):
+    def prepareBoundary(self, colorsdir, colorsflux):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
         bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
@@ -38,13 +38,9 @@ class P1(object):
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
-        if not postproc: return bdrydata
-        for name, type in postproc.type.items():
-            if type != "bdrydn": continue
-            colors = postproc.colors(name)
-            for color in colors:
-                facesdir = self.mesh.bdrylabels[color]
-                bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
+        for color in colorsflux:
+            facesdir = self.mesh.bdrylabels[color]
+            bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
@@ -161,8 +157,7 @@ class P1(object):
         # print("help", help)
         b += mass*help
         return b
-
-    def matrixDirichlet(self, A, method, bdrydata):
+    def matrixBoundary(self, A, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
         for color, nodes in nodesdirflux.items():
@@ -191,7 +186,7 @@ class P1(object):
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
 
-    def vectorDirichlet(self, b, u, bdrycond, method, bdrydata):
+    def vectorBoundary(self, b, u, bdrycond, method, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         if u is None: u = np.zeros_like(b)
         elif u.shape != b.shape : raise ValueError("u.shape != b.shape {} != {}".format(u.shape, b.shape))
@@ -219,7 +214,7 @@ class P1(object):
             b[nodedirall] += bdrydata.A_dir_dir * u[nodedirall]
         return b, u, bdrydata
 
-    def vectorDirichletZero(self, du, bdrydata):
+    def vectorBoundaryZero(self, du, bdrydata):
         nodesdir = bdrydata.nodesdir
         for color, nodes in nodesdir.items():
             du[nodes] = 0
@@ -265,20 +260,18 @@ class P1(object):
         else: uRmean=0
         return cR*(uRmean-uhmean)
 
-    def computeBdryDn(self, u, colors, bdrydata, bdrycond):
+    def computeBdryNormalFlux(self, u, colors, bdrydata, bdrycond):
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
-            if bdrycond.type[color] == "Robin":
-                flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
-            elif bdrycond.type[color] == "Dirichlet":
+            if color in bdrydata.bsaved.keys():
                 bs, As = bdrydata.bsaved[color], bdrydata.Asaved[color]
                 flux[i] = np.sum(As * u - bs)
             else:
-                raise NotImplementedError(f"computeBdryDn for condition '{bdrycond.type[color]}' color={color}")
+                flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
         return flux
 
     def computeBdryFct(self, u, colors):

@@ -45,22 +45,24 @@ def pygmshexample():
 
 
 def createData(bdrylabels):
+    data = simfempy.applications.problemdata.ProblemData()
     bdrylabels = list(bdrylabels)
     labels_lat = bdrylabels[1:-1]
     firstlabel = bdrylabels[0]
     lastlabel = bdrylabels[-1]
     labels_td = [firstlabel,lastlabel]
-    data = simfempy.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
     bdrycond.set("Neumann", labels_lat)
     bdrycond.set("Dirichlet", labels_td)
     bdrycond.fct[firstlabel] = lambda x,y,z: 200
     bdrycond.fct[lastlabel] = lambda x,y,z: 100
     postproc = data.postproc
-    postproc.type['bdrymean'] = "bdrymean"
-    postproc.color['bdrymean'] = labels_lat
-    postproc.type['fluxn'] = "bdrydn"
-    postproc.color['fluxn'] = labels_td
+    postproc.set(name="lateral mean", type='bdry_mean', colors=labels_lat)
+    postproc.set(name="normal fux", type='bdry_nflux', colors=labels_td)
+    # postproc.type['bdry_mean'] = "bdry_mean"
+    # postproc.color['bdry_mean'] = labels_lat
+    # postproc.type['bdry_nflux'] = "bdry_nflux"
+    # postproc.color['bdry_nflux'] = labels_td
     data.params.scal_glob["kheat"] = 0.0001
     return data
 

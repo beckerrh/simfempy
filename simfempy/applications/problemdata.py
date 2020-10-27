@@ -37,10 +37,7 @@ class BoundaryConditions(object):
     def types(self):
         return self.type.values()
     def set(self, type, colors, fcts=None):
-        if isinstance(colors, int):
-            self.type[colors] = type
-            if fcts: self.fct[colors] = fcts
-            return
+        colors = list(colors)
         for i,color in enumerate(colors):
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]
@@ -70,6 +67,10 @@ class PostProcess(object):
     def clear(self):
         self.type = {}
         self.color = {}
+    def set(self, name, type, colors):
+        colors = list(colors)
+        self.type[name] = type
+        self.color[name] = colors
     def colors(self, name):
         return self.color[name]
     def check(self, colors):
@@ -78,6 +79,11 @@ class PostProcess(object):
         colors = set(colors)
         usedcolors = set().union(*self.color.values())
         _check1setinother_(usedcolors, colors, "used", "mesh colors")
+    def colorsOfType(self, type):
+        colors = []
+        for n,t in self.type.items():
+            if t == type: colors.extend(self.color[n])
+        return colors
 
 # ---------------------------------------------------------------- #
 class Params(object):

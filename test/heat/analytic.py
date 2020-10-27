@@ -7,7 +7,7 @@ import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.heat import Heat
 
 #----------------------------------------------------------------#
-def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], methods=['new']):
+def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], methods=['new','trad']):
     import simfempy.tools.comparemethods
     data = simfempy.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
@@ -43,5 +43,5 @@ if __name__ == '__main__':
     exactsolution = 'Linear'
     # exactsolution = 'Quadratic'
     # test_analytic(exactsolution = exactsolution, geomname = "unitline")
-    test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
-    # test_analytic(exactsolution = exactsolution, geomname = "unitcube")
+    # test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
+    test_analytic(exactsolution = exactsolution, geomname = "unitcube")

@@ -26,6 +26,9 @@ class Heat(Application):
         - global constant is taken from problemdata.paramglobal
         - cell-wise constants are taken from problemdata.paramcells
         - problemdata.paramglobal is taken from problemdata.datafct and are called with arguments (color, xc, yc, zc)
+    Possible parameters for computaion of postprocess:
+        bdry_mean: computes mean temperature over boundary parts according to given color
+        bdry_nflux: computes mean normal flux over boundary parts according to given color
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -98,7 +101,9 @@ class Heat(Application):
         # if mesh is not None: self.mesh = mesh
         self._checkProblemData()
         self.fem.setMesh(self.mesh)
-        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond.colorsOfType("Dirichlet"), self.problemdata.postproc)
+        dircols = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        self.bdrydata = self.fem.prepareBoundary(dircols, colorsflux)
         params = self.problemdata.params
         self.kheatcell = self.compute_cell_vector_from_params('kheat', params)
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
@@ -112,7 +117,7 @@ class Heat(Application):
         self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
         # print("self.Arobin", self.Arobin)
         A += self.Arobin
-        A, self.bdrydata = self.fem.matrixDirichlet(A, method, bdrydata)
+        A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
 
     def computeRhs(self, u=None):
@@ -126,7 +131,7 @@ class Heat(Application):
         # b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
         b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann"])
         b = self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"],self.Arobin)
-        b, u, self.bdrydata = self.fem.vectorDirichlet(b, u, bdrycond, method, bdrydata)
+        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, method, bdrydata)
         return b,u
 
 
@@ -137,11 +142,6 @@ class Heat(Application):
         self.du -= self.b
         self.du = self.vectorDirichletZero(self.du, self.bdrydata)
         return self.du
-
-    def boundaryvec(self, b, u=None):
-        if u is None: u = np.zeros_like(b)
-        b, u, self.bdrydata = self.fem.boundaryvec(b, u, self.problemdata.bdrycond, self.method, self.bdrydata)
-        return b,u
 
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}
@@ -154,20 +154,21 @@ class Heat(Application):
             cell_data['E'] = ec
         global_data['postproc'] = {}
         if self.problemdata.postproc:
+            types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
-                if type == "bdrymean":
+                if type == types[0]:
                     global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
-                elif type == "bdryfct":
+                elif type == types[1]:
                     global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
-                elif type == "bdrydn":
-                    global_data['postproc'][name] = self.fem.computeBdryDn(u, colors, self.bdrydata, self.problemdata.bdrycond)
-                elif type == "pointvalues":
+                elif type == types[2]:
+                    global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
+                elif type == types[3]:
                     global_data['postproc'][name] = self.fem.computePointValues(u, colors)
-                elif type == "meanvalues":
+                elif type == types[4]:
                     global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
                 else:
-                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, name))
+                    raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         if self.kheatcell.shape[0] != self.mesh.ncells:
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
         cell_data['k'] = self.kheatcell
