@@ -1,6 +1,21 @@
 % !TEX root = simfempy.tex
 %
 %
+\definecolor{myblue}{rgb}{0.004, 0.1, 0.57}
+\definecolor{myred}{rgb}{0.58, 0.066, 0.}
+\definecolor{mygreen}{rgb}{0.24, 0.55, 0.15}
+\definecolor{mygray}{rgb}{0.28, 0.28, 0.28}
+\definecolor{myviolet}{rgb}{0.3, 0.1, 0.4}
+\definecolor{myyellowlight}{rgb}{0.9, 0.9, 0.8}
+%
+\newcommand{\blue}[1]{\textcolor{myblue}{#1}}
+\newcommand{\red}[1]{\textcolor{myred}{#1}}
+\newcommand{\green}[1]{\textcolor{mygreen}{#1}}
+\newcommand{\gray}[1]{\textcolor{mygray}{#1}}
+\newcommand{\violet}[1]{\textcolor{myviolet}{#1}}
+\newenvironment{yellow}[1][]{\begin{tcolorbox}[title=#1,boxrule=2pt, colback=myyellowlight]}{\end{tcolorbox}}
+%
+%
 %----------------------------------------
 % parameters
 %

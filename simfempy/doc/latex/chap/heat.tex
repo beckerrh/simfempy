@@ -9,6 +9,7 @@ $\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
 %
 We consider the parabolic equation for the temperature $T$, heat flux $\vec{q}$ and heat release $\dot{q}$
 %
+\begin{yellow}[Heat equation (strong formulation)]
 \begin{equation}\label{eq:HeatEquation}
 %
 \left\{
@@ -22,7 +23,9 @@ c_R T + \kdiff\frac{\partial T}{\partial n}= \qR \quad \mbox{in $\GammaR$}
 \right.
 %
 \end{equation}
-
+\end{yellow}
+%
+\begin{yellow}[Heat equation (weak formulation)]
 Let $H^1_{f}:= \SetDef{u\in H^1(\Omega)}{\Rest{T}{\GammaD} = f}$. The standard weak formulation looks for 
 $T\in H^1_{\TD}$ such that for all $\phi\in H^1_{0}(\Omega)$
 %
@@ -32,6 +35,7 @@ $T\in H^1_{\TD}$ such that for all $\phi\in H^1_{0}(\Omega)$
 + \int_{\GammaR\cup\GammaN} \vec{v}_n T \phi
 = \int_{\Omega} \dot{q} \phi +  \int_{\GammaR} \qR \phi
 \end{equation}
+\end{yellow}
 %
 We can derive (\ref{eq:HeatEquationWeak}) from (\ref{eq:HeatEquation}) by the divergence theorem
 %
