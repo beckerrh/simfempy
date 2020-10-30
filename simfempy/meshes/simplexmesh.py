@@ -69,11 +69,29 @@ class SimplexMesh(object):
             self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
 
     def _initMeshPyGmsh7(self, points, cells, cell_sets):
+        # only 3d-coordinates
+        assert points.shape[1] ==3
+        self.points = points
+        self.nnodes = self.points.shape[0]
+        keys = [key for key, cellblock in cells]
+        # for key, cellblock in cells: keys.append(key)
+        print("keys", keys)
+        if 'tetra' in keys: self.dimension = 3
+        elif 'triangle' in keys: self.dimension = 2
+        else: self.dimension = 1
+        print(f"{cell_sets=}")
+        cellsoflabel = {key:{} for key in keys}
+        for label, cells in cell_sets.items():
+            if len(cells) != len(keys): raise KeyError(f"mismatch {label=}")
+            for celltype, info in zip(keys, cells):
+                if info is not None:
+                    cellsoflabel[celltype][label] = info
+                # print(f"{label=} {celltype=} {info=}")
+        print(f"{cellsoflabel}")
         raise NotImplementedError("no idea")
 
     def _initMeshPyGmsh(self, points, cells, cdphys):
         assert points.shape[1] ==3
-        self.points = points
         self.nnodes = self.points.shape[0]
         keys = []
         for key, cellblock in cells:
@@ -90,8 +108,7 @@ class SimplexMesh(object):
         # print("type(cds)", type(cds))
         # print("cds", cds)
         if len(cdphys) != len(keys):
-            raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cds)}")
-
+            raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cdphys)}")
         # first attempt, bad because 'append' copies data...
         _cells = {}
         _labels = {}
@@ -131,7 +148,6 @@ class SimplexMesh(object):
         # print(self)
 
     def _constructFacesFromSimplices(self, facedata):
-        bdryfacesgmsh, bdrylabelsgmsh = facedata
         simplices = self.simplices
         ncells = simplices.shape[0]
         nnpc = simplices.shape[1]
@@ -161,42 +177,7 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-        self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
-
-    # def _constructFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
-    #     simps, neighbrs = self.delaunay.simplices, self.delaunay.neighbors
-    #     count=0
-    #     for i in range(len(simps)):
-    #         for idim in range(self.dimension+1):
-    #             if i > neighbrs[i, idim]: count +=1
-    #     self.nfaces = count
-    #     self.faces = np.empty(shape=(self.nfaces,self.dimension), dtype=int)
-    #     self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
-    #     self.facesOfCells = np.zeros(shape=(self.ncells, self.dimension+1), dtype=int)
-    #     count=0
-    #     for i in range(len(simps)):
-    #         for idim in range(self.dimension+1):
-    #             j = neighbrs[i, idim]
-    #             if i<j: continue
-    #             mask = np.array( [ii !=idim for ii in range(self.dimension+1)] )
-    #             self.faces[count] = np.sort(simps[i,mask])
-    #             self.facesOfCells[i, idim] = count
-    #             self.cellsOfFaces[count, 0] = i
-    #             if j > -1:
-    #                 for jdim in range(self.dimension+1):
-    #                     if neighbrs[j, jdim] == i:
-    #                         self.facesOfCells[j, jdim] = count
-    #                         self.cellsOfFaces[count, 1] = j
-    #                         break
-    #             count +=1
-    #     # for i in range(len(simps)):
-    #     #     print("self.facesOfCells {} {}".format(i,self.facesOfCells[i]))
-    #     # for i in range(self.nfaces):
-    #     #     print("self.cellsOfFaces {} {}".format(i,self.cellsOfFaces[i]))
-    #     # bdries
-    #     self._constructBoundaryLabels(bdryfacesgmsh, bdrylabelsgmsh)
-
-    def _constructBoundaryLabels(self, bdryfacesgmsh, bdrylabelsgmsh):
+        bdryfacesgmsh, bdrylabelsgmsh = facedata
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
         assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
@@ -288,12 +269,9 @@ class SimplexMesh(object):
 
     def write(self, filename, dirname = None, point_data=None):
         cell_data_meshio = {}
-
         if hasattr(self,'vertex_labels'):
             cell_data_meshio['vertex'] = {}
             cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
-
-
         if self.dimension ==2:
             cells = {'triangle': self.simplices}
             cells['line'] = self._facedata[0]

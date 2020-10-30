@@ -31,10 +31,10 @@ def unitsquare(h):
             geom.add_physical(p.surface, label="100")
             for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
             mesh = geom.generate_mesh()
-    print(f"{mesh=}")
-    print(f"{mesh.cell_data=}")
-    print(f"{mesh.cell_sets=}")
-    print("{mesh=}")
+    # print(f"{mesh=}")
+    # print(f"{mesh.cell_data=}")
+    # print(f"{mesh.cell_sets=}")
+    # print("{mesh=}")
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 
