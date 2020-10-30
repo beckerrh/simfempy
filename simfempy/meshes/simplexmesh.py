@@ -16,6 +16,7 @@ from simfempy.tools import npext
 # except ModuleNotFoundError:
 #     from . import geomdefs
 
+from .testmeshes import __pygmsh6__
 
 #=================================================================#
 class SimplexMesh(object):
@@ -62,9 +63,15 @@ class SimplexMesh(object):
             # # print("mesh.points=",mesh.points)
             # # print("mesh.cells=", mesh.cells)
             # # print("mesh.cell_data=", mesh.cell_data)
-        self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data)
+        if __pygmsh6__:
+            self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data['gmsh:physical'])
+        else:
+            self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
 
-    def _initMeshPyGmsh(self, points, cells, celldata):
+    def _initMeshPyGmsh7(self, points, cells, cell_sets):
+        raise NotImplemented()
+
+    def _initMeshPyGmsh(self, points, cells, cdphys):
         assert points.shape[1] ==3
         self.points = points
         self.nnodes = self.points.shape[0]
@@ -79,16 +86,16 @@ class SimplexMesh(object):
             self.dimension = 2
         else:
             self.dimension = 1
-        cds = celldata['gmsh:physical']
+        # cds = celldata['gmsh:physical']
         # print("type(cds)", type(cds))
         # print("cds", cds)
-        if len(cds) != len(keys):
+        if len(cdphys) != len(keys):
             raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cds)}")
 
         # first attempt, bad because 'append' copies data...
         _cells = {}
         _labels = {}
-        for (key, cellblock), cd in zip(cells,cds):
+        for (key, cellblock), cd in zip(cells,cdphys):
             if len(cellblock) != len(cd):
                 raise ValueError(f"mismatch in {key} {len(cellblock)} {len(cd)}")
             if not key in _cells.keys():
