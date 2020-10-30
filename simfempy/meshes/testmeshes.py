@@ -25,11 +25,12 @@ def unitsquare(h):
         geom.add_physical(p.surface, label=100)
         for i in range(4): geom.add_physical(p.line_loop.lines[i], label=1000 + i)
         mesh = pygmsh.generate_mesh(geom, verbose=False)
-    with pygmsh.geo.Geometry() as geom:
-        p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, mesh_size=h)
-        geom.add_physical(p.surface, label="100")
-        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
-        mesh = geom.generate_mesh()
+    else:
+        with pygmsh.geo.Geometry() as geom:
+            p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, mesh_size=h)
+            geom.add_physical(p.surface, label="100")
+            for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+            mesh = geom.generate_mesh()
     print(f"{mesh=}")
     print(f"{mesh.cell_data=}")
     print(f"{mesh.cell_sets=}")
