@@ -63,6 +63,26 @@ and then with the different boundary conditions, we find
 \int_{\GammaN\cup\GammaR} \vec{q}_n\phi = \int_{\GammaD} \qN\phi + \int_{\GammaR}\left(\qR - c_R T\right)\phi
 \end{align*}
 %
+%
+%-------------------------------------------------------------------------
+\subsection{Computation of the matrices for $\Pspace_h^1{\Omega}$}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+For the convection, we suppose that $\vec{v}\in \RT^0_h(\Omega)$ and let for given $K\in\Cells_h$ 
+$\vec{v}=\sum_{k=1}^{d+1} v_k \Phi_k$. Using
+%
+\begin{align*}
+x_k = x_{S_k}^K,\quad h_k = h_{S_k}^K, \quad \sigma_k = \sigma_{S_k}^K, n_k = n_{S_k}
+\end{align*}
+%
+we compute
+%
+\begin{align*}
+\int_K \lambda_j \vec{v}\cdot \nabla \lambda_i = \sum_{k=1}^{d+1} v_k \int_K \lambda_j \Phi_k\cdot \nabla \lambda_i\\
+\int_K \lambda_j \Phi_k\cdot \nabla \lambda_i = -\frac{\sigma_k \sigma_i}{h_kh_i} \int_K  \lambda_j (x-x_k) \cdot n_i
+= -\frac{\sigma_k \sigma_i}{h_kh_i} \sum_{l=1}^{d+1} (x_l-x_k) \cdot n_i \int_K  \lambda_j\lambda_l 
+\end{align*}
+%
 
 
 

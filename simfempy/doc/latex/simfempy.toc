@@ -1,14 +1,16 @@
 \boolfalse {citerequest}\boolfalse {citetracker}\boolfalse {pagetracker}\boolfalse {backtracker}\relax 
 \babel@toc {english}{}
 \defcounter {refsection}{1}\relax 
-\contentsline {section}{\numberline {1}Heat equation}{2}{section.1}%
+\contentsline {section}{\numberline {1}Heat equation}{2}{section.1}
 \defcounter {refsection}{1}\relax 
-\contentsline {section}{Appendices}{3}{section*.2}%
+\contentsline {subsection}{\numberline {1.1}Computation of the matrices for $\mathcal {P}_h^1{\Omega }$}{2}{subsection.1.1}
+\defcounter {refsection}{1}\relax 
+\contentsline {section}{Appendices}{4}{section*.2}
 \defcounter {refsection}{2}\relax 
-\contentsline {section}{\numberline {A}Finite elements on simplices}{4}{appendix.1.A}%
+\contentsline {section}{\numberline {A}Finite elements on simplices}{5}{Appendix.1.A}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.1}Simplices}{4}{subsection.1.A.1}%
+\contentsline {subsection}{\numberline {A.1}Simplices}{5}{subsection.1.A.1}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.2}Integration on simplices}{4}{subsection.1.A.2}%
+\contentsline {subsection}{\numberline {A.2}Barycentric coordinates}{5}{subsection.1.A.2}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.3}Finite elements}{4}{subsection.1.A.3}%
+\contentsline {subsection}{\numberline {A.3}Finite elements}{5}{subsection.1.A.3}

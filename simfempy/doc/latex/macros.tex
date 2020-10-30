@@ -15,6 +15,42 @@
 \newcommand{\violet}[1]{\textcolor{myviolet}{#1}}
 \newenvironment{yellow}[1][]{\begin{tcolorbox}[title=#1,boxrule=2pt, colback=myyellowlight]}{\end{tcolorbox}}
 %
+%----------------------------------------
+% Spaces
+\newcommand\TildeHdiv[1][\Omega]{\widetilde{H}_{\rm div}(#1)}
+\newcommand\Hdiv[1][\Omega]{H_{\rm div}(#1)}
+%\newcommand\Hdiv[1][]{\ifstrempty{#1}{H({\rm div},\Omega)}{H({\rm div},#1)}}
+%\newcommand{\Hdivzero}{H_0({\rm div},\Omega)}
+\newcommand\Hcurl[1]{H_{\rm curl}(#1)}
+\newcommand{\Pkhom}[1]{P_{\rm hom}^{#1}}
+\newcommand{\Phom}{\Pkhom{k}}
+\newcommand{\multin}{\mathcal I_n}
+%----------------------------------------
+% FEM
+\newcommand{\ind}{{\tt ind}}
+\newcommand{\hK}[1][K]{d_{#1}} 
+\newcommand{\h}{d_h} 
+\newcommand{\Cspace}{\mathcal{C}}
+\newcommand{\Dspace}{\mathcal{D}}
+\newcommand{\Pspace}{\mathcal{P}}
+\newcommand{\Qspace}{\mathcal{Q}}
+\newcommand{\CR}{\mathcal{C\!R}}
+\newcommand{\RT}{\mathcal{R\!T}}
+\newcommand{\Ned}{N}
+\newcommand{\allmeshes}{\mathcal H}
+%\newcommand{\allmeshes}{\mathcal H(\Omega)}
+\newcommand{\Edges}{\mathcal E}
+\newcommand{\Sides}{\mathcal S}
+\newcommand{\Cells}{\mathcal K}
+\newcommand{\Nodes}{\mathcal N}
+\newcommand{\NodesInt}{{\mathcal N}^{int}}
+\newcommand{\level}{\operatorname{lev}}
+\newcommand{\SidesInt}{\mathcal S^{\rm int}}
+\newcommand{\SidesBdry}{\mathcal S^{\partial}}
+\newcommand{\meanS}[1]{\left\{\{#1\right\}_{S}}
+\newcommand{\jumpS}[1]{\left[#1\right]_{S}}
+\newcommand{\jump}[1]{\left[#1\right]}
+\newcommand{\mean}[1]{\left\{#1\right\}}
 %
 %----------------------------------------
 % parameters
@@ -55,11 +91,6 @@
 \newcommand{\Qadh}{Q_{{\rm ad},h}}
 \newcommand{\Cd}{c_{\rm D}}
 \newcommand{\cD}{c^{\rm D}}
-%----------------------------------------
-% FEM
-\newcommand{\CR}{C\!R}
-\newcommand{\RT}{R\!T}
-\newcommand{\Hdiv}{H_{\rm div}}
 %----------------------------------------
 % numbers
 \newcommand{\R}{\mathbb R}
@@ -108,33 +139,3 @@
 \newcommand{\trace}{\operatorname{tr}} 
 \newcommand{\adj}{\operatorname{adj}} 
 \newcommand{\diag}{\operatorname{diag}}
-%----------------------------------------
-% meshes
-\newcommand{\Sides}{\mathcal S}
-\newcommand{\Cells}{\mathcal K}
-\newcommand{\Nodes}{\mathcal N}
-\newcommand{\NodesInt}{{\mathcal N}^{int}}
-\newcommand{\level}{\operatorname{lev}}
-\newcommand{\SidesInt}{\mathcal S^{\rm int}}
-\newcommand{\SidesBound}{\mathcal S^{\partial}}
-%
-\newcommand{\In}[1]{#1^{\rm in}}
-\newcommand{\Ex}[1]{#1^{\rm ex}}
-\newcommand{\InDe}[2]{#1^{{\rm in}_{#2}}}
-\newcommand{\ExDe}[2]{#1^{{\rm ex}_{#2}}}
-%
-\newcommand{\Kin}{K^{\rm{\footnotesize{in}}}}
-\newcommand{\Kex}{K^{\rm{\footnotesize{ex}}}}
-\newcommand{\inS}[1]{{#1}^{\rm{\footnotesize{in}}}_{S}}
-\newcommand{\exS}[1]{{#1}^{\rm{\footnotesize{ex}}}_{S}}
-\newcommand{\inSs}[1]{{#1}^{\rm{\footnotesize{in}}}}
-\newcommand{\exSs}[1]{{#1}^{\rm{\footnotesize{ex}}}}
-\newcommand{\meanS}[1]{\{#1\}_{S}}
-\newcommand{\jumpS}[1]{[#1]_{S}}
-\newcommand{\jump}[1]{[#1]}
-\newcommand{\mean}[1]{\{#1\}}
-\newcommand{\intS}{\int_{\Sides_{h}}}
-\newcommand{\intSInt}{\int_{\SidesInt_{h}}}
-\newcommand{\intSBound}{\int_{\SidesBound_{h}}}
-\newcommand{\intK}{\int_{\Cells_{h}}}
-%

@@ -1,0 +1,94 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 2.9 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{2}
+  \datalist[entry]{nty/global//global/global}
+    \entry{EisenbergMalvern73}{article}{}
+      \name{author}{2}{}{%
+        {{hash=2521beca0c045e314dd1b3fb5d439c7e}{%
+           family={Eisenberg},
+           familyi={E\bibinitperiod},
+           given={Martin\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=e46d39c89d2d75e547eb5023aa2701ac}{%
+           family={Malvern},
+           familyi={M\bibinitperiod},
+           given={Lawrence\bibnamedelima E.},
+           giveni={L\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+      }
+      \strng{namehash}{77d48002cff0b353ed96e29d5b480293}
+      \strng{fullhash}{77d48002cff0b353ed96e29d5b480293}
+      \strng{bibnamehash}{77d48002cff0b353ed96e29d5b480293}
+      \strng{authorbibnamehash}{77d48002cff0b353ed96e29d5b480293}
+      \strng{authornamehash}{77d48002cff0b353ed96e29d5b480293}
+      \strng{authorfullhash}{77d48002cff0b353ed96e29d5b480293}
+      \field{sortinit}{E}
+      \field{sortinithash}{f615fb9c6fba11c6f962fb3fd599810e}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Int. J. of Numer. Meth. in Engrg.}
+      \field{title}{On finite element integration in natural co-ordinates}
+      \field{volume}{7}
+      \field{year}{1973}
+      \field{pages}{574\bibrangedash 575}
+      \range{pages}{2}
+      \keyw{Integration}
+    \endentry
+    \entry{VermolenSegal18}{article}{}
+      \name{author}{2}{}{%
+        {{hash=3bf9ca9804e76086fd0a171d76ca5d7c}{%
+           family={Vermolen},
+           familyi={V\bibinitperiod},
+           given={F.\bibnamedelimi J.},
+           giveni={F\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=2189c2cd1227ec3ed1817942b17fc532}{%
+           family={Segal},
+           familyi={S\bibinitperiod},
+           given={A.},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \strng{fullhash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \strng{bibnamehash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \strng{authorbibnamehash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \strng{authornamehash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \strng{authorfullhash}{f32fe91bf13a33c49123e1bd990d83c6}
+      \field{sortinit}{V}
+      \field{sortinithash}{75dd7385c90b2252c3ae853a80ca853b}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{issn}{0377-0427}
+      \field{journaltitle}{J. Comput. Appl. Math.}
+      \field{title}{On an integration rule for products of barycentric coordinates over simplexes in {$\Bbb{R}^n$}}
+      \field{volume}{330}
+      \field{year}{2018}
+      \field{pages}{289\bibrangedash 294}
+      \range{pages}{6}
+      \verb{urlraw}
+      \verb https://doi.org/10.1016/j.cam.2017.09.013
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1016/j.cam.2017.09.013
+      \endverb
+      \keyw{Integration}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

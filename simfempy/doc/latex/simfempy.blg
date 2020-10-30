@@ -1,50 +1,21 @@
-This is BibTeX, Version 0.99d (TeX Live 2020)
-Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
-The top-level auxiliary file: simfempy.aux
-A level-1 auxiliary file: chap/heat.aux
-A level-1 auxiliary file: chap/fem.aux
-I found no \citation commands---while reading file simfempy.aux
-I found no \bibdata command---while reading file simfempy.aux
-I found no \bibstyle command---while reading file simfempy.aux
-You've used 0 entries,
-            0 wiz_defined-function locations,
-            85 strings with 515 characters,
-and the built_in function-call counts, 0 in all, are:
-= -- 0
-> -- 0
-< -- 0
-+ -- 0
-- -- 0
-* -- 0
-:= -- 0
-add.period$ -- 0
-call.type$ -- 0
-change.case$ -- 0
-chr.to.int$ -- 0
-cite$ -- 0
-duplicate$ -- 0
-empty$ -- 0
-format.name$ -- 0
-if$ -- 0
-int.to.chr$ -- 0
-int.to.str$ -- 0
-missing$ -- 0
-newline$ -- 0
-num.names$ -- 0
-pop$ -- 0
-preamble$ -- 0
-purify$ -- 0
-quote$ -- 0
-skip$ -- 0
-stack$ -- 0
-substring$ -- 0
-swap$ -- 0
-text.length$ -- 0
-text.prefix$ -- 0
-top$ -- 0
-type$ -- 0
-warning$ -- 0
-while$ -- 0
-width$ -- 0
-write$ -- 0
-(There were 3 error messages)
+[0] Config.pm:302> INFO - This is Biber 2.11
+[0] Config.pm:305> INFO - Logfile is 'simfempy.blg'
+[48] biber-darwin:313> INFO - === Thu Oct 29, 2020, 21:44:02
+[73] Biber.pm:371> INFO - Reading 'simfempy.bcf'
+[204] Biber.pm:857> INFO - Found 0 citekeys in bib section 0
+[205] Biber.pm:857> INFO - Found 0 citekeys in bib section 1
+[205] Biber.pm:857> INFO - Found 0 citekeys in bib section 0
+[205] Biber.pm:857> INFO - Found 2 citekeys in bib section 2
+[205] Biber.pm:857> INFO - Found 0 citekeys in bib section 0
+[243] Biber.pm:3976> INFO - Processing section 2
+[256] Biber.pm:4136> INFO - Looking for bibtex format file '/Users/becker/Latex/Bibliotheque/bibliotheque.bib' for section 2
+[864] bibtex.pm:1500> INFO - LaTeX decoding ...
+[16579] bibtex.pm:1316> INFO - Found BibTeX data source '/Users/becker/Latex/Bibliotheque/bibliotheque.bib'
+[17247] Utils.pm:193> WARN - BibTeX subsystem: /var/folders/7k/hk8nnd3x04bcyq9p8vkff33r0000gn/T/GyCvilahaU/bibliotheque.bib_11986.utf8, line 41000, warning: possible runaway string started at line 40994
+[17262] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
+[17262] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[17262] Biber.pm:3804> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-US'
+[17262] Biber.pm:3810> INFO - No sort tailoring available for locale 'en-US'
+[17271] bbl.pm:617> INFO - Writing 'simfempy.bbl' with encoding 'UTF-8'
+[17272] bbl.pm:720> INFO - Output to simfempy.bbl
+[17272] Biber.pm:110> INFO - WARNINGS: 1
