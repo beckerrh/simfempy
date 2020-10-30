@@ -51,64 +51,51 @@ class SimplexMesh(object):
             mesh = kwargs.pop('mesh')
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
-            # import pygmsh
-            # self.geometry = kwargs.pop('geometry')
-            # if 'hmean' in kwargs: hmean = kwargs.pop('hmean')
-            # else: hmean = 1
-            # self.geometry.define(hmean)
-            # # code = self.geometry.get_code()
-            # # with open("toto.geo",'w') as file:
-            # #     file.write(code)
-            # mesh = pygmsh.generate_mesh(self.geometry, verbose=False)
-            # # print("mesh.points=",mesh.points)
-            # # print("mesh.cells=", mesh.cells)
-            # # print("mesh.cell_data=", mesh.cell_data)
+        self._initMeshPyGmsh(mesh)
+
+    def _initMeshPyGmsh(self, mesh):
+        # only 3d-coordinates
+        assert mesh.points.shape[1] ==3
+        self.points = mesh.points
+        self.nnodes = self.points.shape[0]
+        self.celltypes = [key for key, cellblock in mesh.cells]
+        # for key, cellblock in cells: keys.append(key)
+        print("self.celltypes", self.celltypes)
+        if 'tetra' in self.celltypes: self.dimension = 3
+        elif 'triangle' in self.celltypes: self.dimension = 2
+        else: self.dimension = 1
+        simplicesnames = ['line', 'triangle', 'tetra']
+        facesnames = ['vertex', 'line', 'triangle']
+        for key, cellblock in mesh.cells:
+            print(f"{key=} {type(cellblock)=}")
+            if key == simplicesnames[self.dimension-1]: self.simplices = cellblock
+            # elif key == facesnames[self.dimension - 1]: self.simplices = cellblock
+        self._constructFacesFromSimplices()
+        assert self.dimension+1 == self.simplices.shape[1]
+        self.ncells = self.simplices.shape[0]
+        self.pointsc = self.points[self.simplices].mean(axis=1)
+        self.pointsf = self.points[self.faces].mean(axis=1)
+        self._constructNormalsAndAreas()
         if __pygmsh6__:
-            self._initMeshPyGmsh(mesh.points, mesh.cells, mesh.cell_data['gmsh:physical'])
+            self._initMeshPyGmsh6(mesh.points, mesh.cells, mesh.cell_data['gmsh:physical'])
         else:
             self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
 
     def _initMeshPyGmsh7(self, points, cells, cell_sets):
-        # only 3d-coordinates
-        assert points.shape[1] ==3
-        self.points = points
-        self.nnodes = self.points.shape[0]
-        keys = [key for key, cellblock in cells]
-        # for key, cellblock in cells: keys.append(key)
-        print("keys", keys)
-        if 'tetra' in keys: self.dimension = 3
-        elif 'triangle' in keys: self.dimension = 2
-        else: self.dimension = 1
         print(f"{cell_sets=}")
-        cellsoflabel = {key:{} for key in keys}
+        cellsoflabel = {key:{} for key in self.celltypes}
         for label, cells in cell_sets.items():
-            if len(cells) != len(keys): raise KeyError(f"mismatch {label=}")
-            for celltype, info in zip(keys, cells):
+            if len(cells) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
+            for celltype, info in zip(self.celltypes, cells):
                 if info is not None:
                     cellsoflabel[celltype][label] = info
                 # print(f"{label=} {celltype=} {info=}")
         print(f"{cellsoflabel}")
         raise NotImplementedError("no idea")
 
-    def _initMeshPyGmsh(self, points, cells, cdphys):
-        assert points.shape[1] ==3
-        self.nnodes = self.points.shape[0]
-        keys = []
-        for key, cellblock in cells:
-            keys.append(key)
-        # print("keys", keys)
-        #     print("key cellblock",key, cellblock)
-        if 'tetra' in keys:
-            self.dimension = 3
-        elif 'triangle' in keys:
-            self.dimension = 2
-        else:
-            self.dimension = 1
-        # cds = celldata['gmsh:physical']
-        # print("type(cds)", type(cds))
-        # print("cds", cds)
-        if len(cdphys) != len(keys):
-            raise KeyError(f"not enough physical labels:\n keys={keys}\n len(phys)={len(cdphys)}")
+    def _initMeshPyGmsh6(self, points, cells, cdphys):
+        if len(cdphys) != len(self.celltypes):
+            raise KeyError(f"not enough physical labels:\n {self.celltypes=}\n {len(cdphys)=}")
         # first attempt, bad because 'append' copies data...
         _cells = {}
         _labels = {}
@@ -123,31 +110,31 @@ class SimplexMesh(object):
                 _labels[key] = np.append(_labels[key], cd, axis=0)
         # print("_labels", _labels)
         if self.dimension==1:
-            self.simplices = _cells['line']
             self._facedata = (_cells['vertex'], _labels['vertex'])
             self.cell_labels = _labels['line']
         elif self.dimension==2:
-            self.simplices = _cells['triangle']
             self._facedata = (_cells['line'], _labels['line'])
             self.cell_labels = _labels['triangle']
         else:
-            self.simplices = _cells['tetra']
+            # self.simplices = _cells['tetra']
             self._facedata = (_cells['triangle'], _labels['triangle'])
             self.cell_labels = _labels['tetra']
-        self._constructFacesFromSimplices(self._facedata)
+        # self._constructFacesFromSimplices()
+        bdryfacesgmsh, bdrylabelsgmsh = self._facedata
+        self._constructBoundaryFaces(bdryfacesgmsh, bdrylabelsgmsh)
         self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
         self.verticesoflabel = {}
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
             self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
-        assert self.dimension+1 == self.simplices.shape[1]
-        self.ncells = self.simplices.shape[0]
-        self.pointsc = self.points[self.simplices].mean(axis=1)
-        self.pointsf = self.points[self.faces].mean(axis=1)
-        self._constructNormalsAndAreas()
+        # assert self.dimension+1 == self.simplices.shape[1]
+        # self.ncells = self.simplices.shape[0]
+        # self.pointsc = self.points[self.simplices].mean(axis=1)
+        # self.pointsf = self.points[self.faces].mean(axis=1)
+        # self._constructNormalsAndAreas()
         # print(self)
 
-    def _constructFacesFromSimplices(self, facedata):
+    def _constructFacesFromSimplices(self):
         simplices = self.simplices
         ncells = simplices.shape[0]
         nnpc = simplices.shape[1]
@@ -177,7 +164,7 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-        bdryfacesgmsh, bdrylabelsgmsh = facedata
+    def _constructBoundaryFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
         assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
