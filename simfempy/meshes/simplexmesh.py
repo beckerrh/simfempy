@@ -69,7 +69,7 @@ class SimplexMesh(object):
             self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
 
     def _initMeshPyGmsh7(self, points, cells, cell_sets):
-        raise NotImplemented()
+        raise NotImplementedError("no idea")
 
     def _initMeshPyGmsh(self, points, cells, cdphys):
         assert points.shape[1] ==3
