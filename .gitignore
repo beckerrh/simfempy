@@ -6,6 +6,7 @@
 dist
 build
 OLD/simfempy.egg-info
+venv
 
 # PyCharm
 *.bak

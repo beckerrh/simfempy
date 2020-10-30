@@ -37,7 +37,7 @@ class BoundaryConditions(object):
     def types(self):
         return self.type.values()
     def set(self, type, colors, fcts=None):
-        colors = list(colors)
+        if isinstance(colors, int): colors = [colors]
         for i,color in enumerate(colors):
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]

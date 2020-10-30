@@ -2,6 +2,8 @@ import pygmsh
 import numpy as np
 import simfempy
 
+__pygmsh6__ = False
+
 # ------------------------------------- #
 def unitline(h):
     geom = pygmsh.built_in.Geometry()
@@ -15,13 +17,22 @@ def unitline(h):
 
 # ------------------------------------- #
 def unitsquare(h):
-    geom = pygmsh.built_in.Geometry()
     a=1
-    p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
-    geom.add_physical(p.surface, label=100)
-    for i in range(4): geom.add_physical(p.line_loop.lines[i], label=1000 + i)
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
-
+    if __pygmsh6__:
+        geom = pygmsh.built_in.Geometry()
+        p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, lcar=h)
+        geom.add_physical(p.surface, label=100)
+        for i in range(4): geom.add_physical(p.line_loop.lines[i], label=1000 + i)
+        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    with pygmsh.geo.Geometry() as geom:
+        p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, mesh_size=h)
+        geom.add_physical(p.surface, label="100")
+        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        mesh = geom.generate_mesh()
+    print(f"{mesh=}")
+    print(f"{mesh.cell_data=}")
+    print(f"{mesh.cell_sets=}")
+    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 # ------------------------------------- #
 def unitcube(h):
     geom = pygmsh.built_in.Geometry()
