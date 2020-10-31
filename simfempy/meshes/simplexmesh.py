@@ -49,7 +49,6 @@ class SimplexMesh(object):
         from . import plotmesh
         plotmesh.meshWithBoundaries(self)
         plotmesh.plotmeshWithNumbering(self)
-        assert 0
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
@@ -58,16 +57,21 @@ class SimplexMesh(object):
         self.celltypes = [key for key, cellblock in mesh.cells]
         # for key, cellblock in cells: keys.append(key)
         print("self.celltypes", self.celltypes)
-        if 'tetra' in self.celltypes: self.dimension = 3
-        elif 'triangle' in self.celltypes: self.dimension = 2
-        else: self.dimension = 1
-        self.simplicesnames = ['line', 'triangle', 'tetra']
-        self.facesnames = ['vertex', 'line', 'triangle']
+        if 'tetra' in self.celltypes:
+            self.dimension = 3
+            self.simplicesname, self.facesname = 'tetra', 'triangle'
+        elif 'triangle' in self.celltypes:
+            self.dimension = 2
+            self.simplicesname, self.facesname = 'triangle', 'line'
+        else:
+            self.dimension = 1
+            self.simplicesname, self.facesname = 'line', 'vertex'
+        bdryfacesgmsh = np.empty(shape=(0,self.dimension), dtype=int)
         for key, cellblock in mesh.cells:
             print(f"{key=} {cellblock=}")
-            if key == self.simplicesnames[self.dimension-1]: self.simplices = cellblock
+            if key == self.simplicesname: self.simplices = cellblock
             if key == 'vertex': self.vertices = cellblock
-            # elif key == facesnames[self.dimension - 1]: self.simplices = cellblock
+            if key == self.facesname: bdryfacesgmsh = np.append(bdryfacesgmsh, cellblock, axis=0)
         self._constructFacesFromSimplices()
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
@@ -75,11 +79,11 @@ class SimplexMesh(object):
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
         if __pygmsh6__:
-            self._initMeshPyGmsh6(mesh.points, mesh.cells, mesh.cell_data['gmsh:physical'])
+            self._initMeshPyGmsh6(mesh.cells, mesh.cell_data['gmsh:physical'], bdryfacesgmsh)
         else:
-            self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
+            self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
 
-    def _initMeshPyGmsh7(self, points, cells, cell_sets):
+    def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
         # ???
@@ -106,13 +110,13 @@ class SimplexMesh(object):
 
         # print(f"{label=} {celltype=} {info=}")
         print(f"{cellsoflabel=}")
-        self.cellsoflabel = cellsoflabel[self.simplicesnames[self.dimension-1]]
+        self.cellsoflabel = cellsoflabel[self.simplicesname]
         self.verticesoflabel = {}
         if self.dimension > 1:
             self.verticesoflabel = cellsoflabel['vertex']
         # bdry faces
-        for key, cellblock in cells:
-            if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
+        # for key, cellblock in cells:
+        #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
         bdrylabelsgmsh = cellsoflabel[self.facesnames[self.dimension-1]]
         self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
         # self.bdrylabels = {}
@@ -124,10 +128,10 @@ class SimplexMesh(object):
         # nbdryfaces = len(bdryids)
         # raise NotImplementedError("no idea")
 
-    def _initMeshPyGmsh6(self, points, cells, cdphys):
+    def _initMeshPyGmsh6(self, cells, cdphys, bdryfacesgmsh):
         if len(cdphys) != len(self.celltypes):
             raise KeyError(f"not enough physical labels:\n {self.celltypes=}\n {len(cdphys)=}")
-        # first attempt, bad because 'append' copies data...
+        # first attempt, 'np.append' copies data...
         _cells = {}
         _labels = {}
         for (key, cellblock), cd in zip(cells,cdphys):
@@ -140,18 +144,26 @@ class SimplexMesh(object):
                 _cells[key] = np.append(_cells[key], cellblock, axis=0)
                 _labels[key] = np.append(_labels[key], cd, axis=0)
         # print("_labels", _labels)
-        if self.dimension==1:
-            self._facedata = (_cells['vertex'], _labels['vertex'])
-            self.cell_labels = _labels['line']
-        elif self.dimension==2:
-            self._facedata = (_cells['line'], _labels['line'])
-            self.cell_labels = _labels['triangle']
-        else:
-            self._facedata = (_cells['triangle'], _labels['triangle'])
-            self.cell_labels = _labels['tetra']
-        bdryfacesgmsh, bdrylabelsgmsh = self._facedata
-        self._constructBoundaryFaces6(bdryfacesgmsh, bdrylabelsgmsh)
-        self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        # if self.dimension==1:
+        #     # self._facedata = (_cells['vertex'], _labels['vertex'])
+        #     bdrylabelsgmsh = _labels['vertex']
+        #     # self.cell_labels = _labels['line']
+        # elif self.dimension==2:
+        #     # self._facedata = (_cells['line'], _labels['line'])
+        #     bdrylabelsgmsh = _labels['line']
+        #     # self.cell_labels = _labels['triangle']
+        # else:
+        #     # self._facedata = (_cells['triangle'], _labels['triangle'])
+        #     bdrylabelsgmsh = _labels['triangle']
+        #     # self.cell_labels = _labels['tetra']
+        # bdryfacesgmsh, bdrylabelsgmsh = self._facedata
+        # print(f"{self.facesname=}")
+        # print(f"{bdryfacesgmsh=}")
+        # print(f"{_cells['line']=}")
+        # assert np.all(bdryfacesgmsh==_cells['line'])
+        self._constructBoundaryFaces6(bdryfacesgmsh, _labels[self.facesname])
+        # self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        self.cellsoflabel = npext.creatdict_unique_all(_labels[self.simplicesname])
         self.verticesoflabel = {}
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
