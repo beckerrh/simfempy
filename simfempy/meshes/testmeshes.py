@@ -30,7 +30,7 @@ def unitsquare(h):
         with pygmsh.geo.Geometry() as geom:
             p = geom.add_rectangle(xmin=-a, xmax=a, ymin=-a, ymax=a, z=0, mesh_size=h)
             geom.add_physical(p.surface, label="100")
-            geom.add_physical(p.points[0], label=11111)
+            geom.add_physical(p.points[0], label="11111")
             for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
             mesh = geom.generate_mesh()
     # print(f"{mesh=}")

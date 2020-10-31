@@ -10,12 +10,6 @@ import numpy as np
 from scipy import sparse
 from simfempy.tools import npext
 
-
-# try:
-#     import geomdefs
-# except ModuleNotFoundError:
-#     from . import geomdefs
-
 from .testmeshes import __pygmsh6__
 
 #=================================================================#
@@ -52,7 +46,10 @@ class SimplexMesh(object):
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
         self._initMeshPyGmsh(mesh)
-
+        from . import plotmesh
+        plotmesh.meshWithBoundaries(self)
+        plotmesh.plotmeshWithNumbering(self)
+        assert 0
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
@@ -64,11 +61,12 @@ class SimplexMesh(object):
         if 'tetra' in self.celltypes: self.dimension = 3
         elif 'triangle' in self.celltypes: self.dimension = 2
         else: self.dimension = 1
-        simplicesnames = ['line', 'triangle', 'tetra']
-        facesnames = ['vertex', 'line', 'triangle']
+        self.simplicesnames = ['line', 'triangle', 'tetra']
+        self.facesnames = ['vertex', 'line', 'triangle']
         for key, cellblock in mesh.cells:
-            print(f"{key=} {type(cellblock)=}")
-            if key == simplicesnames[self.dimension-1]: self.simplices = cellblock
+            print(f"{key=} {cellblock=}")
+            if key == self.simplicesnames[self.dimension-1]: self.simplices = cellblock
+            if key == 'vertex': self.vertices = cellblock
             # elif key == facesnames[self.dimension - 1]: self.simplices = cellblock
         self._constructFacesFromSimplices()
         assert self.dimension+1 == self.simplices.shape[1]
@@ -82,16 +80,49 @@ class SimplexMesh(object):
             self._initMeshPyGmsh7(mesh.points, mesh.cells, mesh.cell_sets)
 
     def _initMeshPyGmsh7(self, points, cells, cell_sets):
+        # cell_sets: dict label --> list of None or np.array for each cell_type
+        # the indices of the np.array are not the cellids !
+        # ???
         print(f"{cell_sets=}")
+        typesoflabel = {}
+        sizes = {key:0 for key in self.celltypes}
         cellsoflabel = {key:{} for key in self.celltypes}
-        for label, cells in cell_sets.items():
-            if len(cells) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
-            for celltype, info in zip(self.celltypes, cells):
+        ctorderd = []
+        for label, cb in cell_sets.items():
+            if len(cb) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
+            for celltype, info in zip(self.celltypes, cb):
+                # only one is supposed to be not None
                 if info is not None:
                     cellsoflabel[celltype][label] = info
-                # print(f"{label=} {celltype=} {info=}")
-        print(f"{cellsoflabel}")
-        raise NotImplementedError("no idea")
+                    sizes[celltype] += info.shape[0]
+                    typesoflabel[label] = celltype
+                    ctorderd.append(celltype)
+        #correcting the numbering in cell_sets
+        n = 0
+        for ct in list(dict.fromkeys(ctorderd)):
+            #eliminates duplicates
+            for l, cb in cellsoflabel[ct].items(): cb -= n
+            n += sizes[ct]
+
+        # print(f"{label=} {celltype=} {info=}")
+        print(f"{cellsoflabel=}")
+        self.cellsoflabel = cellsoflabel[self.simplicesnames[self.dimension-1]]
+        self.verticesoflabel = {}
+        if self.dimension > 1:
+            self.verticesoflabel = cellsoflabel['vertex']
+        # bdry faces
+        for key, cellblock in cells:
+            if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
+        bdrylabelsgmsh = cellsoflabel[self.facesnames[self.dimension-1]]
+        self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
+        # self.bdrylabels = {}
+        # for color, cells in bdrylabelsgmsh.items():
+        #     self.bdrylabels[int(color)] = cells
+        print(f"{self.bdrylabels=}")
+        # bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        # bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        # nbdryfaces = len(bdryids)
+        # raise NotImplementedError("no idea")
 
     def _initMeshPyGmsh6(self, points, cells, cdphys):
         if len(cdphys) != len(self.celltypes):
@@ -116,23 +147,15 @@ class SimplexMesh(object):
             self._facedata = (_cells['line'], _labels['line'])
             self.cell_labels = _labels['triangle']
         else:
-            # self.simplices = _cells['tetra']
             self._facedata = (_cells['triangle'], _labels['triangle'])
             self.cell_labels = _labels['tetra']
-        # self._constructFacesFromSimplices()
         bdryfacesgmsh, bdrylabelsgmsh = self._facedata
-        self._constructBoundaryFaces(bdryfacesgmsh, bdrylabelsgmsh)
+        self._constructBoundaryFaces6(bdryfacesgmsh, bdrylabelsgmsh)
         self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
         self.verticesoflabel = {}
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
             self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
-        # assert self.dimension+1 == self.simplices.shape[1]
-        # self.ncells = self.simplices.shape[0]
-        # self.pointsc = self.points[self.simplices].mean(axis=1)
-        # self.pointsf = self.points[self.faces].mean(axis=1)
-        # self._constructNormalsAndAreas()
-        # print(self)
 
     def _constructFacesFromSimplices(self):
         simplices = self.simplices
@@ -164,7 +187,46 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
-    def _constructBoundaryFaces(self, bdryfacesgmsh, bdrylabelsgmsh):
+    def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
+        # bdries
+        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
+        bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        nbdryfaces = len(bdryids)
+        if len(bdrylabelsgmsh) != nbdryfaces:
+            raise ValueError("wrong number of boundary labels {} != {}".format(len(bdrylabelsgmsh),nbdryfaces))
+        if len(bdryfacesgmsh) != nbdryfaces:
+            raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
+        self.bdrylabels = {}
+        colors, counts = np.unique(bdrylabelsgmsh, return_counts=True)
+        # print ("colors, counts", colors, counts)
+        for i in range(len(colors)):
+            self.bdrylabels[colors[i]] = -np.ones( (counts[i]), dtype=np.int32)
+        bdryfacesgmsh = np.sort(bdryfacesgmsh)
+        nnpc = self.simplices.shape[1]
+        s = "{0}" + (nnpc-2)*", {0}"
+        dtb = s.format(bdryfacesgmsh.dtype)
+        dtf = s.format(bdryfaces.dtype)
+        order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        if self.dimension==1:
+            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), axis=0).ravel()
+        else:
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
+        bpi = np.empty(bp.size, bp.dtype)
+        bpi[bp] = np.arange(bp.size)
+        perm = bdryids[fp[bpi]]
+        counts = {}
+        for key in list(self.bdrylabels.keys()): counts[key]=0
+        for i in range(len(perm)):
+            if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
+                raise ValueError("Did not find boundary indices")
+            color = bdrylabelsgmsh[i]
+            self.bdrylabels[color][counts[color]] = perm[i]
+            counts[color] += 1
+        # print ("self.bdrylabels", self.bdrylabels)
+    def _constructBoundaryFaces6(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
         assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))

@@ -35,7 +35,7 @@ class Application(object):
             def _solexactdir(x, y, z):
                 return self.problemdata.solexact(x, y, z)
         for color in self.mesh.bdrylabels:
-            if not color in bdrycond.type: raise KeyError(f"color={color} bdrycond={bdrycond}")
+            if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
             if bdrycond.type[color] in ["Dirichlet"]:
                 bdrycond.fct[color] = _solexactdir
             else:

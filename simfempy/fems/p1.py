@@ -36,6 +36,7 @@ class P1(object):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
+        print(f"{bdrydata.nodesdir=}")
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         for color in colorsflux:

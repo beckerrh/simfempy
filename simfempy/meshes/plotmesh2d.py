@@ -123,6 +123,17 @@ def meshWithBoundaries(x, y, tris, **kwargs):
         # clb = plt.colorbar(cnt, ax=ax)
         # clb.ax.set_title(cdn)
         clb.set_label("cellcolors")
+    if 'cellsoflabel' in kwargs:
+        cellsoflabel = kwargs.pop('cellsoflabel')
+        print(f"{tris.shape=}")
+        celllabels = np.empty(tris.shape[0])
+        for color, cells in cellsoflabel.items():
+            celllabels[cells] = color
+        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+        clb = plt.colorbar(cnt)
+        # clb = plt.colorbar(cnt, ax=ax)
+        # clb.ax.set_title(cdn)
+        clb.set_label("cellcolors")
 
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")

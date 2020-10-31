@@ -36,7 +36,10 @@ def meshWithBoundaries(meshdata, ax=plt):
             x, y, tris = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices
             kwargs['lines'] = meshdata.faces
             kwargs['bdrylabels'] = meshdata.bdrylabels
-            kwargs['celllabels'] = meshdata.cell_labels
+            if hasattr(meshdata, 'cell_labels'):
+                kwargs['celllabels'] = meshdata.cell_labels
+            if hasattr(meshdata, 'cellsoflabel'):
+                kwargs['cellsoflabel'] = meshdata.cellsoflabel
         else:
             x, y, tris = meshdata[0], meshdata[1], meshdata[2]
             kwargs['lines'] = meshdata[3]
