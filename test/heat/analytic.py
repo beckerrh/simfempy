@@ -8,7 +8,7 @@ from simfempy.applications.heat import Heat
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], methods=['new','trad']):
-    methods = ['trad']
+    # methods = ['trad']
     import simfempy.tools.comparemethods
     data = simfempy.applications.problemdata.ProblemData()
     if geomname == "unitline":
@@ -25,12 +25,12 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
         h = [1.0, 0.5, 0.25, 0.125]
     data.params.scal_glob['kheat'] = 1
     if exactsolution == "Constant" or exactsolution == "Linear":
-        h = h[:1]
-    exactsolution = 'x'
+        h = h[:3]
+    # exactsolution = 'x'
     data.bdrycond.clear()
     data.bdrycond.set("Dirichlet", colors[:])
-    # data.bdrycond.set("Neumann", colors[2])
-    # data.bdrycond.set("Robin", colors[1])
+    data.bdrycond.set("Neumann", colors[2])
+    data.bdrycond.set("Robin", colors[1])
     data.bdrycond.param[colors[1]] = 1.
     sims = {}
     for fem in fems:
