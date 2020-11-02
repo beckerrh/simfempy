@@ -42,19 +42,36 @@ def unitsquare(h):
 
 # ------------------------------------- #
 def unitcube(h):
-    geom = pygmsh.built_in.Geometry()
-    x, y, z = [-1, 1], [-1, 1], [-1, 1]
-    p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
-    geom.add_physical(p.surface, label=100)
-    axis = [0, 0, z[1] - z[0]]
-    top, vol, ext = geom.extrude(p.surface, axis)
-    geom.add_physical(top, label=105)
-    geom.add_physical(ext[0], label=101)
-    geom.add_physical(ext[1], label=102)
-    geom.add_physical(ext[2], label=103)
-    geom.add_physical(ext[3], label=104)
-    geom.add_physical(vol, label=10)
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    if __pygmsh6__:
+        geom = pygmsh.built_in.Geometry()
+        x, y, z = [-1, 1], [-1, 1], [-1, 1]
+        p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
+        geom.add_physical(p.surface, label=100)
+        axis = [0, 0, z[1] - z[0]]
+        top, vol, ext = geom.extrude(p.surface, axis)
+        geom.add_physical(top, label=105)
+        geom.add_physical(ext[0], label=101)
+        geom.add_physical(ext[1], label=102)
+        geom.add_physical(ext[2], label=103)
+        geom.add_physical(ext[3], label=104)
+        geom.add_physical(vol, label=10)
+        mesh = pygmsh.generate_mesh(geom, verbose=False)
+    else:
+        with pygmsh.geo.Geometry() as geom:
+            x, y, z = [-1, 1], [-1, 1], [-1, 1]
+            p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], mesh_size=h)
+            geom.add_physical(p.surface, label="100")
+            axis = [0, 0, z[1] - z[0]]
+            top, vol, ext = geom.extrude(p.surface, axis)
+            geom.add_physical(top, label="105")
+            geom.add_physical(ext[0], label="101")
+            geom.add_physical(ext[1], label="102")
+            geom.add_physical(ext[2], label="103")
+            geom.add_physical(ext[3], label="104")
+            geom.add_physical(vol, label="10")
+            mesh = geom.generate_mesh()
+    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+
 
 # ------------------------------------- #
 def backwardfacingstep(h=1.):

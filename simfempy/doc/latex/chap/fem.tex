@@ -28,11 +28,13 @@ h_k = d\frac{|K|}{|S_k|} \qquad\mbox{(and for $d=3 \; |S_k| = \frac12 |u\times v
 %-------------------------------------------------------------------------
 %
 %
-Any polynomial in the barycentric coordinates can be integrated exactly.
+Any polynomial in the barycentric coordinates can be integrated exactly. For $\alpha\in\N_0^{d+1}$ we 
+let $\alpha! = \prod_{i=0}^d \alpha_i!$, $\abs{\alpha}=\sum_{i=0}^d\alpha_i$, and $\lambda^{\alpha} = \prod_{i=0}^d \lambda_i^{\alpha_i}$
 %
 \begin{yellow}[Integration on $K$]
 \begin{equation}\label{eq:}
-\int_K \prod_{i=1}^{d+1}\lambda_i^{n_i} \,dv = d!|K|\frac{\prod\limits_{i=1}^{d+1} n_i!}{\left( \sum\limits_{i=1}^{d+1} n_i + d\right)!}
+\int_K \lambda^{\alpha} =|K|\frac{ d!\alpha!}{\left( \abs{\alpha} + d\right)!}
+%\int_K \prod_{i=1}^{d+1}\lambda_i^{n_i} \,dv = d!|K|\frac{\prod\limits_{i=1}^{d+1} n_i!}{\left( \sum\limits_{i=1}^{d+1} n_i + d\right)!}
 \end{equation}
 \end{yellow}
 %

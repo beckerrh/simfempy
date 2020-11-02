@@ -123,11 +123,13 @@
 }
 \makeatother
 \newcommand{\tnorm}[1]{\opnorm{#1}}
+\newcommand{\abs}[1]{\left|#1\right|} 
 %----------------------------------------
 % diff
 \newcommand{\dpfrac}[3][\partial]{\frac{#1 #2}{#1 #3}} 
 \newcommand{\dn}[1]{\dpfrac{#1}{n}} 
 \newcommand{\dt}[1]{\dpfrac{#1}{t}} 
+\newcommand{\ddt}[1]{\frac{d^2 #1}{dt^2}}
 \renewcommand{\div}{\operatorname{div}}
 \newcommand{\grad}{\operatorname{grad}}
 \newcommand{\gradS}{\operatorname{grad}_{\rm s}}

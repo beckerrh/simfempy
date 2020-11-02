@@ -44,5 +44,5 @@ if __name__ == '__main__':
     exactsolution = 'Linear'
     # exactsolution = 'Quadratic'
     # test_analytic(exactsolution = exactsolution, geomname = "unitline")
-    test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
-    # test_analytic(exactsolution = exactsolution, geomname = "unitcube")
+    # test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
+    test_analytic(exactsolution = exactsolution, geomname = "unitcube")

@@ -46,9 +46,6 @@ class SimplexMesh(object):
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
         self._initMeshPyGmsh(mesh)
-        from . import plotmesh
-        plotmesh.meshWithBoundaries(self)
-        plotmesh.plotmeshWithNumbering(self)
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
