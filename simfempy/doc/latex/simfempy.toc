@@ -1,16 +1,24 @@
 \boolfalse {citerequest}\boolfalse {citetracker}\boolfalse {pagetracker}\boolfalse {backtracker}\relax 
 \babel@toc {english}{}
 \defcounter {refsection}{1}\relax 
-\contentsline {section}{\numberline {1}Heat equation}{2}{section.1}%
+\contentsline {section}{\numberline {1}Heat equation}{2}{section.1}
 \defcounter {refsection}{1}\relax 
-\contentsline {subsection}{\numberline {1.1}Computation of the matrices for $\mathcal {P}_h^1{\Omega }$}{2}{subsection.1.1}%
-\defcounter {refsection}{1}\relax 
-\contentsline {section}{Appendices}{4}{section*.2}%
+\contentsline {subsection}{\numberline {1.1}Computation of the matrices for $\mathcal {P}_h^1(\Omega )$}{2}{subsection.1.1}
 \defcounter {refsection}{2}\relax 
-\contentsline {section}{\numberline {A}Finite elements on simplices}{5}{appendix.1.A}%
+\contentsline {section}{\numberline {A}Finite elements on simplices}{4}{appendix.A}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.1}Simplices}{5}{subsection.1.A.1}%
+\contentsline {subsection}{\numberline {A.1}Simplices}{4}{subsection.A.1}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.2}Barycentric coordinates}{5}{subsection.1.A.2}%
+\contentsline {subsection}{\numberline {A.2}Barycentric coordinates}{4}{subsection.A.2}
 \defcounter {refsection}{2}\relax 
-\contentsline {subsection}{\numberline {A.3}Finite elements}{5}{subsection.1.A.3}%
+\contentsline {subsection}{\numberline {A.3}Finite elements}{4}{subsection.A.3}
+\defcounter {refsection}{2}\relax 
+\contentsline {subsubsection}{\numberline {A.3.1}$\mathcal {P}^1_h(\Omega )$}{5}{subsubsection.A.3.1}
+\defcounter {refsection}{2}\relax 
+\contentsline {subsubsection}{\numberline {A.3.2}$\mathcal {C\tmspace -\thinmuskip {.1667em}R}^1_h(\Omega )$}{5}{subsubsection.A.3.2}
+\defcounter {refsection}{2}\relax 
+\contentsline {subsubsection}{\numberline {A.3.3}$\mathcal {R\tmspace -\thinmuskip {.1667em}T}^0_h(\Omega )$}{5}{subsubsection.A.3.3}
+\defcounter {refsection}{3}\relax 
+\contentsline {section}{\numberline {B}Discreization of the transport equation}{7}{appendix.B}
+\defcounter {refsection}{3}\relax 
+\contentsline {subsection}{\numberline {B.1}$\mathcal {P}^1_h(\Omega )$}{7}{subsection.B.1}

@@ -1,0 +1,68 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Discreization of the transport equation}\label{sec:}
+%==========================================
+%
+For $k\in\N_0$ we denote by $\Cspace_h^k(\Omega)$ the space of piecewise $k$-times differential functions with respect to $\Cells_h$, and 
+piecewise differential operators $\nabla_h:\Cspace_h^l(\Omega)\to \Cspace_h^{l-1}(\Omega,\R^d)$ ($l\in\N$) by 
+$\Rest{\nabla_h q}{K} := \nabla\left(\Rest{q}{K}\right)$ for $q\in \Cspace_h^l(\Omega)$ and similarly for 
+$\div_h: \Cspace_h^{l}(\Omega,\R^d)\to \Cspace_h^{l-1}(\Omega)$.
+We frequently use the piecewise Stokes formula
+%
+\begin{equation}\label{eq:StokesPiecewise}
+\int_{\Omega} \nabla_h q v + \int_{\Omega} q \div_h v = \int_{\SidesInt_h}\jump{q v_n} +  \int_{\SidesBdry_h}q v_n,
+\end{equation}
+%
+where $\int_{\Sides_h}=\sum_{S\in\Sides_h}\int_S$ and $n$ in the sum stands for $n_S$.
+
+The subspace of piecewise polynomial functions of order $k\in\N_0$ in $C^k_h(\Omega)$ is denoted by $\Dspace_h^k(\Omega)$ and the $L^2(\Omega)$-projection by $\pi_h^k:L^2(\Omega)\to\Dspace_h^k(\Omega)$.
+
+
+Suppose $u$ satisfies
+%
+\begin{equation}\label{eq:transport}
+\div(\beta u) = f\quad\mbox{in $\Omega$},\qquad \beta_n^{-}(u-\uD) = 0\quad \mbox{on $\partial\Omega$}.
+\end{equation}
+%
+From the integration by parts formula
+%
+\begin{equation}\label{eq:}
+\int_{\Omega}\div(\beta u ) v  = - \int_{\Omega}\beta u \cdot \nabla v + \int_{\partial\Omega} \beta_n uv
+\end{equation}
+%
+it then follows that $u$ satisfies 
+%
+\begin{align*}
+a(u,v)=l(v)\quad \forall v\in V
+\end{align*}
+%
+with
+%
+\begin{equation}\label{eq:}
+a(u,v) := -\int_{\Omega} u \beta\cdot \nabla v + \int_{\partial\Omega} \beta_n^+ uv,\quad l(v) := \int_{\Omega} fv -\int_{\partial\Omega} \beta_n^- \uD v.
+\end{equation}
+%
+We also have
+%
+\begin{align*}
+a(u,v) =& -\frac12\int_{\Omega} u  \beta\cdot\nabla v + \frac12 \int_{\Omega}\div(\beta u ) v - \frac12 \int_{\partial\Omega} \beta_n uv +\int_{\partial\Omega}\beta_n^+ uv\\
+=&  \frac12 \int_{\Omega}\div(\beta) u  v +\frac12\left(\int_{\Omega} \beta\cdot\nabla u v-\int_{\Omega} u  \beta\cdot\nabla v\right)
++ \frac12 \int_{\partial\Omega}\abs{\beta_n}uv
+\end{align*}
+%
+
+%
+%-------------------------------------------------------------------------
+\subsection{$\Pspace^1_h(\Omega)$}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+\newcommand{\xKup}{x_K^{\rm up}}
+%
+Let $K\in\Cells_h$, $\beta_K=\pi_K\beta$, $x_K$ be the barycenter of $K$ and $\xKup\in\partial K$ such that 
+$x_K - \xKup$ is aligned with $\beta_K$.
+
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+

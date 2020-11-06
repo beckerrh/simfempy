@@ -54,6 +54,7 @@ class P1(object):
         scalemass = 1 / self.nloc / (self.nloc+1);
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
         massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
+
         mass = np.einsum('n,kl->nkl', coeff*self.mesh.dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, bdrycond, bdrycondtype, lumped=False):

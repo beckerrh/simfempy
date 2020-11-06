@@ -32,7 +32,7 @@ Any polynomial in the barycentric coordinates can be integrated exactly. For $\a
 let $\alpha! = \prod_{i=0}^d \alpha_i!$, $\abs{\alpha}=\sum_{i=0}^d\alpha_i$, and $\lambda^{\alpha} = \prod_{i=0}^d \lambda_i^{\alpha_i}$
 %
 \begin{yellow}[Integration on $K$]
-\begin{equation}\label{eq:}
+\begin{equation}\label{eq:IntegrationFormulaBary}
 \int_K \lambda^{\alpha} =|K|\frac{ d!\alpha!}{\left( \abs{\alpha} + d\right)!}
 %\int_K \prod_{i=1}^{d+1}\lambda_i^{n_i} \,dv = d!|K|\frac{\prod\limits_{i=1}^{d+1} n_i!}{\left( \sum\limits_{i=1}^{d+1} n_i + d\right)!}
 \end{equation}
@@ -70,38 +70,60 @@ x_S^K:\quad & \mbox{vertex opposite to $S$ in $K$} \quad& h_S^K:\quad & \mbox{di
 \lambda_S^K:\quad& \mbox{barycentric coordinates of $K$} 
 \end{align*}
 
-For $k\in\N_0$ we denote by $\Cspace_h^k(\Omega)$ the space of piecewise $k$-times differential functions with respect to $\Cells_h$, and 
-piecewise differential operators $\nabla_h:\Cspace_h^l(\Omega)\to \Cspace_h^{l-1}(\Omega,\R^d)$ ($l\in\N$) by 
-$\Rest{\nabla_h q}{K} := \nabla\left(\Rest{q}{K}\right)$ for $q\in \Cspace_h^l(\Omega)$ and similarly for 
-$\div_h: \Cspace_h^{l}(\Omega,\R^d)\to \Cspace_h^{l-1}(\Omega)$.
-We frequently use the piecewise Stokes formula
+
+For $k\in\N_0$ we denote by $\Cspace_h^k(\Omega)$ the space of piecewise $k$-times differential functions with respect to $\Cells_h$. The subspace of piecewise polynomial functions of order $k\in\N_0$ in $C^k_h(\Omega)$ is denoted by $\Dspace_h^k(\Omega)$ and the $L^2(\Omega)$-projection by $\pi_h^k:L^2(\Omega)\to\Dspace_h^k(\Omega)$.
+
 %
-\begin{equation}\label{eq:StokesPiecewise}
-\int_{\Omega} \nabla_h q v + \int_{\Omega} q \div_h v = \int_{\SidesInt_h}\jump{q v_n} +  \int_{\SidesBdry_h}q v_n,
-\end{equation}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{$\Pspace^1_h(\Omega)$}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %
-where $\int_{\Sides_h}=\sum_{S\in\Sides_h}\int_S$ and $n$ in the sum stands for $n_S$.
-
-The subspace of piecewise polynomial functions of order $k\in\N_0$ in $C^k_h(\Omega)$ is denoted by $\Dspace_h^k(\Omega)$ and the $L^2(\Omega)$-projection by $\pi_h^k:L^2(\Omega)\to\Dspace_h^k(\Omega)$.
-
-The subspaces of continuous and nonconforming piecewise-polynmial functions are for $k\in\N$
-%
-\begin{equation}\label{eq:}
-\Pspace_h^k(\Omega) := \Dspace_h^k(\Omega)\cap C(\overline{\Omega}),\quad
-\CR_h^k(\Omega) := \SetDef{q \in \Dspace_h^k(\Omega)}{\int_S\jump{q}p=0\;\forall S\in\SidesInt_h,\forall p\in P^{k-1}(S)}.
-\end{equation}
-%  
-The standard finite element theory provides canonical basis functions and interpolation operators, which however need special care in the nonconforming case for even $k$. 
-
-
+We have $\Pspace^1_h(\Omega)= \Dspace_h^1(\Omega)\cap C(\overline{\Omega})$, but the FEM definition also provides a basis.
 The restrictions of the basis functions of $\Pspace^1_h(\Omega)$ to the simplex $K$ are the barycentric coordinates $\lambda_S^K$ associated to the node opposite to $S$ in $K$.
 %
-\begin{yellow}[Formulae for $\Pspace^1_h$]
+\begin{yellow}[Formulae for $\Pspace^1_h(\Omega)$]
 \begin{equation}\label{eq:}
 \nabla \lambda_S^K = -\frac{\sigma_{S}^K}{h_S^K}n_S,\quad \frac{1}{|K|}\int_K \lambda_S^K = \frac{1}{d+1}.
 \end{equation}
 \end{yellow}%
 %
+For the computation of matrices we use (\ref{eq:IntegrationFormulaBary}), for example for $i,j\in  \llbracket 0, d \rrbracket$
+%
+\begin{align*}
+\int_K \lambda_i \lambda_j  = |K|\frac{ d!\alpha!}{\left( \abs{\alpha} + d\right)!} \quad\mbox{with}\quad
+\left\{
+\begin{aligned}
+\alpha = (1,1,0,\cdots,0) \quad &(i\ne j)\\
+\alpha = (2,0,\cdots,0) \quad &(i= j)\\
+\end{aligned}
+\right.
+\end{align*}
+%
+so
+%
+\begin{equation}\label{eq:}
+\int_K \lambda_i \lambda_j  = \frac{ |K|}{(d +2)(d+1)}(1+\delta_{ij})
+\end{equation}
+%
+More generally, we have for $i_l\in  \llbracket 0, d \rrbracket$ with $1\le l\le k $
+%
+\begin{equation}\label{eq:}
+\int_K \lambda_{i_1}\cdots \lambda_{i_k}  = \frac{ |K|}{(d +k)\cdots(d+1)}(1+\delta_{ij})
+\end{equation}
+%
+
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{$\CR^1_h(\Omega)$}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+\begin{equation}\label{eq:}
+\CR_h^k(\Omega) := \SetDef{q \in \Dspace_h^k(\Omega)}{\int_S\jump{q}p=0\;\forall S\in\SidesInt_h,\forall p\in P^{k-1}(S)}.
+\end{equation}
+%  
+
 
 Denote in addition the basis of $\CR^1_h(\Omega)$ by $\psi_S$, we have
 %
@@ -111,6 +133,13 @@ Denote in addition the basis of $\CR^1_h(\Omega)$ by $\psi_S$, we have
 \frac{|S|\sigma_{S}^K}{|K|}n_S,\quad \frac{1}{|K|}\int_K \psi_S = \frac{1}{d+1}.
 \end{equation}
 \end{yellow}%
+%
+
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{$\RT^0_h(\Omega)$}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %
 
 The Raviart-Thomas space for $k\ge0$ is given by

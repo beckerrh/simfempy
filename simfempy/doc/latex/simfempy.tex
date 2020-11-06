@@ -23,6 +23,7 @@
 \usepackage[many,breakable]{tcolorbox}
 \usepackage{cancel}
 \usepackage[toc,page]{appendix}
+\usepackage{stmaryrd}
 
 %
 %----------------------------------------
@@ -68,6 +69,7 @@
 \includeonly{
 chap/heat,
 chap/fem,
+chap/transport,
 }
 %====================================================
 
@@ -81,10 +83,11 @@ chap/fem,
 %====================================================
 \include{chap/heat}
 %
-%\appendix
-\begin{appendices}
+\appendix
+%\begin{appendices}
 \include{chap/fem}
-\end{appendices}
+\include{chap/transport}
+%\end{appendices}
 %====================================================
 
 

@@ -7,14 +7,25 @@ if hasattr(pygmsh, "built_in"): __pygmsh6__ = True
 
 # ------------------------------------- #
 def unitline(h):
-    geom = pygmsh.built_in.Geometry()
-    p0 = geom.add_point([0, 0, 0], lcar=h)
-    p1 = geom.add_point([1, 0, 0], lcar=h)
-    p = geom.add_line(p0, p1)
-    geom.add_physical(p0, label=10000)
-    geom.add_physical(p1, label=10001)
-    geom.add_physical(p, label=1000)
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    if __pygmsh6__:
+        geom = pygmsh.built_in.Geometry()
+        p0 = geom.add_point([0, 0, 0], lcar=h)
+        p1 = geom.add_point([1, 0, 0], lcar=h)
+        p = geom.add_line(p0, p1)
+        geom.add_physical(p0, label=10000)
+        geom.add_physical(p1, label=10001)
+        geom.add_physical(p, label=1000)
+        mesh = pygmsh.generate_mesh(geom, verbose=False)
+    else:
+        with pygmsh.geo.Geometry() as geom:
+            p0 = geom.add_point([0, 0, 0], mesh_size=h)
+            p1 = geom.add_point([1, 0, 0], mesh_size=h)
+            p = geom.add_line(p0, p1)
+            geom.add_physical(p0, label="10000")
+            geom.add_physical(p1, label="10001")
+            geom.add_physical(p, label="1000")
+            mesh = geom.generate_mesh()
+    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ------------------------------------- #
 def unitsquare(h):

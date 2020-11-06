@@ -34,7 +34,7 @@ def meshWithData(**kwargs):
     count=0
     if point_data:
         for pdn, pd in point_data.items():
-            print("print", pdn)
+            # print("print", pdn)
             assert x.shape == pd.shape
             ax.plot(x, pd, label=pdn)
         ax.legend()
