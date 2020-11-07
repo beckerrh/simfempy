@@ -13,6 +13,7 @@ try:
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
+import simfempy.tools.barycentric
 
 
 #=================================================================#
@@ -46,15 +47,18 @@ class P1(object):
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
-        # print("dV", np.where(dV<0.0001))
-        # print("dV", dV[dV<0.00001])
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
+    def interpolate(self, f):
+        x, y, z = self.mesh.points.T
+        # print(f"{x.shape=}")
+        return f(x,y,z)
+    def massDot(self, b, f, coeff=1):
+        massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension, k=2)
+        print(f"{f.shape=} {f[self.mesh.simplices].shape=} {massloc.shape=} {self.mesh.dV.shape=} ")
+        b += np.einsum('n,kl,ln->nkl', coeff*self.mesh.dV, massloc, f[self.mesh.simplices])
     def computeMassMatrix(self, coeff=1):
         nnodes = self.mesh.nnodes
-        scalemass = 1 / self.nloc / (self.nloc+1);
-        massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] *= 2
-
+        massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*self.mesh.dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, bdrycond, bdrycondtype, lumped=False):

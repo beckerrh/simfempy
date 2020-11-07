@@ -37,7 +37,6 @@ class Heat(Application):
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
-            # self.fem = fems.femp1.FemP1()
             self.fem = fems.p1.P1()
         elif fem == 'cr1':
             self.fem = fems.femcr1.FemCR1()
@@ -55,7 +54,6 @@ class Heat(Application):
             if bdrycond.type[color] in ["Robin"]:
                 if not color in bdrycond.param:
                     raise ValueError(f"Robin condition needs paral 'alpha' color={color} bdrycond={bdrycond}")
-
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -87,7 +85,6 @@ class Heat(Application):
                 rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctrobin
-
     def setParameter(self, paramname, param):
         if paramname == "dirichlet_al": self.fem.dirichlet_al = param
         else:
@@ -125,7 +122,11 @@ class Heat(Application):
             raise ValueError("matrix() has to be called befor computeRhs()")
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         b = np.zeros(self.fem.nunknowns())
-        b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
+
+        # b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
+        fp1 = self.fem.interpolate(self.problemdata.rhs)
+        self.fem.massDot(b, fp1)
+
         b = self.fem.computeRhsCell(b, self.problemdata.rhscell)
         b = self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
         # b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])

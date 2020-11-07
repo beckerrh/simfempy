@@ -23,30 +23,6 @@ import simfempy.applications.problemdata
 
 #=================================================================#
 class Application(object):
-    def generatePoblemDataForAnalyticalSolution(self):
-        bdrycond = self.problemdata.bdrycond
-        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
-        print("self.problemdata.solexact", self.problemdata.solexact)
-        self.problemdata.rhs = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
-        if self.ncomp>1:
-            def _solexactdir(x, y, z):
-                return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
-        else:
-            def _solexactdir(x, y, z):
-                return self.problemdata.solexact(x, y, z)
-        for color in self.mesh.bdrylabels:
-            if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
-            if bdrycond.type[color] in ["Dirichlet"]:
-                bdrycond.fct[color] = _solexactdir
-            else:
-                type = bdrycond.type[color]
-                cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
-                # print(f"cmd={cmd}")
-                bdrycond.fct[color] = eval(cmd)
-    def defineAnalyticalSolution(self, exactsolution, random=True):
-        dim = self.mesh.dimension
-        return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
-
     def __init__(self, **kwargs):
         self.linearsolvers=['umf', 'lgmres', 'bicgstab']
         try:
@@ -78,14 +54,35 @@ class Application(object):
         if 'mesh' in kwargs:
             self.mesh = kwargs.pop('mesh')
         self._setMeshCalled = False
-
+    def generatePoblemDataForAnalyticalSolution(self):
+        bdrycond = self.problemdata.bdrycond
+        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
+        print("self.problemdata.solexact", self.problemdata.solexact)
+        self.problemdata.rhs = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
+        if self.ncomp>1:
+            def _solexactdir(x, y, z):
+                return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+        else:
+            def _solexactdir(x, y, z):
+                return self.problemdata.solexact(x, y, z)
+        for color in self.mesh.bdrylabels:
+            if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
+            if bdrycond.type[color] in ["Dirichlet"]:
+                bdrycond.fct[color] = _solexactdir
+            else:
+                type = bdrycond.type[color]
+                cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
+                # print(f"cmd={cmd}")
+                bdrycond.fct[color] = eval(cmd)
+    def defineAnalyticalSolution(self, exactsolution, random=True):
+        dim = self.mesh.dimension
+        return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def setMesh(self, mesh):
         self.mesh = mesh
         self._setMeshCalled = True
         if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
-
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
             xc, yc, zc = self.mesh.pointsc.T
