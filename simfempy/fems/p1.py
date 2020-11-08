@@ -13,6 +13,7 @@ try:
 except ModuleNotFoundError:
     from ..meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
+from ..tools.barycentricmatrix import tensor
 
 
 #=================================================================#
