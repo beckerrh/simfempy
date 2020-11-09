@@ -112,7 +112,7 @@ class Application(object):
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
-        A = self.matrix()
+        A = self.computeMatrix()
         self.timer.add('matrix')
         b, u = self.computeRhs()
         self.timer.add('rhs')

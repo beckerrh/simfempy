@@ -50,47 +50,90 @@ class P1(object):
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     def interpolate(self, f):
         x, y, z = self.mesh.points.T
-        # print(f"{x.shape=}")
-        return f(x,y,z)
+        return f(x, y, z)
+    def interpolateCell(self, f):
+        if isinstance(f, dict):
+            b = np.zeros(self.mesh.ncells)
+            for label, fct in f.items():
+                if fct is None: continue
+                cells = self.mesh.cellsoflabel[label]
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                b[cells] = fct(xc, yc, zc)
+            return b
+        else:
+            xc, yc, zc = self.mesh.pointsc.T
+            return f(xc, yc, zc)
+    def interpolateBoundary(self, colors, f):
+        b = np.zeros(self.mesh.nnodes)
+        for color in colors:
+            if not f[color]: continue
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS,axis=1)
+            normalsS = normalsS/dS[:,np.newaxis]
+            nx, ny, nz = normalsS.T
+            nodes = np.unique(self.mesh.faces[faces].reshape(-1))
+            x, y, z = self.mesh.points[nodes].T
+            # constant normal !!
+            nx, ny, nz = np.mean(normalsS, axis=0)
+            b[nodes] = f[color](x, y, z, nx, ny, nz)
+        return b
+
+    def massDotCell(self, b, f, coeff=1):
+        assert f.shape[0] == self.mesh.ncells
+        dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
+        massloc = simfempy.tools.barycentric.integral(d=dimension)
+        np.add.at(b, simplices, massloc*coeff*dV*f)
+        return b
     def massDot(self, b, f, coeff=1):
-        massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension, k=2)
-        print(f"{f.shape=} {f[self.mesh.simplices].shape=} {massloc.shape=} {self.mesh.dV.shape=} ")
-        b += np.einsum('n,kl,ln->nkl', coeff*self.mesh.dV, massloc, f[self.mesh.simplices])
+        dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
+        massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
+        r = np.einsum('n,kl,nl->nk', coeff*dV, massloc, f[simplices])
+        np.add.at(b, simplices, r)
+        return b
     def computeMassMatrix(self, coeff=1):
-        nnodes = self.mesh.nnodes
-        massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension, k=2)
-        mass = np.einsum('n,kl->nkl', coeff*self.mesh.dV, massloc).ravel()
+        dimension, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
+        massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
+        mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeBdryMassMatrix(self, bdrycond, bdrycondtype, lumped=False):
+    def massDotBoundary(self, b, f, colors, coeff=1, lumped=False):
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            if isinstance(color, (int,float)): scalemass = coeff
+            else: scalemass = coeff[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            nodes = self.mesh.faces[faces]
+            massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
+            r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
+            np.add.at(b, nodes, r)
+        return b
+    def computeBdryMassMatrix(self, colors, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
         mat = np.empty(shape=(0), dtype=float)
-        if lumped:
-            for color, faces in self.mesh.bdrylabels.items():
-                if bdrycond.type[color] != bdrycondtype: continue
-                scalemass = bdrycond.param[color]/ self.mesh.dimension
-                normalsS = self.mesh.normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                nodes = self.mesh.faces[faces]
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            scalemass = coeff[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            nodes = self.mesh.faces[faces]
+            if lumped:
+                scalemass /= self.mesh.dimension
                 rows = np.append(rows, nodes)
                 cols = np.append(cols, nodes)
-                mass = np.repeat(scalemass*dS, self.mesh.dimension)
+                mass = np.repeat(scalemass * dS, self.mesh.dimension)
                 mat = np.append(mat, mass)
-        else:
-            for color, faces in self.mesh.bdrylabels.items():
-                if bdrycond.type[color] != bdrycondtype: continue
-                scalemass = bdrycond.param[color] / (1+self.mesh.dimension)/self.mesh.dimension
-                normalsS = self.mesh.normals[faces]
-                dS = linalg.norm(normalsS, axis=1)
-                nodes = self.mesh.faces[faces]
-                nloc = self.nloc-1
+            else:
+                nloc = self.nloc - 1
                 rows = np.append(rows, np.repeat(nodes, nloc).reshape(-1))
                 cols = np.append(cols, np.tile(nodes, nloc).reshape(-1))
-                massloc = np.tile(scalemass, (nloc, nloc))
-                massloc.reshape((nloc*nloc))[::nloc+1] *= 2
+                massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
+
+
     def matrixDiffusion(self, coeff):
         nnodes = self.mesh.nnodes
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
@@ -229,15 +272,16 @@ class P1(object):
     def tonode(self, u):
         return u
 
-    def computeErrorL2(self, solexact, uh):
+    def computeErrorL2Cell(self, solexact, uh):
         xc, yc, zc = self.mesh.pointsc.T
         ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.simplices], axis=1)
         return np.sqrt(np.sum(ec**2* self.mesh.dV)), ec
 
-    def computeErrorL2Mass(self, solexact, uh, mass):
+    def computeErrorL2Node(self, solexact, uh):
         x, y, z = self.mesh.points.T
         en = solexact(x, y, z) - uh
-        return np.sqrt( np.dot(en, mass*en) ), en
+        Men = np.zeros_like(en)
+        return np.sqrt( np.dot(en, self.massDot(Men,en)) ), en
 
     def computeErrorFluxL2(self, solexact, diffcell, uh):
         xc, yc, zc = self.mesh.pointsc.T

@@ -31,7 +31,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
     data.bdrycond.set("Dirichlet", colors[:])
     data.bdrycond.set("Neumann", colors[0])
     data.bdrycond.set("Robin", colors[1])
-    data.bdrycond.param[colors[1]] = 1.
+    data.bdrycond.param[colors[1]] = 111.
     sims = {}
     for fem in fems:
         for method in methods:
@@ -42,7 +42,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
 if __name__ == '__main__':
     exactsolution = 'Constant'
     exactsolution = 'Linear'
-    # exactsolution = 'Quadratic'
-    test_analytic(exactsolution = exactsolution, geomname = "unitline")
-    # test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
+    exactsolution = 'Quadratic'
+    # test_analytic(exactsolution = exactsolution, geomname = "unitline")
+    test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
     # test_analytic(exactsolution = exactsolution, geomname = "unitcube")

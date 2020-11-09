@@ -80,6 +80,7 @@ class Heat(Application):
             kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape[0])
             normals = nx, ny, nz
+            # print(f"{alpha=}")
             rhs += alpha*solexact(x, y, z)
             for i in range(self.mesh.dimension):
                 rhs += kheat * solexact.d(i, x, y, z) * normals[i]
@@ -106,13 +107,12 @@ class Heat(Application):
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         # self.rhocpcell = self._computearrcell_('rhocp')
 
-    def matrix(self):
+    def computeMatrix(self):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         A = self.fem.matrixDiffusion(self.kheatcell)
-        self.M = self.fem.computeMassMatrix()
         lumped = False
-        self.Arobin = self.fem.computeBdryMassMatrix(bdrycond, bdrycondtype="Robin", lumped=lumped)
-        # print("self.Arobin", self.Arobin)
+        colors = bdrycond.colorsOfType("Robin")
+        self.Arobin = self.fem.computeBdryMassMatrix(colors, bdrycond.param, lumped=lumped)
         A += self.Arobin
         A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
@@ -126,12 +126,25 @@ class Heat(Application):
         # b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
         fp1 = self.fem.interpolate(self.problemdata.rhs)
         self.fem.massDot(b, fp1)
+        if self.problemdata.rhscell:
+            fp1 = self.fem.interpolateCell(self.problemdata.rhscell)
+            self.fem.massDotCell(b, fp1)
 
-        b = self.fem.computeRhsCell(b, self.problemdata.rhscell)
-        b = self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
-        # b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
-        b = self.fem.computeRhsBoundary(b, bdrycond, ["Neumann"])
-        b = self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"],self.Arobin)
+        colors = bdrycond.colorsOfType("Robin")
+        fp1 = self.fem.interpolateBoundary(colors, bdrycond.fct)
+        self.fem.massDotBoundary(b, fp1, colors)
+
+
+        colors = bdrycond.colorsOfType("Neumann")
+        fp1 = self.fem.interpolateBoundary(colors, bdrycond.fct)
+        self.fem.massDotBoundary(b, fp1, colors)
+
+        # self.fem.computeRhsBoundary(b, bdrycond, ["Neumann"])
+        # self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"], self.Arobin)
+
+
+        self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
+        # self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
         b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, method, bdrydata)
         return b,u
 
@@ -149,8 +162,8 @@ class Heat(Application):
         point_data['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
             global_data['error'] = {}
-            global_data['error']['pcL2'], ec = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            global_data['error']['pnL2'], e = self.fem.computeErrorL2Mass(self.problemdata.solexact, u, self.M)
+            global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
             global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             cell_data['E'] = ec
         global_data['postproc'] = {}
