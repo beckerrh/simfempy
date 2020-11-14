@@ -57,10 +57,28 @@ a(u,v) =& -\frac12\int_{\Omega} u  \beta\cdot\nabla v + \frac12 \int_{\Omega}\di
 \subsection{$\Pspace^1_h(\Omega)$}\label{subsec:}
 %-------------------------------------------------------------------------
 %
-\newcommand{\xKup}{x_K^{\rm up}}
 %
-Let $K\in\Cells_h$, $\beta_K=\pi_K\beta$, $x_K$ be the barycenter of $K$ and $\xKup\in\partial K$ such that 
-$x_K - \xKup$ is aligned with $\beta_K$.
+Let $K\in\Cells_h$, $\beta_K=\pi_K\beta$, $x_K$ be the barycenter of $K$ and $\xup\in\partial K$ such that  with 
+$\delta_K\ge0$
+%
+\begin{equation}\label{eq:}
+\xup = x_K + \delta_K \beta_K
+\end{equation}
+%
+If we know $\transpose{\normal[i]}\beta_K$, we can compute $\xup$ as follows.
+%
+\begin{align*}
+\lambda_i(\xup) = \lambda_i(x_K) + \delta_K \transpose{\nabla\lambda_i}\beta_K
+= \frac{1}{d+1} - \delta_K \frac{\transpose{\normal[i]}\beta_K}{h_i}
+\end{align*}
+%
+It follows that
+%
+\begin{equation}\label{eq:}
+\delta_K = \max\SetDef{\frac{\left(\transpose{\normal[i]}\beta_K\right)^+}{3h_i}}{0\le i\le d}.
+\end{equation}
+%
+
 
 %==========================================
 \printbibliography[title=References Section~\thesection]
