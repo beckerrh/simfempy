@@ -2,7 +2,6 @@ import sys
 from os import path
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
-import simfempy
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.heat import Heat
 

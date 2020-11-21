@@ -3,12 +3,12 @@ from simfempy import fems
 from simfempy.applications.application import Application
 
 #=================================================================#
-class Heat(Application):
+class Transport(Application):
     """
-    Class for the (stationary) heat equation
+    Class for the (stationary) transport equation
     $$
-    -\div(kheat \nabla u) = f         domain
-    kheat\nabla\cdot n + alpha u = g  bdry
+    alpha u + \div(beta u) = f   domain
+    beta\cdot n = g              bdry
     $$
     After initialization, the function setMesh(mesh) has to be called
     Then, solve() solves the stationary problem
@@ -18,18 +18,9 @@ class Heat(Application):
         method
         plotk
     Paramaters used from problemdata:
-        rhocp
-        kheat
-        reaction
-        alpha
-        they can either be given as global constant, cell-wise constants, or global function
-        - global constant is taken from problemdata.paramglobal
-        - cell-wise constants are taken from problemdata.paramcells
-        - problemdata.paramglobal is taken from problemdata.datafct and are called with arguments (color, xc, yc, zc)
+        alpha : global constant from problemdata.paramglobal
+        beta : RT0 field
     Possible parameters for computaion of postprocess:
-        errors
-        bdry_mean: computes mean temperature over boundary parts according to given color
-        bdry_nflux: computes mean normal flux over boundary parts according to given color
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -49,12 +40,6 @@ class Heat(Application):
             self.method="trad"
     def _checkProblemData(self):
         self.problemdata.check(self.mesh)
-        bdrycond = self.problemdata.bdrycond
-        for color in self.mesh.bdrylabels:
-            if not color in bdrycond.type: raise ValueError(f"color={color} not in bdrycond={bdrycond}")
-            if bdrycond.type[color] in ["Robin"]:
-                if not color in bdrycond.param:
-                    raise ValueError(f"Robin condition needs paral 'alpha' color={color} bdrycond={bdrycond}")
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -150,43 +135,35 @@ class Heat(Application):
         return b,u
 
 
-    def residualNewton(self, u):
-        if not hasattr(self, 'du'): self.du = np.empty_like(u)
-        self.du[:] = 0
-        self.fem.formDiffusion(self.du, u, self.kheatcell)
-        self.du -= self.b
-        self.du = self.vectorDirichletZero(self.du, self.bdrydata)
-        return self.du
-
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        point_data['U'] = self.fem.tonode(u)
-        if self.problemdata.solexact:
-            global_data['error'] = {}
-            global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
-            global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
-            cell_data['E'] = ec
-        global_data['postproc'] = {}
-        if self.problemdata.postproc:
-            types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
-            for name, type in self.problemdata.postproc.type.items():
-                colors = self.problemdata.postproc.colors(name)
-                if type == types[0]:
-                    global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
-                elif type == types[1]:
-                    global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
-                elif type == types[2]:
-                    global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
-                elif type == types[3]:
-                    global_data['postproc'][name] = self.fem.computePointValues(u, colors)
-                elif type == types[4]:
-                    global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
-                else:
-                    raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-        if self.kheatcell.shape[0] != self.mesh.ncells:
-            raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
-        cell_data['k'] = self.kheatcell
+        # point_data['U'] = self.fem.tonode(u)
+        # if self.problemdata.solexact:
+        #     global_data['error'] = {}
+        #     global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+        #     global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+        #     global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
+        #     cell_data['E'] = ec
+        # global_data['postproc'] = {}
+        # if self.problemdata.postproc:
+        #     types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
+        #     for name, type in self.problemdata.postproc.type.items():
+        #         colors = self.problemdata.postproc.colors(name)
+        #         if type == types[0]:
+        #             global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
+        #         elif type == types[1]:
+        #             global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
+        #         elif type == types[2]:
+        #             global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
+        #         elif type == types[3]:
+        #             global_data['postproc'][name] = self.fem.computePointValues(u, colors)
+        #         elif type == types[4]:
+        #             global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
+        #         else:
+        #             raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
+        # if self.kheatcell.shape[0] != self.mesh.ncells:
+        #     raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
+        # cell_data['k'] = self.kheatcell
         return point_data, side_data, cell_data, global_data
 
 

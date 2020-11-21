@@ -8,10 +8,7 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-try:
-    from simfempy.meshes.simplexmesh import SimplexMesh
-except ModuleNotFoundError:
-    from ..meshes.simplexmesh import SimplexMesh
+from ..meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
 import simfempy.tools.barycentric
 

@@ -109,8 +109,8 @@ class SimplexMesh(object):
         # print(f"{cellsoflabel=}")
         self.cellsoflabel = cellsoflabel[self.simplicesname]
         self.verticesoflabel = {}
-        if self.dimension > 1:
-            self.verticesoflabel = cellsoflabel['vertex']
+        if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
+        print(f"{self.verticesoflabel=}")
         # bdry faces
         # for key, cellblock in cells:
         #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock

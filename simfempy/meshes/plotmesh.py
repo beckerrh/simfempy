@@ -15,13 +15,13 @@ def _getDim(meshdata):
 #=================================================================#
 def plotmesh(mesh, **kwargs):
     dim, meshdataismesh = _getDim(mesh)
-    if dim==1:
-        plotmesh1d.plotmesh(mesh, **kwargs)
+    if dim == 1:
+        plotmesh1d.plotmesh(mesh=mesh, **kwargs)
     elif dim == 2:
-        plotmesh2d.plotmesh(mesh, **kwargs)
+        plotmesh2d.plotmesh(mesh=mesh, **kwargs)
     else:
-        plotmesh3d.plotmesh(mesh, **kwargs)
-    if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
+        plotmesh3d.plotmesh(mesh=mesh, **kwargs)
+    # if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
 
 #=================================================================#
 def meshWithBoundaries(meshdata, ax=plt):

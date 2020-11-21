@@ -63,14 +63,20 @@ def _plotNormalsAndSigma(xc, yc, xf, yf, normals, sidesofcells, sigma, ax=plt):
                         r'%d' % (s), color='y', fontweight='bold')
 
 #=================================================================#
-def plotmesh(mesh, **kwargs):
+def plotmesh(**kwargs):
     if 'ax' in kwargs: ax = kwargs.pop('ax')
     else: ax = plt
     title = 'Mesh'
     if 'title' in kwargs: title = kwargs.pop('title')
-    x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
-    ax.triplot(x, y, tris, color='k')
-    if ax ==plt:
+    alpha = 1
+    if 'alpha' in kwargs: alpha = kwargs.pop('alpha')
+    if 'mesh' in kwargs:
+        mesh = kwargs.pop('mesh')
+        x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+    else:
+        x, y, tris = kwargs.pop('x'), kwargs.pop('y'), kwargs.pop('tris')
+    ax.triplot(x, y, tris, color='k', alpha=0.5)
+    if ax == plt:
         plt.gca().set_aspect(aspect='equal')
         ax.xlabel(r'x')
         ax.ylabel(r'y')
@@ -78,18 +84,18 @@ def plotmesh(mesh, **kwargs):
         ax.set_aspect(aspect='equal')
         ax.set_xlabel(r'x')
         ax.set_ylabel(r'y')
-    celllabels = mesh.cell_labels
-    cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-    clb = plt.colorbar(cnt)
-    clb.set_label("cellcolors")
-    if len(mesh.verticesoflabel):
-        pltcolors = 'bgrcmykbgrcmyk'
-        patches = []
-        for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
-            patches.append(mpatches.Patch(color=pltcolors[i], label=color))
-            for vertex in vertices:
-                ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
-        ax.legend(handles=patches)
+    # celllabels = mesh.celllabels
+    # cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+    # clb = plt.colorbar(cnt)
+    # clb.set_label("cellcolors")
+    # if len(mesh.verticesoflabel):
+    #     pltcolors = 'bgrcmykbgrcmyk'
+    #     patches = []
+    #     for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
+    #         patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+    #         for vertex in vertices:
+    #             ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
+    #     ax.legend(handles=patches)
     _settitle(ax, title)
 
 
@@ -199,7 +205,6 @@ def mesh(x, y, tris, **kwargs):
         _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
         _plotFaces(x, y, xf, yf, meshsides, ax=ax)
         _plotNormalsAndSigma(xc, yc, xf, yf, meshnormals, sidesofcells, meshsigma, ax=ax)
-
     _settitle(ax, title)
 
 #=================================================================#
@@ -221,6 +226,8 @@ def meshWithData(**kwargs):
     if 'data' in kwargs:
         point_data = kwargs['data']['point']
         cell_data = kwargs['data']['cell']
+    if 'point_data' in kwargs: point_data = kwargs['point_data']
+    if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
     if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
     if 'numbering' in kwargs: numbering = kwargs['numbering']
     if 'title' in kwargs: title = kwargs['title']
@@ -232,8 +239,7 @@ def meshWithData(**kwargs):
     if quiver_cell_data: nplots += len(quiver_cell_data)
     nplots += len(addplots)
     if nplots==0:
-        print("meshWithData() no point_data")
-        return
+        raise ValueError("meshWithData(): no data")
     ncols = min(nplots,3)
     nrows = nplots//3 + bool(nplots%3)
     # print("nrows, ncols", nrows, ncols)
@@ -275,7 +281,8 @@ def meshWithData(**kwargs):
         for cdn, cd in quiver_cell_data.items():
             ax = axs[count//ncols,count%ncols]
             ax.set_aspect(aspect='equal')
-            ax.quiver(xc,yc, cd[0], cd[1], units='xy')
+            if 'plotmesh' in kwargs and kwargs['plotmesh']: plotmesh(x=x, y=y, tris=tris, ax=ax, alpha=0.3)
+            ax.quiver(xc, yc, cd[0], cd[1], units='xy')
             count += 1
 
     for addplot in addplots:
