@@ -1,0 +1,30 @@
+% !TEX root = ../simfempy.tex
+%
+%==========================================
+\section{Python implementation}\label{sec:}
+%==========================================
+%
+We suppose to have a \pythondef{class} \python{SimplexMesh} contaning the following elements
+\begin{lstlisting}
+class SimplexMesh():
+  dimension, nnodes, ncells, nfaces
+  simplices # np.array((ncells, dimension+1))
+  faces     # np.array((nfaces, dimension))
+  points, pointsc, pointsf # np.array((nnodes,3)), np.array((ncells,3)), np.array((nfaces,3))
+  normals, sigma   # np.array((nfaces,dimension)), np.array((ncells, dimension+1))
+  dV               # np.array((ncells))
+  bdrylabels       # dictionary(keys: colors, values: id's of boundary faces)
+\end{lstlisting}
+%
+The norm of the 'normals' $\widetilde{\normal}$ is the measure of of the face
+%
+\begin{align*}
+\widetilde{\normal[i]} = \abs{S_i} \normal[i]
+\end{align*}
+%
+%
+%
+%==========================================
+\printbibliography[title=References Section~\thesection]
+%==========================================
+

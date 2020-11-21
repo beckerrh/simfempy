@@ -1,19 +1,91 @@
 % !TEX root = simfempy.tex
 %
+%----------------------------------------------
+\usepackage[many,breakable,skins]{tcolorbox}
+\usepackage{marginnote}
+\usepackage{xcolor}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,latexsym}
+%\usepackage[top=Bcm, bottom=Hcm, outer=Ccm, inner=Acm, heightrounded, marginparwidth=Ecm, marginparsep=Dcm]{geometry}
 %
+%----------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{eulervm,palatino}
+%----------------------------------------------
+%
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage[french,algoruled,lined]{algorithm2e}
+\usepackage{listings}
+\usepackage[many,breakable]{tcolorbox}
+\usepackage{cancel}
+\usepackage[toc,page]{appendix}
+\usepackage{stmaryrd}
+%---------------------------------------------------------
+\newcommand{\margincomment}[2][0cm]{\marginnote{\textcolor{blue}{#2}}[#1]}
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+  \node[shape=circle,draw,inner sep=1pt] (char) {#1};}}
+%---------------------------------------------------------
+\usepackage{thmtools}
+\renewcommand\thmcontinues[1]{continued}
+\declaretheorem[style=definition,numberwithin=section]{example}
+\declaretheorem[style=remark,numberwithin=section]{remark}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{theorem}{Theorem}[section]
+%\newtheorem{remark}{Remark}[section]
+\newtheorem{corollary}{Corollary}[section]
+\numberwithin{equation}{section}
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+%---------------------------------------------------------
+\newenvironment{uglyproof}{\begin{proof}\color{gray}}{\end{proof}}
+%
+%----------------------------------------
+\usepackage[backend=biber, bibencoding=utf8, defernumbers=true, refsection=section, giveninits=true, doi=false,isbn=false,url=false]{biblatex}
+\addbibresource{/Users/becker/Latex/Bibliotheque/bibliotheque.bib}
+
+%----------------------------------------
+\definecolor{myyellow}{rgb}{0.9, 0.9, 0.01}
 \definecolor{myblue}{rgb}{0.004, 0.1, 0.57}
 \definecolor{myred}{rgb}{0.58, 0.066, 0.}
 \definecolor{mygreen}{rgb}{0.24, 0.55, 0.15}
 \definecolor{mygray}{rgb}{0.28, 0.28, 0.28}
 \definecolor{myviolet}{rgb}{0.3, 0.1, 0.4}
-\definecolor{myyellowlight}{rgb}{0.9, 0.9, 0.8}
-%
+\definecolor{myorange}{rgb}{0.4654205607476635, 0.33271028037383177, 0.20186915887850468}
 \newcommand{\blue}[1]{\textcolor{myblue}{#1}}
 \newcommand{\red}[1]{\textcolor{myred}{#1}}
 \newcommand{\green}[1]{\textcolor{mygreen}{#1}}
 \newcommand{\gray}[1]{\textcolor{mygray}{#1}}
 \newcommand{\violet}[1]{\textcolor{myviolet}{#1}}
-\newenvironment{yellow}[1][]{\begin{tcolorbox}[title=#1,boxrule=2pt, colback=myyellowlight]}{\end{tcolorbox}}
+\definecolor{greenlight}{rgb}{0.95,1,0.95}
+\definecolor{bluelight}{rgb}{0.9,0.9,1}
+\definecolor{graylighy}{rgb}{0.975,0.975,0.975}
+\definecolor{yellowlight}{rgb}{0.999, 0.999, 0.85}
+\newenvironment{yellowbox}[1][]{\begin{tcolorbox}[title={#1} , boxrule=2pt, colback=yellowlight]}{\end{tcolorbox}}
+%-------PYTHON--------------------
+\usepackage{listings}
+%\usepackage{fontspec}
+%\newfontfamily\listingsfont[Scale=.7]{DejaVu Sans Mono}
+\lstset{ 
+  backgroundcolor=\color{graylighy},
+  basicstyle=\linespread{0.8}\ttfamily,
+%  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  commentstyle=\color{mygreen},
+  deletekeywords={...},
+  escapeinside={\%*}{*)},
+  frame=single,
+  showstringspaces=false,
+  language=Python,
+  keywordstyle = \color{myblue}
+}
+\newcommand{\python}[1]{\textcolor{myblue}{\textbf{\tt{#1}}}}
+\newcommand{\pythonvar}[1]{\textcolor{mygreen}{\textbf{\tt{#1}}}}
+\newcommand{\pythonkey}[1]{\textcolor{myviolet}{\textbf{\tt{#1}}}}
+\newcommand{\pythondef}[1]{\textcolor{myorange}{\textbf{\tt{#1}}}}
 %
 %----------------------------------------
 % Spaces
@@ -136,6 +208,7 @@
 \newcommand{\dpfrac}[3][\partial]{\frac{#1 #2}{#1 #3}} 
 \newcommand{\dn}[1]{\dpfrac{#1}{n}} 
 \newcommand{\dt}[1]{\dpfrac{#1}{t}} 
+\newcommand{\dx}[1]{\dpfrac{#1}{x}} 
 \newcommand{\ddt}[1]{\frac{d^2 #1}{dt^2}}
 \renewcommand{\div}{\operatorname{div}}
 \newcommand{\grad}{\operatorname{grad}}

@@ -1,64 +1,11 @@
 %----------------------------------------
 \documentclass[english,11pt]{article}
 %----------------------------------------
-\usepackage{marginnote}
-\usepackage{xcolor}
-\usepackage[a4paper,margin=2.4cm]{geometry}
-%\usepackage[top=Bcm, bottom=Hcm, outer=Ccm, inner=Acm, heightrounded, marginparwidth=Ecm, marginparsep=Dcm]{geometry}
-\usepackage{ifluatex}
-%
-\usepackage{amsmath,amssymb,amsthm,latexsym}
-%
-%----------------------------------------------
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[english]{babel}
-\usepackage{eulervm,palatino}
-%----------------------------------------------
-%
-\usepackage{hyperref}
-\usepackage{url}
-\usepackage[french,algoruled,lined]{algorithm2e}
-\usepackage{listings}
-\usepackage[many,breakable]{tcolorbox}
-\usepackage{cancel}
-\usepackage[toc,page]{appendix}
-\usepackage{stmaryrd}
 
-%
-%----------------------------------------
-%\usepackage[sorting=none, firstinits=true]{biblatex}
-\usepackage[backend=biber, bibencoding=utf8, defernumbers=true, refsection=section, firstinits=true, doi=false,isbn=false,url=false]{biblatex}
-\addbibresource{/Users/becker/Latex/Bibliotheque/bibliotheque.bib}
-
-%----------------------------------------
-\usepackage{enumitem}
-%\setlist[enumerate]{label*=\alph*),ref=\alph*}
-\setlist[itemize]{label*=\textbullet}
-%----------------------------------------
-
+%====================================================
 \input{macros.tex}
-\newcommand{\margincomment}[2][0cm]{\marginnote{\textcolor{blue}{#2}}[#1]}
+%====================================================
 
-\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
-  \node[shape=circle,draw,inner sep=1pt] (char) {#1};}}
-
-
-%---------------------------------------------------------
-\usepackage{thmtools}
-\renewcommand\thmcontinues[1]{continued}
-\declaretheorem[style=definition,numberwithin=section]{example}
-\declaretheorem[style=remark,numberwithin=section]{remark}
-\newtheorem{definition}{Definition}[section]
-\newtheorem{proposition}{Proposition}[section]
-\newtheorem{lemma}{Lemma}[section]
-\newtheorem{theorem}{Theorem}[section]
-%\newtheorem{remark}{Remark}[section]
-\newtheorem{corollary}{Corollary}[section]
-\numberwithin{equation}{section}
-\renewcommand{\thefigure}{\thesection.\arabic{figure}}
-%---------------------------------------------------------
-\newenvironment{uglyproof}{\begin{proof}\color{gray}}{\end{proof}}
 
 \title{Simple finite element methods in {Python}}
 \author{Roland Becker}
@@ -70,6 +17,7 @@
 chap/heat,
 chap/fem,
 chap/transport,
+chap/python,
 }
 %====================================================
 
@@ -87,18 +35,9 @@ chap/transport,
 %\begin{appendices}
 \include{chap/fem}
 \include{chap/transport}
+\include{chap/python}
 %\end{appendices}
 %====================================================
-
-
-
-
-
-
-
-
-
-
 
 
 %====================================================

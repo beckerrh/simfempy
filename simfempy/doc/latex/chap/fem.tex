@@ -38,21 +38,21 @@ $x=\sum_{i=0}^d \lambda_i x_i$ ($\sum_{i=0}^d\lambda_i=1$) and can be expressed 
 Any polynomial in the barycentric coordinates can be integrated exactly. For $\alpha\in\N_0^{d+1}$ we 
 let $\alpha! = \prod_{i=0}^d \alpha_i!$, $\abs{\alpha}=\sum_{i=0}^d\alpha_i$, and $\lambda^{\alpha} = \prod_{i=0}^d \lambda_i^{\alpha_i}$
 %
-\begin{yellow}[Integration on $K$]
+\begin{yellowbox}[Integration on $K$]
 \begin{equation}\label{eq:IntegrationFormulaBary}
 \int_K \lambda^{\alpha} =|K|\frac{ d!\alpha!}{\left( \abs{\alpha} + d\right)!}
 %\int_K \prod_{i=1}^{d+1}\lambda_i^{n_i} \,dv = d!|K|\frac{\prod\limits_{i=1}^{d+1} n_i!}{\left( \sum\limits_{i=1}^{d+1} n_i + d\right)!}
 \end{equation}
-\end{yellow}
+\end{yellowbox}
 %
 see \cite{EisenbergMalvern73}, \cite{VermolenSegal18}.
 %
 %
-\begin{yellow}[Gradient of $\lambda_i$]
+\begin{yellowbox}[Gradient of $\lambda_i$]
 \begin{align*}
 \nabla \lambda_i = - \frac{1}{h_i}\vec{n_i}. 
 \end{align*}
-\end{yellow}
+\end{yellowbox}
 %
 %
 %-------------------------------------------------------------------------
@@ -88,11 +88,11 @@ For $k\in\N_0$ we denote by $\Cspace_h^k(\Omega)$ the space of piecewise $k$-tim
 We have $\Pspace^1_h(\Omega)= \Dspace_h^1(\Omega)\cap C(\overline{\Omega})$, but the FEM definition also provides a basis.
 The restrictions of the basis functions of $\Pspace^1_h(\Omega)$ to the simplex $K$ are the barycentric coordinates $\lambda_S^K$ associated to the node opposite to $S$ in $K$.
 %
-\begin{yellow}[Formulae for $\Pspace^1_h(\Omega)$]
+\begin{yellowbox}[Formulae for $\Pspace^1_h(\Omega)$]
 \begin{equation}\label{eq:}
 \nabla \lambda_S^K = -\frac{\sigma_{S}^K}{h_S^K}n_S,\quad \frac{1}{|K|}\int_K \lambda_S^K = \frac{1}{d+1}.
 \end{equation}
-\end{yellow}%
+\end{yellowbox}%
 %
 For the computation of matrices we use (\ref{eq:IntegrationFormulaBary}), for example for $i,j\in  \llbracket 0, d \rrbracket$
 %
@@ -134,12 +134,12 @@ More generally, we have for $i_l\in  \llbracket 0, d \rrbracket$ with $1\le l\le
 
 Denote in addition the basis of $\CR^1_h(\Omega)$ by $\psi_S$, we have
 %
-\begin{yellow}[Formulae for $\CR^1_h$]
+\begin{yellowbox}[Formulae for $\CR^1_h$]
 \begin{equation}\label{eq:}
 \Rest{\psi_S}{K} = 1- d \lambda_S^K, \quad \nabla \Rest{\psi_S}{K} =
 \frac{|S|\sigma_{S}^K}{|K|}n_S,\quad \frac{1}{|K|}\int_K \psi_S = \frac{1}{d+1}.
 \end{equation}
-\end{yellow}%
+\end{yellowbox}%
 %
 
 
@@ -159,12 +159,19 @@ where $X^k_h:=\SetDef{xp}{\Rest{p}{K}\in \Phom(K)\; \forall K\in\Cells_h}$ with 
 
 Then the Raviart-Thomas basis function of lowest order is given by
 %
-\begin{yellow}[Formulae for $\RT^0$]
+\begin{yellowbox}[Formulae for $\RT^0$]
 \begin{equation}\label{eq:BasisFctRt}
 \Rest{\Phi_S}{K} := \sigma_{S}^K \frac{x-x_S^K}{h_S^K},\quad 
-\int_K \div \Rest{\Phi_S}{K} = \sigma_{S}^K \frac{d|K|}{h_S^K}=  \sigma_{S}^K|S|,\quad \frac{1}{|K|}\int_K \Phi_S = \sigma_{S}^K\frac{x_K^* - x_S^K}{h_S^K}.
+\int_K \div \Rest{\Phi_S}{K} = \sigma_{S}^K \frac{d|K|}{h_S^K}=  \sigma_{S}^K|S|,\quad \frac{1}{|K|}\int_K \Phi_S = \sigma_{S}^K\frac{x_K - x_S^K}{h_S^K}.
 \end{equation}
-\end{yellow}%
+\end{yellowbox}
+%
+For the projection on $\Dspace_h^0(\Omega,\R^d)$ we have 
+%
+\begin{align*}
+\sum_{i=1}^d v_i \frac{1}{\abs{K}}\int_K \Phi_i(x)
+\end{align*}
+%
 
 %
 
