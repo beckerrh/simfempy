@@ -16,11 +16,19 @@ We consider an arbitrary non-degenerate simplex $K=(x_0,x_1,\ldots, x_{d})$. The
 \end{equation}
 %
 The $d+1$ sides $S_k$ (co-dimension one, $d-1$-simplices or facets) are defined by
-$S_k=(x_0,\ldots, \cancel{x_k}, \ldots, x_{d})$. The height is $h_k=|P_{S_k}x_k - x_k|$, where $P_S$ is the orthogonal projection on the hyperplane associated to $S_k$. We have
+$S_k=(x_0,\ldots, \cancel{x_k}, \ldots, x_{d})$. The height is $h_k=|P_{S_k}x_k - x_k|$, where $P_S$ is the orthogonal projection on the hyperplane associated to $S_k$. We have $P_{S_k}x_k = x_k + h_k\normal[k]$ and $S_k = \SetDef{x\in\R^d}{\transpose{\normal[k]}x=h_k}$ and
 %
 \begin{align*}
-h_k = d\frac{|K|}{|S_k|}, \quad d\abs{K}=\int_K\div(x)= \sum_{i=0}^d \int_{S_i}x\cdot \normal[i]
+0 = \int_K\div(\vec{c})= \sum_{i=0}^d \int_{S_i}\vec{c}\cdot \normal[i] = \vec{c}\cdot \sum_{i=0}^d \abs{S_i} \normal[i]\quad\Rightarrow\quad \sum_{i=0}^d \abs{S_i} \normal[i]=0\\
+d\abs{K}=\int_K\div(x)= \sum_{i=0}^d \int_{S_i}x\cdot \normal[i] = \sum_{i=0}^d\abs{S_i}h_i
 \end{align*}
+%
+%
+\begin{yellowbox}[Height formula]
+\begin{align*}
+h_k = d\frac{|K|}{|S_k|}
+\end{align*}
+\end{yellowbox}
 %
 %
 %-------------------------------------------------------------------------
@@ -166,13 +174,15 @@ Then the Raviart-Thomas basis function of lowest order is given by
 \end{equation}
 \end{yellowbox}
 %
-For the projection on $\Dspace_h^0(\Omega,\R^d)$ we have 
+For the \python{pyhon} implementation of the projection on $\Dspace_h^0(\Omega,\R^d)$ we have with the height formula
 %
 \begin{align*}
-\sum_{i=1}^d v_i \frac{1}{\abs{K}}\int_K \Phi_i(x)
+\Rest{\pi_h(\vec{v})}{K} =  \sum_{i=1}^d v_i \frac{1}{\abs{K}}\int_K \Phi_i(x) =  \sum_{i=1}^d v_i \sigma_{i}^K(x_K - x_{S_i})\frac{\abs{S_i}}{d\abs{K}}
 \end{align*}
 %
-
+The \python{pyhon} implementation reads
+\begin{lstlisting}
+\end{lstlisting}
 %
 
 %==========================================

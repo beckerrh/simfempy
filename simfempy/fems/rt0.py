@@ -9,55 +9,50 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
+from . import fem
 
 #=================================================================#
-class RT0(object):
+class RT0(fem.Fem):
     """
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """
     def __init__(self, mesh=None, massproj=None):
-        if mesh is not None: self.setMesh(mesh)
+        super().__init__(mesh)
         self.massproj=massproj
     def setMesh(self, mesh):
-        self.mesh = mesh
-        self.nloc = self.mesh.dimension+1
+        super().setMesh(mesh)
         self.Mtocell = self.toCellMatrix()
     def interpolate(self, f):
         dim = self.mesh.dimension
         nfaces, normals = self.mesh.nfaces, self.mesh.normals[:,:dim]
-        # print(f"{normals.shape} ")
-        # print(f"{linalg.norm(normals, axis=1).shape}")
-        normals /= linalg.norm(normals, axis=1)[:,np.newaxis]
+        nnormals = normals/linalg.norm(normals, axis=1)[:,np.newaxis]
+        # print(f"{normals=} ")
         if len(f) != self.mesh.dimension: raise TypeError(f"f needs {dim} components")
         xf, yf, zf = self.mesh.pointsf.T
         fa = np.array([f[i](xf,yf,zf) for i in range(dim)])
-        return np.einsum('ni, in -> n', normals, fa)
+        return np.einsum('ni, in -> n', nnormals, fa)
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
+        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
         dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
-        ps = p[simp][:,:,:dim]
-        ps2 = np.transpose(ps, axes=(2,0,1))
-        pc2 = np.repeat(pc[:,:dim].T[:, :, np.newaxis], nloc, axis=2)
-        pd = pc2 -ps2
-        print(f"{dS.shape=} {nfaces=}")
-        mat = np.einsum('ni, jni, n->jni', dS, pd, 1/dV)
-        rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),nloc)
+        mat = np.einsum('ni, nij, n->jni', dS, pc[:,np.newaxis,:dim]-p[simp,:dim], 1/dV)
+        rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),dim+1)
         cols = np.tile(facesofcells.ravel(), dim)
         return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
     def toCell(self, v):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
-        dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
-        ps = p[simp][:,:,:dim]
-        ps2 = np.transpose(ps, axes=(2,0,1))
-        pc2 = np.repeat(pc[:,:dim].T[:, :, np.newaxis], nloc, axis=2)
-        pd = pc2 -ps2
-        print(f"{dS.shape=} {nfaces=} {pd.shape} {v[facesofcells].shape}")
-        b = np.einsum('ni, jni, n, ni -> nj', dS, pd, 1/dV, v[facesofcells])
-        c = self.Mtocell.dot(v).reshape((ncells, dim))
-        if not np.allclose(b, c): raise ValueError(f"WRONG\n{b=}\n{c=}")
-        return self.Mtocell.dot(v)
+        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
+        dS2 = linalg.norm(normals, axis=1)
+        sigma2 = sigma/dV[:,np.newaxis]/dim
+        # b = np.zeros((ncells, dim))
+        # for n in range(ncells):
+        #     for i in range(dim+1):
+        #         l = facesofcells[n,i]
+        #         m = simp[n,i]
+        #         for j in range(dim):
+        #             d[n,j] += v[l] *sigma2[n,i]* (pc[n,j]-p[m,j])*dS2[l]
+        # return b
+        return np.einsum('ni,ni,nij,ni -> nj', v[facesofcells], sigma2, pc[:,np.newaxis,:dim]-p[simp,:dim], dS2[facesofcells])
     def constructMass(self, diffinvcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.simplices

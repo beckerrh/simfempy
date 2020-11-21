@@ -11,19 +11,20 @@ import scipy.sparse as sparse
 from ..meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
 import simfempy.tools.barycentric
+from . import fem
 
 
 #=================================================================#
-class P1(object):
+class P1(fem.Fem):
     def __init__(self, mesh=None):
-        if mesh is not None: self.setMesh(mesh)
+        super().__init__(mesh)
         self.dirichlet_al = 10
     def setMesh(self, mesh):
-        self.mesh = mesh
-        self.nloc = self.mesh.dimension+1
+        super().setMesh(mesh)
+        nloc = self.mesh.dimension+1
         simps = self.mesh.simplices
-        self.cols = np.tile(simps, self.nloc).reshape(-1)
-        self.rows = np.repeat(simps, self.nloc).reshape(-1)
+        self.cols = np.tile(simps, nloc).reshape(-1)
+        self.rows = np.repeat(simps, nloc).reshape(-1)
         self.cellgrads = self.computeCellGrads()
     def nunknowns(self): return self.mesh.nnodes
     def prepareBoundary(self, colorsdir, colorsflux):
@@ -123,15 +124,17 @@ class P1(object):
                 mass = np.repeat(scalemass * dS, self.mesh.dimension)
                 mat = np.append(mat, mass)
             else:
-                nloc = self.nloc - 1
+                nloc = self.mesh.dimension
                 rows = np.append(rows, np.repeat(nodes, nloc).reshape(-1))
                 cols = np.append(cols, np.tile(nodes, nloc).reshape(-1))
                 massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
+    def comptuteMatrixTransport(self, beta, xd):
+        if beta.shape != (self.mesh.nfaces): raise TypeError(f"beta has wrong dimension {beta.shape=}")
+        if xd.shape != (self.mesh.ncells, self.mesh.dimension): raise TypeError(f"xd has wrong dimension {xd.shape=}")
 
-
-    def matrixDiffusion(self, coeff):
+    def computematrixDiffusion(self, coeff):
         nnodes = self.mesh.nnodes
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])

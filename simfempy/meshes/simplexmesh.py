@@ -27,7 +27,7 @@ class SimplexMesh(object):
     faces: node ids of faces of shape (nfaces, dimension)
 
     facesOfCells: shape (ncells, dimension+1): contains simplices[i,:]-setminus simplices[i,ii], sorted
-    cellsOfFaces: shape (nfaces, dimension): cellsOfFaces[i,1]=-1 if boundary
+    cellsOfFaces: shape (nfaces, 2): cellsOfFaces[i,1]=-1 if boundary
 
     normals: normal per face of length dS, oriented from  ids of faces of shape (nfaces, dimension)
              normals on boundary are external
