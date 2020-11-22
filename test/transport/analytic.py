@@ -21,5 +21,5 @@ if __name__ == '__main__':
     xd = rt.downWind(beta)
     axs[0,0].plot(xd[:,0], xd[:,1], 'xr')
     p1 = P1(mesh)
-    A = p1.comptuteMatrixTransport(beta, xd)
+    A = p1.comptuteMatrixTransport(beta, betaC, xd)
     plt.show()
