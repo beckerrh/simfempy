@@ -7,7 +7,7 @@ from simfempy.fems.p1 import P1
 
 #================================================================#
 if __name__ == '__main__':
-    mesh = testmeshes.unitsquare(0.5)
+    mesh = testmeshes.unitsquare(1.5)
     dim = mesh.dimension
     rt = RT0(mesh)
     # beta = rt.interpolate([AnalyticalSolution(expr="-y"),AnalyticalSolution(expr="x")])
@@ -18,8 +18,8 @@ if __name__ == '__main__':
     # celldata = {f"beta{i}":betaC[i::dim] for i in range(dim)}
     celldata = {f"beta": [betaC[:,i] for i in range(dim)]}
     fig, axs = plotmesh.meshWithData(mesh, quiver_cell_data=celldata, plotmesh=True)
-    xd = rt.downWind(beta)
+    xd, ld = rt.downWind(beta)
     axs[0,0].plot(xd[:,0], xd[:,1], 'xr')
     p1 = P1(mesh)
-    A = p1.comptuteMatrixTransport(beta, betaC, xd)
+    A = p1.comptuteMatrixTransport(beta, betaC, ld)
     plt.show()

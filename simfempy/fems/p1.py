@@ -130,15 +130,17 @@ class P1(fem.Fem):
                 massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-    def comptuteMatrixTransport(self, beta, betaC, xd):
+    def comptuteMatrixTransport(self, beta, betaC, ld):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
-        if xd.shape != (ncells, 3): raise TypeError(f"xd has wrong dimension {xd.shape=}")
+        if ld.shape != (ncells, dim+1): raise TypeError(f"xd has wrong dimension {xd.shape=}")
         nlocal = dim+1
         fofc = self.mesh.facesOfCells
         mat = np.zeros((ncells,nlocal,nlocal))
-        for k in range(ncells):
-            mat[k] = betaC[k].dot(self.cellgrads[k, :, 0])
+        print(f"{self.cellgrads.shape=} {betaC.shape=} {ld.shape=}")
+        mat = np.einsum('njk,nk,ni -> nij', self.cellgrads[:,:,:dim], betaC, ld)
+        # for k in range(ncells):
+        #     mat[k] = betaC[k].dot(self.cellgrads[k, :, 0])
         return  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
     def computematrixDiffusion(self, coeff):
