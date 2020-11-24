@@ -17,18 +17,16 @@ class Fem(object):
     def downWind(self, v):
         # v is supposed RT0
         dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma
-        # xf = self.mesh.pointsf
-        # lamd = np.zeros((ncells, dim+1))
-        # lm = np.full(shape=dim+1, fill_value=1.0/dim)
-        # for k in range(ncells):
-        #     bpk = np.maximum(v[fofc[k, :]]*sigma[k], 0)
-        #     lamd[k] = lm - bpk/dim/bpk.sum()
         vp = np.maximum(v[fofc]*sigma, 0)
-        vs = vp.sum(axis=1)
-        if not np.all(vs > 0):
-            raise ValueError(f"{vs=}\n{vp=}")
-        vp /= vs[:,np.newaxis]
+        vps = vp.sum(axis=1)
+        if not np.all(vps > 0): raise ValueError(f"{vps=}\n{vp=}")
+        vp /= vps[:,np.newaxis]
         lamd = (np.ones(ncells)[:,np.newaxis] - vp)/dim
+        # vm = np.minimum(v[fofc]*sigma, 0)
+        # vms = vm.sum(axis=1)
+        # if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
+        # vm /= vms[:,np.newaxis]
+        # lamd = vm
         # print(f"{v[fofc].shape} {lamd2.shape=}")
         points, simplices = self.mesh.points, self.mesh.simplices
         xd = np.einsum('nji,nj -> ni', points[simplices], lamd)

@@ -110,7 +110,7 @@ class Heat(Application):
 
     def computeMatrix(self):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
-        A = self.fem.matrixDiffusion(self.kheatcell)
+        A = self.fem.computematrixDiffusion(self.kheatcell)
         lumped = False
         colors = bdrycond.colorsOfType("Robin")
         self.Arobin = self.fem.computeBdryMassMatrix(colors, bdrycond.param, lumped=lumped)
