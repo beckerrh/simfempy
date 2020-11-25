@@ -70,12 +70,13 @@ If we know $\transpose{\normal[i]}\beta_K$, we can compute $\xup$ as follows.
 \begin{align*}
 \lambda_i(\xup) = \lambda_i(x_K) + \delta_K \transpose{\nabla\lambda_i}\beta_K
 = \frac{1}{d+1} - \delta_K \frac{\transpose{\normal[i]}\beta_K}{h_i}
+= \frac{1}{d+1} - \delta_K \frac{\transpose{\normal[i]}\beta_K \abs{S_i}}{d\abs{K}}
 \end{align*}
 %
 It follows that
 %
 \begin{equation}\label{eq:}
-\delta_K = \max\SetDef{\frac{\left(\transpose{\normal[i]}\beta_K\right)^+}{3h_i}}{0\le i\le d}.
+\delta_K = \max\SetDef{\frac{d\abs{K}}{(d+1)\abs{S_i}\left(\transpose{\normal[i]}\beta_K\right)^+}}{0\le i\le d}.
 \end{equation}
 %
 

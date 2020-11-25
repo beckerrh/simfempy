@@ -12,9 +12,7 @@ if __name__ == '__main__':
     rt = RT0(mesh)
     # beta = rt.interpolate([AnalyticalSolution(expr="-y"),AnalyticalSolution(expr="x")])
     beta = rt.interpolate([AnalyticalSolution(expr="-1"),AnalyticalSolution(expr="1")])
-    print(f"{beta.shape}")
     betaC = rt.toCell(beta)
-    print(f"{betaC.shape}")
     # celldata = {f"beta{i}":betaC[i::dim] for i in range(dim)}
     celldata = {f"beta": [betaC[:,i] for i in range(dim)]}
     fig, axs = plotmesh.meshWithData(mesh, quiver_cell_data=celldata, plotmesh=True)
