@@ -106,16 +106,21 @@ class P1(fem.Fem):
             r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
             np.add.at(b, nodes, r)
         return b
-    def computeBdryMassMatrix(self, colors, coeff=1, lumped=False):
+    def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
         mat = np.empty(shape=(0), dtype=float)
+        if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
-            scalemass = coeff[color]
             normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
+            if isinstance(coeff, dict):
+                scalemass = coeff[color]
+                dS = linalg.norm(normalsS, axis=1)
+            else:
+                scalemass = 1
+                dS = linalg.norm(normalsS, axis=1)*coeff[faces]
             nodes = self.mesh.faces[faces]
             if lumped:
                 scalemass /= self.mesh.dimension
@@ -133,15 +138,13 @@ class P1(fem.Fem):
     def comptuteMatrixTransport(self, beta, betaC, ld):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
-        if ld.shape != (ncells, dim+1): raise TypeError(f"xd has wrong dimension {xd.shape=}")
+        if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
         nlocal = dim+1
         fofc = self.mesh.facesOfCells
-        mat = np.zeros((ncells,nlocal,nlocal))
-        print(f"{self.cellgrads.shape=} {betaC.shape=} {ld.shape=}")
         mat = np.einsum('njk,nk,ni -> nij', self.cellgrads[:,:,:dim], betaC, ld)
-        # for k in range(ncells):
-        #     mat[k] = betaC[k].dot(self.cellgrads[k, :, 0])
-        return  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        A += self.computeBdryMassMatrix(coeff=np.maximum(beta,0))
+        return A
 
     def computematrixDiffusion(self, coeff):
         nnodes = self.mesh.nnodes

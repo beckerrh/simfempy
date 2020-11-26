@@ -54,6 +54,8 @@ class Application(object):
         if 'mesh' in kwargs:
             self.mesh = kwargs.pop('mesh')
         self._setMeshCalled = False
+    def setParameter(self, paramname, param):
+        assert 0
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)

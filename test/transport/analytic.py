@@ -4,6 +4,7 @@ from simfempy.meshes import plotmesh
 from simfempy.tools.analyticalsolution import AnalyticalSolution
 from simfempy.fems.rt0 import RT0
 from simfempy.fems.p1 import P1
+from simfempy.applications.transport import Transport
 
 #================================================================#
 if __name__ == '__main__':
@@ -18,6 +19,7 @@ if __name__ == '__main__':
     fig, axs = plotmesh.meshWithData(mesh, quiver_cell_data=celldata, plotmesh=True)
     xd, ld = rt.downWind(beta)
     axs[0,0].plot(xd[:,0], xd[:,1], 'xr')
-    p1 = P1(mesh)
-    A = p1.comptuteMatrixTransport(beta, betaC, ld)
-    plt.show()
+    xd, ld = rt.downWind(beta, method='supg2')
+    axs[0,0].plot(xd[:,0], xd[:,1], 'xb')
+
+    tr = Transport(mesh=mesh)

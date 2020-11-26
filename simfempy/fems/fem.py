@@ -35,16 +35,16 @@ class Fem(object):
             if not np.allclose(lamd.sum(axis=1),1):
                 raise ValueError(f"{lamd=}\n{(v[fofc]*sigma).sum(axis=1)}")
         elif method=='supg2':
-            vp = np.maximum(v[fofc]*sigma, 0)
-            vps = vp.sum(axis=1)
-            if not np.all(vps > 0): raise ValueError(f"{vps=}\n{vp=}")
-            vp /= vps[:,np.newaxis]
-            lamd = (np.ones(ncells)[:,np.newaxis] - vp)/dim
-        # vm = np.minimum(v[fofc]*sigma, 0)
-        # vms = vm.sum(axis=1)
-        # if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
-        # vm /= vms[:,np.newaxis]
-        # lamd = vm
+            # vp = np.maximum(v[fofc]*sigma, 0)
+            # vps = vp.sum(axis=1)
+            # if not np.all(vps > 0): raise ValueError(f"{vps=}\n{vp=}")
+            # vp /= vps[:,np.newaxis]
+            # lamd = (np.ones(ncells)[:,np.newaxis] - vp)/dim
+            vm = np.minimum(v[fofc]*sigma, 0)
+            vms = vm.sum(axis=1)
+            if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
+            vm /= vms[:,np.newaxis]
+            lamd = vm
         # print(f"{v[fofc].shape} {lamd2.shape=}")
         points, simplices = self.mesh.points, self.mesh.simplices
         xd = np.einsum('nji,nj -> ni', points[simplices], lamd)
