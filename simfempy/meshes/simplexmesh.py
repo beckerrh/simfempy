@@ -9,6 +9,7 @@ import meshio
 import numpy as np
 from scipy import sparse
 from simfempy.tools import npext
+from simfempy.tools import timer
 
 from .testmeshes import __pygmsh6__
 
