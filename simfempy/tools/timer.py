@@ -28,6 +28,8 @@ class Timer():
     def print(self):
         print(self)
 
-    def reset(self):
-        for name in self.data:
-            self.data[name] = 0
+    def reset(self, name):
+        self.data[name] = 0
+    def reset_all(self):
+        for name in self.data: self.data[name] = 0
+        self.tlast = time.time()

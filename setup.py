@@ -5,13 +5,13 @@ from setuptools import setup, find_packages
 
 base_dir = os.path.abspath(os.path.dirname(__file__))
 about = {}
-with open(os.path.join(base_dir, "OLD/simfempy_pygmsh7", "__about__.py"), "rb") as f:
+with open(os.path.join(base_dir, "simfempy", "__about__.py"), "rb") as f:
     exec(f.read(), about)
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="simfempy_pygmsh7",
+    name="simfempy",
     version=about["__version__"],
     author=about["__author__"],
     author_email=about["__author_email__"],

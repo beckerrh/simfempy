@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from . import plotmesh1d, plotmesh2d, plotmesh3d
+import meshio
 
 #----------------------------------------------------------------#
 def _getDim(meshdata):
@@ -109,14 +110,23 @@ def meshWithData(meshdata, **kwargs):
 
 #=================================================================#
 def plotmeshWithNumbering(meshdata, **kwargs):
-    dim, meshdataismesh = _getDim(meshdata)
-    if dim==3:
-        raise NotImplementedError("3d not yet implemented")
-    if meshdataismesh:
-        x, y, tris, faces = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces
-        kwargs['meshsides'] = faces
+    if isinstance(meshdata,meshio._mesh.Mesh):
+        types = [c.type for c in meshdata.cells]
+        # print(f"{types=}")
+        if 'tetra' in types: raise ValueError(f"so far only 2D")
+        x, y  = meshdata.points[:,0], meshdata.points[:,1]
+        for c, cb in meshdata.cells:
+            if c=='triangle': tris = cb
+            # elif c=='lines': faces = cb
     else:
-        x, y, tris = meshdata[0], meshdata[1], meshdata[2]
+        dim, meshdataismesh = _getDim(meshdata)
+        if dim==3:
+            raise NotImplementedError("3d not yet implemented")
+        if meshdataismesh:
+            x, y, tris, faces = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices, meshdata.faces
+            kwargs['meshsides'] = faces
+        else:
+            x, y, tris = meshdata[0], meshdata[1], meshdata[2]
 
     if 'localnumbering' in kwargs and kwargs.pop('localnumbering'):
         fig, axs = plt.subplots(2, 3, figsize=(13.5, 8), squeeze=False)

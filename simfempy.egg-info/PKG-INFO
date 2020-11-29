@@ -1,0 +1,18 @@
+Metadata-Version: 2.1
+Name: simfempy
+Version: 1.0.18
+Summary: A small package for fem
+Home-page: https://github.com/beckerrh/simfempy
+Author: Roland Becker
+Author-email: beckerrolandh@gmail.com
+License: License :: OSI Approved :: MIT License
+Description: simfempy
+        
+Platform: any
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Science/Research
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

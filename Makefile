@@ -4,7 +4,7 @@ FILE := simfempy/__about__.py
 all: $(FILE) clean
 	python3 setup.py sdist
 	twine upload dist/* --verbose
-	pip install simfempy --upgrade
+	pip3 install simfempy --upgrade
 
 clean:
 	rm -rf dist build simfempy.egg-info

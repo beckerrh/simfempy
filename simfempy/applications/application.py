@@ -5,13 +5,13 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
-import time
-import copy
-import pygmsh
+# import time
+# import copy
+# import pygmsh
 import numpy as np
 import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
-import scipy.optimize as optimize
+# import scipy.optimize as optimize
 
 import simfempy.tools.analyticalsolution
 import simfempy.tools.timer
@@ -47,9 +47,10 @@ class Application(object):
                 self.random_exactsolution = False
         else:
             self._generatePDforES = False
-        if 'defgeom' in kwargs:
-            self.defgeom = kwargs.pop('defgeom')
-            mesh = pygmsh.generate_mesh(self.defgeom())
+        if 'geom' in kwargs:
+            self.geom = kwargs.pop('geom')
+            print(f"{self.geom=}")
+            mesh = self.geom.generate_mesh()
             self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
         if 'mesh' in kwargs:
             self.mesh = kwargs.pop('mesh')
@@ -103,14 +104,16 @@ class Application(object):
 
 
     def static(self, iter=100, dirname='Run'):
+        print(f"### static")
         if not self._setMeshCalled: self.setMesh(self.mesh)
-        self.timer.reset()
+        # self.timer.reset_all()
         return self.solveLinearProblem()
 
-    def solve(self, iter=0, dirname="Results"):
-        return self.solveLinearProblem()
+    # def solve(self, iter=0, dirname="Results"):
+    #     return self.solveLinearProblem()
 
     def solveLinearProblem(self):
+        print(f"### solveLinearProblem")
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
@@ -128,40 +131,41 @@ class Application(object):
         return result
 
 
-    def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):
-        if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
-        self.timer.add('init')
-        A = self.matrix()
-        self.timer.add('matrix')
-        self.b,u = self.computeRhs(u)
-        self.du = np.empty_like(u)
-        self.timer.add('rhs')
-        if method == 'newton':
-            from . import newton
-            u, nit = newton.newton(x0=u, f=self.residualNewton, computedx=self.solveForNewton, sdata=sdata, verbose=True)
-        elif method in ['broyden2','krylov', 'df-sane', 'anderson']:
-            sol = optimize.root(self.residualNewton, u, method=method)
-            u, nit = sol.x, sol.nit
-        else:
-            raise ValueError(f"unknown method {method}")
-        point_data, cell_data, info = self.postProcess(u)
-        self.timer.add('postp')
-        info['timer'] = self.timer
-        info['iter'] = {'lin':nit}
-        return point_data, cell_data, info
+    # def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):
+    #     if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
+    #     self.timer.add('init')
+    #     A = self.matrix()
+    #     self.timer.add('matrix')
+    #     self.b,u = self.computeRhs(u)
+    #     self.du = np.empty_like(u)
+    #     self.timer.add('rhs')
+    #     if method == 'newton':
+    #         from . import newton
+    #         u, nit = newton.newton(x0=u, f=self.residualNewton, computedx=self.solveForNewton, sdata=sdata, verbose=True)
+    #     elif method in ['broyden2','krylov', 'df-sane', 'anderson']:
+    #         sol = optimize.root(self.residualNewton, u, method=method)
+    #         u, nit = sol.x, sol.nit
+    #     else:
+    #         raise ValueError(f"unknown method {method}")
+    #     point_data, cell_data, info = self.postProcess(u)
+    #     self.timer.add('postp')
+    #     info['timer'] = self.timer
+    #     info['iter'] = {'lin':nit}
+    #     return point_data, cell_data, info
 
-    def residualNewton(self, u):
-        # print(f"self.b={self.b.shape}")
-        self.A = self.matrix()
-        return self.A.dot(u) - self.b
-
-    def solveForNewton(self, r, x):
-        # print(f"solveForNewton r={np.linalg.norm(r)}")
-        du, niter = self.linearSolver(self.A, r, x, verbose=0)
-        # print(f"solveForNewton du={np.linalg.norm(du)}")
-        return du
+    # def residualNewton(self, u):
+    #     # print(f"self.b={self.b.shape}")
+    #     self.A = self.matrix()
+    #     return self.A.dot(u) - self.b
+    #
+    # def solveForNewton(self, r, x):
+    #     # print(f"solveForNewton r={np.linalg.norm(r)}")
+    #     du, niter = self.linearSolver(self.A, r, x, verbose=0)
+    #     # print(f"solveForNewton du={np.linalg.norm(du)}")
+    #     return du
 
     def linearSolver(self, A, b, u=None, solver = None, verbose=1):
+        print(f"### linearSolver")
         if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
             raise ValueError(f"A.shqpe = {A.shape} b.shape = {b.shape}")
         if solver is None: solver = self.linearsolver

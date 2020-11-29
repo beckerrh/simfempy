@@ -1,7 +1,7 @@
 def _check1setinother_(set1, set2, name1="set1", name2="set2"):
     notin2 = set1.difference(set2)
     if notin2:
-        raise KeyError(f"in {name1} but not in {name2}: {notin2}")
+        raise KeyError(f"in '{name1}' but not in '{name2}': '{notin2}' {set1=} {set2=}")
 def _check2setsequal_(set1, set2, name1="set1", name2="set2"):
     _check1setinother_(set1, set2, name1, name2)
     _check1setinother_(set2, set1, name2, name1)
@@ -108,7 +108,7 @@ class Params(object):
         for color in colors: self.scal_cells[name][color] = value
     def check(self, mesh):
         for name in self.scal_cells:
-            _check2setsequal_(set(self.scal_cells[name]), set(mesh.cellsoflabel.keys()))
+            _check2setsequal_(set(self.scal_cells[name]), set(mesh.cellsoflabel.keys()), "scal_cells", "mesh.cellsoflabel")
         for name in self.scal_glob:
             if name in self.scal_cells: raise ValueError(f"key '{name}' given twice")
             if name in self.fct_glob: raise ValueError(f"key '{name}' given twice")

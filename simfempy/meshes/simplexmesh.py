@@ -35,10 +35,16 @@ class SimplexMesh(object):
 
     dV: shape (ncells), volumes of simplices
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
+    cellsoflabel: dictionary(keys: colors, values: id's of cells)
     """
 
     def __repr__(self):
-        return "SimplexMesh({}): dim/nnodes/ncells/nfaces: {}/{}/{}/{} bdrylabels={}".format(self.geometry, self.dimension, self.nnodes, self.ncells, self.nfaces, list(self.bdrylabels.keys()))
+        s = f"SimplexMesh({self.geometry}): "
+        s += f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
+        s += f"\nbdrylabels={list(self.bdrylabels.keys())}"
+        s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
+        return s
+
     def __init__(self, **kwargs):
         if 'mesh' in kwargs:
             self.geometry = 'own'
@@ -60,15 +66,22 @@ class SimplexMesh(object):
         elif 'triangle' in self.celltypes:
             self.dimension = 2
             self.simplicesname, self.facesname = 'triangle', 'line'
-        else:
+        elif 'line' in self.celltypes:
             self.dimension = 1
             self.simplicesname, self.facesname = 'line', 'vertex'
-        bdryfacesgmsh = np.empty(shape=(0,self.dimension), dtype=int)
+        else:
+            raise ValueError(f"something wrong {self.celltypes=} {mesh=}")
+        bdryfacesgmshlist = []
         for key, cellblock in mesh.cells:
             # print(f"{key=} {cellblock=}")
             if key == self.simplicesname: self.simplices = cellblock
             if key == 'vertex': self.vertices = cellblock
-            if key == self.facesname: bdryfacesgmsh = np.append(bdryfacesgmsh, cellblock, axis=0)
+            if key == self.facesname:
+                # print(f"{key=} {cellblock=}")
+                bdryfacesgmshlist.extend(cellblock)
+        if not hasattr(self,"simplices"):
+            raise ValueError(f"something wrong {self.dimension=}")
+        bdryfacesgmsh = np.array(bdryfacesgmshlist)
         self._constructFacesFromSimplices()
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
@@ -90,13 +103,17 @@ class SimplexMesh(object):
         cellsoflabel = {key:{} for key in self.celltypes}
         ctorderd = []
         for label, cb in cell_sets.items():
+            # print(f"{label=} {cb=}")
             if len(cb) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
             for celltype, info in zip(self.celltypes, cb):
                 # only one is supposed to be not None
                 if info is not None:
-                    cellsoflabel[celltype][label] = info
+                    # print(f"{label=} {type(label)=}")
+                    try: ilabel=int(label)
+                    except: raise ValueError(f"cannot convert to int {label=}")
+                    cellsoflabel[celltype][ilabel] = info
                     sizes[celltype] += info.shape[0]
-                    typesoflabel[label] = celltype
+                    typesoflabel[ilabel] = celltype
                     ctorderd.append(celltype)
         #correcting the numbering in cell_sets
         n = 0
@@ -104,26 +121,15 @@ class SimplexMesh(object):
             #eliminates duplicates
             for l, cb in cellsoflabel[ct].items(): cb -= n
             n += sizes[ct]
-
-        # print(f"{label=} {celltype=} {info=}")
-        # print(f"{cellsoflabel=}")
         self.cellsoflabel = cellsoflabel[self.simplicesname]
         self.verticesoflabel = {}
         if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
-        print(f"{self.verticesoflabel=}")
+        # print(f"{self.verticesoflabel=}")
         # bdry faces
         # for key, cellblock in cells:
         #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
         bdrylabelsgmsh = cellsoflabel[self.facesname]
         self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
-        # self.bdrylabels = {}
-        # for color, cells in bdrylabelsgmsh.items():
-        #     self.bdrylabels[int(color)] = cells
-        # print(f"{self.bdrylabels=}")
-        # bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
-        # bdryfaces = np.sort(self.faces[bdryids],axis=1)
-        # nbdryfaces = len(bdryids)
-        # raise NotImplementedError("no idea")
 
     def _initMeshPyGmsh6(self, cells, cdphys, bdryfacesgmsh):
         if len(cdphys) != len(self.celltypes):
@@ -140,24 +146,6 @@ class SimplexMesh(object):
             else:
                 _cells[key] = np.append(_cells[key], cellblock, axis=0)
                 _labels[key] = np.append(_labels[key], cd, axis=0)
-        # print("_labels", _labels)
-        # if self.dimension==1:
-        #     # self._facedata = (_cells['vertex'], _labels['vertex'])
-        #     bdrylabelsgmsh = _labels['vertex']
-        #     # self.cell_labels = _labels['line']
-        # elif self.dimension==2:
-        #     # self._facedata = (_cells['line'], _labels['line'])
-        #     bdrylabelsgmsh = _labels['line']
-        #     # self.cell_labels = _labels['triangle']
-        # else:
-        #     # self._facedata = (_cells['triangle'], _labels['triangle'])
-        #     bdrylabelsgmsh = _labels['triangle']
-        #     # self.cell_labels = _labels['tetra']
-        # bdryfacesgmsh, bdrylabelsgmsh = self._facedata
-        # print(f"{self.facesname=}")
-        # print(f"{bdryfacesgmsh=}")
-        # print(f"{_cells['line']=}")
-        # assert np.all(bdryfacesgmsh==_cells['line'])
         self._constructBoundaryFaces6(bdryfacesgmsh, _labels[self.facesname])
         # self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
         self.cellsoflabel = npext.creatdict_unique_all(_labels[self.simplicesname])
@@ -198,22 +186,17 @@ class SimplexMesh(object):
             else: self.cellsOfFaces[f,1] = cell
     def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
-        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
-        assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
-        bdryfaces = np.sort(self.faces[bdryids],axis=1)
-        nbdryfaces = len(bdryids)
-        nbdrylabelsgmsh = 0
-        for col, cb in bdrylabelsgmsh.items(): nbdrylabelsgmsh += cb.shape[0]
-        if nbdrylabelsgmsh != nbdryfaces:
-            raise ValueError(f"wrong number of boundary labels {nbdrylabelsgmsh=} != {nbdryfaces=}")
-        if len(bdryfacesgmsh) != nbdryfaces:
-            raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
-        self.bdrylabels = {}
-        colorofbdr = -np.ones(nbdryfaces, dtype=bdryids.dtype)
-        for col, cb in bdrylabelsgmsh.items():
-            self.bdrylabels[int(col)] = -np.ones( (cb.shape[0]), dtype=np.int32)
-            colorofbdr[cb] = col
+        # bdryfacesgmsh may contains interior edges for len(celllabels)>1
         bdryfacesgmsh = np.sort(bdryfacesgmsh)
+        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        # print(f"{bdryids=}")
+        # assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
+        bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        # print(f"{bdryfacesgmsh=}\n{bdryfaces=}")
+        # ind = np.isin(bdryfacesgmsh, bdryfaces)
+        # print(f"{ind=} {bdryfacesgmsh[ind]=}")
+        # print(f"{bdryfaces=}")
+        nbdryfaces = len(bdryids)
         nnpc = self.simplices.shape[1]
         s = "{0}" + (nnpc-2)*", {0}"
         dtb = s.format(bdryfacesgmsh.dtype)
@@ -225,20 +208,81 @@ class SimplexMesh(object):
         else:
             bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).ravel()
             fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
-        bpi = np.empty(bp.size, bp.dtype)
-        bpi[bp] = np.arange(bp.size)
-        perm = bdryids[fp[bpi]]
-        # print(f"{perm=}")
-        # print(f"{colorofbdr=}")
-        counts = {}
-        for key in list(self.bdrylabels.keys()): counts[key]=0
-        for i in range(len(perm)):
-            if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
-                raise ValueError("Did not find boundary indices")
-            color = colorofbdr[i]
-            self.bdrylabels[color][counts[color]] = perm[i]
-            counts[color] += 1
-        # print ("self.bdrylabels", self.bdrylabels)
+        # print(f"{bp=}")
+        # print(f"{fp=}")
+
+#https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
+        indices = (bdryfacesgmsh[bp, None] == bdryfaces[fp]).all(-1).any(-1)
+        # indices = np.isin(bdryfacesgmsh, bdryfaces)
+        # print(f"{indices=}")
+
+        # fp2 = np.searchsorted(bdryfacesgmsh, bdryfaces, sorter=bp)
+        # print(f"{fp2=}")
+
+        # print(f"{bp[indices]=}")
+        # print(f"{bdryfacesgmsh[bp[indices]]=}")
+        # print(f"{bdryfaces[fp]=}")
+        if not np.all(bdryfaces[fp]==bdryfacesgmsh[bp[indices]]):
+            raise ValueError(f"{bdryfaces.T=}\n{bdryfacesgmsh.T=}\n{indices=}\n{bdryfaces[fp].T=}\n{bdryfacesgmsh[bp[indices]].T=}")
+
+        bp2 = bp[indices]
+        for i in range(len(fp)):
+            if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
+                raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
+
+        bpi = np.argsort(bp)
+        # bp2i = {bp2[i]:i for i in range(len(bp2))}
+        # print(f"{bp=} \n{bp2=} \n{bpi=} \n{bp2i=} \n{indices=}")
+        binv = -1*np.ones_like(bp)
+        binv[bp2] = np.arange(len(bp2))
+        self.bdrylabels = {}
+        for col, cb in bdrylabelsgmsh.items():
+            # if cb[0] in bp2i.keys():
+            if indices[bpi[cb[0]]]:
+                # for i in range(len(cb)):
+                #     if not bp2i[cb[i]] == binv[cb[i]]:
+                #         raise ValueError(f"{bp2i[cb[i]]} {binv[cb[i]]}")
+                # print(f"{col=}")
+                self.bdrylabels[int(col)] = np.empty_like(cb)
+                # for i in range(len(cb)): self.bdrylabels[int(col)][i] = bdryids[fp[bp2i[cb[i]]]]
+                for i in range(len(cb)): self.bdrylabels[int(col)][i] = bdryids[fp[binv[cb[i]]]]
+            # else:
+            #     assert not indices[bpi[cb[0]]]
+
+
+
+        # nbdrylabelsgmsh = 0
+        # for col, cb in bdrylabelsgmsh.items(): nbdrylabelsgmsh += cb.shape[0]
+        # print(f"{nbdrylabelsgmsh=} {nbdryfaces=}")
+        # # if nbdrylabelsgmsh != nbdryfaces:
+        # #     raise ValueError(f"wrong number of boundary labels {nbdrylabelsgmsh=} != {nbdryfaces=}")
+        # if len(bdryfacesgmsh) != nbdryfaces:
+        #     print("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
+        #     # raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
+        # self.bdrylabels = {}
+        # # colorofbdr = -np.ones(nbdryfaces, dtype=bdryids.dtype)
+        # colorofbdr = -np.ones(nbdrylabelsgmsh, dtype=bdryids.dtype)
+        # for col, cb in bdrylabelsgmsh.items():
+        #     self.bdrylabels[int(col)] = -np.ones( (cb.shape[0]), dtype=np.int32)
+        #     colorofbdr[cb] = col
+        #
+        # # perm = bdryids[bp[fpi]]
+        # # print(f"{perm=}")
+        # # print(f"{colorofbdr=}")
+        # counts = {}
+        # for key in list(self.bdrylabels.keys()): counts[key]=0
+        # for i in range(len(perm)):
+        #     if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
+        #         raise ValueError(f"Did not find boundary indices\n{bdryfacesgmsh[i]} {self.faces[perm[i]]}")
+        #     color = colorofbdr[i]
+        #     self.bdrylabels[color][counts[color]] = perm[i]
+        #     counts[color] += 1
+        # # print ("self.bdrylabels", self.bdrylabels)
+        # for col, bl in self.bdrylabels.items():
+        #     print(f"{bl=} {self.bdrylabels2[col]=}")
+        #     # assert np.all(bl == self.bdrylabels2[col])
+
+
     def _constructBoundaryFaces6(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)

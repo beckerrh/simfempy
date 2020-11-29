@@ -125,8 +125,9 @@ class Heat(Application):
         b = np.zeros(self.fem.nunknowns())
 
         # b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
-        fp1 = self.fem.interpolate(self.problemdata.rhs)
-        self.fem.massDot(b, fp1)
+        if self.problemdata.rhs:
+            fp1 = self.fem.interpolate(self.problemdata.rhs)
+            self.fem.massDot(b, fp1)
         if self.problemdata.rhscell:
             fp1 = self.fem.interpolateCell(self.problemdata.rhscell)
             self.fem.massDotCell(b, fp1)
@@ -150,13 +151,13 @@ class Heat(Application):
         return b,u
 
 
-    def residualNewton(self, u):
-        if not hasattr(self, 'du'): self.du = np.empty_like(u)
-        self.du[:] = 0
-        self.fem.formDiffusion(self.du, u, self.kheatcell)
-        self.du -= self.b
-        self.du = self.vectorDirichletZero(self.du, self.bdrydata)
-        return self.du
+    # def residualNewton(self, u):
+    #     if not hasattr(self, 'du'): self.du = np.empty_like(u)
+    #     self.du[:] = 0
+    #     self.fem.formDiffusion(self.du, u, self.kheatcell)
+    #     self.du -= self.b
+    #     self.du = self.vectorDirichletZero(self.du, self.bdrydata)
+    #     return self.du
 
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}

@@ -5,6 +5,7 @@ Created on Sun Dec  4 18:14:29 2016
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import pygmsh
 from simfempy.tools.latexwriter import LatexWriter
 import simfempy.meshes.pygmshext
 #=================================================================#
@@ -44,11 +45,21 @@ class CompareMethods(object):
             if 'niter' in kwargs: self.niter = kwargs.pop("niter")
             else: self.niter = -1
         self.parameters = []
-    def compare(self, createMesh, h=None, params=None):
-        self.createMesh = createMesh
+    def _mesh_from_geom_or_fct(self, h):
+        if hasattr(self,"createMesh"): return self.createMesh(h)
+        if hasattr(pygmsh, "built_in"):
+            mesh = pygmsh.generate_mesh(self.geom(h), verbose=False)
+        else:
+            with self.geom(h) as geom:
+                mesh = geom.generate_mesh()
+        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+
+    def compare(self, createMesh=None, geom=None, h=None, params=None):
+        if createMesh is None: self.geom = geom
+        else: self.createMesh = createMesh
         if self.paramname == "ncells":
             if h is None:
-                mesh = createMesh(self.h)
+                mesh = self._mesh_from_geom_or_fct(self.h)
                 gmshrefine = True
                 if self.niter ==-1: raise KeyError("please give 'niter'")
                 params = [mesh.ncells*mesh.dimension**i for i in range(self.niter)]
@@ -56,14 +67,14 @@ class CompareMethods(object):
                 params = h
                 gmshrefine = False
         else:
-            mesh = createMesh(self.h)
+            mesh = self._mesh_from_geom_or_fct(self.h)
             # mesh = SimplexMesh(geometry=geometry, hmean=self.h)
         for iter, param in enumerate(params):
             if self.paramname == "ncells":
                 if gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
-                    mesh = createMesh(param)
+                    mesh = self._mesh_from_geom_or_fct(param)
                 self.parameters.append(mesh.ncells)
             else:
                 self.parameters.append(param)

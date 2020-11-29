@@ -64,7 +64,7 @@ class P1(fem.Fem):
     def interpolateBoundary(self, colors, f):
         b = np.zeros(self.mesh.nnodes)
         for color in colors:
-            if not f[color]: continue
+            if not color in f or not f[color]: continue
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS,axis=1)

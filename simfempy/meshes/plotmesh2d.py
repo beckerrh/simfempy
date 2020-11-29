@@ -154,7 +154,7 @@ def mesh(x, y, tris, **kwargs):
     if 'nodes' in kwargs: nodes = kwargs.pop('nodes')
     cells = True
     if 'cells' in kwargs: cells = kwargs.pop('cells')
-    sides = True
+    sides = False
     if 'sides' in kwargs: sides = kwargs.pop('sides')
     cellsidelocal = False
     if 'cellsidelocal' in kwargs: cellsidelocal = kwargs.pop('cellsidelocal')
