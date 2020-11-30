@@ -232,6 +232,8 @@ def meshWithData(**kwargs):
     if 'numbering' in kwargs: numbering = kwargs['numbering']
     if 'title' in kwargs: title = kwargs['title']
     if 'suptitle' in kwargs: suptitle = kwargs['suptitle']
+    if 'alpha' in kwargs: alpha = kwargs['alpha']
+    else: alpha=0.6
 
     nplots=0
     if point_data: nplots += len(point_data)
@@ -251,7 +253,7 @@ def meshWithData(**kwargs):
         for pdn, pd in point_data.items():
             assert x.shape == pd.shape
             ax = axs[count//ncols,count%ncols]
-            ax.triplot(x, y, tris, color='gray', lw=1, alpha=0.4)
+            ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
             cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
             ax.set_aspect(aspect='equal')
             if numbering:

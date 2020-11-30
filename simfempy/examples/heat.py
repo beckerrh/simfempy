@@ -6,7 +6,7 @@ sys.path.insert(0,simfempypath)
 
 import numpy as np
 import simfempy
-from simfempy.meshes.hole import square as sqhole
+from simfempy.meshes.hole import hole
 import pygmsh
 import matplotlib.pyplot as plt
 print(f"{pygmsh.__file__=}")
@@ -22,22 +22,22 @@ def main():
     result = heat.static()
     print(f"{result.info['timer']}")
     print(f"postproc: {result.data['global']['postproc']}")
-    simfempy.meshes.plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat example")
+    simfempy.meshes.plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat example", alpha=1)
     plt.show()
 
 # ---------------------------------------------------------------- #
-def createMesh(h=0.2):
+def createMesh(h=0.4):
     rect = [-2, 2, -2, 2]
     with pygmsh.geo.Geometry() as geom:
         holes = []
-        holes.append(sqhole(geom, xc=0, yc=0, r=0.2, mesh_size=h, label="3000"))
-        holes.append(sqhole(geom, xc=-0.5, yc=-0.5, r=0.2, mesh_size=h, label="200", make_surface=True))
+        holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
+        holes.append(hole(geom, xc=-1, yc=-1, r=0.5, mesh_size=h, label="200", make_surface=True))
         p = geom.add_rectangle(*rect, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
         mesh = geom.generate_mesh()
-    from simfempy.meshes.plotmesh import plotmeshWithNumbering
-    plotmeshWithNumbering(mesh)
+    # from simfempy.meshes.plotmesh import plotmeshWithNumbering
+    # plotmeshWithNumbering(mesh)
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ---------------------------------------------------------------- #
@@ -46,7 +46,8 @@ def createData():
     bdrycond =  data.bdrycond
     bdrycond.set("Robin", [1000])
     bdrycond.set("Dirichlet", [1001, 1003])
-    bdrycond.set("Neumann", [1002, 3000, 3001, 3002, 3003])
+    bdrycond.set("Neumann", [1002, 3000, 3001, 3002])
+    # bdrycond.set("Neumann", [1002, 3000, 3001, 3002, 3003])
     # bdrycond.set("Neumann", [1002])
     bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.01
     bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
