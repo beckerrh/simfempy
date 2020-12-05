@@ -189,6 +189,8 @@ class Results(object):
     def __init__(self):
         self.data = {"point":{}, "side":{}, "cell":{}, "global":{}}
         self.info = {}
+    def __repr__(self):
+        return f"{self.data=}\n {self.info=}"
     def setData(self, data):
         if len(data) != 4:
             raise ValueError("expect four data (point, side, cell, global)")

@@ -142,8 +142,10 @@ class P1(fem.Fem):
         fofc = self.mesh.facesOfCells
         mat = np.einsum('njk,nk,ni -> nij', self.cellgrads[:,:,:dim], betaC, ld)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-        A += self.computeBdryMassMatrix(coeff=np.maximum(beta,0))
-        return A
+        # print(f"transport {A.toarray()=}")
+        B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0))
+        # print(f"transport {B.toarray()=}")
+        return A+B
 
     def computematrixDiffusion(self, coeff):
         nnodes = self.mesh.nnodes

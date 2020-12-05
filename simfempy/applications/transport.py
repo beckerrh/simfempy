@@ -72,6 +72,12 @@ class Transport(Application):
         return b,u
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}
+        point_data['U'] = self.fem.tonode(u)
+        if self.problemdata.solexact:
+            global_data['error'] = {}
+            global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+            cell_data['E'] = ec
         return point_data, side_data, cell_data, global_data
 
 
