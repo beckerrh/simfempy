@@ -5,21 +5,15 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
-# import time
-# import copy
-# import pygmsh
 import numpy as np
 import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
-# import scipy.optimize as optimize
+# from functools import partial
 
 import simfempy.tools.analyticalsolution
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 import simfempy.applications.problemdata
-
-# https://github.com/bfroehle/pymumps
-#from mumps import DMumpsContext
 
 #=================================================================#
 class Application(object):
@@ -57,26 +51,37 @@ class Application(object):
         self._setMeshCalled = False
     def setParameter(self, paramname, param):
         assert 0
-    def generatePoblemDataForAnalyticalSolution(self):
-        bdrycond = self.problemdata.bdrycond
-        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
-        print("self.problemdata.solexact", self.problemdata.solexact)
-        self.problemdata.rhs = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
-        if self.ncomp>1:
+    def dirichletfct(self):
+        if self.ncomp > 1:
             def _solexactdir(x, y, z):
                 return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
         else:
             def _solexactdir(x, y, z):
                 return self.problemdata.solexact(x, y, z)
+        return _solexactdir
+    def generatePoblemDataForAnalyticalSolution(self):
+        bdrycond = self.problemdata.bdrycond
+        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
+        print("self.problemdata.solexact", self.problemdata.solexact)
+        self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
         for color in self.mesh.bdrylabels:
-            if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
-            if bdrycond.type[color] in ["Dirichlet"]:
-                bdrycond.fct[color] = _solexactdir
+            if color in bdrycond.type and bdrycond.type[color] in ["Dirichlet","dirichlet"]:
+                bdrycond.fct[color] = self.dirichletfct()
             else:
-                type = bdrycond.type[color]
-                cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
-                # print(f"cmd={cmd}")
-                bdrycond.fct[color] = eval(cmd)
+                if color in bdrycond.type:
+                    cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(bdrycond.type[color], color)
+                    # print(f"cmd={cmd}")
+                    bdrycond.fct[color] = eval(cmd)
+                else:
+                    bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color)
+        # for color in self.mesh.bdrylabels:
+        #     if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
+        #     if bdrycond.type[color] in ["Dirichlet"]:
+        #     else:
+        #         type = bdrycond.type[color]
+        #         cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
+        #         # print(f"cmd={cmd}")
+        #         bdrycond.fct[color] = eval(cmd)
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
@@ -104,7 +109,7 @@ class Application(object):
 
 
     def static(self, iter=100, dirname='Run'):
-        print(f"### static")
+        # print(f"### static")
         if not self._setMeshCalled: self.setMesh(self.mesh)
         # self.timer.reset_all()
         return self.solveLinearProblem()
@@ -113,7 +118,7 @@ class Application(object):
     #     return self.solveLinearProblem()
 
     def solveLinearProblem(self):
-        print(f"### solveLinearProblem")
+        # print(f"### solveLinearProblem")
         if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
@@ -165,9 +170,9 @@ class Application(object):
     #     return du
 
     def linearSolver(self, A, b, u=None, solver = None, verbose=1):
-        print(f"### linearSolver")
+        print(f"### linearSolver {solver=}")
         if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
-            raise ValueError(f"A.shqpe = {A.shape} b.shape = {b.shape}")
+            raise ValueError(f"{A.shape=} {b.shape=}")
         if solver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
         if solver not in self.linearsolvers: solver = "umf"

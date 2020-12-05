@@ -94,7 +94,7 @@ class Heat(Application):
                 raise NotImplementedError("{} has no paramater '{}'".format(self, self.paramname))
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
-
+    def solve(self, iter, dirname): return self.static(iter, dirname)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # if mesh is not None: self.mesh = mesh
@@ -125,12 +125,14 @@ class Heat(Application):
         b = np.zeros(self.fem.nunknowns())
 
         # b = self.fem.computeRhsMass(b, self.problemdata.rhs, self.M)
-        if self.problemdata.rhs:
-            fp1 = self.fem.interpolate(self.problemdata.rhs)
+        if 'rhs' in self.problemdata.params.fct_glob:
+            fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.fem.massDot(b, fp1)
-        if self.problemdata.rhscell:
-            fp1 = self.fem.interpolateCell(self.problemdata.rhscell)
+        if 'rhscell' in self.problemdata.params.fct_glob:
+            fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
             self.fem.massDotCell(b, fp1)
+        if 'rhspoint' in self.problemdata.params.fct_glob:
+            self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'])
 
         colors = bdrycond.colorsOfType("Robin")
         fp1 = self.fem.interpolateBoundary(colors, bdrycond.fct)
@@ -145,7 +147,6 @@ class Heat(Application):
         # self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"], self.Arobin)
 
 
-        self.fem.computeRhsPoint(b, self.problemdata.rhspoint)
         # self.fem.computeRhsBoundary(b, bdrycond, ["Neumann", "Robin"])
         b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, method, bdrydata)
         return b,u

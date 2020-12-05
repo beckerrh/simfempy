@@ -24,10 +24,7 @@ class Timer():
         self.tlast = t
 
     def __del__(self):
-        if self.verbose: self.print()
-
-    def print(self):
-        print(self)
+        if self.verbose: print(self)
 
     def reset(self, name):
         self.data[name] = 0

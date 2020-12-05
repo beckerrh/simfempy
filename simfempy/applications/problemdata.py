@@ -140,9 +140,9 @@ class ProblemData(object):
         else: self.bdrycond = bdrycond
         if postproc is None: self.postproc = PostProcess()
         else: self.postproc = postproc
-        self.rhs = None
-        self.rhscell = rhscell
-        self.rhspoint = rhspoint
+        # self.rhs = None
+        # self.rhscell = rhscell
+        # self.rhspoint = rhspoint
         self.solexact = None
         self.params = Params()
 
@@ -154,9 +154,9 @@ class ProblemData(object):
         repr += f"\n\tncomp = {self.ncomp:2d}"
         repr += f"\n\tbdrycond:{self._split2string(self.bdrycond)}"
         repr += f"\n\tpostproc:{self._split2string(self.postproc)}"
-        if self.rhs: repr += f"\n\trhs={self.rhs}"
-        if self.rhscell: repr += f"\n\trhscell={self.rhscell}"
-        if self.rhspoint: repr += f"\n\trhspoint={self.rhspoint}"
+        # if self.rhs: repr += f"\n\trhs={self.rhs}"
+        # if self.rhscell: repr += f"\n\trhscell={self.rhscell}"
+        # if self.rhspoint: repr += f"\n\trhspoint={self.rhspoint}"
         if self.solexact: repr += f"\n\tsolexact={self.solexact}"
         repr += f"\n\tparams:{self._split2string(self.params)}"
         return repr
@@ -171,9 +171,9 @@ class ProblemData(object):
         """
         keeps the boundary condition types and parameters !
         """
-        self.rhs = None
-        self.rhscell = None
-        self.rhspoint = None
+        # self.rhs = None
+        # self.rhscell = None
+        # self.rhspoint = None
         self.solexact = None
         self.postproc = None
         for color in self.bdrycond.fct:

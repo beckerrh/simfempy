@@ -76,7 +76,6 @@ class P1(fem.Fem):
             nx, ny, nz = np.mean(normalsS, axis=0)
             b[nodes] = f[color](x, y, z, nx, ny, nz)
         return b
-
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells
         dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV

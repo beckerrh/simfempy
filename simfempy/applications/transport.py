@@ -1,6 +1,7 @@
 import numpy as np
 from simfempy import fems
 from simfempy.applications.application import Application
+from simfempy.fems.rt0 import RT0
 
 #=================================================================#
 class Transport(Application):
@@ -25,7 +26,7 @@ class Transport(Application):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
-        else: self.linearsolver = 'pyamg'
+        else: self.linearsolver = 'umf'
         fem = 'p1'
         if 'fem' in kwargs: fem = kwargs.pop('fem')
         if fem == 'p1':
@@ -37,23 +38,37 @@ class Transport(Application):
         else:
             self.method="supg"
     def _checkProblemData(self):
-        self.problemdata.check(self.mesh)
+        pass
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             alpha = self.problemdata.params.scal_glob['alpha']
-            beta = self.problemdata.params.scal_glob['beta']
+            beta = self.problemdata.params.fct_glob['beta']
             rhs = alpha*solexact(x,y,z)
             for i in range(self.mesh.dimension):
-                rhs += beta[i] * solexact.d(i, x, y, z)
+                rhs += beta[i](x,y,z) * solexact.d(i, x, y, z)
             return rhs
         return _fctu
+
+    def defineBdryFctAnalyticalSolution(self, color):
+        return self.dirichletfct()
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self._checkProblemData()
         self.fem.setMesh(self.mesh)
+        betafct = self.problemdata.params.fct_glob['beta']
+        rt = RT0(mesh)
+        self.beta = rt.interpolate(betafct)
+        xd, self.lamdbeta = self.fem.downWind(self.beta)
+        self.betaC = rt.toCell(self.beta)
     def computeMatrix(self):
+        A =  self.fem.comptuteMatrixTransport(self.beta, self.betaC, self.lamdbeta)
+        print(f"{self.fem.nunknowns()=} {A.data=}")
         return A
     def computeRhs(self, u=None):
+        b = np.zeros(self.fem.nunknowns())
+        if 'rhs' in self.problemdata.params.fct_glob:
+            fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
+            self.fem.massDot(b, fp1)
         return b,u
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}
