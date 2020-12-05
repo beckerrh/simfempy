@@ -93,14 +93,19 @@ class P1(fem.Fem):
         massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    def massDotBoundary(self, b, f, colors, coeff=1, lumped=False):
+    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
+        if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
-            if isinstance(color, (int,float)): scalemass = coeff
-            else: scalemass = coeff[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             nodes = self.mesh.faces[faces]
+            if isinstance(coeff, (int,float)): scalemass = coeff
+            elif isinstance(coeff, dict): scalemass = coeff[color]
+            else:
+                assert coeff.shape[0]==self.mesh.nfaces
+                scalemass = 1
+                dS *= coeff[faces]
             massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
             r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
             np.add.at(b, nodes, r)

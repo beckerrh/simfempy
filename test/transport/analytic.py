@@ -17,19 +17,21 @@ def plotBetaDownwind(betaC, beta, mesh):
 
 #================================================================#
 if __name__ == '__main__':
-    mesh = testmeshes.unitsquare(2.5)
+    mesh = testmeshes.unitsquare(0.5)
     plotmesh.plotmeshWithNumbering(mesh)
     plt.show()
     dim = mesh.dimension
     rt = RT0(mesh)
     # beta = rt.interpolate([AnalyticalSolution(expr="-y"),AnalyticalSolution(expr="x")])
-    betafct = [AnalyticalSolution(expr="-1"),AnalyticalSolution(expr="0")]
+    betafct = [AnalyticalSolution(expr="1"),AnalyticalSolution(expr="0")]
     beta = rt.interpolate(betafct)
     betaC = rt.toCell(beta)
     plotBetaDownwind(betaC, beta, mesh)
     data = simfempy.applications.problemdata.ProblemData()
     data.params.fct_glob['beta'] = betafct
     data.params.scal_glob['alpha'] = 0
-    tr = Transport(mesh=mesh, problemdata=data, exactsolution="1+x+y")
+    tr = Transport(mesh=mesh, problemdata=data, exactsolution="1+y+x")
     res = tr.static()
-    print(f"{res=}")
+    plotmesh.meshWithData(mesh, data=res.data)
+    plt.show()
+    print(f"{res.info=}\n {res.data['global']}")
