@@ -14,34 +14,33 @@ import matplotlib.pyplot as plt
 
 # ------------------------------------- #
 def pygmshexample():
-    geom = pygmsh.built_in.Geometry()
-    # Draw a cross.
-    poly = geom.add_polygon([
-        [ 0.0,  0.5, 0.0],
-        [-0.1,  0.1, 0.0],
-        [-0.5,  0.0, 0.0],
-        [-0.1, -0.1, 0.0],
-        [ 0.0, -0.5, 0.0],
-        [ 0.1, -0.1, 0.0],
-        [ 0.5,  0.0, 0.0],
-        [ 0.1,  0.1, 0.0]
-        ],
-        lcar=0.2
-    )
-    geom.add_physical(poly.surface, label=100)
-    axis = [0, 0, 1]
-    top, vol, ext = geom.extrude(
-        poly,
-        translation_axis=axis,
-        rotation_axis=axis,
-        point_on_axis=[0, 0, 0],
-        angle=2.0 / 6.0 * np.pi
-    )
-    geom.add_physical(top, label=101+len(ext))
-    for i in range(len(ext)):
-        geom.add_physical(ext[i], label=101+i)
-    geom.add_physical(vol, label=10)
-    return pygmsh.generate_mesh(geom)
+    with pygmsh.geo.Geometry() as geom:
+        poly = geom.add_polygon(
+            [
+                [+0.0, +0.5],
+                [-0.1, +0.1],
+                [-0.5, +0.0],
+                [-0.1, -0.1],
+                [+0.0, -0.5],
+                [+0.1, -0.1],
+                [+0.5, +0.0],
+                [+0.1, +0.1],
+            ],
+            mesh_size=0.05,
+        )
+        geom.add_physical(poly.surface, label="100")
+        top, vol, ext = geom.twist(
+            poly,
+            translation_axis=[0, 0, 1],
+            rotation_axis=[0, 0, 1],
+            point_on_axis=[0, 0, 0],
+            angle=np.pi / 3,
+        )
+        geom.add_physical(top, label=f"{101+len(ext)}")
+        for i in range(len(ext)): geom.add_physical(ext[i], label=f"{101+i}")
+        geom.add_physical(vol, label="10")
+        mesh = geom.generate_mesh()
+    return mesh
 
 
 def createData(bdrylabels):

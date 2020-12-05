@@ -4,7 +4,6 @@ import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'pygmsh'))
 sys.path.insert(0,simfempypath)
 
-import numpy as np
 import simfempy
 from simfempy.meshes.hole import hole
 import pygmsh
@@ -26,7 +25,7 @@ def main():
     plt.show()
 
 # ---------------------------------------------------------------- #
-def createMesh(h=0.4):
+def createMesh(h=0.2):
     rect = [-2, 2, -2, 2]
     with pygmsh.geo.Geometry() as geom:
         holes = []
