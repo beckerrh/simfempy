@@ -17,7 +17,7 @@ def plotBetaDownwind(betaC, beta, mesh):
 
 #================================================================#
 if __name__ == '__main__':
-    mesh = testmeshes.unitsquare(0.5)
+    mesh = testmeshes.unitsquare(2.5)
     plotmesh.plotmeshWithNumbering(mesh)
     plt.show()
     dim = mesh.dimension

@@ -110,6 +110,18 @@ class P1(fem.Fem):
             r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
             np.add.at(b, nodes, r)
         return b
+    def massDotSupg(self, b, f, ld):
+        dim, simplices, points, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.points, self.mesh.dV
+        # massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
+        # r = np.einsum('n,kl,nl->nk', coeff*dV, massloc, f[simplices])
+        scale = 1/(dim+1)
+        xd = np.einsum('nji,nj -> ni', points[simplices], ld-scale)
+        fm = f[simplices].mean(axis=1)
+        # print(f"{xd.shape=} {fm.shape=} {self.cellgrads[:,:,:dim].shape}")
+        r = np.einsum('n,nik,nk -> ni', scale*dV*fm, self.cellgrads, xd)
+        print(f"{r=}")
+        np.add.at(b, simplices, r)
+        return b
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
