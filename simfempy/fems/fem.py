@@ -19,7 +19,10 @@ class Fem(object):
         # v is supposed RT0
         dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma
         normals, dV = self.mesh.normals, self.mesh.dV
-        if method=='supg':
+        # method = 'centered'
+        if method=='centered':
+            lamd = np.ones((ncells,dim+1)) / (dim + 1)
+        elif method=='supg':
             dS = linalg.norm(normals[fofc],axis=2)
             print(f"{dS.shape=}")
             vs = v[fofc]*sigma*dS/dV[:,np.newaxis]/dim

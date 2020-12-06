@@ -115,7 +115,7 @@ class P1(fem.Fem):
         # massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
         # r = np.einsum('n,kl,nl->nk', coeff*dV, massloc, f[simplices])
         scale = 1/(dim+1)
-        xd = np.einsum('nji,nj -> ni', points[simplices], ld-scale)
+        xd = np.einsum('njk,nj -> nk', points[simplices], ld-scale)
         fm = f[simplices].mean(axis=1)
         # print(f"{xd.shape=} {fm.shape=} {self.cellgrads[:,:,:dim].shape}")
         r = np.einsum('n,nik,nk -> ni', scale*dV*fm, self.cellgrads, xd)
@@ -155,9 +155,7 @@ class P1(fem.Fem):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
         if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
-        nlocal = dim+1
-        fofc = self.mesh.facesOfCells
-        mat = np.einsum('njk,nk,ni -> nij', self.cellgrads[:,:,:dim], betaC, ld)
+        mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, ld)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         # print(f"transport {A.toarray()=}")
         B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0))

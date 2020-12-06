@@ -2,6 +2,7 @@ import numpy as np
 from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.fems.rt0 import RT0
+from simfempy.tools.analyticalsolution import AnalyticalSolution
 
 #=================================================================#
 class Transport(Application):
@@ -25,6 +26,12 @@ class Transport(Application):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        beta_given = self.problemdata.params.fct_glob['beta']
+        if not isinstance(beta_given,list):
+            p = "problemdata.params.fct_glob['beta']"
+            raise ValueError(f"need '{p}' as a list of str or AnalyticalSolution")
+        elif isinstance(beta_given[0],str):
+            self.problemdata.params.fct_glob['beta'] = [AnalyticalSolution(expr=e) for e in beta_given]
         if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
         else: self.linearsolver = 'umf'
         fem = 'p1'
