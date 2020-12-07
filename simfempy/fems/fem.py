@@ -32,11 +32,12 @@ class Fem(object):
             vps = np.choose(ips, vp.T)
             # print(f"{vps=}")
             delta = 1/vps
-            print(f"{delta.shape=} {sigma.shape} {v[fofc].shape}")
+            # print(f"{delta.shape=} {sigma.shape=} {v[fofc].shape=}")
             if not np.all(delta > 0): raise ValueError(f"{delta=}\n{vp[ips]=}")
             lamd = (np.ones(ncells)[:,np.newaxis] - delta[:,np.newaxis]*vs)/(dim+1)
             if not np.allclose(lamd.sum(axis=1),1):
                 raise ValueError(f"{lamd=}\n{(v[fofc]*sigma).sum(axis=1)}")
+            delta /= (dim+1)
         elif method=='supg2':
             # vp = np.maximum(v[fofc]*sigma, 0)
             # vps = vp.sum(axis=1)
@@ -51,8 +52,9 @@ class Fem(object):
         # print(f"{v[fofc].shape} {lamd2.shape=}")
         points, simplices = self.mesh.points, self.mesh.simplices
         xd = np.einsum('nji,nj -> ni', points[simplices], lamd)
+        delta = np.linalg.norm(np.einsum('nji,nj -> ni', points[simplices], lamd-1/(dim+1)),axis=1)
         # if not np.allclose(lamd, lamd2): print(f"{lamd=} {lamd2=}")
-        return xd, lamd
+        return xd, lamd, delta
 
 
 

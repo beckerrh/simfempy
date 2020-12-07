@@ -13,4 +13,5 @@ def tensor(d, k):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    print(f"{tensor(d=3, k=2)}")
+    print(f"{tensor(d=3, k=2)=}")
+    print(f"{tensor(d=3, k=1)=}")
