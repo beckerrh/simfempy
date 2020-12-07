@@ -120,7 +120,7 @@ class P1(fem.Fem):
         # print(f"{xd.shape=} {fm.shape=} {self.cellgrads[:,:,:dim].shape}")
         r = np.einsum('n,nik,nk -> ni', scale*dV*fm, self.cellgrads, xd)
         print(f"{r=}")
-        np.add.at(b, simplices, r)
+        np.add.at(b, simplices, -r)
         return b
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes

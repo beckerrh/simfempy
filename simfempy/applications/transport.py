@@ -75,12 +75,13 @@ class Transport(Application):
         b = np.zeros(self.fem.nunknowns())
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            print(f"{fp1=}")
+            # print(f"{fp1=}")
             self.fem.massDot(b, fp1)
             self.fem.massDotSupg(b, fp1, self.lamdbeta)
+        print(f"{b=}")
         if self.problemdata.solexact:
             f = self.fem.interpolate(self.problemdata.solexact)
-        self.fem.massDotBoundary(b, f, coeff=-np.minimum(self.beta,0))
+            self.fem.massDotBoundary(b, f, coeff=-np.minimum(self.beta,0))
         print(f"{b=}")
         return b,u
     def postProcess(self, u):
