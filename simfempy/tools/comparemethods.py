@@ -151,7 +151,7 @@ class CompareMethods(object):
                     latexwriter.append(**kwargs)
                 else:
                     for key2, val2 in val.items():
-                        print(f"{key=} {key2=}")
+                        # print(f"{key=} {key2=}")
                         kwargs['name'] = '{}-{}'.format(key,key2)
                         kwargs['values'] = val2
                         latexwriter.append(**kwargs)

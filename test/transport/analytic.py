@@ -9,15 +9,15 @@ import simfempy.applications.problemdata
 def plotBetaDownwind(betaC, beta, mesh, fem):
     celldata = {f"beta": [betaC[:,i] for i in range(mesh.dimension)]}
     fig, axs = plotmesh.meshWithData(mesh, quiver_cell_data=celldata, plotmesh=True)
-    xd, ld = fem.downWind(beta)
+    xd, ld, delta = fem.downWind(beta)
     axs[0,0].plot(xd[:,0], xd[:,1], 'or')
-    xd, ld = fem.downWind(beta, method='supg2')
+    xd, ld, delta = fem.downWind(beta, method='supg2')
     axs[0,0].plot(xd[:,0], xd[:,1], 'xb')
     plt.show()
 
 #================================================================#
 if __name__ == '__main__':
-    mesh = testmeshes.unitsquare(2.5)
+    mesh = testmeshes.unitsquare(.5)
     plotmesh.plotmeshWithNumbering(mesh)
     plt.show()
     dim = mesh.dimension
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     data = simfempy.applications.problemdata.ProblemData()
     data.params.fct_glob['beta'] = ["1", "0"]
     data.params.scal_glob['alpha'] = 0
-    tr = Transport(mesh=mesh, problemdata=data, exactsolution="1+y+x")
+    tr = Transport(mesh=mesh, problemdata=data, exactsolution="1+y+x", method="supg2")
     res = tr.static()
     plotBetaDownwind(tr.betaC, tr.beta, mesh, tr.fem)
     plotmesh.meshWithData(mesh, data=res.data)

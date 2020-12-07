@@ -65,23 +65,27 @@ class Transport(Application):
         betafct = self.problemdata.params.fct_glob['beta']
         rt = RT0(mesh)
         self.beta = rt.interpolate(betafct)
-        xd, self.lamdbeta = self.fem.downWind(self.beta)
+        self.xd, self.lamdbeta, self.delta = self.fem.downWind(self.beta, method=self.method)
+        if not np.allclose(np.linalg.norm(self.xd - self.mesh.pointsc,axis=1), self.delta):
+            raise ValueError(f"{self.delta=}\n{np.linalg.norm(self.xd - self.mesh.pointsc,axis=1)=}")
         self.betaC = rt.toCell(self.beta)
     def computeMatrix(self):
         A =  self.fem.comptuteMatrixTransport(self.beta, self.betaC, self.lamdbeta)
-        print(f"{self.fem.nunknowns()=} {A.data=}")
+        # print(f"{self.fem.nunknowns()=} {A.data=}")
         return A
     def computeRhs(self, u=None):
         b = np.zeros(self.fem.nunknowns())
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            print(f"{fp1=}")
-            self.fem.massDot(b, fp1)
-            self.fem.massDotSupg(b, fp1, self.lamdbeta)
+            # print(f"{fp1=}")
+            A = self.fem.computeMassMatrixSupg(self.beta, self.betaC, self.delta)
+            b += A.dot(fp1)
+            # self.fem.massDot(b, fp1)
+            # self.fem.massDotSupg(b, fp1, self.betaC, self.delta)
         if self.problemdata.solexact:
             f = self.fem.interpolate(self.problemdata.solexact)
         self.fem.massDotBoundary(b, f, coeff=-np.minimum(self.beta,0))
-        print(f"{b=}")
+        # print(f"{b=}")
         return b,u
     def postProcess(self, u):
         point_data, side_data, cell_data, global_data = {}, {}, {}, {}
