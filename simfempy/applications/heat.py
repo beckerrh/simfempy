@@ -59,8 +59,6 @@ class Heat(Application):
             else:
                 if not isinstance(convection_given[0], AnalyticalFunction):
                     raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
-
-
     def _checkProblemData(self):
         self.problemdata.check(self.mesh)
         bdrycond = self.problemdata.bdrycond
@@ -136,11 +134,12 @@ class Heat(Application):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         A = self.fem.computematrixDiffusion(self.kheatcell)
         lumped = False
-        colors = bdrycond.colorsOfType("Robin")
-        self.Arobin = self.fem.computeBdryMassMatrix(colors, bdrycond.param, lumped=lumped)
+        colorsrobin = bdrycond.colorsOfType("Robin")
+        colorsdir = bdrycond.colorsOfType("Dirichlet")
+        self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=lumped)
         A += self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
-            A +=  self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection)
+            A +=  self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection, colorsdir+colorsrobin)
         A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
 
@@ -162,14 +161,19 @@ class Heat(Application):
         if 'rhspoint' in self.problemdata.params.fct_glob:
             self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'])
 
-        colors = bdrycond.colorsOfType("Robin")
-        fp1 = self.fem.interpolateBoundary(colors, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colors)
+        colorsrobin = bdrycond.colorsOfType("Robin")
+        colorsdir = bdrycond.colorsOfType("Dirichlet")
+        colorsneu = bdrycond.colorsOfType("Neumann")
 
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convection, 0), colors=colorsdir+colorsrobin)
 
-        colors = bdrycond.colorsOfType("Neumann")
-        fp1 = self.fem.interpolateBoundary(colors, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colors)
+        fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
+        self.fem.massDotBoundary(b, fp1, colorsrobin)
+
+        fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
+        self.fem.massDotBoundary(b, fp1, colorsneu)
 
         # self.fem.computeRhsBoundary(b, bdrycond, ["Neumann"])
         # self.fem.computeRhsBoundaryMass(b, bdrycond, ["Robin"], self.Arobin)

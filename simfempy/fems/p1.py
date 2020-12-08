@@ -74,7 +74,10 @@ class P1(fem.Fem):
             x, y, z = self.mesh.points[nodes].T
             # constant normal !!
             nx, ny, nz = np.mean(normalsS, axis=0)
-            b[nodes] = f[color](x, y, z, nx, ny, nz)
+            try:
+                b[nodes] = f[color](x, y, z, nx, ny, nz)
+            except:
+                b[nodes] = f[color](x, y, z)
         return b
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells

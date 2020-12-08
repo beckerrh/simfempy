@@ -111,7 +111,7 @@ class SimplexMesh(object):
                 if info is not None:
                     # print(f"{label=} {type(label)=}")
                     try: ilabel=int(label)
-                    except: raise ValueError(f"cannot convert to int {label=}")
+                    except: raise ValueError(f"cannot convert to int {label=} {cell_sets=}")
                     cellsoflabel[celltype][ilabel] = info
                     sizes[celltype] += info.shape[0]
                     typesoflabel[ilabel] = celltype
