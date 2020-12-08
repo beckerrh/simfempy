@@ -8,7 +8,7 @@ import sympy
 
 
 #=================================================================#
-class AnalyticalSolution():
+class AnalyticalFunction():
     """
     computes numpy vectorized functions for the function and its dericatives up to two
     for a given expression, derivatives computed with sympy
@@ -168,7 +168,7 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
             for d in range(dim): fct += "+{:3.1f}*sin({:1s})".format(p[d], vars[d])
         else:
             fct = function
-        solexact.append(AnalyticalSolution(expr=fct))
+        solexact.append(AnalyticalFunction(expr=fct))
     if ncomp==1: return solexact[0]
     return solexact
 
@@ -176,12 +176,12 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
 # ------------------------------------------------------------------- #
 if __name__ == '__main__':
     def test1D():
-        u = AnalyticalSolution(dim=1, expr='x*x')
+        u = AnalyticalFunction(dim=1, expr='x*x')
         print("u(2)", u(2))
         x = np.meshgrid(np.linspace(0, 2, 3))
         print("x", x, "\nu=", u.expr, "\nu(x)", u(x), "\nu.x(x)", u.x(x), "\nu.xx(x)", u.xx(x))
     def test2D():
-        u = AnalyticalSolution(dim=2, expr='x*x*y + y*y')
+        u = AnalyticalFunction(dim=2, expr='x*x*y + y*y')
         print("u(2,1)", u(2,1))
         print("u(2,1)", u(*(2,1)))
         x = np.meshgrid(np.linspace(0, 2, 3),np.linspace(0, 1, 2))

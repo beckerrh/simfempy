@@ -67,6 +67,7 @@ def createData():
     #     if label==100: return 0.0001
     #     return 0.1*label
     # params.fct_glob["kheat"] = kheat
+    params.fct_glob["convection"] = ["0", "0.01"]
     return data
 
 

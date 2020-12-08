@@ -40,8 +40,8 @@ class Euler(RaviartThomas):
                 solexactp = AnalyticalSolution('0.3 * x + 0.7 * y')
                 solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
                 solexactv2 = AnalyticalSolution('-1.0 + 0.7 * x - 0.3 * y')
-                # solexactv1 = AnalyticalSolution('-0.3')
-                # solexactv2 = AnalyticalSolution('-0.7')
+                # solexactv1 = AnalyticalFunction('-0.3')
+                # solexactv2 = AnalyticalFunction('-0.7')
             elif problemsplit[1] == 'Quadratic':
                 solexactp = AnalyticalSolution('x*x+2*y*y')
                 solexactv1 = AnalyticalSolution('1.0 + 0.3 * x + 0.7 * y')
@@ -54,7 +54,7 @@ class Euler(RaviartThomas):
             self.solexact = None
             if problem == 'Canal':
                 dirichletp = AnalyticalSolution('0.0')
-                # dirichletv1 = AnalyticalSolution('1-y**2')
+                # dirichletv1 = AnalyticalFunction('1-y**2')
                 dirichletv1 = AnalyticalSolution('1.0')
                 dirichletv2 = AnalyticalSolution('0.0')
                 self.dirichlet = (dirichletp, dirichletv1, dirichletv2)

@@ -24,7 +24,7 @@ class Fem(object):
             lamd = np.ones((ncells,dim+1)) / (dim + 1)
         elif method=='supg':
             dS = linalg.norm(normals[fofc],axis=2)
-            print(f"{dS.shape=}")
+            # print(f"{dS.shape=}")
             vs = v[fofc]*sigma*dS/dV[:,np.newaxis]/dim
             vp = np.maximum(vs, 0)
             ips = vp.argmax(axis=1)
@@ -49,6 +49,8 @@ class Fem(object):
             if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
             vm /= vms[:,np.newaxis]
             lamd = vm
+        else:
+            raise ValueError(f"unknown method {method}")
         # print(f"{v[fofc].shape} {lamd2.shape=}")
         points, simplices = self.mesh.points, self.mesh.simplices
         xd = np.einsum('nji,nj -> ni', points[simplices], lamd)

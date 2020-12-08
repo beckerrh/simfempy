@@ -1,6 +1,8 @@
 import numpy as np
 from simfempy import fems
 from simfempy.applications.application import Application
+from simfempy.fems.rt0 import RT0
+from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Heat(Application):
@@ -47,6 +49,18 @@ class Heat(Application):
             self.method = kwargs.pop('method')
         else:
             self.method="trad"
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            convection_given = self.problemdata.params.fct_glob['convection']
+            if not isinstance(convection_given, list):
+                p = "problemdata.params.fct_glob['convection']"
+                raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
+            elif isinstance(convection_given[0],str):
+                self.problemdata.params.fct_glob['convection'] = [AnalyticalFunction(expr=e) for e in convection_given]
+            else:
+                if not isinstance(convection_given[0], AnalyticalFunction):
+                    raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
+
+
     def _checkProblemData(self):
         self.problemdata.check(self.mesh)
         bdrycond = self.problemdata.bdrycond
@@ -105,6 +119,16 @@ class Heat(Application):
         self.bdrydata = self.fem.prepareBoundary(dircols, colorsflux)
         params = self.problemdata.params
         self.kheatcell = self.compute_cell_vector_from_params('kheat', params)
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            convectionfct = self.problemdata.params.fct_glob['convection']
+            rt = RT0(mesh)
+            self.convection = rt.interpolate(convectionfct)
+            self.xd, self.lamdconvection, self.delta = self.fem.downWind(self.convection, method="supg")
+            self.convectionC = rt.toCell(self.convection)
+            conv = self.problemdata.params.fct_glob['convection']
+            if len(conv) != self.mesh.dimension: raise ValueError(f"convection has wrong length")
+            # for i, c in enumerate(conv):
+            #     print(f"{c.fct_x[i]=}")
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         # self.rhocpcell = self._computearrcell_('rhocp')
 
@@ -115,6 +139,8 @@ class Heat(Application):
         colors = bdrycond.colorsOfType("Robin")
         self.Arobin = self.fem.computeBdryMassMatrix(colors, bdrycond.param, lumped=lumped)
         A += self.Arobin
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            A +=  self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection)
         A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
 
@@ -128,6 +154,8 @@ class Heat(Application):
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.fem.massDot(b, fp1)
+            if 'convection' in self.problemdata.params.fct_glob.keys():
+                self.fem.massDotSupg(b, fp1, self.xd)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
             self.fem.massDotCell(b, fp1)

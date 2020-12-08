@@ -10,7 +10,7 @@ import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
 # from functools import partial
 
-import simfempy.tools.analyticalsolution
+import simfempy.tools.analyticalfunction
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 import simfempy.applications.problemdata
@@ -79,12 +79,12 @@ class Application(object):
         #     if bdrycond.type[color] in ["Dirichlet"]:
         #     else:
         #         type = bdrycond.type[color]
-        #         cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(type, color)
+        #         cmd = "self.define{}AnalyticalFunction(self.problemdata,{})".format(type, color)
         #         # print(f"cmd={cmd}")
         #         bdrycond.fct[color] = eval(cmd)
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
-        return simfempy.tools.analyticalsolution.analyticalSolution(exactsolution, dim, self.ncomp, random)
+        return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def setMesh(self, mesh):
         self.mesh = mesh
         self._setMeshCalled = True

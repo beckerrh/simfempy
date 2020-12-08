@@ -93,35 +93,33 @@ class P1(fem.Fem):
         massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeMassMatrixSupg(self, beta, betaC, delta, coeff=1):
-        dim, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
+    def computeMassMatrixSupg(self, xd, coeff=1):
+        dim, dV, nnodes, xK = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes, self.mesh.pointsc
         massloc = simfempy.tools.barycentric.tensor(d=dim, k=2)
         mass = np.einsum('n,ij->nij', coeff*dV, massloc)
         massloc = simfempy.tools.barycentric.tensor(d=dim, k=1)
-        # print(f"{delta=}")
-        mass += np.einsum('n,nik,nk,j -> nij', coeff*delta*dV, self.cellgrads[:,:,:dim], betaC, massloc)
+        # marche si xd = xK + delta*betaC
+        # mass += np.einsum('n,nik,nk,j -> nij', coeff*delta*dV, self.cellgrads[:,:,:dim], betaC, massloc)
+        mass += np.einsum('n,nik,nk,j -> nij', coeff*dV, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim], massloc)
         return sparse.coo_matrix((mass.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    def comptuteMatrixTransport(self, beta, betaC, ld):
+    def comptuteMatrixTransport(self, beta, betaC, ld, colors=None):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
         if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, ld)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         # print(f"transport {A.toarray()=}")
-        B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0))
+        B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0), colors=colors)
         # print(f"transport {B.toarray()=}")
         return A+B
-    def massDotSupg(self, b, f, betaC, delta):
-        dim, simplices, points, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.points, self.mesh.dV
-        # massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
-        # r = np.einsum('n,kl,nl->nk', coeff*dV, massloc, f[simplices])
-        # scale = 1/(dim+1)
-        # xd = np.einsum('njk,nj -> nk', points[simplices], ld-scale)
-        fm = f[simplices].mean(axis=1)
-        # print(f"{xd.shape=} {fm.shape=} {self.cellgrads[:,:,:dim].shape}")
-        r = np.einsum('n,nik,nk -> ni', delta*dV*fm, self.cellgrads[:,:,:dim], betaC)
+    def massDotSupg(self, b, f, xd):
+        dim, simp, points, dV, xK = self.mesh.dimension, self.mesh.simplices, self.mesh.points, self.mesh.dV, self.mesh.pointsc
+        fm = f[simp].mean(axis=1)
+        # marche si xd = xK + delta*betaC
+        # r = np.einsum('n,nik,nk -> ni', delta*dV*fm, self.cellgrads[:,:,:dim], betaC)
+        r = np.einsum('n,nik,nk -> ni', dV*fm, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim])
         # print(f"{r=}")
-        np.add.at(b, simplices, r)
+        np.add.at(b, simp, r)
         return b
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes

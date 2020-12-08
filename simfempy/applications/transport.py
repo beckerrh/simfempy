@@ -2,7 +2,7 @@ import numpy as np
 from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.fems.rt0 import RT0
-from simfempy.tools.analyticalsolution import AnalyticalSolution
+from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Transport(Application):
@@ -29,9 +29,9 @@ class Transport(Application):
         beta_given = self.problemdata.params.fct_glob['beta']
         if not isinstance(beta_given,list):
             p = "problemdata.params.fct_glob['beta']"
-            raise ValueError(f"need '{p}' as a list of str or AnalyticalSolution")
+            raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
         elif isinstance(beta_given[0],str):
-            self.problemdata.params.fct_glob['beta'] = [AnalyticalSolution(expr=e) for e in beta_given]
+            self.problemdata.params.fct_glob['beta'] = [AnalyticalFunction(expr=e) for e in beta_given]
         if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
         else: self.linearsolver = 'umf'
         fem = 'p1'
@@ -66,8 +66,6 @@ class Transport(Application):
         rt = RT0(mesh)
         self.beta = rt.interpolate(betafct)
         self.xd, self.lamdbeta, self.delta = self.fem.downWind(self.beta, method=self.method)
-        if not np.allclose(np.linalg.norm(self.xd - self.mesh.pointsc,axis=1), self.delta):
-            raise ValueError(f"{self.delta=}\n{np.linalg.norm(self.xd - self.mesh.pointsc,axis=1)=}")
         self.betaC = rt.toCell(self.beta)
     def computeMatrix(self):
         A =  self.fem.comptuteMatrixTransport(self.beta, self.betaC, self.lamdbeta)
@@ -78,10 +76,10 @@ class Transport(Application):
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             # print(f"{fp1=}")
-            A = self.fem.computeMassMatrixSupg(self.beta, self.betaC, self.delta)
-            b += A.dot(fp1)
-            # self.fem.massDot(b, fp1)
-            # self.fem.massDotSupg(b, fp1, self.betaC, self.delta)
+            # A = self.fem.computeMassMatrixSupg(self.xd)
+            # b += A.dot(fp1)
+            self.fem.massDot(b, fp1)
+            self.fem.massDotSupg(b, fp1, self.xd)
         if self.problemdata.solexact:
             f = self.fem.interpolate(self.problemdata.solexact)
         self.fem.massDotBoundary(b, f, coeff=-np.minimum(self.beta,0))

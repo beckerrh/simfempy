@@ -47,7 +47,7 @@ class Solver(object):
         # types.add("Neumann")
         # problemdata.bdrycond.fctexact = {}
         # for type in types:
-        #     cmd = "self.define{}AnalyticalSolution(problemdata.solexact)".format(type)
+        #     cmd = "self.define{}AnalyticalFunction(problemdata.solexact)".format(type)
         #     problemdata.bdrycond.fctexact[type] = eval(cmd)
 
         for color in self.mesh.bdrylabels:

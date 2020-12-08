@@ -4,7 +4,7 @@ import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
 from simfempy import solvers
 from simfempy import fems
-import simfempy.tools.analyticalsolution
+import simfempy.tools.analyticalfunction
 import simfempy.tools.iterationcounter
 
 # =================================================================#
@@ -18,12 +18,12 @@ class Stokes(solvers.solver.Application):
     def defineAnalyticalSolution(self, exactsolution, random=True):
         solexact = super().defineAnalyticalSolution(exactsolution=exactsolution, random=random)
         if exactsolution == 'Linear':
-            # solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution('x+y'))
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('0'))
+            # solexact.append(simfempy.tools.analyticalsolution.AnalyticalFunction('x+y'))
+            solexact.append(simfempy.tools.analyticalfunction.AnalyticalSolution3d('0'))
         elif exactsolution == 'Quadratic':
-            # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalSolution('x*x-2*y*x')
-            # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalSolution('-2*x*y+y*y')
-            solexact.append(simfempy.tools.analyticalsolution.AnalyticalSolution3d('x+y'))
+            # solexact[0] = simfempy.tools.analyticalsolution.AnalyticalFunction('x*x-2*y*x')
+            # solexact[1] = simfempy.tools.analyticalsolution.AnalyticalFunction('-2*x*y+y*y')
+            solexact.append(simfempy.tools.analyticalfunction.AnalyticalSolution3d('x+y'))
         else:
             raise NotImplementedError("unknown function '{}'".format(exactsolution))
         return solexact
