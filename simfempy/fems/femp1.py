@@ -49,6 +49,7 @@ class FemP1(object):
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
 
     def computeBdryMassMatrix(self, bdrycond, type, lumped=False):
+        # TODO: find a way to get linear solution exactly with lumped=True
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)

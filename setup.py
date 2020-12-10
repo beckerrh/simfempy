@@ -1,29 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-import os
 from setuptools import setup, find_packages
 
-base_dir = os.path.abspath(os.path.dirname(__file__))
-about = {}
-with open(os.path.join(base_dir, "simfempy", "__about__.py"), "rb") as f:
-    exec(f.read(), about)
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+print(f"{find_packages()=}")
 setup(
     name="simfempy",
-    version=about["__version__"],
-    author=about["__author__"],
-    author_email=about["__author_email__"],
+    version="2.0.0",
+    author="Roland Becker",
+    author_email="beckerrolandh@gmail.com",
     packages=find_packages(),
-    url=about["__website__"],
-    license=about["__license__"],
+    url="https://github.com/beckerrh/simfempy",
+    license="License :: OSI Approved :: MIT License",
     description="A small package for fem",
     long_description=long_description,
     long_description_content_type="text/markdown",
     platforms="any",
+    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'pyamg'],
     classifiers=[
-        about["__license__"],
+        "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",

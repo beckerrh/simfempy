@@ -12,17 +12,55 @@ print(f"{pygmsh.__file__=}")
 
 # ---------------------------------------------------------------- #
 def main():
+    problemdata = createDataDyn()
     # problemdata = createData()
-    problemdata = createDataConvection()
-    mesh = createMesh()
+    # problemdata = createDataConvection()
+    mesh = createMesh(h=0.1)
     print(f"{mesh=}")
     heat = simfempy.applications.heat.Heat(mesh=mesh, problemdata=problemdata)
     simfempy.meshes.plotmesh.meshWithBoundaries(heat.mesh)
-    result = heat.static()
-    print(f"{result.info['timer']}")
-    print(f"postproc: {result.data['global']['postproc']}")
-    simfempy.meshes.plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat example", alpha=1)
-    plt.show()
+    mode = 'dynamic'
+    if mode == 'static':
+        result = heat.static()
+        print(f"{result.info['timer']}")
+        print(f"postproc: {result.data['global']['postproc']}")
+        simfempy.meshes.plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1)
+        plt.show()
+    elif mode == 'dynamic':
+        import numpy as np
+        from matplotlib import animation
+        import matplotlib
+        u0 = heat.initialCondition("200")
+        class HeatAnim:
+            def __init__(self, ax, mesh, u0, heat):
+                x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+                ax.triplot(x, y, tris, color='gray', lw=1, alpha=1)
+                self.norm = matplotlib.colors.Normalize(vmin=100, vmax=200)
+                self.argscf = {'levels':32, 'norm':self.norm, 'cmap':'jet'}
+                self.argsc = {'colors':'k', 'levels':np.linspace(100,200,20)}
+                ax.tricontourf(x, y, tris, u0, **self.argscf)
+                # ax.tricontour(x, y, tris, u0, **self.argsc)
+                cmap = matplotlib.cm.jet
+                plt.colorbar(matplotlib.cm.ScalarMappable(norm=self.norm, cmap=cmap), ax=ax)
+                self.heat, self.u0, self.ax  = heat, u0, ax
+                self.x, self.y, self.tris = x, y, tris
+                self.u = u0
+
+            def __call__(self, i):
+                heat, u0, ax = self.heat, self.u0, self.ax
+                x, y, tris = self.x, self.y, self.tris
+                self.u = heat.dynamic(self.u, niter=100, dt=1.)
+                print(f"{i=} {np.linalg.norm(self.u)}")
+                ax.cla()
+                ax.set_title(f"Iter {i}")
+                ax.tricontourf(x, y, tris, self.u, **self.argscf)
+                ax.tricontour(x, y, tris, self.u, **self.argsc)
+        # simfempy.meshes.plotmesh.meshWithData(heat.mesh, point_data={'u':u}, title="Heat dynamic", alpha=1)
+        fig = plt.figure()
+        ha = HeatAnim(fig.gca(), mesh, u0, heat)
+        anim = animation.FuncAnimation(fig, ha, frames=25, repeat=False)
+        plt.show()
+    else: raise ValueError(f"unknown{ mode=}")
 
 # ---------------------------------------------------------------- #
 def createMesh(h=0.2):
@@ -38,18 +76,13 @@ def createMesh(h=0.2):
     # from simfempy.meshes.plotmesh import plotmeshWithNumbering
     # plotmeshWithNumbering(mesh)
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-
 # ---------------------------------------------------------------- #
-def createData():
+def createDataDyn():
     data = simfempy.applications.problemdata.ProblemData()
     bdrycond =  data.bdrycond
-    bdrycond.set("Robin", [1000])
-    bdrycond.set("Dirichlet", [1001, 1003])
-    bdrycond.set("Neumann", [1002, 3000, 3001, 3002])
-    bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
-    bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
-    bdrycond.fct[1000] = lambda x, y, z, nx, ny, nz: 100
-    bdrycond.param[1000] = 1
+    bdrycond.set("Dirichlet", [1000])
+    bdrycond.set("Neumann", [1002, 1001, 1003, 3000, 3001, 3002])
+    bdrycond.fct[1000] = lambda x,y,z: 120
     postproc = data.postproc
     postproc.type['bdrymean_low'] = "bdry_mean"
     postproc.color['bdrymean_low'] = [1000]
@@ -67,6 +100,37 @@ def createData():
     # params.fct_glob["kheat"] = kheat
     # params.fct_glob["convection"] = ["0", "0.01"]
     return data
+# ---------------------------------------------------------------- #
+def createData():
+    data = simfempy.applications.problemdata.ProblemData()
+    bdrycond =  data.bdrycond
+    # bdrycond.set("Robin", [1000])
+    # bdrycond.set("Dirichlet", [1001, 1003])
+    bdrycond.set("Dirichlet", [1000, 1001, 1003])
+    bdrycond.set("Neumann", [1002, 3000, 3001, 3002])
+    bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
+    bdrycond.fct[1000] = bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
+    # bdrycond.fct[1001] = bdrycond.fct[1003] = lambda x,y,z: 120
+    # bdrycond.fct[1000] = lambda x, y, z, nx, ny, nz: 100
+    # bdrycond.param[1000] = 1
+    postproc = data.postproc
+    postproc.type['bdrymean_low'] = "bdry_mean"
+    postproc.color['bdrymean_low'] = [1000]
+    postproc.type['bdrymean_up'] = "bdry_mean"
+    postproc.color['bdrymean_up'] = [1002]
+    postproc.type['fluxn'] = "bdry_nflux"
+    postproc.color['fluxn'] = [1001, 1003]
+    params = data.params
+    params.set_scal_cells("kheat", [100], 0.001)
+    params.set_scal_cells("kheat", [200], 10.0)
+    # alternative:
+    # def kheat(label, x, y, z):
+    #     if label==100: return 0.0001
+    #     return 0.1*label
+    # params.fct_glob["kheat"] = kheat
+    # params.fct_glob["convection"] = ["0", "0.01"]
+    return data
+
 
 # ---------------------------------------------------------------- #
 def createDataConvection():

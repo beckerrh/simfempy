@@ -27,8 +27,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
         geom = testgeoms.unitcube
         h = [1.0, 0.5, 0.25, 0.125]
     data.params.scal_glob['kheat'] = 1
-    if exactsolution == "Constant" or exactsolution == "Linear":
-        h = h[:3]
+    if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
     # exactsolution = 'x'
     data.bdrycond.clear()
     data.bdrycond.set("Dirichlet", colors[:])
@@ -38,7 +37,10 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
     sims = {}
     for fem in fems:
         for method in methods:
-            sims[fem+method] = Heat(problemdata=data, fem=fem, method=method, exactsolution=exactsolution, random=False)
+            kwargs = {'problemdata':data, 'fem':fem, 'method':method, 'masslumpedbdry':False}
+            kwargs['exactsolution'] = exactsolution
+            kwargs['random'] = False
+            sims[fem+method] = Heat(**kwargs)
     comp = simfempy.tools.comparemethods.CompareMethods(sims, plot=True)
     result = comp.compare(createMesh=createMesh, h=h)
     # result = comp.compare(geom=geom, h=h)
@@ -46,7 +48,7 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
 if __name__ == '__main__':
     exactsolution = 'Constant'
     exactsolution = 'Linear'
-    exactsolution = 'Quadratic'
+    # exactsolution = 'Quadratic'
     # test_analytic(exactsolution = exactsolution, geomname = "unitline")
     test_analytic(exactsolution = exactsolution, geomname = "unitsquare")
     # test_analytic(exactsolution = exactsolution, geomname = "unitcube")

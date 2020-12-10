@@ -1,10 +1,10 @@
 README.md
 setup.py
-simfempy/__about__.py
 simfempy/__init__.py
 simfempy.egg-info/PKG-INFO
 simfempy.egg-info/SOURCES.txt
 simfempy.egg-info/dependency_links.txt
+simfempy.egg-info/requires.txt
 simfempy.egg-info/top_level.txt
 simfempy/applications/__init__.py
 simfempy/applications/application.py
@@ -45,7 +45,7 @@ simfempy/solvers/newton.py
 simfempy/solvers/optimize.py
 simfempy/solvers/stoppingdata.py
 simfempy/tools/__init__.py
-simfempy/tools/analyticalsolution.py
+simfempy/tools/analyticalfunction.py
 simfempy/tools/barycentric.py
 simfempy/tools/checkmmatrix.py
 simfempy/tools/comparemethods.py
@@ -56,15 +56,4 @@ simfempy/tools/matrix.py
 simfempy/tools/npext.py
 simfempy/tools/permsum.py
 simfempy/tools/timer.py
-simfempy_pygmsh7/__about__.py
-simfempy_pygmsh7/__init__.py
-simfempy_pygmsh7/applications/__init__.py
-simfempy_pygmsh7/applications/heat.py
-simfempy_pygmsh7/applications/problemdata.py
-simfempy_pygmsh7/applications/solver.py
-simfempy_pygmsh7/fem/__init__.py
-simfempy_pygmsh7/meshes/__init__.py
-simfempy_pygmsh7/meshes/simplexmesh.py
-simfempy_pygmsh7/meshes/testmesh.py
-simfempy_pygmsh7/tools/__init__.py
 test/test.py

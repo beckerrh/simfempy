@@ -251,7 +251,10 @@ def meshWithData(**kwargs):
     count=0
     if point_data:
         for pdn, pd in point_data.items():
-            assert x.shape == pd.shape
+            if not isinstance(pd,np.ndarray):
+                raise ValueError(f"Problem in data {type(pd)=}")
+            if x.shape != pd.shape:
+                raise ValueError(f"Problem in data {x.shape=} {pd.shape=}")
             ax = axs[count//ncols,count%ncols]
             ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
             cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
