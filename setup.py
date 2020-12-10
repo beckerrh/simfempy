@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 print(f"{find_packages()=}")
 setup(
     name="simfempy",
-    version="2.0.0",
+    version="2.0.1",
     author="Roland Becker",
     author_email="beckerrolandh@gmail.com",
     packages=find_packages(),
