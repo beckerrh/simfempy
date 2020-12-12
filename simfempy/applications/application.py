@@ -14,6 +14,7 @@ import simfempy.tools.analyticalfunction
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 import simfempy.applications.problemdata
+from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Application(object):
@@ -35,10 +36,7 @@ class Application(object):
         if 'exactsolution' in kwargs:
             self.exactsolution = kwargs.pop('exactsolution')
             self._generatePDforES = True
-            if 'random' in kwargs:
-                self.random_exactsolution = kwargs.pop('random')
-            else:
-                self.random_exactsolution = False
+            self.random_exactsolution = kwargs.pop('random',False)
         else:
             self._generatePDforES = False
         if 'geom' in kwargs:
@@ -106,18 +104,11 @@ class Application(object):
             msg = f"{name} should be given in 'fct_glob' or 'scal_glob' or 'scal_cells' (problemdata.params)"
             raise ValueError(msg)
         return arr
-    def static(self, iter=100, dirname='Run'):
+    def static(self, iter=100, dirname='Run', mode='linear'):
+        if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
         # print(f"### static")
         if not self._setMeshCalled: self.setMesh(self.mesh)
         # self.timer.reset_all()
-        return self.solveLinearProblem()
-
-    # def solve(self, iter=0, dirname="Results"):
-    #     return self.solveLinearProblem()
-
-    def solveLinearProblem(self):
-        # print(f"### solveLinearProblem")
-        if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
         A = self.computeMatrix()
@@ -127,10 +118,74 @@ class Application(object):
         u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         # print(f"{u=}")
         self.timer.add('solve')
-        result.setData(self.postProcess(u))
+        pp = self.postProcess(u)
         self.timer.add('postp')
-        result.info['timer'] = self.timer
-        result.info['iter'] = {'lin':niter}
+        result.setData(pp, timer=self.timer, iter={'lin':niter})
+        # result.setData(self.postProcess(u), iter={'lin':niter})
+        # result.info['timer'] = self.timer
+        # result.info['iter'] = {'lin':niter}
+        return result
+    def initialCondition(self, expr):
+        if not self._setMeshCalled: self.setMesh(self.mesh)
+        self.Mass = self.fem.computeMassMatrix()
+        fp1 = self.fem.interpolate(AnalyticalFunction(expr))
+        #TODO: higher order interpolation
+        return fp1
+        b = np.zeros(self.fem.nunknowns())
+        self.fem.massDot(b, fp1)
+        u, niter = self.linearSolver(self.Mass, b, u=fp1)
+        return u
+    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='CN', verbose=0):
+        # TODO: passing time
+        """
+        u_t + A u = f, u(t_0) = u_0
+        M(u^{n+1}-u^n)/dt + a Au^{n+1} + (1-a) A u^n = f
+        (M/dt+aA) u^{n+1} =  f + (M/dt -(1-a)A)u^n
+                          =  f + 1/a (M/dt) u^n -  (1-a)/a (M/dt+aA)u^n
+        :param u0: initial condition
+        :param t_span: time interval bounds (tuple)
+        :param nframes: number of frames to store
+        :param dt: time-step (fixed for the moment!)
+        :param mode: (only linear for the moment!)
+        :param callback: if given function called for each frame with argumntes t, u
+        :param method: CN or BE for Crank-Nicolson (a=1/2) or backward Euler (a=1)
+        :return: results with data per frame
+        """
+        if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
+        if not dt or dt<=0: raise NotImplementedError(f"needs constant positive 'dt")
+        if t_span[0]>=t_span[1]: raise ValueError(f"something wrong in {t_span=}")
+        if method not in ['BE','CN']: raise ValueError(f"unknown method {method=}")
+        if method == 'BE': a = 1
+        else: a = 1
+        import math
+        niter = math.ceil((t_span[1]-t_span[0])/dt)//nframes
+        result = simfempy.applications.problemdata.Results()
+        self.timer.add('init')
+        if not hasattr(self, 'A'):
+            self.A = self.computeMatrix(coeffmass=a/dt)
+            self.ml = self.build_pyamg(self.A)
+        self.timer.add('matrix')
+        u = u0
+        self.time = t_span[0]
+        # rhs=None
+        rhs=np.empty_like(u, dtype=float)
+        # will be create by computeRhs()
+        niterslinsol = np.zeros(niter)
+        expl = -((1-a)/a)
+        for iframe in range(nframes):
+            if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=}")
+            for iter in range(niter):
+                self.time += dt
+                rhs.fill(0)
+                # rhs += expl*self.A.dot(u)
+                rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt), fillzeros=False)
+                # print(f"@@@@{np.min(u)=} {np.max(u)=}")
+                self.timer.add('rhs')
+                u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
+                # print(f"{np.min(u)=} {np.max(u)=}")
+                self.timer.add('solve')
+            result.addData(self.postProcess(u), time=self.time, iter=niterslinsol.mean())
+            if callback: callback(self.time, u)
         return result
 
 
@@ -179,15 +234,14 @@ class Application(object):
         strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
         presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
         postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-        presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        self.ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        # self.ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
 
-    def linearSolver(self, A, b, u=None, solver = None, verbose=1):
+    def linearSolver(self, A, b, u=None, solver = None, verbose=0):
         # print(f"### linearSolver {solver=}")
-        if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
-            raise ValueError(f"{A.shape=} {b.shape=}")
+        if spsp.issparse(A):
+            if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
+                raise ValueError(f"{A.shape=} {b.shape=}")
         if solver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
         if solver not in self.linearsolvers: solver = "umf"
@@ -216,38 +270,17 @@ class Application(object):
         elif solver == 'pyamg':
             import pyamg
             res=[]
-            # u = pyamg.solve(A=A, b=b, x0=u, tol=1e-14, residuals=res, verb=False)
-            # B = np.ones((A.shape[0], 1))
-            # SA_build_args = {
-            #     'max_levels': 10,
-            #     'max_coarse': 25,
-            #     'coarse_solver': 'pinv2',
-            #     'symmetry': 'hermitian'}
-            # smooth = ('energy', {'krylov': 'cg'})
-            # strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-            # presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-            # postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-            # strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-            # presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-            # postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-            # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
-            # ml = pyamg.smoothed_aggregation_solver(
-            #     A,
-            #     B=B,
-            #     smooth=smooth,
-            #     strength=strength,
-            #     presmoother=presmoother,
-            #     postsmoother=postsmoother,
-            #     **SA_build_args)
-            # u= ml.solve(b=b, x0=u, tol=1e-12, residuals=res, **SA_solve_args)
             maxiter = 50
-            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12}
-            if not hasattr(self, 'ml'):
-                self.build_pyamg(A)
-            u= self.ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
+            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
+            if spsp.issparse(A): ml = self.build_pyamg(A)
+            else: ml = A
+            # if not hasattr(self, 'ml'): self.build_pyamg(A)
+            # print(f"*LS*{id(u)=}")
+            u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if len(res) >= maxiter:
                 raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
+            # print(f"*LS*{id(u)=}")
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))

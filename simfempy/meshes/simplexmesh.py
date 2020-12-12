@@ -104,7 +104,7 @@ class SimplexMesh(object):
         cellsoflabel = {key:{} for key in self.celltypes}
         ctorderd = []
         for label, cb in cell_sets.items():
-            print(f"{label=} {cb=}")
+            # print(f"{label=} {cb=}")
             if len(cb) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
             for celltype, info in zip(self.celltypes, cb):
                 # only one is supposed to be not None

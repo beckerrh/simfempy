@@ -7,7 +7,7 @@ from simfempy.meshes import plotmesh
 from simfempy.applications.heat import Heat
 
 # ---------------------------------------------------------------- #
-def main():
+def defineProblem():
     # create a mesh
     h = 0.1
     X = np.array([[0,-2], [1,-1], [1,2],[-1,2], [-1,-1]])
@@ -20,8 +20,6 @@ def main():
             geom.add_physical(l, label=f"{1000+i}")
         mesh = geom.generate_mesh()
     mesh =  SimplexMesh(mesh=mesh)
-    plotmesh.meshWithBoundaries(mesh)
-    plt.show()
     # create problem data
     data = ProblemData()
     bdrycond =  data.bdrycond
@@ -34,13 +32,31 @@ def main():
     postproc.color['bdrymean'] = [1002]
     params = data.params
     params.set_scal_cells("kheat", [100], 0.001)
+    return mesh, data
 # create heat application
+
+def static():
+    mesh, data = defineProblem()
+    plotmesh.meshWithBoundaries(mesh)
+    plt.show()
     heat = Heat(mesh=mesh, problemdata=data)
     result = heat.static()
     print(f"{result.info['timer']}")
-    print(f"postproc: {result.data['global']['postproc']}")
+    print(f"postproc: {result.data['global']}")
     plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1)
     plt.show()
 
+
+def dynamic():
+    from simfempy.meshes.animdata import AnimData
+    mesh, data = defineProblem()
+    heat = Heat(mesh=mesh, problemdata=data)
+    u0 = heat.initialCondition("200")
+    result = heat.dynamic(u0, t_span=(0, 2000), nframes=40, dt=10)
+    anim = AnimData(mesh, result.data['point']['U'])
+    plt.show()
+
+
 # ---------------------------------------------------------------- #
-main()
+# static()
+dynamic()

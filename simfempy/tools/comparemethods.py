@@ -90,7 +90,6 @@ class CompareMethods(object):
                     plt.show()
                 resdict = result.info.copy()
                 resdict.update(result.data['global'])
-                # print(resdict)
                 self.fillInfo(iter, name, resdict, len(params))
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)
@@ -103,13 +102,29 @@ class CompareMethods(object):
             self.infos = {}
             for key2, info2 in info.items():
                 self.infos[key2] = {}
-                for key3, info3 in info2.items():
-                    self.infos[key2][key3] = {}
+                if isinstance(info2, dict):
+                    for key3, info3 in info2.items():
+                        self.infos[key2][key3] = {}
+                        for name2 in self.methods.keys():
+                            self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
+                elif isinstance(info2, simfempy.tools.timer.Timer):
+                    for key3, info3 in info2.data.items():
+                        self.infos[key2][key3] = {}
+                        for name2 in self.methods.keys():
+                            self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
+                else:
                     for name2 in self.methods.keys():
-                        self.infos[key2][key3][name2] = np.zeros(shape=(n), dtype=type(info3))
+                        self.infos[key2][name2] = np.zeros(shape=(n), dtype=type(info2))
         for key2, info2 in info.items():
-            for key3, info3 in info2.items():
-                self.infos[key2][key3][name][iter] = np.sum(info3)
+            if isinstance(info2, dict):
+                for key3, info3 in info2.items():
+                    self.infos[key2][key3][name][iter] = np.sum(info3)
+            elif isinstance(info2, simfempy.tools.timer.Timer):
+                for key3, info3 in info2.data.items():
+                    self.infos[key2][key3][name][iter] = np.sum(info3)
+            else:
+                self.infos[key2][name][iter] = np.sum(info2)
+
     def generateLatex(self, names, paramname, parameters, infos):
         mesh = self.createMesh.__name__
         title = f"mesh({mesh})\\\\"
@@ -120,6 +135,7 @@ class CompareMethods(object):
         latexwriter = LatexWriter(dirname=self.dirname, title=title, author=self.__class__.__name__)
         for key, val in infos.items():
             kwargs = {'n': parameters, 'nname': paramname}
+            keysplit = key.split('_')
             if key == 'iter':
                 newdict={}
                 for key2, val2 in val.items():
@@ -139,22 +155,13 @@ class CompareMethods(object):
                     kwargs['percentage'] = True
                     latexwriter.append(**kwargs)
             else:
-                kwargs['redrate'] = (key=="error") and (paramname=="ncells")
+                iserr = len(keysplit) >= 2 and keysplit[0] == 'err'
+                kwargs['redrate'] = iserr and (paramname=="ncells")
                 kwargs['diffandredrate'] = not kwargs['redrate'] and (paramname=="ncells")
                 kwargs['dim'] = self.dim
-                if key=="error" and len(self.methods)==1:
-                    newdict={}
-                    for key2, val2 in val.items():
-                        newdict["{}".format(key2)] = val2[name]
-                    kwargs['name'] = '{}-{}'.format(key, name)
-                    kwargs['values'] = newdict
-                    latexwriter.append(**kwargs)
-                else:
-                    for key2, val2 in val.items():
-                        # print(f"{key=} {key2=}")
-                        kwargs['name'] = '{}-{}'.format(key,key2)
-                        kwargs['values'] = val2
-                        latexwriter.append(**kwargs)
+                kwargs['name'] = '{}'.format(key)
+                kwargs['values'] = val
+                latexwriter.append(**kwargs)
         latexwriter.write()
         latexwriter.compile()
     def computeOrder(self, ncells, values, dim):

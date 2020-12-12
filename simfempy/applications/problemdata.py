@@ -186,15 +186,39 @@ class Results(object):
     - point_data, side_data, cell_data, gobal_data
     - info on iteration
     """
+    # TODO: data per physical identity
     def __init__(self):
-        self.data = {"point":{}, "side":{}, "cell":{}, "global":{}}
+        # self.data = {"point":{}, "side":{}, "cell":{}, "global":{}}
+        self.data = {}
         self.info = {}
     def __repr__(self):
         return f"{self.data=}\n {self.info=}"
-    def setData(self, data):
-        if len(data) != 4:
-            raise ValueError("expect four data (point, side, cell, global)")
-        self.data["point"] = data[0]
-        self.data["side"] = data[1]
-        self.data["cell"] = data[2]
-        self.data["global"] = data[3]
+    def setData(self, data, timer=None, iter=None):
+        self.data = data
+        if timer is not None: self.info['timer'] = timer
+        if iter is not None: self.info['iter'] = iter
+        # if len(data) != 4:
+        #     raise ValueError("expect four data (point, side, cell, global)")
+        # self.data["point"] = data[0]
+        # self.data["side"] = data[1]
+        # self.data["cell"] = data[2]
+        # self.data["global"] = data[3]
+    def addData(self, data, time=None, iter=None):
+        if not len(self.data.keys()):
+            for k,v in data.items():
+                # print(f"{k=} {type(v)=}")
+                if isinstance(v,dict):
+                    self.data[k] = {}
+                    for k2,v2 in v.items():
+                        # print(f"{k2=} {type(v2)=}")
+                        if not isinstance(v2, dict):
+                            self.data[k][k2] = []
+                        else:
+                            assert 0
+                else:
+                    assert 0
+        for k,v in data.items():
+            if isinstance(v,dict):
+                for k2,v2 in v.items():
+                    if not isinstance(v2, dict):
+                        self.data[k][k2].append(v2)

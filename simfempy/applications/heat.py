@@ -130,7 +130,7 @@ class Heat(Application):
             if len(conv) != self.mesh.dimension: raise ValueError(f"convection has wrong length")
             # for i, c in enumerate(conv):
             #     print(f"{c.fct_x[i]=}")
-    def computeMatrix(self):
+    def computeMatrix(self, coeffmass=None):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
         A = self.fem.computematrixDiffusion(self.kheatcell)
         lumped = True
@@ -140,13 +140,19 @@ class Heat(Application):
         A += self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
             A +=  self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection, colorsdir+colorsrobin)
+        if coeffmass is not None:
+            A += self.fem.computeMassMatrix(coeff=coeffmass)
         A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
-    def computeRhs(self, u=None):
+    def computeRhs(self, b=None, u=None, coeffmass=None, fillzeros=True):
         if not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
-        b = np.zeros(self.fem.nunknowns())
+        if b is None:
+            b = np.zeros(self.fem.nunknowns())
+        else:
+            if b.shape[0] != self.fem.nunknowns(): raise ValueError(f"{b.shape=} {self.fem.nunknowns()=}")
+            if fillzeros: b.fill(0)
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.fem.massDot(b, fp1)
@@ -167,35 +173,15 @@ class Heat(Application):
         self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff=bdrycond.param)
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
         self.fem.massDotBoundary(b, fp1, colorsneu)
+        if coeffmass is not None:
+            assert u is not None
+            self.fem.massDot(b, u, coeff=coeffmass)
+        # print(f"***{id(u)=} {type(u)=}")
         b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, method, bdrydata)
+        # print(f"***{id(u)=} {type(u)=}")
         return b,u
 
     # def residualNewton(self, u):
-    def initialCondition(self, expr):
-        if not self._setMeshCalled: self.setMesh(self.mesh)
-        self.Mass = self.fem.computeMassMatrix()
-        fp1 = self.fem.interpolate(AnalyticalFunction(expr))
-        b = np.zeros(self.fem.nunknowns())
-        self.fem.massDot(b, fp1)
-        u, niter = self.linearSolver(self.Mass, b)
-        return u
-    def dynamic(self, u0, niter=100, dt=0.1):
-        if not hasattr(self,'Mass'):
-            self.Mass = self.fem.computeMassMatrix()
-        if not hasattr(self, 'Adyn'):
-            self.A = self.computeMatrix()
-            # self.Adyn = self.Mass/dt + self.A
-            self.Adyn = self.Mass / dt + 0.5 * self.A
-            self.build_pyamg(self.Adyn)
-        u = u0
-        for iter in range(niter):
-            rhs,ub = self.computeRhs()
-            rhs += (1/dt)*self.Mass.dot(u)
-            # self.fem.massDot(rhs, u, coeff=1/dt)
-            rhs -= 0.5*self.A.dot(u)
-            u, niter = self.linearSolver(self.Adyn, rhs, u=u, verbose=0)
-            # print(f"\t\t{iter=} {np.linalg.norm(u)} {id(u)}")
-        return u
 
 
     #     if not hasattr(self, 'du'): self.du = np.empty_like(u)
@@ -206,35 +192,63 @@ class Heat(Application):
     #     return self.du
 
     def postProcess(self, u):
-        point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        point_data['U'] = self.fem.tonode(u)
+        # TODO: virer 'error' et 'postproc'
+        data = {'point':{}, 'cell':{}, 'global':{}}
+        # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
+        data['point']['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
-            global_data['error'] = {}
-            global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
-            global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
-            cell_data['E'] = ec
-        global_data['postproc'] = {}
+            data['global']['err_pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['global']['err_pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+            data['global']['err_vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
+            data['cell']['err'] = ec
         if self.problemdata.postproc:
             types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
+                    data['global'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == types[1]:
-                    global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
+                    data['global'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
-                    global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
+                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
                 elif type == types[3]:
-                    global_data['postproc'][name] = self.fem.computePointValues(u, colors)
+                    data['global'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:
-                    global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
+                    data['global'][name] = self.fem.computeMeanValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         if self.kheatcell.shape[0] != self.mesh.ncells:
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
-        cell_data['k'] = self.kheatcell
-        return point_data, side_data, cell_data, global_data
+        data['cell']['k'] = self.kheatcell
+        return data
+        # point_data['U'] = self.fem.tonode(u)
+        # if self.problemdata.solexact:
+        #     global_data['error'] = {}
+        #     global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+        #     global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+        #     global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
+        #     cell_data['E'] = ec
+        # global_data['postproc'] = {}
+        # if self.problemdata.postproc:
+        #     types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
+        #     for name, type in self.problemdata.postproc.type.items():
+        #         colors = self.problemdata.postproc.colors(name)
+        #         if type == types[0]:
+        #             global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
+        #         elif type == types[1]:
+        #             global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
+        #         elif type == types[2]:
+        #             global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
+        #         elif type == types[3]:
+        #             global_data['postproc'][name] = self.fem.computePointValues(u, colors)
+        #         elif type == types[4]:
+        #             global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
+        #         else:
+        #             raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
+        # if self.kheatcell.shape[0] != self.mesh.ncells:
+        #     raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
+        # cell_data['k'] = self.kheatcell
+        # return point_data, side_data, cell_data, global_data
 
 
 #=================================================================#

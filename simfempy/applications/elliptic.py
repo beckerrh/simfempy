@@ -42,8 +42,7 @@ class Elliptic(solvers.solver.Application):
         if 'geometry' in kwargs:
             return
         self.linearsolver = 'pyamg'
-        if 'fem' in kwargs: fem = kwargs.pop('fem')
-        else: fem='p1'
+        fem = kwargs.pop('fem','p1')
         if fem == 'p1':
             self.fem = fems.femp1sys.FemP1()
         elif fem == 'cr1':

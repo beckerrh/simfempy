@@ -64,12 +64,9 @@ def _plotNormalsAndSigma(xc, yc, xf, yf, normals, sidesofcells, sigma, ax=plt):
 
 #=================================================================#
 def plotmesh(**kwargs):
-    if 'ax' in kwargs: ax = kwargs.pop('ax')
-    else: ax = plt
-    title = 'Mesh'
-    if 'title' in kwargs: title = kwargs.pop('title')
-    alpha = 1
-    if 'alpha' in kwargs: alpha = kwargs.pop('alpha')
+    ax = kwargs.pop('ax', plt)
+    title = kwargs.pop('title', 'Mesh')
+    alpha = kwargs.pop('alpha', 1)
     if 'mesh' in kwargs:
         mesh = kwargs.pop('mesh')
         x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
@@ -146,22 +143,15 @@ def meshWithBoundaries(x, y, tris, **kwargs):
 
 #=================================================================#
 def mesh(x, y, tris, **kwargs):
-    ax = plt
-    if 'ax' in kwargs: ax = kwargs.pop('ax')
+    ax = kwargs.pop('ax', plt)
     ax.triplot(x, y, tris, color='k', lw=1)
     title = "Mesh"
-    nodes = True
-    if 'nodes' in kwargs: nodes = kwargs.pop('nodes')
-    cells = True
-    if 'cells' in kwargs: cells = kwargs.pop('cells')
-    sides = False
-    if 'sides' in kwargs: sides = kwargs.pop('sides')
-    cellsidelocal = False
-    if 'cellsidelocal' in kwargs: cellsidelocal = kwargs.pop('cellsidelocal')
-    sidecelllocal = False
-    if 'sidecelllocal' in kwargs: sidecelllocal = kwargs.pop('sidecelllocal')
-    normals = False
-    if 'normals' in kwargs: normals = kwargs.pop('normals')
+    nodes = kwargs.pop('nodes', True)
+    cells = kwargs.pop('cells', True)
+    sides = kwargs.pop('sides', False)
+    cellsidelocal = kwargs.pop('cellsidelocal', False)
+    sidecelllocal = kwargs.pop('sidecelllocal', False)
+    normals = kwargs.pop('normals', False)
 
     if cells or cellsidelocal or sidecelllocal or normals:
         xc, yc = x[tris].mean(axis=1), y[tris].mean(axis=1)
@@ -224,16 +214,15 @@ def meshWithData(**kwargs):
     # if 'point_data' in kwargs: point_data = kwargs['point_data']
     # if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
     if 'data' in kwargs:
-        point_data = kwargs['data']['point']
-        cell_data = kwargs['data']['cell']
+        point_data = kwargs['data'].pop('point', None)
+        cell_data = kwargs['data'].pop('cell', None)
     if 'point_data' in kwargs: point_data = kwargs['point_data']
     if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
     if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
     if 'numbering' in kwargs: numbering = kwargs['numbering']
     if 'title' in kwargs: title = kwargs['title']
     if 'suptitle' in kwargs: suptitle = kwargs['suptitle']
-    if 'alpha' in kwargs: alpha = kwargs['alpha']
-    else: alpha=0.6
+    alpha = kwargs.pop('alpha', 0.6)
 
     nplots=0
     if point_data: nplots += len(point_data)

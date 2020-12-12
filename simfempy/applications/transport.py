@@ -32,10 +32,8 @@ class Transport(Application):
             raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
         elif isinstance(beta_given[0],str):
             self.problemdata.params.fct_glob['beta'] = [AnalyticalFunction(expr=e) for e in beta_given]
-        if 'linearsolver' in kwargs: self.linearsolver = kwargs.pop('linearsolver')
-        else: self.linearsolver = 'umf'
-        fem = 'p1'
-        if 'fem' in kwargs: fem = kwargs.pop('fem')
+        self.linearsolver = kwargs.pop('linearsolver','umf')
+        fem = kwargs.pop('fem','p1')
         if fem == 'p1':
             self.fem = fems.p1.P1()
         else:
@@ -86,14 +84,14 @@ class Transport(Application):
         # print(f"{b=}")
         return b,u
     def postProcess(self, u):
-        point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        point_data['U'] = self.fem.tonode(u)
+        data = {'point':{}, 'global':{}}
+        data['point']['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
-            global_data['error'] = {}
-            global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
-            cell_data['E'] = ec
-        return point_data, side_data, cell_data, global_data
+            data['cell'] = {}
+            data['global']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['global']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+            data['cell']['err'] = ec
+        return data
 
 
 #=================================================================#

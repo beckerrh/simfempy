@@ -26,7 +26,7 @@ def hole(geom, xc, yc, r, mesh_size, label, make_surface=False, circle=False, sa
     else:
         if same_labels: labels = [f"{int(label)}"]*len(lines)
         else: labels = [f"{int(label) + i}" for i in range(len(lines))]
-    print(f"{labels=}")
+    # print(f"{labels=}")
     for lab,l in zip(labels, lines):
         geom.add_physical(l, label=lab)
     return hole
