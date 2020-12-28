@@ -18,7 +18,7 @@ def main():
     problemdata = createDataDyn()
     # problemdata = createData()
     # problemdata = createDataConvection()
-    mesh = createMesh(h=0.1)
+    mesh = createMesh(h=1.1)
     print(f"{mesh=}")
     heat = Heat(mesh=mesh, problemdata=problemdata)
     meshWithBoundaries(heat.mesh)
@@ -31,65 +31,10 @@ def main():
         plt.show()
     elif mode == 'dynamic':
         u0 = heat.initialCondition("200")
-        result = heat.dynamic(u0, t_span=(0,2000), nframes=40, dt=10)
+        # result = heat.dynamic(u0, t_span=(0,2000), nframes=40, dt=10)
+        result = heat.dynamic(u0, t_span=(0,20), nframes=2, dt=10, method='BE')
         anim = AnimData(mesh, result.data['point']['U'])
         plt.show()
-        # class HeatAnim:
-        #     def __init__(self, ax, mesh, u):
-        #         x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
-        #         ax.triplot(x, y, tris, color='gray', lw=1, alpha=1)
-        #         self.norm = matplotlib.colors.Normalize(vmin=100, vmax=200)
-        #         self.argscf = {'levels':32, 'norm':self.norm, 'cmap':'jet'}
-        #         self.argsc = {'colors':'k', 'levels':np.linspace(100,200,20)}
-        #         ax.tricontourf(x, y, tris, u[0], **self.argscf)
-        #         # ax.tricontour(x, y, tris, u0, **self.argsc)
-        #         cmap = matplotlib.cm.jet
-        #         plt.colorbar(matplotlib.cm.ScalarMappable(norm=self.norm, cmap=cmap), ax=ax)
-        #         self.u, self.ax  = u, ax
-        #         self.x, self.y, self.tris = x, y, tris
-        #     def __call__(self, i):
-        #         u, ax = self.u, self.ax
-        #         x, y, tris = self.x, self.y, self.tris
-        #         ax.cla()
-        #         ax.set_title(f"Iter {i}")
-        #         print(f"{i=} {np.linalg.norm(self.u[i])}")
-        #         ax.tricontourf(x, y, tris, self.u[i], **self.argscf)
-        #         ax.tricontour(x, y, tris, self.u[i], **self.argsc)
-        #         return ax
-        # fig = plt.figure()
-        # sol = result.data['point']['U']
-        # ha = HeatAnim(fig.gca(), mesh, sol)
-        # anim = animation.FuncAnimation(fig, ha, frames=len(sol), repeat=False)
-        # plt.show()
-        # class HeatAnim:
-        #     def __init__(self, ax, mesh, u0, heat):
-        #         x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
-        #         ax.triplot(x, y, tris, color='gray', lw=1, alpha=1)
-        #         self.norm = matplotlib.colors.Normalize(vmin=100, vmax=200)
-        #         self.argscf = {'levels':32, 'norm':self.norm, 'cmap':'jet'}
-        #         self.argsc = {'colors':'k', 'levels':np.linspace(100,200,20)}
-        #         ax.tricontourf(x, y, tris, u0, **self.argscf)
-        #         # ax.tricontour(x, y, tris, u0, **self.argsc)
-        #         cmap = matplotlib.cm.jet
-        #         plt.colorbar(matplotlib.cm.ScalarMappable(norm=self.norm, cmap=cmap), ax=ax)
-        #         self.heat, self.u0, self.ax  = heat, u0, ax
-        #         self.x, self.y, self.tris = x, y, tris
-        #         self.u = u0
-        #
-        #     def __call__(self, i):
-        #         heat, u0, ax = self.heat, self.u0, self.ax
-        #         x, y, tris = self.x, self.y, self.tris
-        #         self.u = heat.dynamic(self.u, niter=100, dt=1.)
-        #         print(f"{i=} {np.linalg.norm(self.u)}")
-        #         ax.cla()
-        #         ax.set_title(f"Iter {i}")
-        #         ax.tricontourf(x, y, tris, self.u, **self.argscf)
-        #         ax.tricontour(x, y, tris, self.u, **self.argsc)
-        # # simfempy.meshes.plotmesh.meshWithData(heat.mesh, point_data={'u':u}, title="Heat dynamic", alpha=1)
-        # fig = plt.figure()
-        # ha = HeatAnim(fig.gca(), mesh, u0, heat)
-        # anim = animation.FuncAnimation(fig, ha, frames=25, repeat=False)
-        # plt.show()
     else: raise ValueError(f"unknown{ mode=}")
 
 # ---------------------------------------------------------------- #
@@ -120,7 +65,7 @@ def createDataDyn():
     postproc.type['bdrymean_up'] = "bdry_mean"
     postproc.color['bdrymean_up'] = [1002]
     postproc.type['fluxn'] = "bdry_nflux"
-    postproc.color['fluxn'] = [1001, 1003]
+    postproc.color['fluxn'] = [1000]
     params = data.params
     params.set_scal_cells("kheat", [100], 0.001)
     params.set_scal_cells("kheat", [200], 10.0)

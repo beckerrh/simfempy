@@ -8,7 +8,6 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
-# from functools import partial
 
 import simfempy.tools.analyticalfunction
 import simfempy.tools.timer
@@ -135,13 +134,14 @@ class Application(object):
         self.fem.massDot(b, fp1)
         u, niter = self.linearSolver(self.Mass, b, u=fp1)
         return u
-    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='CN', verbose=0):
+    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='CN', verbose=1):
         # TODO: passing time
         """
         u_t + A u = f, u(t_0) = u_0
         M(u^{n+1}-u^n)/dt + a Au^{n+1} + (1-a) A u^n = f
         (M/dt+aA) u^{n+1} =  f + (M/dt -(1-a)A)u^n
                           =  f + 1/a (M/dt) u^n -  (1-a)/a (M/dt+aA)u^n
+        (M/(a*dt)+A) u^{n+1} =  (1/a)*f -  (1-a)/a (M/(a*dt)+A)u^n
         :param u0: initial condition
         :param t_span: time interval bounds (tuple)
         :param nframes: number of frames to store
@@ -156,14 +156,18 @@ class Application(object):
         if t_span[0]>=t_span[1]: raise ValueError(f"something wrong in {t_span=}")
         if method not in ['BE','CN']: raise ValueError(f"unknown method {method=}")
         if method == 'BE': a = 1
-        else: a = 1
+        else: a = 0.5
         import math
-        niter = math.ceil((t_span[1]-t_span[0])/dt)//nframes
+        nitertotal = math.ceil((t_span[1]-t_span[0])/dt)
+        if nframes > nitertotal:
+            raise ValueError(f"Maximum valiue for nframes is {nitertotal=}")
+        niter = nitertotal//nframes
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
         if not hasattr(self, 'A'):
-            self.A = self.computeMatrix(coeffmass=a/dt)
-            self.ml = self.build_pyamg(self.A)
+            self.Aimp = self.computeMatrix(coeff=a, coeffmass=1/dt)
+            self.M = self.fem.computeMassMatrix()
+            self.ml = self.build_pyamg(self.Aimp)
         self.timer.add('matrix')
         u = u0
         self.time = t_span[0]
@@ -171,18 +175,21 @@ class Application(object):
         rhs=np.empty_like(u, dtype=float)
         # will be create by computeRhs()
         niterslinsol = np.zeros(niter)
-        expl = -((1-a)/a)
+        expl = (a-1)/a
         for iframe in range(nframes):
             if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=}")
             for iter in range(niter):
                 self.time += dt
                 rhs.fill(0)
-                # rhs += expl*self.A.dot(u)
-                rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt), fillzeros=False)
-                # print(f"@@@@{np.min(u)=} {np.max(u)=}")
+                rhs += 1/(a*dt)*self.M.dot(u)
+                rhs += expl*self.Aimp.dot(u)
+                print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+                # rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt), fillzeros=False)
+                rhs,up = self.computeRhs(b=rhs, coeff=1, fillzeros=False)
+                print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('rhs')
                 u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
-                # print(f"{np.min(u)=} {np.max(u)=}")
+                print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('solve')
             result.addData(self.postProcess(u), time=self.time, iter=niterslinsol.mean())
             if callback: callback(self.time, u)

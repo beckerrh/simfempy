@@ -78,6 +78,7 @@ class SimplexMesh(object):
             if key == self.simplicesname: self.simplices = cellblock
             if key == 'vertex': self.vertices = cellblock
             if key == self.facesname:
+                self.facesdata = cellblock
                 # print(f"{key=} {cellblock=}")
                 bdryfacesgmshlist.extend(cellblock)
         if not hasattr(self,"simplices"):
@@ -92,6 +93,7 @@ class SimplexMesh(object):
         if __pygmsh6__:
             self._initMeshPyGmsh6(mesh.cells, mesh.cell_data['gmsh:physical'], bdryfacesgmsh)
         else:
+            self.cell_sets = mesh.cell_sets
             self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
 
     def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):
@@ -104,6 +106,7 @@ class SimplexMesh(object):
         cellsoflabel = {key:{} for key in self.celltypes}
         ctorderd = []
         for label, cb in cell_sets.items():
+            if label=='gmsh:bounding_entities': continue
             # print(f"{label=} {cb=}")
             if len(cb) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
             for celltype, info in zip(self.celltypes, cb):
@@ -124,7 +127,8 @@ class SimplexMesh(object):
             n += sizes[ct]
         self.cellsoflabel = cellsoflabel[self.simplicesname]
         self.verticesoflabel = {}
-        if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
+        # print(f"{cellsoflabel=}\n{cellsoflabel.keys()}")
+        # if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
         # print(f"{self.verticesoflabel=}")
         # bdry faces
         # for key, cellblock in cells:
@@ -374,33 +378,48 @@ class SimplexMesh(object):
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
 
+    # ----------------------------------------------------------------#
     def write(self, filename, dirname = None, point_data=None):
-        cell_data_meshio = {}
-        if hasattr(self,'vertex_labels'):
-            cell_data_meshio['vertex'] = {}
-            cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
-        if self.dimension ==2:
-            cells = {'triangle': self.simplices}
-            cells['line'] = self._facedata[0]
-            cell_data_meshio['line']={}
-            cell_data_meshio['line']['gmsh:physical'] = self._facedata[1]
-            cell_data_meshio['triangle']={}
-            cell_data_meshio['triangle']['gmsh:physical'] = self.cell_labels
-        else:
-            cells = {'tetra': self.simplices}
-            cells['triangle'] = self._facedata[0]
-            cell_data_meshio['triangle']={}
-            cell_data_meshio['triangle']['gmsh:physical'] = self._facedata[1]
-            cell_data_meshio['tetra']={}
-            cell_data_meshio['tetra']['gmsh:physical'] = self.cell_labels
         if dirname is not None:
             dirname = dirname + os.sep + "mesh"
             if not os.path.isdir(dirname) :
                 os.makedirs(dirname)
             filename = os.path.join(dirname, filename)
-        print("cell_data_meshio['line']['gmsh:physical']", cell_data_meshio['line']['gmsh:physical'])
-        meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio, file_format='gmsh2-ascii')
+        if __pygmsh6__:
+            cell_data_meshio = {}
+            if hasattr(self,'vertex_labels'):
+                cell_data_meshio['vertex'] = {}
+                cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
+            if self.dimension ==2:
+                cells = {'triangle': self.simplices}
+                cells['line'] = self._facedata[0]
+                cell_data_meshio['line']={}
+                cell_data_meshio['line']['gmsh:physical'] = self._facedata[1]
+                cell_data_meshio['triangle']={}
+                cell_data_meshio['triangle']['gmsh:physical'] = self.cell_labels
+            else:
+                cells = {'tetra': self.simplices}
+                cells['triangle'] = self._facedata[0]
+                cell_data_meshio['triangle']={}
+                cell_data_meshio['triangle']['gmsh:physical'] = self._facedata[1]
+                cell_data_meshio['tetra']={}
+                cell_data_meshio['tetra']['gmsh:physical'] = self.cell_labels
+            # print("cell_data_meshio['line']['gmsh:physical']", cell_data_meshio['line']['gmsh:physical'])
+            meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio, file_format='gmsh2-ascii')
+        else:
+            if self.dimension == 1:
+                cells = {'lines': self.simplices}
+                cells['vertex'] = self.facesdata
+            elif self.dimension ==2:
+                cells = {'triangle': self.simplices}
+                cells['line'] = self.facesdata
+            else:
+                cells = {'tetra': self.simplices}
+                cells['triangle'] = self.facesdata
+            mesh = meshio.Mesh(self.points, cells)
+            meshio.write(filename, mesh)
 
+    # ----------------------------------------------------------------#
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
         for ic in range(self.ncells):
@@ -417,21 +436,21 @@ class SimplexMesh(object):
             plotmesh.meshWithNodesAndTriangles(meshdata)
             plt.show()
 
-    def plot(self, **kwargs):
-        from simfempy.meshes import plotmesh
-        plotmesh.plotmesh(self, **kwargs)
-    def plotWithBoundaries(self):
-        # from . import plotmesh
-        from simfempy.meshes import plotmesh
-        plotmesh.meshWithBoundaries(self)
-    def plotWithNumbering(self, **kwargs):
-        # from . import plotmesh
-        from simfempy.meshes import plotmesh
-        plotmesh.plotmeshWithNumbering(self, **kwargs)
-    def plotWithData(self, **kwargs):
-        # from . import plotmesh
-        from simfempy.meshes import plotmesh
-        plotmesh.meshWithData(self, **kwargs)
+    # def plot(self, **kwargs):
+    #     from simfempy.meshes import plotmesh
+    #     plotmesh.plotmesh(self, **kwargs)
+    # def plotWithBoundaries(self):
+    #     # from . import plotmesh
+    #     from simfempy.meshes import plotmesh
+    #     plotmesh.meshWithBoundaries(self)
+    # def plotWithNumbering(self, **kwargs):
+    #     # from . import plotmesh
+    #     from simfempy.meshes import plotmesh
+    #     plotmesh.plotmeshWithNumbering(self, **kwargs)
+    # def plotWithData(self, **kwargs):
+    #     # from . import plotmesh
+    #     from simfempy.meshes import plotmesh
+    #     plotmesh.meshWithData(self, **kwargs)
 
 
 #=================================================================#

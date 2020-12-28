@@ -22,31 +22,30 @@ class CompareMethods(object):
     def __init__(self, methods, **kwargs):
         self.methods = methods
         self.dirname = "Results"
-        self.latex = True
-        self.plot = False
-        self.plotpostprocs = False
         if 'clean' in kwargs and kwargs.pop("clean")==True:
             import os, shutil
             try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
             except: pass
-        if 'latex' in kwargs: self.latex = kwargs.pop("latex")
-        if 'plot' in kwargs: self.plot = kwargs.pop("plot")
-        if 'plotpostprocs' in kwargs: self.plotpostprocs = kwargs.pop("plotpostprocs")
-        if 'verbose' in kwargs:
-            verbose = int(kwargs.pop("verbose"))
-            if verbose > 0: self.latex = True
-            if verbose > 1: self.plotpostprocs = True
-            if verbose > 2: self.plot = True
-        if 'h' in kwargs:
-            self.h = kwargs.pop("h")
-            self.paramname = kwargs.pop("paramname")
-        else:
-            self.paramname = "ncells"
-            if 'niter' in kwargs: self.niter = kwargs.pop("niter")
-            else: self.niter = -1
+        self.latex = kwargs.pop("latex", True)
+        self.plot = kwargs.pop("plot", False)
+        self.plotpostprocs = kwargs.pop("plotpostprocs", False)
+        self.verbose = kwargs.pop("verbose", 0)
+        if self.verbose > 0: self.latex = True
+        if self.verbose > 1: self.plotpostprocs = True
+        if self.verbose > 2: self.plot = True
+        self.paramname = kwargs.pop("paramname", "ncells")
+        self.plot = kwargs.pop("plot", False)
+        self.createMesh = kwargs.pop("createMesh", None)
+        self.geom = kwargs.pop("geom", None)
+        self.mesh = kwargs.pop("mesh", None)
+        self.h = kwargs.pop("h", None)
         self.parameters = []
-    def _mesh_from_geom_or_fct(self, h):
-        if hasattr(self,"createMesh"): return self.createMesh(h)
+    def _mesh_from_geom_or_fct(self, h=None):
+        if h is None:
+            if self.mesh is not None: return self.mesh
+            if self.h is None: raise ValueError(f"I need h({self.h=})")
+            h = self.h
+        if self.createMesh is not None: return self.createMesh(h)
         if hasattr(pygmsh, "built_in"):
             mesh = pygmsh.generate_mesh(self.geom(h), verbose=False)
         else:
@@ -54,22 +53,21 @@ class CompareMethods(object):
                 mesh = geom.generate_mesh()
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
-    def compare(self, createMesh=None, geom=None, h=None, params=None):
-        if createMesh is None: self.geom = geom
-        else: self.createMesh = createMesh
+    def compare(self, h=None, params=None, niter=None):
         if self.paramname == "ncells":
             if h is None:
-                mesh = self._mesh_from_geom_or_fct(self.h)
+                mesh = self._mesh_from_geom_or_fct()
                 gmshrefine = True
-                if self.niter ==-1: raise KeyError("please give 'niter'")
-                params = [mesh.ncells*mesh.dimension**i for i in range(self.niter)]
+                if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
+                params = [mesh.ncells*mesh.dimension**i for i in range(niter)]
             else:
                 params = h
                 gmshrefine = False
         else:
-            mesh = self._mesh_from_geom_or_fct(self.h)
+            mesh = self._mesh_from_geom_or_fct()
             # mesh = SimplexMesh(geometry=geometry, hmean=self.h)
         for iter, param in enumerate(params):
+            if self.verbose: print(f"{self.paramname=} {param=}")
             if self.paramname == "ncells":
                 if gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)

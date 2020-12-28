@@ -130,21 +130,21 @@ class Heat(Application):
             if len(conv) != self.mesh.dimension: raise ValueError(f"convection has wrong length")
             # for i, c in enumerate(conv):
             #     print(f"{c.fct_x[i]=}")
-    def computeMatrix(self, coeffmass=None):
+    def computeMatrix(self, coeff=1, coeffmass=None):
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
-        A = self.fem.computematrixDiffusion(self.kheatcell)
+        A = coeff*self.fem.computematrixDiffusion(self.kheatcell)
         lumped = True
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
-        A += self.Arobin
+        A += coeff*self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
-            A +=  self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection, colorsdir+colorsrobin)
+            A +=  coeff*self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection, colorsdir+colorsrobin)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
         A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
         return A
-    def computeRhs(self, b=None, u=None, coeffmass=None, fillzeros=True):
+    def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None, fillzeros=True):
         if not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
         bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
@@ -155,24 +155,24 @@ class Heat(Application):
             if fillzeros: b.fill(0)
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            self.fem.massDot(b, fp1)
+            self.fem.massDot(b, fp1, coeff=coeff)
             if 'convection' in self.problemdata.params.fct_glob.keys():
                 self.fem.massDotSupg(b, fp1, self.xd)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
-            self.fem.massDotCell(b, fp1)
+            self.fem.massDotCell(b, fp1, coeff=coeff)
         if 'rhspoint' in self.problemdata.params.fct_glob:
-            self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'])
+            self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'], coeff=coeff)
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         colorsneu = bdrycond.colorsOfType("Neumann")
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convection, 0), colors=colorsdir+colorsrobin)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convection, 0)*coeff, colors=colorsdir+colorsrobin)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff=bdrycond.param)
+        self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff={k:coeff*v for k,v in bdrycond.param.items()})
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colorsneu)
+        self.fem.massDotBoundary(b, fp1, colorsneu, coeff=coeff)
         if coeffmass is not None:
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)

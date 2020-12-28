@@ -343,7 +343,11 @@ class P1(fem.Fem):
         uhmean =  np.sum(dS * np.mean(u[self.mesh.faces[faces]], axis=1))
         xf, yf, zf = self.mesh.pointsf[faces].T
         nx, ny, nz = np.mean(self.mesh.normals[faces], axis=0)
-        if uR: uRmean =  np.sum(dS * uR(xf, yf, zf, nx, ny, nz))
+        if uR:
+            try:
+                uRmean =  np.sum(dS * uR(xf, yf, zf, nx, ny, nz))
+            except:
+                uRmean =  np.sum(dS * uR(xf, yf, zf))
         else: uRmean=0
         return cR*(uRmean-uhmean)
 

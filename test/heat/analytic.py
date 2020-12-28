@@ -5,6 +5,7 @@ sys.path.append(simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 import simfempy.meshes.testgeoms as testgeoms
 from simfempy.applications.heat import Heat
+from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], methods=['new','trad']):
@@ -45,9 +46,10 @@ def test_analytic(exactsolution="Linear", geomname = "unitsquare", fems=['p1'], 
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
             sims[fem+method] = Heat(**kwargs)
-    comp = simfempy.tools.comparemethods.CompareMethods(sims, plot=True)
-    result = comp.compare(createMesh=createMesh, h=h)
-    # result = comp.compare(geom=geom, h=h)
+    comp = CompareMethods(sims, createMesh=createMesh, plot=False)
+    result = comp.compare(h=h)
+    # comp = CompareMethods(sims, createMesh=createMesh, h=0.5)
+    # result = comp.compare(niter=3)
 #================================================================#
 if __name__ == '__main__':
     exactsolution = 'Constant'

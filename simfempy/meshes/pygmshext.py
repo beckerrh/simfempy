@@ -5,6 +5,7 @@ from . import simplexmesh
 
 #----------------------------------------------------------------#
 def gmshRefine(mesh):
+    # TODO: gmsh refine
     filenamemsh = "coarse.msh"
     filenamemshref = "fine.msh"
     mesh.write(filename=filenamemsh)
@@ -23,9 +24,9 @@ def gmshRefine(mesh):
     #     print("stderr=", stderr)
     #     raise RuntimeError('Gmsh exited with error (return code %d).' % p.returncode)
     mesh = meshio.read(filenamemshref)
-    print("mesh.cells", mesh.cells.keys())
-    print("mesh.cell_data", mesh.cell_data.keys())
-    data =  mesh.points, mesh.cells, mesh.point_data, mesh.cell_data, mesh.field_data
+    # print("mesh.cells", mesh.cells.keys())
+    # print("mesh.cell_data", mesh.cell_data.keys())
+    # data =  mesh.points, mesh.cells, mesh.point_data, mesh.cell_data, mesh.field_data
     return simplexmesh.SimplexMesh(mesh=mesh)
 
 
