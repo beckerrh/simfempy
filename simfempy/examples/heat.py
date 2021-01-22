@@ -14,19 +14,20 @@ from simfempy.meshes.plotmesh import meshWithBoundaries, meshWithData
 from simfempy.meshes.animdata import AnimData
 
 # ---------------------------------------------------------------- #
-def main():
+def main(mode = 'dynamic'):
     problemdata = createDataDyn()
     # problemdata = createData()
     # problemdata = createDataConvection()
-    mesh = createMesh(h=1.1)
+    mesh = createMesh(h=0.1)
     print(f"{mesh=}")
     heat = Heat(mesh=mesh, problemdata=problemdata)
     meshWithBoundaries(heat.mesh)
-    mode = 'dynamic'
     if mode == 'static':
         result = heat.static()
         print(f"{result.info['timer']}")
-        print(f"postproc: {result.data['global']['postproc']}")
+        print(f"postproc:")
+        for p in ['bdrymean_low', 'bdrymean_up', 'fluxn']:
+            print(f"{p}: {result.data['global'][p]}")
         meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1)
         plt.show()
     elif mode == 'dynamic':
@@ -134,4 +135,4 @@ def createDataConvection():
 # ================================================================c#
 
 
-main()
+main(mode='static')
