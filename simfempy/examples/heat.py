@@ -1,8 +1,8 @@
 assert __name__ == '__main__'
 # use own pygmsh
-import os, sys
-simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'pygmsh'))
-sys.path.insert(0,simfempypath)
+# import os, sys
+# simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'pygmsh'))
+# sys.path.insert(0,simfempypath)
 
 import matplotlib.pyplot as plt
 import pygmsh

@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
+from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 
@@ -25,9 +26,29 @@ class Elasticity(Application):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
 
-    def generatePoblemData(self, **kwargs):
-        self.ncomp = self.mesh.dimension
-        return super().generatePoblemData(**kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # if 'geometry' in kwargs:
+        #     return
+        self.linearsolver = 'pyamg'
+        if 'fem' in kwargs: fem = kwargs.pop('fem')
+        else: fem='p1'
+        if fem == 'p1':
+            self.fem = fems.femp1sys.FemP1()
+        elif fem == 'cr1':
+            raise NotImplementedError("cr1 not ready")
+            self.fem = fems.femcr1sys.FemCR1()
+        else:
+            raise ValueError("unknown fem '{}'".format(fem))
+        if 'material' in kwargs: material = kwargs.pop('material')
+        else: material = "Acier"
+        self.setParameters(*self.material2Lame(material))
+        if 'method' in kwargs: self.method = kwargs.pop('method')
+        else: self.method="trad"
+
+    # def generatePoblemData(self, **kwargs):
+    #     self.ncomp = self.mesh.dimension
+    #     return super().generatePoblemData(**kwargs)
 
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
@@ -52,26 +73,6 @@ class Elasticity(Application):
                     rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
             return rhs
         return _fctneumann
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # if 'geometry' in kwargs:
-        #     return
-        self.linearsolver = 'pyamg'
-        if 'fem' in kwargs: fem = kwargs.pop('fem')
-        else: fem='p1'
-        if fem == 'p1':
-            self.fem = fems.femp1sys.FemP1()
-        elif fem == 'cr1':
-            raise NotImplementedError("cr1 not ready")
-            self.fem = fems.femcr1sys.FemCR1()
-        else:
-            raise ValueError("unknown fem '{}'".format(fem))
-        if 'material' in kwargs: material = kwargs.pop('material')
-        else: material = "Acier"
-        self.setParameters(*self.material2Lame(material))
-        if 'method' in kwargs: self.method = kwargs.pop('method')
-        else: self.method="trad"
 
     def setParameters(self, mu, lam):
         self.mu, self.lam = mu, lam

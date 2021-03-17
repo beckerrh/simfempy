@@ -81,6 +81,7 @@ class Application(object):
         #         bdrycond.fct[color] = eval(cmd)
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
+        print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
         return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def setMesh(self, mesh):
         self.mesh = mesh

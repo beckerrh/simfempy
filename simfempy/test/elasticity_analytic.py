@@ -12,6 +12,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
     import simfempy.tools.comparemethods
     data = simfempy.applications.problemdata.ProblemData()
     if dim==2:
+        data.ncomp=2
         createMesh = testmeshes.unitsquare
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
         if exactsolution=="Linear": h = h[:-2]
@@ -24,6 +25,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
         data.postproc.type['bdrydn'] = "bdrydn"
         data.postproc.color['bdrydn'] = [1001,1003]
     else:
+        data.ncomp=3
         createMesh = testmeshes.unitcube
         h = [2, 1, 0.5, 0.25, 0.125, 0.08]
         if exactsolution=="Linear": h = h[:-2]
@@ -42,7 +44,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
     sims = {}
     for fem in fems:
         for method in methods:
-            kwargs = {'problemdata': data, 'fem': fem, 'method': method, 'masslumpedbdry': False}
+            kwargs = {'problemdata': data, 'fem': fem, 'method': method}
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
             sims[fem + method] = Elasticity(**kwargs)
