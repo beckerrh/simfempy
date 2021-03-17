@@ -225,8 +225,13 @@ def meshWithData(**kwargs):
     alpha = kwargs.pop('alpha', 0.6)
 
     nplots=0
-    if point_data: nplots += len(point_data)
-    if cell_data: nplots += len(cell_data)
+    if not point_data is None:
+        # if not isinstance(point_data, dict): raise ValueError("point_data should by dict: name->data")
+        if not isinstance(point_data, dict): point_data={"u":point_data}
+        nplots += len(point_data)
+    if not cell_data is None:
+        if not isinstance(cell_data, dict): cell_data={"u":cell_data}
+        nplots += len(cell_data)
     if quiver_cell_data: nplots += len(quiver_cell_data)
     nplots += len(addplots)
     if nplots==0:

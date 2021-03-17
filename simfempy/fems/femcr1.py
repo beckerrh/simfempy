@@ -231,7 +231,6 @@ class FemCR1(object):
         if uR: uRmean =  np.sum(dS * uR(xf, yf, zf, nx, ny, nz))
         else: uRmean=0
         return cR*(uRmean-uhmean)
-
     def computeBdryDn(self, u, colors, bdrydata, bdrycond):
         # colors = [int(x) for x in data.split(',')]
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
@@ -248,7 +247,6 @@ class FemCR1(object):
             else:
                 raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
-
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
         scale = self.mesh.dimension

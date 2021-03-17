@@ -1,7 +1,6 @@
 import numpy as np
 from simfempy import fems
 from simfempy.applications.application import Application
-from simfempy.fems.rt0 import RT0
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
@@ -42,7 +41,7 @@ class Heat(Application):
 
         fem = kwargs.pop('fem','p1')
         if fem == 'p1': self.fem = fems.p1.P1()
-        elif fem == 'cr1': self.fem = fems.femcr1.FemCR1()
+        elif fem == 'cr1': self.fem = fems.cr1.CR1()
         else: raise ValueError("unknown fem '{}'".format(fem))
         if 'convection' in self.problemdata.params.fct_glob.keys():
             convection_given = self.problemdata.params.fct_glob['convection']
@@ -109,9 +108,9 @@ class Heat(Application):
         # if mesh is not None: self.mesh = mesh
         self._checkProblemData()
         self.fem.setMesh(self.mesh)
-        dircols = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        self.bdrydata = self.fem.prepareBoundary(dircols, colorsflux)
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
         params = self.problemdata.params
         self.kheatcell = self.compute_cell_vector_from_params('kheat', params)
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
@@ -119,9 +118,10 @@ class Heat(Application):
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
         # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
         # self.rhocpcell = self.compute_cell_vector_from_params('rhocp', params)
+        # TODO: convection to P1 etc.
         if 'convection' in self.problemdata.params.fct_glob.keys():
             convectionfct = self.problemdata.params.fct_glob['convection']
-            rt = RT0(mesh)
+            rt = fems.RT0(mesh)
             self.convection = rt.interpolate(convectionfct)
             self.convection *= rhocp
             self.xd, self.lamdconvection, self.delta = self.fem.downWind(self.convection, method="supg")
@@ -221,34 +221,6 @@ class Heat(Application):
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
         data['cell']['k'] = self.kheatcell
         return data
-        # point_data['U'] = self.fem.tonode(u)
-        # if self.problemdata.solexact:
-        #     global_data['error'] = {}
-        #     global_data['error']['pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-        #     global_data['error']['pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
-        #     global_data['error']['vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
-        #     cell_data['E'] = ec
-        # global_data['postproc'] = {}
-        # if self.problemdata.postproc:
-        #     types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
-        #     for name, type in self.problemdata.postproc.type.items():
-        #         colors = self.problemdata.postproc.colors(name)
-        #         if type == types[0]:
-        #             global_data['postproc'][name] = self.fem.computeBdryMean(u, colors)
-        #         elif type == types[1]:
-        #             global_data['postproc'][name] = self.fem.computeBdryFct(u, colors)
-        #         elif type == types[2]:
-        #             global_data['postproc'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
-        #         elif type == types[3]:
-        #             global_data['postproc'][name] = self.fem.computePointValues(u, colors)
-        #         elif type == types[4]:
-        #             global_data['postproc'][name] = self.fem.computeMeanValues(u, colors)
-        #         else:
-        #             raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-        # if self.kheatcell.shape[0] != self.mesh.ncells:
-        #     raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
-        # cell_data['k'] = self.kheatcell
-        # return point_data, side_data, cell_data, global_data
 
 
 #=================================================================#

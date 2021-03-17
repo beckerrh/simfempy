@@ -8,10 +8,9 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-from ..meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
 import simfempy.tools.barycentric
-from . import fem
+from simfempy.fems import fem
 
 
 #=================================================================#
@@ -27,16 +26,16 @@ class P1(fem.Fem):
         self.rows = np.repeat(simps, nloc).reshape(-1)
         self.cellgrads = self.computeCellGrads()
     def nunknowns(self): return self.mesh.nnodes
-    def prepareBoundary(self, colorsdir, colorsflux):
+    def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
-        bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
+        bdrydata.nodedirall = np.empty(shape=(0), dtype=np.int)
         for color in colorsdir:
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
-        # print(f"{bdrydata.nodesdir=}")
-        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
+        # print(f"{bdrydata.nodedirall=}")
+        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=np.int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         for color in colorsflux:
             facesdir = self.mesh.bdrylabels[color]
@@ -62,6 +61,11 @@ class P1(fem.Fem):
             xc, yc, zc = self.mesh.pointsc.T
             return f(xc, yc, zc)
     def interpolateBoundary(self, colors, f):
+        """
+        :param colors: set of colors to interpolate
+        :param f: ditct of functions
+        :return:
+        """
         b = np.zeros(self.mesh.nnodes)
         for color in colors:
             if not color in f or not f[color]: continue
@@ -82,8 +86,10 @@ class P1(fem.Fem):
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells
         dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        massloc = simfempy.tools.barycentric.integral(d=dimension)
-        np.add.at(b, simplices, massloc*coeff*dV*f)
+        # massloc = simfempy.tools.barycentric.integral(d=dimension)
+        massloc = 1/(dimension+1)
+        # print(f"{simplices.shape=} {dV.shape=} {f.shape=}")
+        np.add.at(b, simplices, (massloc*coeff*dV*f)[:, np.newaxis])
         return b
     def massDot(self, b, f, coeff=1):
         dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
@@ -390,14 +396,31 @@ class P1(fem.Fem):
         # print("umean", np.mean(u[self.mesh.simplices[cells]],axis=1))
         return np.sum(np.mean(u[self.mesh.simplices[cells]],axis=1)*self.mesh.dV[cells])
 
+    #------------------------------
+    def test(self):
+        import scipy.sparse.linalg as splinalg
+        colors = mesh.bdrylabels.keys()
+        bdrydata = self.prepareBoundary(colorsdir=colors)
+        A = self.computematrixDiffusion(coeff=1)
+        A, bdrydata = self.matrixBoundary(A, method='trad', bdrydata=bdrydata)
+        b = np.zeros(self.nunknowns())
+        rhs = np.vectorize(lambda x,y,z: 1)
+        fp1 = self.interpolateCell(rhs)
+        self.massDotCell(b, fp1, coeff=1)
+        b = self.vectorBoundaryZero(b, bdrydata)
+        return splinalg.spsolve(A, b)
+
 
 # ------------------------------------- #
 
 if __name__ == '__main__':
-    trimesh = SimplexMesh(geomname="backwardfacingstep", hmean=0.3)
-    fem = P1(trimesh)
-    fem.testgrad()
-    import plotmesh
+    from simfempy.meshes import testmeshes
+    from simfempy.meshes import plotmesh
     import matplotlib.pyplot as plt
-    plotmesh.meshWithBoundaries(trimesh)
+
+    mesh = testmeshes.backwardfacingstep(h=0.2)
+    fem = P1(mesh)
+    u = fem.test()
+    plotmesh.meshWithBoundaries(mesh)
+    plotmesh.meshWithData(mesh, point_data=u, title="P1 Test", alpha=1)
     plt.show()

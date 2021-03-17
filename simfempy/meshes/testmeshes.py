@@ -86,19 +86,34 @@ def unitcube(h):
 
 # ------------------------------------- #
 def backwardfacingstep(h=1.):
-    geom = pygmsh.built_in.Geometry()
-    X = []
-    X.append([-1.0,  1.0])
-    X.append([-1.0,  0.0])
-    X.append([ 0.0,  0.0])
-    X.append([ 0.0, -1.0])
-    X.append([ 3.0, -1.0])
-    X.append([ 3.0,  1.0])
-    p = geom.add_polygon(X=np.insert(np.array(X), 2, 0, axis=1), lcar=h)
-    geom.add_physical(p.surface, label=100)
-    ll = p.line_loop
-    for i in range(len(ll.lines)): geom.add_physical(ll.lines[i], label=1000+i)
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    if __pygmsh6__:
+        geom = pygmsh.built_in.Geometry()
+        X = []
+        X.append([-1.0,  1.0])
+        X.append([-1.0,  0.0])
+        X.append([ 0.0,  0.0])
+        X.append([ 0.0, -1.0])
+        X.append([ 3.0, -1.0])
+        X.append([ 3.0,  1.0])
+        p = geom.add_polygon(X=np.insert(np.array(X), 2, 0, axis=1), lcar=h)
+        geom.add_physical(p.surface, label=100)
+        ll = p.line_loop
+        for i in range(len(ll.lines)): geom.add_physical(ll.lines[i], label=1000+i)
+        mesh = pygmsh.generate_mesh(geom, verbose=False)
+    else:
+        with pygmsh.geo.Geometry() as geom:
+            X = []
+            X.append([-1.0, 1.0])
+            X.append([-1.0, 0.0])
+            X.append([0.0, 0.0])
+            X.append([0.0, -1.0])
+            X.append([3.0, -1.0])
+            X.append([3.0, 1.0])
+            p = geom.add_polygon(points=np.insert(np.array(X), 2, 0, axis=1), mesh_size=h)
+            geom.add_physical(p.surface, label="100")
+            for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+            mesh = geom.generate_mesh()
+        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ------------------------------------- #
 def backwardfacingstep3d(h):
