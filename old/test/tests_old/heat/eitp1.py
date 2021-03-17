@@ -65,7 +65,7 @@ def createMesh2d(**kwargs):
     geometry.add_physical(circ.plane_surface, label=100)
     # print("circ", dir(circ.line_loop))
 
-    with open("welcome.geo","w") as file: file.write(geometry.get_code())
+    with open("welcome.geo", "w") as file: file.write(geometry.get_code())
     mesh = pygmsh.generate_mesh(geometry, verbose=False)
     mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     measure_labels = labels[::3]

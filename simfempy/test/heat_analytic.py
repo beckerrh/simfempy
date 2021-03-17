@@ -12,7 +12,6 @@ def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], meth
     if isinstance(fems,str): fems = [fems]
     if isinstance(methods,str): methods = [methods]
     sims = {}
-    if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
     for fem in fems:
         for method in methods:
             kwargs = {'problemdata':data, 'fem':fem, 'method':method, 'masslumpedbdry':False}
@@ -41,6 +40,7 @@ def test(dim, exactsolution='Linear', fems=['p1'], methods=['new','trad']):
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
         h = [1.0, 0.5, 0.25, 0.125]
+    if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
     data.bdrycond.set("Dirichlet", colors[:])
     data.bdrycond.set("Neumann", colors[0])
     data.bdrycond.set("Robin", colors[1])

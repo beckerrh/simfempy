@@ -2,12 +2,11 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
-from simfempy import solvers
-from simfempy import fems
-from simfempy import tools
+from simfempy.applications.application import Application
+from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
-class Elasticity(solvers.solver.Application):
+class Elasticity(Application):
     """
     """
     YoungPoisson = {}
