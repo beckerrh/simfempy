@@ -31,7 +31,6 @@ class Application(object):
             # self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
             self.problemdata = kwargs.pop('problemdata')
             self.ncomp = self.problemdata.ncomp
-            assert self.ncomp != -1
         if 'exactsolution' in kwargs:
             self.exactsolution = kwargs.pop('exactsolution')
             self._generatePDforES = True
@@ -60,7 +59,8 @@ class Application(object):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
         print("self.problemdata.solexact", self.problemdata.solexact)
-        self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(self.problemdata.solexact)
+        solexact = self.problemdata.solexact
+        self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         for color in self.mesh.bdrylabels:
             if color in bdrycond.type and bdrycond.type[color] in ["Dirichlet","dirichlet"]:
                 bdrycond.fct[color] = self.dirichletfct()
@@ -70,15 +70,7 @@ class Application(object):
                     # print(f"cmd={cmd}")
                     bdrycond.fct[color] = eval(cmd)
                 else:
-                    bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color)
-        # for color in self.mesh.bdrylabels:
-        #     if not color in bdrycond.type: raise KeyError(f"{color=} {bdrycond.type=}")
-        #     if bdrycond.type[color] in ["Dirichlet"]:
-        #     else:
-        #         type = bdrycond.type[color]
-        #         cmd = "self.define{}AnalyticalFunction(self.problemdata,{})".format(type, color)
-        #         # print(f"cmd={cmd}")
-        #         bdrycond.fct[color] = eval(cmd)
+                    bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color, solexact)
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
@@ -121,9 +113,6 @@ class Application(object):
         pp = self.postProcess(u)
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter={'lin':niter})
-        # result.setData(self.postProcess(u), iter={'lin':niter})
-        # result.info['timer'] = self.timer
-        # result.info['iter'] = {'lin':niter}
         return result
     def initialCondition(self, expr):
         if not self._setMeshCalled: self.setMesh(self.mesh)

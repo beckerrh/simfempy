@@ -21,18 +21,13 @@ class Elasticity(Application):
 
     def toLame(self, E, nu):
         return 0.5*E/(1+nu), nu*E/(1+nu)/(1-2*nu)
-
     def material2Lame(self, material):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # if 'geometry' in kwargs:
-        #     return
         self.linearsolver = 'pyamg'
-        if 'fem' in kwargs: fem = kwargs.pop('fem')
-        else: fem='p1'
+        fem = kwargs.pop('fem', 'p1')
         if fem == 'p1':
             self.fem = fems.femp1sys.FemP1()
         elif fem == 'cr1':
@@ -40,32 +35,27 @@ class Elasticity(Application):
             self.fem = fems.femcr1sys.FemCR1()
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        if 'material' in kwargs: material = kwargs.pop('material')
-        else: material = "Acier"
+        material = kwargs.pop('material', "Acier")
         self.setParameters(*self.material2Lame(material))
         if 'method' in kwargs: self.method = kwargs.pop('method')
         else: self.method="trad"
-
-    # def generatePoblemData(self, **kwargs):
-    #     self.ncomp = self.mesh.dimension
-    #     return super().generatePoblemData(**kwargs)
-
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            mu, lam = self.mufct(0), self.lamfct(0)
+            mu, lam = self.mu, self.lam
+            print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
                     rhs[i] -= mu * solexact[i].dd(j, j, x, y, z)
             return rhs
         return _fctu
-
-    def defineNeumannAnalyticalSolution(self, solexact):
+    def defineNeumannAnalyticalSolution(self, problemdata, color):
+        solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
-            mu, lam = self.mufct(0), self.lamfct(0)
+            mu, lam = self.mu, self.lam
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] += lam * solexact[j].d(j, x, y, z) * normals[i]
@@ -73,7 +63,6 @@ class Elasticity(Application):
                     rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
             return rhs
         return _fctneumann
-
     def setParameters(self, mu, lam):
         self.mu, self.lam = mu, lam
         self.mufct = np.vectorize(lambda j: mu)
@@ -81,26 +70,27 @@ class Elasticity(Application):
         if hasattr(self,'mesh'):
             self.mucell = self.mufct(self.mesh.cell_labels)
             self.lamcell = self.lamfct(self.mesh.cell_labels)
-
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
         self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
-        self.mucell = self.mufct(self.mesh.cell_labels)
-        self.lamcell = self.lamfct(self.mesh.cell_labels)
-
-    def solve(self, iter, dirname):
-        return self.solveLinear()
-
+        self.mucell = np.full(self.mesh.ncells, self.mu)
+        self.lamcell = np.full(self.mesh.ncells, self.lam)
+        # xc, yc, zc = self.mesh.pointsc.T
+        # self.mucell = self.mufct(self.mesh.cell_labels, xc, yc, zc)
+        # self.lamcell = self.lamfct(self.mesh.cell_labels, xc, yc, zc)
+    def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, u=None):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
-        if self.problemdata.rhs:
+        rhs = self.problemdata.params.fct_glob['rhs']
+        if rhs:
             x, y, z = self.mesh.points.T
-            rhsall = self.problemdata.rhs(x, y, z)
+            rhsall = rhs(x, y, z)
             for i in range(ncomp):
                 b[i::self.ncomp] = self.fem.massmatrix * rhsall[i]
         normals = self.mesh.normals
+        print(f"{self.problemdata.bdrycond=}")
         for color, faces in self.mesh.bdrylabels.items():
             if self.problemdata.bdrycond.type[color] != "Neumann": continue
             scale = 1 / self.mesh.dimension
@@ -116,9 +106,7 @@ class Elasticity(Application):
                 indices = i + self.ncomp * self.mesh.faces[faces]
                 np.add.at(b, indices.T, bS)
         return self.vectorDirichlet(b, u)
-
-
-    def matrix(self):
+    def computeMatrix(self):
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.fem.rowssys, self.fem.colssys, self.fem.cellgrads
         mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
@@ -293,25 +281,6 @@ class Elasticity(Application):
             # else:
             #     raise NotImplementedError("computeBdryDn for condition '{}'".format(bdrycond.type[color]))
         return flux
-        # colors = [int(x) for x in data.split(',')]
-        # flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
-        # for i,color in enumerate(colors):
-        #     bs, As = self.bdrydata.bsaved[color], self.bdrydata.Asaved[color]
-        #     res = bs - As * u
-        #     for icomp in range(self.ncomp):
-        #         flux[icomp, i] = np.sum(res[icomp::self.ncomp])
-        # return flux
-        # colors = [int(x) for x in data.split(',')]
-        # omega = 0
-        # for color in colors:
-        #     omega += np.sum(linalg.norm(self.mesh.normals[self.mesh.bdrylabels[color]],axis=1))
-        # print("###",self.bsaved[key].shape)
-        # print("###",(self.Asaved[key] * u).shape)
-        # res = bs - As * u
-        # flux  = []
-        # for icomp in range(self.ncomp):
-        #     flux.append(np.sum(res[icomp::self.ncomp]))
-        # return flux
 
     def postProcess(self, u):
         info = {}

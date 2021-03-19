@@ -71,68 +71,6 @@ class AnalyticalFunction():
     def zy(self, *x):
         return self.fct_xx[2][1](*x)
 
-
-#=================================================================#
-# class AnalyticalSolution3d():
-#     """
-#     computes numpy vectorized functions for the function and its dericatives up to two
-#     for a given expression, derivatives computed with sympy
-#     """
-#     def __init__(self, expr):
-#         (x, y, z) = sympy.symbols('x,y,z')
-#         self.expr = expr
-#         self.fct = np.vectorize(sympy.lambdify('x,y,z',expr))
-#         fx = sympy.diff(expr, x)
-#         fy = sympy.diff(expr, y)
-#         fz = sympy.diff(expr, z)
-#         fxx = sympy.diff(fx, x)
-#         fxy = sympy.diff(fx, y)
-#         fxz = sympy.diff(fx, z)
-#         fyy = sympy.diff(fy, y)
-#         fyz = sympy.diff(fy, z)
-#         fzz = sympy.diff(fz, z)
-#         self.fct_x = np.vectorize(sympy.lambdify('x,y,z', fx),otypes=[float])
-#         self.fct_y = np.vectorize(sympy.lambdify('x,y,z', fy),otypes=[float])
-#         self.fct_z = np.vectorize(sympy.lambdify('x,y,z', fz),otypes=[float])
-#         self.fct_xx = np.vectorize(sympy.lambdify('x,y,z', fxx),otypes=[float])
-#         self.fct_xy = np.vectorize(sympy.lambdify('x,y,z', fxy),otypes=[float])
-#         self.fct_xz = np.vectorize(sympy.lambdify('x,y,z', fxz),otypes=[float])
-#         self.fct_yy = np.vectorize(sympy.lambdify('x,y,z', fyy),otypes=[float])
-#         self.fct_yz = np.vectorize(sympy.lambdify('x,y,z', fyz),otypes=[float])
-#         self.fct_zz = np.vectorize(sympy.lambdify('x,y,z', fzz),otypes=[float])
-#     def __repr__(self):
-#         return str(self.expr)
-#     def __call__(self, x, y=0, z=0):
-#         return self.fct(x,y, z)
-#     def x(self, x, y=0, z=0):
-#         return self.fct_x(x,y, z)
-#     def y(self, x, y, z=0):
-#         return self.fct_y(x,y, z)
-#     def z(self, x, y, z):
-#         return self.fct_z(x,y, z)
-#     def xx(self, x, y=0, z=0):
-#         return self.fct_xx(x,y,z )
-#     def yy(self, x, y, z=0):
-#         return self.fct_yy(x,y,z)
-#     def zz(self, x, y, z):
-#         return self.fct_zz(x,y,z)
-#     def d(self, i, x, y, z):
-#         if i==2:    return self.fct_z(x,y,z)
-#         elif i==1:  return self.fct_y(x,y,z)
-#         return self.fct_x(x,y,z)
-#     def dd(self, i, j, x, y, z=0):
-#         if i==2:
-#             if j==2:    return self.fct_zz(x,y,z)
-#             elif j==1:  return self.fct_yz(x,y,z)
-#             return self.fct_xz(x,y,z)
-#         if i==1:
-#             if j==2:    return self.fct_yz(x,y,z)
-#             elif j==1:  return self.fct_yy(x,y,z)
-#             return self.fct_xy(x,y,z)
-#         if j==2:    return self.fct_xz(x,y,z)
-#         elif j==1:  return self.fct_xy(x,y,z)
-#         return self.fct_xx(x,y,z)
-
 #=================================================================#
 def analyticalSolution(function, dim, ncomp=1, random=True):
     """
@@ -148,14 +86,12 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
     solexact = []
     from itertools import permutations
     def _p(n):
-    # def _p(i, n):
         if random:
             p = (4 * np.random.rand(n) - 2) / 3
         else:
             p = [1.1 * (4 - d) for d in range(n)]
         perm = list(permutations(p))
         return [t for p in perm for t in p]
-        # return perm[i % ncomp]
     vars = ['x', 'y', 'z']
     p = _p(ncomp * dim)
     for i in range(ncomp):
@@ -169,7 +105,7 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
             for d in range(dim): fct += "+{:3.1f}*sin({:1s})".format(p.pop(), vars[d])
         else:
             fct = function
-        solexact.append(AnalyticalFunction(dim=dim, expr=fct))
+        solexact.append(AnalyticalFunction(expr=fct))
     if ncomp==1: return solexact[0]
     return solexact
 
