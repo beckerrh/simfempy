@@ -21,6 +21,7 @@ class P1(fem.Fem):
     def setMesh(self, mesh):
         super().setMesh(mesh)
         nloc = self.mesh.dimension+1
+        self.nloc = nloc
         simps = self.mesh.simplices
         self.cols = np.tile(simps, nloc).reshape(-1)
         self.rows = np.repeat(simps, nloc).reshape(-1)

@@ -4,7 +4,6 @@ import scipy.linalg as linalg
 import scipy.sparse.linalg as splinalg
 from simfempy import fems
 from simfempy.applications.application import Application
-from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Elasticity(Application):
@@ -29,7 +28,8 @@ class Elasticity(Application):
         self.linearsolver = 'pyamg'
         fem = kwargs.pop('fem', 'p1')
         if fem == 'p1':
-            self.fem = fems.femp1sys.FemP1()
+            # self.fem = fems.femp1sys.FemP1()
+            self.fem = fems.p1sys.P1sys()
         elif fem == 'cr1':
             raise NotImplementedError("cr1 not ready")
             self.fem = fems.femcr1sys.FemCR1()
@@ -43,7 +43,7 @@ class Elasticity(Application):
         def _fctu(x, y, z):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
             mu, lam = self.mu, self.lam
-            print(f"{solexact[0](x,y,z)=}")
+            # print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
@@ -73,7 +73,11 @@ class Elasticity(Application):
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh, self.ncomp)
-        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        # self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, colorsflux)
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        # print(f"{self.bdrydata=}")
         self.mucell = np.full(self.mesh.ncells, self.mu)
         self.lamcell = np.full(self.mesh.ncells, self.lam)
         # xc, yc, zc = self.mesh.pointsc.T
@@ -81,6 +85,9 @@ class Elasticity(Application):
         # self.lamcell = self.lamfct(self.mesh.cell_labels, xc, yc, zc)
     def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, u=None):
+        b = self.fem.computeRhs(self.problemdata)
+        return self.fem.vectorDirichlet(self.problemdata, self.method, b, u)
+
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
         rhs = self.problemdata.params.fct_glob['rhs']
@@ -90,7 +97,7 @@ class Elasticity(Application):
             for i in range(ncomp):
                 b[i::self.ncomp] = self.fem.massmatrix * rhsall[i]
         normals = self.mesh.normals
-        print(f"{self.problemdata.bdrycond=}")
+        # print(f"{self.problemdata.bdrycond=}")
         for color, faces in self.mesh.bdrylabels.items():
             if self.problemdata.bdrycond.type[color] != "Neumann": continue
             scale = 1 / self.mesh.dimension
@@ -107,6 +114,9 @@ class Elasticity(Application):
                 np.add.at(b, indices.T, bS)
         return self.vectorDirichlet(b, u)
     def computeMatrix(self):
+        A = self.fem.computeMatrix(self.mucell, self.lamcell)
+        return self.fem.matrixDirichlet(self.method,A).tobsr()
+
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.fem.rowssys, self.fem.colssys, self.fem.cellgrads
         mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
@@ -116,9 +126,6 @@ class Elasticity(Application):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * self.mucell).T
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * self.mucell).T
         A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
-        # if self.method == "sym":
-        # rows, cols = A.nonzero()
-        # A[cols, rows] = A[rows, cols]
         return self.matrixDirichlet(A).tobsr()
 
     def matrixDirichlet(self, A):
@@ -161,6 +168,7 @@ class Elasticity(Application):
         x, y, z = self.mesh.points.T
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = self.bdrydata.nodesdir, self.bdrydata.nodedirall, self.bdrydata.nodesinner, self.bdrydata.nodesdirflux
+        # print(f"vectorDirichlet {nodesdirflux.items()=}")
         for key, nodes in nodesdirflux.items():
             ind = np.repeat(ncomp * nodes, ncomp)
             for icomp in range(ncomp):ind[icomp::ncomp] += icomp
@@ -194,65 +202,67 @@ class Elasticity(Application):
                         u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
             b[indin] -= self.bdrydata.A_inner_dir * u[inddir]
             b[inddir] = self.bdrydata.A_dir_dir * u[inddir]
+        # print(f"vectorDirichlet {self.bdrydata.bsaved.keys()=}")
         return b, u
 
-    def boundary(self, A, b, u=None):
-        x, y, z = self.mesh.points.T
-        nnodes, ncomp = self.mesh.nnodes, self.ncomp
-        nodedirall, nodesinner, nodesdir, nodesdirflux = self.bdrydata
-        self.bsaved = {}
-        self.Asaved = {}
-        for key, nodes in nodesdirflux.items():
-            ind = np.repeat(ncomp * nodes, ncomp)
-            for icomp in range(ncomp):ind[icomp::ncomp] += icomp
-            self.bsaved[key] = b[ind]
-        for key, nodes in nodesdirflux.items():
-            nb = nodes.shape[0]
-            help = sparse.dok_matrix((ncomp *nb, ncomp * nnodes))
-            for icomp in range(ncomp):
-                for i in range(nb): help[icomp + ncomp * i, icomp + ncomp * nodes[i]] = 1
-            self.Asaved[key] = help.dot(A)
-        if u is None: u = np.zeros_like(b)
-        indin = np.repeat(ncomp * nodesinner, ncomp)
-        for icomp in range(ncomp): indin[icomp::ncomp] += icomp
-        inddir = np.repeat(ncomp * nodedirall, ncomp)
-        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-        if self.method == 'trad':
-            for color, nodes in nodesdir.items():
-                if color in self.problemdata.bdrycond.fct.keys():
-                    dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * nodes] = dirichlets[icomp]
-                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-                else:
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * nodes] = 0
-                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-            b[indin] -= A[indin, :][:,inddir] * b[inddir]
-            help = np.ones((ncomp * nnodes))
-            help[inddir] = 0
-            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
-            A = help.dot(A.dot(help))
-            help = np.zeros((ncomp * nnodes))
-            help[inddir] = 1.0
-            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
-            A += help
-        else:
-            for color, nodes in nodesdir.items():
-                dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
-                for icomp in range(ncomp):
-                    u[icomp + ncomp * nodes] = dirichlets[icomp]
-                    b[icomp + ncomp * nodes] = 0
-            b[indin] -= A[indin, :][:, inddir] * u[inddir]
-            b[inddir] = A[inddir, :][:, inddir] * u[inddir]
-            help = np.ones((ncomp * nnodes))
-            help[inddir] = 0
-            help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
-            help2 = np.zeros((ncomp * nnodes))
-            help2[inddir] = 1
-            help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
-            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A.tobsr(), b, u
+    # def boundary(self, A, b, u=None):
+    #     x, y, z = self.mesh.points.T
+    #     nnodes, ncomp = self.mesh.nnodes, self.ncomp
+    #     nodedirall, nodesinner, nodesdir, nodesdirflux = self.bdrydata
+    #     self.bsaved = {}
+    #     self.Asaved = {}
+    #     for key, nodes in nodesdirflux.items():
+    #         ind = np.repeat(ncomp * nodes, ncomp)
+    #         for icomp in range(ncomp):ind[icomp::ncomp] += icomp
+    #         self.bsaved[key] = b[ind]
+    #     for key, nodes in nodesdirflux.items():
+    #         nb = nodes.shape[0]
+    #         help = sparse.dok_matrix((ncomp *nb, ncomp * nnodes))
+    #         for icomp in range(ncomp):
+    #             for i in range(nb): help[icomp + ncomp * i, icomp + ncomp * nodes[i]] = 1
+    #         self.Asaved[key] = help.dot(A)
+    #     if u is None: u = np.zeros_like(b)
+    #     indin = np.repeat(ncomp * nodesinner, ncomp)
+    #     for icomp in range(ncomp): indin[icomp::ncomp] += icomp
+    #     inddir = np.repeat(ncomp * nodedirall, ncomp)
+    #     for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+    #     if self.method == 'trad':
+    #         for color, nodes in nodesdir.items():
+    #             if color in self.problemdata.bdrycond.fct.keys():
+    #                 dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+    #                 for icomp in range(ncomp):
+    #                     b[icomp + ncomp * nodes] = dirichlets[icomp]
+    #                     u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+    #             else:
+    #                 for icomp in range(ncomp):
+    #                     b[icomp + ncomp * nodes] = 0
+    #                     u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+    #         b[indin] -= A[indin, :][:,inddir] * b[inddir]
+    #         help = np.ones((ncomp * nnodes))
+    #         help[inddir] = 0
+    #         help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+    #         A = help.dot(A.dot(help))
+    #         help = np.zeros((ncomp * nnodes))
+    #         help[inddir] = 1.0
+    #         help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+    #         A += help
+    #     else:
+    #         for color, nodes in nodesdir.items():
+    #             dirichlets = self.problemdata.bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+    #             for icomp in range(ncomp):
+    #                 u[icomp + ncomp * nodes] = dirichlets[icomp]
+    #                 b[icomp + ncomp * nodes] = 0
+    #         b[indin] -= A[indin, :][:, inddir] * u[inddir]
+    #         b[inddir] = A[inddir, :][:, inddir] * u[inddir]
+    #         help = np.ones((ncomp * nnodes))
+    #         help[inddir] = 0
+    #         help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+    #         help2 = np.zeros((ncomp * nnodes))
+    #         help2[inddir] = 1
+    #         help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
+    #         A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+    #     print(f"boundary {self.bdrydata.bsaved.keys()=}")
+    #     return A.tobsr(), b, u
 
     # def computeBdryMean(self, u, data):
     #     colors = [int(x) for x in data.split(',')]
@@ -266,14 +276,16 @@ class Elasticity(Application):
     #             mean[icomp,i] += np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
     #     return mean/omega
     #
-    def computeBdryDn(self, u, data):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryDn(self, u, colors):
+        return self.fem.computeBdryNormalFlux(u, colors)
         flux, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             omega[i] = np.sum(dS)
+            if color not in self.bdrydata.bsaved.keys():
+                raise KeyError(f"given {color} but known keys {self.bdrydata.bsaved.keys()} {self.bdrydata.Asaved.keys()}")
             bs, As = self.bdrydata.bsaved[color], self.bdrydata.Asaved[color]
             res = bs - As * u
             for icomp in range(self.ncomp):
@@ -283,30 +295,27 @@ class Elasticity(Application):
         return flux
 
     def postProcess(self, u):
-        info = {}
-        cell_data = {}
-        point_data = {}
+        data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):
-            point_data['U_{:02d}'.format(icomp)] = self.fem.tonode(u[icomp::self.ncomp])
+            data['point']['U_{:02d}'.format(icomp)] = self.fem.fem.tonode(u[icomp::self.ncomp])
         if self.problemdata.solexact:
-            info['error'] = {}
             err, e = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            info['error']['L2'] = np.sum(err)
+            data['global']['error_L2'] = np.sum(err)
             for icomp in range(self.ncomp):
-                point_data['E_{:02d}'.format(icomp)] = self.fem.tonode(e[icomp])
-        info['postproc'] = {}
+                data['point']['E_{:02d}'.format(icomp)] = self.fem.fem.tonode(e[icomp])
         if self.problemdata.postproc:
-            for key, val in self.problemdata.postproc.items():
-                type,data = val.split(":")
-                if type == "bdrymean":
-                    info['postproc'][key] = self.fem.computeBdryMean(u, data)
-                elif type == "bdrydn":
-                    info['postproc'][key] = self.computeBdryDn(u, data)
-                elif type == "pointvalues":
-                    info['postproc'][key] = self.fem.computePointValues(u, data)
+            types = ["bdry_mean", "bdry_nflux", "pointvalues", "meanvalues"]
+            for name, type in self.problemdata.postproc.type.items():
+                colors = self.problemdata.postproc.colors(name)
+                if type == types[0]:
+                    data['global'][name] = self.fem.computeBdryMean(u, colors)
+                elif type == types[1]:
+                    data['global'][name] = self.computeBdryDn(u, colors)
+                elif type == types[2]:
+                    data['global'][name] = self.fem.computePointValues(u, colors)
                 else:
-                    raise ValueError("unknown postprocess '{}' for key '{}'".format(type, key))
-        return point_data, cell_data, info
+                    raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
+        return data
 
     def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
         if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")

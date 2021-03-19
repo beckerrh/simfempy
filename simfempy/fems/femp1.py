@@ -81,7 +81,7 @@ class FemP1(object):
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
             return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
 
-    def prepareBoundary(self, colorsdir, postproc):
+    def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
         bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
@@ -91,13 +91,9 @@ class FemP1(object):
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
-        if not postproc: return bdrydata
-        for name, type in postproc.type.items():
-            if type != "bdrydn": continue
-            colors = postproc.colors(name)
-            for color in colors:
-                facesdir = self.mesh.bdrylabels[color]
-                bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
+        for color in colorsflux:
+            facesdir = self.mesh.bdrylabels[color]
+            bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
 
     def matrixDiffusion(self, k, bdrycond, method, bdrydata):

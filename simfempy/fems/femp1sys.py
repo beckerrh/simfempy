@@ -238,8 +238,7 @@ class FemP1(femp1.FemP1):
             err.append(np.sqrt(np.dot(e[icomp], self.massmatrix * e[icomp])))
         return err, e
 
-    def computeBdryMean(self, u, data, icomp=None):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryMean(self, u, colors, icomp=None):
         if icomp is None:
             mean, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
             for i,color in enumerate(colors):
@@ -260,8 +259,7 @@ class FemP1(femp1.FemP1):
                 mean[i] = np.sum(dS * np.mean(u[icomp + self.ncomp * self.mesh.faces[faces]], axis=1))
             return mean/omega
 
-    def computeBdryDn(self, u, data, bdrydata, bdrycond, icomp=None):
-        colors = [int(x) for x in data.split(',')]
+    def computeBdryDn(self, u, colors, bdrydata, bdrycond, icomp=None):
         if icomp is None:
             flux, omega = np.zeros(shape=(self.ncomp,len(colors))), np.zeros(len(colors))
             for i,color in enumerate(colors):

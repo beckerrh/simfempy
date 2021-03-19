@@ -20,10 +20,10 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
         data.bdrycond.type[1001] = "Dirichlet"
         data.bdrycond.type[1002] = "Neumann"
         data.bdrycond.type[1003] = "Dirichlet"
-        data.postproc.type['bdrymean'] = "bdrymean"
-        data.postproc.color['bdrymean'] = [1000,1002]
-        data.postproc.type['bdrydn'] = "bdrydn"
-        data.postproc.color['bdrydn'] = [1001,1003]
+        data.postproc.type['bdry_mean'] = "bdry_mean"
+        data.postproc.color['bdry_mean'] = [1000,1002]
+        data.postproc.type['bdry_nflux'] = "bdry_nflux"
+        data.postproc.color['bdry_nflux'] = [1001,1003]
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
@@ -35,10 +35,10 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
         data.bdrycond.type[102] = "Dirichlet"
         data.bdrycond.type[103] = "Dirichlet"
         data.bdrycond.type[104] = "Dirichlet"
-        data.postproc.type['bdrymean'] = "bdrymean"
-        data.postproc.color['bdrymean'] = [100,105]
-        data.postproc.type['bdrydn'] = "bdrydn"
-        data.postproc.color['bdrydn'] = [101,102,103,104]
+        data.postproc.type['bdry_mean'] = "bdry_mean"
+        data.postproc.color['bdry_mean'] = [100,105]
+        data.postproc.type['bdry_nflux'] = "bdry_nflux"
+        data.postproc.color['bdry_nflux'] = [101,102,103,104]
     if isinstance(fems, str): fems = [fems]
     if isinstance(methods, str): methods = [methods]
     sims = {}
@@ -55,4 +55,5 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
 
 #================================================================#
 if __name__ == '__main__':
-    test_analytic(dim=2)
+    # test_analytic(dim=2, exactsolution="Linear")
+    test_analytic(dim=2, exactsolution="Quadratic")

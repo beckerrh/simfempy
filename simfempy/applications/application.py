@@ -58,7 +58,7 @@ class Application(object):
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
-        print("self.problemdata.solexact", self.problemdata.solexact)
+        # print("self.problemdata.solexact", self.problemdata.solexact)
         solexact = self.problemdata.solexact
         self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         for color in self.mesh.bdrylabels:
@@ -73,7 +73,7 @@ class Application(object):
                     bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color, solexact)
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
-        print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
+        # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
         return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def setMesh(self, mesh):
         self.mesh = mesh
