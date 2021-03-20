@@ -8,49 +8,41 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-import simfempy.fems.bdrydata
-import simfempy.tools.barycentric
-from simfempy.fems import p1
-
+from simfempy.fems import femsys, p1
 
 #=================================================================#
-class P1sys():
-    def __init__(self, mesh=None):
-        self.fem = p1.P1(mesh)
-    def setMesh(self, mesh, ncomp):
-        self.mesh = mesh
-        self.fem.setMesh(mesh)
-        self.ncomp = ncomp
-        ncells, simps = self.mesh.ncells, self.mesh.simplices
-        nloc = self.fem.nloc
-        nlocncomp = ncomp * nloc
-        self.rowssys = np.repeat(ncomp * simps, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
-        self.rowssys = self.rowssys.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
-        self.colssys = self.rowssys.swapaxes(1, 2)
-        self.colssys = self.colssys.reshape(-1)
-        self.rowssys = self.rowssys.reshape(-1)
-    def prepareBoundary(self, colorsdirichlet, colorsflux=[]):
-        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+class P1sys(femsys.Femsys):
+    def __init__(self, ncomp, mesh=None):
+        super().__init__(p1.P1(mesh), ncomp, mesh)
+    # def setMesh(self, mesh):
+    #     super().setMesh(mesh)
+    #     # ncomp, nloc, ncells = self.ncomp, self.fem.nloc, self.mesh.ncells
+    #     # dofs = self.fem.dofs_cells()
+    #     # nlocncomp = ncomp * nloc
+    #     # self.rowssys = np.repeat(ncomp * dofs, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
+    #     # self.rowssys = self.rowssys.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
+    #     # self.colssys = self.rowssys.swapaxes(1, 2)
+    #     # self.colssys = self.colssys.reshape(-1)
+    #     # self.rowssys = self.rowssys.reshape(-1)
     def computeRhs(self, problemdata):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
         rhs = problemdata.params.fct_glob['rhs']
         if rhs:
-            x, y, z = self.mesh.points.T
-            rhsall = rhs(x, y, z)
+            rhsall = self.fem.interpolate(rhs)
             for i in range(ncomp):
                 self.fem.massDot(b[i::self.ncomp], rhsall[i])
         normals = self.mesh.normals
         # print(f"{self.problemdata.bdrycond=}")
         for color, faces in self.mesh.bdrylabels.items():
             if problemdata.bdrycond.type[color] != "Neumann": continue
+            if not color in problemdata.bdrycond.fct.keys(): continue
             scale = 1 / self.mesh.dimension
             normalsS = normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
             x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
             nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
-            if not color in problemdata.bdrycond.fct.keys(): continue
             neumanns = problemdata.bdrycond.fct[color](x1, y1, z1, nx, ny, nz)
             for i in range(ncomp):
                 bS = scale * dS * neumanns[i]
@@ -66,7 +58,7 @@ class P1sys():
         # print(f"vectorDirichlet {nodesdirflux.items()=}")
         for key, nodes in nodesdirflux.items():
             ind = np.repeat(ncomp * nodes, ncomp)
-            for icomp in range(ncomp):ind[icomp::ncomp] += icomp
+            for icomp in range(ncomp): ind[icomp::ncomp] += icomp
             self.bdrydata.bsaved[key] = b[ind]
         indin = np.repeat(ncomp * nodesinner, ncomp)
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
@@ -99,7 +91,7 @@ class P1sys():
             b[inddir] = self.bdrydata.A_dir_dir * u[inddir]
         # print(f"vectorDirichlet {self.bdrydata.bsaved.keys()=}")
         return b, u
-    def computeMatrix(self, mucell, lamcell):
+    def computeMatrixElasticity(self, mucell, lamcell):
         nnodes, ncells, ncomp, dV = self.mesh.nnodes, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
         mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
@@ -157,19 +149,6 @@ class P1sys():
             for icomp in range(self.ncomp):
                 flux[i, icomp] = np.sum(res[icomp::self.ncomp])
         return flux
-    def computeErrorL2(self, solex, uh):
-        eall, ecall = [], []
-        for icomp in range(self.ncomp):
-            e, ec = self.fem.computeErrorL2Cell(solex[icomp], uh[icomp::self.ncomp])
-            eall.append(e)
-            ecall.append(ec)
-        return eall, ecall
-    def computeBdryMean(self, u, colors):
-        all = []
-        for icomp in range(self.ncomp):
-            a = self.fem.computeBdryMean(u[icomp::self.ncomp], colors)
-            all.append(a)
-        return all
 
 
 # ------------------------------------- #

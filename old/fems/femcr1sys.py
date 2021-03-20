@@ -8,11 +8,12 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-from simfempy.fems import femcr1
+from old.fems import femcr1
+
 try:
     from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
-    from ..meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 
 #=================================================================#
 class FemCR1(femcr1.FemCR1):

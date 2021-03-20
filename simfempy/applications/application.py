@@ -45,6 +45,12 @@ class Application(object):
         if 'mesh' in kwargs:
             self.mesh = kwargs.pop('mesh')
         self._setMeshCalled = False
+    def setMesh(self, mesh):
+        self.mesh = mesh
+        self._setMeshCalled = True
+        if hasattr(self,'_generatePDforES') and self._generatePDforES:
+            self.generatePoblemDataForAnalyticalSolution()
+            self._generatePDforES = False
     def setParameter(self, paramname, param):
         assert 0
     def dirichletfct(self):
@@ -75,12 +81,6 @@ class Application(object):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
         return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
-    def setMesh(self, mesh):
-        self.mesh = mesh
-        self._setMeshCalled = True
-        if hasattr(self,'_generatePDforES') and self._generatePDforES:
-            self.generatePoblemDataForAnalyticalSolution()
-            self._generatePDforES = False
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
             xc, yc, zc = self.mesh.pointsc.T

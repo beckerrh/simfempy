@@ -4,14 +4,12 @@ Created on Sun Dec  4 18:14:29 2016
 
 @author: becker
 """
-
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
 import simfempy.tools.barycentric
 from simfempy.fems import fem
-
 
 #=================================================================#
 class P1(fem.Fem):
@@ -20,13 +18,15 @@ class P1(fem.Fem):
         self.dirichlet_al = 10
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        nloc = self.mesh.dimension+1
-        self.nloc = nloc
-        simps = self.mesh.simplices
-        self.cols = np.tile(simps, nloc).reshape(-1)
-        self.rows = np.repeat(simps, nloc).reshape(-1)
-        self.cellgrads = self.computeCellGrads()
+        # nloc = self.nlocal()
+        # self.nloc = nloc
+        # dofs = self.dofs_cells()
+        # self.cols = np.tile(dofs, nloc).reshape(-1)
+        # self.rows = np.repeat(dofs, nloc).reshape(-1)
+        # self.cellgrads = self.computeCellGrads()
     def nunknowns(self): return self.mesh.nnodes
+    def nlocal(self): return self.mesh.dimension+1
+    def dofs_cells(self): return self.mesh.simplices
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
@@ -49,18 +49,6 @@ class P1(fem.Fem):
     def interpolate(self, f):
         x, y, z = self.mesh.points.T
         return f(x, y, z)
-    def interpolateCell(self, f):
-        if isinstance(f, dict):
-            b = np.zeros(self.mesh.ncells)
-            for label, fct in f.items():
-                if fct is None: continue
-                cells = self.mesh.cellsoflabel[label]
-                xc, yc, zc = self.mesh.pointsc[cells].T
-                b[cells] = fct(xc, yc, zc)
-            return b
-        else:
-            xc, yc, zc = self.mesh.pointsc.T
-            return f(xc, yc, zc)
     def interpolateBoundary(self, colors, f):
         """
         :param colors: set of colors to interpolate
@@ -87,9 +75,7 @@ class P1(fem.Fem):
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells
         dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        # massloc = simfempy.tools.barycentric.integral(d=dimension)
         massloc = 1/(dimension+1)
-        # print(f"{simplices.shape=} {dV.shape=} {f.shape=}")
         np.add.at(b, simplices, (massloc*coeff*dV*f)[:, np.newaxis])
         return b
     def massDot(self, b, f, coeff=1):

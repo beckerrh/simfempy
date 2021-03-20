@@ -15,6 +15,12 @@ class Fem(object):
         if mesh is not None: self.setMesh(mesh)
     def setMesh(self, mesh):
         self.mesh = mesh
+        nloc = self.nlocal()
+        self.nloc = nloc
+        dofs = self.dofs_cells()
+        self.cols = np.tile(dofs, nloc).reshape(-1)
+        self.rows = np.repeat(dofs, nloc).reshape(-1)
+        self.cellgrads = self.computeCellGrads()
     def downWind(self, v, method='supg'):
         # v is supposed RT0
         dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma
@@ -57,6 +63,18 @@ class Fem(object):
         delta = np.linalg.norm(np.einsum('nji,nj -> ni', points[simplices], lamd-1/(dim+1)),axis=1)
         # if not np.allclose(lamd, lamd2): print(f"{lamd=} {lamd2=}")
         return xd, lamd, delta
+    def interpolateCell(self, f):
+        if isinstance(f, dict):
+            b = np.zeros(self.mesh.ncells)
+            for label, fct in f.items():
+                if fct is None: continue
+                cells = self.mesh.cellsoflabel[label]
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                b[cells] = fct(xc, yc, zc)
+            return b
+        else:
+            xc, yc, zc = self.mesh.pointsc.T
+            return f(xc, yc, zc)
 
 
 

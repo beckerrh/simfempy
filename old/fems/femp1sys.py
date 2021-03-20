@@ -9,13 +9,13 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 
-from simfempy.fems import femp1
+from old.fems import femp1
 
 try:
     from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
-    from ..meshes.simplexmesh import SimplexMesh
-import simfempy.fems.bdrydata
+    from simfempy.meshes.simplexmesh import SimplexMesh
+
 
 # =================================================================#
 class FemP1(femp1.FemP1):

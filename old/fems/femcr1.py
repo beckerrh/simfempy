@@ -11,7 +11,7 @@ import scipy.sparse as sparse
 try:
     from simfempy.meshes.simplexmesh import SimplexMesh
 except ModuleNotFoundError:
-    from ..meshes.simplexmesh import SimplexMesh
+    from simfempy.meshes.simplexmesh import SimplexMesh
 import simfempy.fems.bdrydata
 
 

@@ -20,11 +20,13 @@ class CR1(fem.Fem):
         self.dirichlet_al = 10
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        self.nloc = self.mesh.dimension+1
-        self.cols = np.tile(self.mesh.facesOfCells, self.nloc).ravel()
-        self.rows = np.repeat(self.mesh.facesOfCells, self.nloc).ravel()
-        self.cellgrads = self.computeCellGrads()
+        # self.nloc = self.mesh.dimension+1
+        # self.cols = np.tile(self.mesh.facesOfCells, self.nloc).ravel()
+        # self.rows = np.repeat(self.mesh.facesOfCells, self.nloc).ravel()
+        # self.cellgrads = self.computeCellGrads()
     def nunknowns(self): return self.mesh.nfaces
+    def nlocal(self): return self.mesh.dimension+1
+    def dofs_cells(self): return self.mesh.facesOfCells
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
@@ -198,18 +200,6 @@ class CR1(fem.Fem):
     def interpolate(self, f):
         x, y, z = self.mesh.pointsf.T
         return f(x, y, z)
-    def interpolateCell(self, f):
-        if isinstance(f, dict):
-            b = np.zeros(self.mesh.ncells)
-            for label, fct in f.items():
-                if fct is None: continue
-                cells = self.mesh.cellsoflabel[label]
-                xc, yc, zc = self.mesh.pointsc[cells].T
-                b[cells] = fct(xc, yc, zc)
-            return b
-        else:
-            xc, yc, zc = self.mesh.pointsc.T
-            return f(xc, yc, zc)
     def interpolateBoundary(self, colors, f):
         """
         :param colors: set of colors to interpolate

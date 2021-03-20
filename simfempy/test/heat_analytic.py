@@ -53,11 +53,5 @@ def test(dim, exactsolution='Linear', fems=['p1'], methods=['new','trad']):
 
 #================================================================#
 if __name__ == '__main__':
-    exactsolution = 'Constant'
-    exactsolution = 'Linear'
-    # exactsolution = 'Quadratic'
-    # test(dim=3, exactsolution = exactsolution, fems='cr1')
-    test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])
-    # test(dim=3, exactsolution = exactsolution, fems='p1')
-    # test_2d(exactsolution = exactsolution)
-    # test_3d(exactsolution = exactsolution)
+    test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'])
+    # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])
