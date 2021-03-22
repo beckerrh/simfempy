@@ -22,11 +22,11 @@ class RT0(fem.Fem):
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Mtocell = self.toCellMatrix()
+    def nlocal(self): return self.mesh.dimension+1
     def interpolate(self, f):
         dim = self.mesh.dimension
         nfaces, normals = self.mesh.nfaces, self.mesh.normals[:,:dim]
         nnormals = normals/linalg.norm(normals, axis=1)[:,np.newaxis]
-        # print(f"{normals=} ")
         if len(f) != self.mesh.dimension: raise TypeError(f"f needs {dim} components")
         xf, yf, zf = self.mesh.pointsf.T
         fa = np.array([f[i](xf,yf,zf) for i in range(dim)])
@@ -44,14 +44,6 @@ class RT0(fem.Fem):
         dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
         dS2 = linalg.norm(normals, axis=1)
         sigma2 = sigma/dV[:,np.newaxis]/dim
-        # b = np.zeros((ncells, dim))
-        # for n in range(ncells):
-        #     for i in range(dim+1):
-        #         l = facesofcells[n,i]
-        #         m = simp[n,i]
-        #         for j in range(dim):
-        #             d[n,j] += v[l] *sigma2[n,i]* (pc[n,j]-p[m,j])*dS2[l]
-        # return b
         return np.einsum('ni,ni,nij,ni -> nj', v[facesofcells], sigma2, pc[:,np.newaxis,:dim]-p[simp,:dim], dS2[facesofcells])
     def constructMass(self, diffinvcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells

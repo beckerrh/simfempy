@@ -11,7 +11,7 @@ $\div_h: \Cspace_h^{l}(\Omega,\R^d)\to \Cspace_h^{l-1}(\Omega)$.
 We frequently use the piecewise Stokes formula
 %
 \begin{equation}\label{eq:StokesPiecewise}
-\int_{\Omega} \nabla_h q v + \int_{\Omega} q \div_h v = \int_{\SidesInt_h}\jump{q v_n} +  \int_{\SidesBdry_h}q v_n,
+\int_{\Omega} (\nabla_h q) v + \int_{\Omega} q (\div_h v) = \int_{\SidesInt_h}\jump{q v_n} +  \int_{\SidesBdry_h}q v_n,
 \end{equation}
 %
 where $\int_{\Sides_h}=\sum_{S\in\Sides_h}\int_S$ and $n$ in the sum stands for $n_S$.
@@ -79,6 +79,19 @@ It follows that
 \delta_K = \max\SetDef{\frac{d\abs{K}}{(d+1)\abs{S_i}\left(\transpose{\normal[i]}\beta_K\right)^+}}{0\le i\le d}.
 \end{equation}
 %
+The stabilized bilinear form is
+%
+\begin{equation}\label{eq:}
+a^{\rm supg}(u,v) := \int_{\Omega} (\beta\cdot \nabla  u) v - \int_{\partial\Omega} \beta_n^- uv + \int_{\Omega} \delta(\beta\cdot \nabla u)( \beta\cdot \nabla v)
+\end{equation}
+%
+Then we have
+%
+\begin{align*}
+a^{\rm supg}(u,v) = 
+\end{align*}
+%
+
 
 
 %==========================================

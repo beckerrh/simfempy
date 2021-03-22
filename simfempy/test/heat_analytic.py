@@ -28,8 +28,8 @@ def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], meth
 def test(dim, exactsolution='Linear', fems=['p1'], methods=['new','trad']):
     data = simfempy.applications.problemdata.ProblemData()
     data.params.scal_glob['kheat'] = 1
-    data.params.fct_glob['beta'] = ["y", "-x"]
-    data.params.fct_glob['beta'] = ["1", "1"]
+    data.params.fct_glob['convection'] = ["y", "-x"]
+    data.params.fct_glob['convection'] = dim*["1"]
     if dim==1:
         createMesh = testmeshes.unitline
         colors = [10000, 10001]
