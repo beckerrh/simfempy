@@ -14,16 +14,6 @@ from simfempy.fems import femsys, p1
 class P1sys(femsys.Femsys):
     def __init__(self, ncomp, mesh=None):
         super().__init__(p1.P1(mesh), ncomp, mesh)
-    # def setMesh(self, mesh):
-    #     super().setMesh(mesh)
-    #     # ncomp, nloc, ncells = self.ncomp, self.fem.nloc, self.mesh.ncells
-    #     # dofs = self.fem.dofs_cells()
-    #     # nlocncomp = ncomp * nloc
-    #     # self.rowssys = np.repeat(ncomp * dofs, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
-    #     # self.rowssys = self.rowssys.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
-    #     # self.colssys = self.rowssys.swapaxes(1, 2)
-    #     # self.colssys = self.colssys.reshape(-1)
-    #     # self.rowssys = self.rowssys.reshape(-1)
     def computeRhs(self, problemdata):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nnodes * self.ncomp)
@@ -32,13 +22,13 @@ class P1sys(femsys.Femsys):
             rhsall = self.fem.interpolate(rhs)
             for i in range(ncomp):
                 self.fem.massDot(b[i::self.ncomp], rhsall[i])
-        normals = self.mesh.normals
-        # print(f"{self.problemdata.bdrycond=}")
-        for color, faces in self.mesh.bdrylabels.items():
-            if problemdata.bdrycond.type[color] != "Neumann": continue
-            if not color in problemdata.bdrycond.fct.keys(): continue
+        bdrycond = problemdata.bdrycond
+        colorsneu = bdrycond.colorsOfType("Neumann")
+        for color in colorsneu:
+            if not color in bdrycond.fct or not bdrycond.fct[color]: continue
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
             scale = 1 / self.mesh.dimension
-            normalsS = normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
             x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]

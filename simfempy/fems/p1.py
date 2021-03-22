@@ -307,7 +307,7 @@ class P1(fem.Fem):
         ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.simplices], axis=1)
         return np.sqrt(np.sum(ec**2* self.mesh.dV)), ec
 
-    def computeErrorL2Node(self, solexact, uh):
+    def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.points.T
         en = solexact(x, y, z) - uh
         Men = np.zeros_like(en)

@@ -56,5 +56,5 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(dim=3, exactsolution="Linear")
-    test_analytic(dim=2, exactsolution="Linear")
+    test_analytic(dim=2, exactsolution="Linear", fems=['cr1'])
     # test_analytic(dim=2, exactsolution="Quadratic")

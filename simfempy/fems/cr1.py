@@ -140,6 +140,7 @@ class CR1(fem.Fem):
         return A, bdrydata
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
+        if u.shape[0] != self.mesh.nfaces: raise ValueError(f"{u.shape=} {self.mesh.nfaces=}")
         scale = self.mesh.dimension
         np.add.at(unodes, self.mesh.simplices.T, np.sum(u[self.mesh.facesOfCells], axis=1))
         np.add.at(unodes, self.mesh.simplices.T, -scale*u[self.mesh.facesOfCells].T)
@@ -151,7 +152,7 @@ class CR1(fem.Fem):
         xc, yc, zc = self.mesh.pointsc.T
         ec = solexact(xc, yc, zc) - np.mean(uh[self.mesh.facesOfCells], axis=1)
         return np.sqrt(np.sum(ec**2* self.mesh.dV)), ec
-    def computeErrorL2Node(self, solexact, uh):
+    def computeErrorL2(self, solexact, uh):
         x, y, z = self.mesh.pointsf.T
         en = solexact(x, y, z) - uh
         Men = np.zeros_like(en)

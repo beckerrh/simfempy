@@ -30,7 +30,7 @@ class Femsys():
     def computeErrorL2(self, solex, uh):
         eall, ecall = [], []
         for icomp in range(self.ncomp):
-            e, ec = self.fem.computeErrorL2Cell(solex[icomp], uh[icomp::self.ncomp])
+            e, ec = self.fem.computeErrorL2(solex[icomp], uh[icomp::self.ncomp])
             eall.append(e)
             ecall.append(ec)
         return eall, ecall

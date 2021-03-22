@@ -198,7 +198,7 @@ class Heat(Application):
         data['point']['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
             data['global']['err_pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_pnL2'], en = self.fem.computeErrorL2Node(self.problemdata.solexact, u)
+            data['global']['err_pnL2'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
             data['global']['err_vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
             data['cell']['err'] = ec
         if self.problemdata.postproc:

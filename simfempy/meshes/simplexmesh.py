@@ -255,39 +255,6 @@ class SimplexMesh(object):
             #     assert not indices[bpi[cb[0]]]
 
 
-
-        # nbdrylabelsgmsh = 0
-        # for col, cb in bdrylabelsgmsh.items(): nbdrylabelsgmsh += cb.shape[0]
-        # print(f"{nbdrylabelsgmsh=} {nbdryfaces=}")
-        # # if nbdrylabelsgmsh != nbdryfaces:
-        # #     raise ValueError(f"wrong number of boundary labels {nbdrylabelsgmsh=} != {nbdryfaces=}")
-        # if len(bdryfacesgmsh) != nbdryfaces:
-        #     print("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
-        #     # raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
-        # self.bdrylabels = {}
-        # # colorofbdr = -np.ones(nbdryfaces, dtype=bdryids.dtype)
-        # colorofbdr = -np.ones(nbdrylabelsgmsh, dtype=bdryids.dtype)
-        # for col, cb in bdrylabelsgmsh.items():
-        #     self.bdrylabels[int(col)] = -np.ones( (cb.shape[0]), dtype=np.int32)
-        #     colorofbdr[cb] = col
-        #
-        # # perm = bdryids[bp[fpi]]
-        # # print(f"{perm=}")
-        # # print(f"{colorofbdr=}")
-        # counts = {}
-        # for key in list(self.bdrylabels.keys()): counts[key]=0
-        # for i in range(len(perm)):
-        #     if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
-        #         raise ValueError(f"Did not find boundary indices\n{bdryfacesgmsh[i]} {self.faces[perm[i]]}")
-        #     color = colorofbdr[i]
-        #     self.bdrylabels[color][counts[color]] = perm[i]
-        #     counts[color] += 1
-        # # print ("self.bdrylabels", self.bdrylabels)
-        # for col, bl in self.bdrylabels.items():
-        #     print(f"{bl=} {self.bdrylabels2[col]=}")
-        #     # assert np.all(bl == self.bdrylabels2[col])
-
-
     def _constructBoundaryFaces6(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
