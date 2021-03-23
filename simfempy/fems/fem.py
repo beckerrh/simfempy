@@ -20,17 +20,29 @@ class Fem(object):
     def computeStencilCell(self, dofspercell):
         self.cols = np.tile(dofspercell, self.nloc).reshape(-1)
         self.rows = np.repeat(dofspercell, self.nloc).reshape(-1)
+        #Alternative
+        # self.rows = dofspercell.repeat(self.nloc).reshape(self.mesh.ncells, self.nloc, self.nloc)
+        # self.cols = self.rows.swapaxes(1, 2)
+        # self.cols = self.cols.reshape(-1)
+        # self.rows = self.rows.reshape(-1)
+
     def computeStencilInnerSidesCell(self, dofspercell):
         nloc, faces, cellsOfFaces = self.nloc, self.mesh.faces, self.mesh.cellsOfFaces
-        print(f"{faces=}")
-        print(f"{cellsOfFaces=}")
+        # print(f"{faces=}")
+        # print(f"{cellsOfFaces=}")
         #TODO : remplacer -1 par nan dans les indices
         innerfaces = cellsOfFaces[:,1]>=0
-        print(f"{innerfaces=}")
-        print(f"{cellsOfFaces[innerfaces]=}")
+        cellsOfInteriorFaces= cellsOfFaces[innerfaces]
+        # print(f"{innerfaces=}")
+        print(f"{cellsOfInteriorFaces=}")
         raise NotImplementedError(f"no")
-    def prepareStab(self):
-        self.computeStencilInnerSidesCell()
+        ncells, nloc = dofspercell.shape[0], dofspercell.shape[1]
+        print(f"{ncells=} {nloc=}")
+        print(f"{dofspercell[cellsOfInteriorFaces,:].shape=}")
+        rows = dofspercell[cellsOfInteriorFaces,:].repeat(nloc)
+        cols = np.tile(dofspercell[cellsOfInteriorFaces,:],nloc)
+        print(f"{rows=}")
+        print(f"{cols=}")
 
     def interpolateCell(self, f):
         if isinstance(f, dict):

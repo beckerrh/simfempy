@@ -27,6 +27,8 @@ class P1(fem.Fem):
         scale = -1/self.mesh.dimension
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     def tonode(self, u): return u
+    def prepareStab(self):
+        self.computeStencilInnerSidesCell(self.mesh.simplices)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()

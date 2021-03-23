@@ -37,6 +37,8 @@ class CR1(fem.Fem):
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
+    def prepareStab(self):
+        self.computeStencilInnerSidesCell(self.mesh.facesOfCells)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
