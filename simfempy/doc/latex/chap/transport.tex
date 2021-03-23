@@ -40,15 +40,15 @@ a(u,v)=l(v)\quad \forall v\in V
 with
 %
 \begin{equation}\label{eq:}
-a(u,v) := -\int_{\Omega} u \beta\cdot \nabla v + \int_{\partial\Omega} \beta_n^+ uv,\quad l(v) := \int_{\Omega} fv -\int_{\partial\Omega} \beta_n^- \uD v.
+a(u,v) := \int_{\Omega}\div(\beta) u  v +\int_{\Omega} (\beta\cdot \nabla u)v - \int_{\partial\Omega} \beta_n^- uv,\quad l(v) := \int_{\Omega} fv -\int_{\partial\Omega} \beta_n^- \uD v.
 \end{equation}
 %
 We also have
 %
 \begin{align*}
-a(u,v) =& -\frac12\int_{\Omega} u  \beta\cdot\nabla v + \frac12 \int_{\Omega}\div(\beta u ) v - \frac12 \int_{\partial\Omega} \beta_n uv +\int_{\partial\Omega}\beta_n^+ uv\\
-=&  \frac12 \int_{\Omega}\div(\beta) u  v +\frac12\left(\int_{\Omega} \beta\cdot\nabla u v-\int_{\Omega} u  \beta\cdot\nabla v\right)
-+ \frac12 \int_{\partial\Omega}\abs{\beta_n}uv
+a(u,v) =& \frac12\int_{\Omega}\div(\beta) u  v +\frac12\int_{\Omega} \div(\beta u)v +\frac12\int_{\Omega} (\beta\cdot \nabla u)v - \int_{\partial\Omega} \beta_n^- uv\\
+=& \frac12\int_{\Omega}\div(\beta) u  v +\frac12\int_{\Omega} \left((\beta\cdot \nabla u)v-u(\beta\cdot \nabla v)\right)  + \int_{\partial\Omega} (\frac12\beta_n-\beta_n^-) uv\\
+=& \frac12\int_{\Omega}\div(\beta) u  v +\frac12\int_{\Omega} \left((\beta\cdot \nabla u)v-u(\beta\cdot \nabla v)\right)  + \int_{\partial\Omega} \frac{\abs{\beta_n}}{2} uv
 \end{align*}
 %
 

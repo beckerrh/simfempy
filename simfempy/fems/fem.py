@@ -20,6 +20,18 @@ class Fem(object):
     def computeStencilCell(self, dofspercell):
         self.cols = np.tile(dofspercell, self.nloc).reshape(-1)
         self.rows = np.repeat(dofspercell, self.nloc).reshape(-1)
+    def computeStencilInnerSidesCell(self, dofspercell):
+        nloc, faces, cellsOfFaces = self.nloc, self.mesh.faces, self.mesh.cellsOfFaces
+        print(f"{faces=}")
+        print(f"{cellsOfFaces=}")
+        #TODO : remplacer -1 par nan dans les indices
+        innerfaces = cellsOfFaces[:,1]>=0
+        print(f"{innerfaces=}")
+        print(f"{cellsOfFaces[innerfaces]=}")
+        raise NotImplementedError(f"no")
+    def prepareStab(self):
+        self.computeStencilInnerSidesCell()
+
     def interpolateCell(self, f):
         if isinstance(f, dict):
             b = np.zeros(self.mesh.ncells)
@@ -32,7 +44,6 @@ class Fem(object):
         else:
             xc, yc, zc = self.mesh.pointsc.T
             return f(xc, yc, zc)
-
     def plotBetaDownwind(self):
         import matplotlib.pyplot as plt
         from simfempy.meshes import plotmesh
@@ -44,7 +55,6 @@ class Fem(object):
         xd, ld, delta = self.downWind(beta, method='supg2')
         axs[0, 0].plot(xd[:, 0], xd[:, 1], 'xb')
         plt.show()
-
     def downWind(self, beta, method='supg'):
         # beta is supposed RT0
         dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma

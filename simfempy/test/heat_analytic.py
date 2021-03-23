@@ -8,16 +8,18 @@ from simfempy.tools.comparemethods import CompareMethods
 import simfempy.applications.problemdata
 
 #----------------------------------------------------------------#
-def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], methods=['new','trad']):
+def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], dirichlets=['new','trad'], stabs=['supg','lps']):
     if isinstance(fems,str): fems = [fems]
-    if isinstance(methods,str): methods = [methods]
+    if isinstance(dirichlets,str): methods = [dirichlets]
+    if isinstance(stabs,str): stab = [stabs]
     sims = {}
     for fem in fems:
-        for method in methods:
-            kwargs = {'problemdata':data, 'fem':fem, 'method':method, 'masslumpedbdry':False}
+        for dirichlet in dirichlets:
+            for stab in stabs:
+                kwargs = {'problemdata':data, 'fem':fem, 'dirichlet':dirichlet, 'stab':stab, 'masslumpedbdry':False}
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
-            sims[fem+method] = Heat(**kwargs)
+            sims[fem+dirichlet+stab] = Heat(**kwargs)
     comp = CompareMethods(sims, createMesh=createMesh, plot=False)
     result = comp.compare(h=h)
     # global refine
@@ -25,7 +27,7 @@ def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], meth
     # result = comp.compare(niter=3)
 
 #----------------------------------------------------------------#
-def test(dim, exactsolution='Linear', fems=['p1'], methods=['new','trad']):
+def test(dim, exactsolution='Linear', fems=['p1'], dirichlets=['new','trad'], stabs=['supg','lps']):
     data = simfempy.applications.problemdata.ProblemData()
     data.params.scal_glob['kheat'] = 1
     data.params.fct_glob['convection'] = ["y", "-x"]
@@ -51,9 +53,9 @@ def test(dim, exactsolution='Linear', fems=['p1'], methods=['new','trad']):
     data.postproc.color['bdrymean'] = [colors[1]]
     data.postproc.type['nflux'] = "bdry_nflux"
     data.postproc.color['nflux'] = [*colors[:]]
-    test_analytic(createMesh=createMesh, h=h, data=data, exactsolution=exactsolution, fems=fems, methods=methods)
+    test_analytic(createMesh=createMesh, h=h, data=data, exactsolution=exactsolution, fems=fems, dirichlets=dirichlets, stabs=stabs)
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'])
+    test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'], stabs=['lps'])
     # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])

@@ -35,13 +35,26 @@ class Heat(Application):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.linearsolver = kwargs.pop('linearsolver', 'pyamg')
-        self.method = kwargs.pop('method', "trad")
+        self.dirichlet = kwargs.pop('dirichlet', "trad")
+        self.stab = kwargs.pop('stab', "supg")
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
         self.masslumpedvol = kwargs.pop('masslumpedvol', True)
         fem = kwargs.pop('fem','p1')
         if fem == 'p1': self.fem = fems.p1.P1()
         elif fem == 'cr1': self.fem = fems.cr1.CR1()
         else: raise ValueError("unknown fem '{}'".format(fem))
+        # if 'convection' in self.problemdata.params.fct_glob.keys():
+        #     convection_given = self.problemdata.params.fct_glob['convection']
+        #     if not isinstance(convection_given, list):
+        #         p = "problemdata.params.fct_glob['convection']"
+        #         raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
+        #     elif isinstance(convection_given[0],str):
+        #         self.problemdata.params.fct_glob['convection'] = [AnalyticalFunction(expr=e) for e in convection_given]
+        #     else:
+        #         if not isinstance(convection_given[0], AnalyticalFunction):
+        #             raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
+    def _checkProblemData(self):
+        self.problemdata.check(self.mesh)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             convection_given = self.problemdata.params.fct_glob['convection']
             if not isinstance(convection_given, list):
@@ -52,9 +65,6 @@ class Heat(Application):
             else:
                 if not isinstance(convection_given[0], AnalyticalFunction):
                     raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
-    def _checkProblemData(self):
-        self.problemdata.check(self.mesh)
-        if 'convection' in self.problemdata.params.fct_glob.keys():
             if len(self.problemdata.params.fct_glob['convection']) != self.mesh.dimension:
                 raise ValueError(f"{self.mesh.dimension=} {self.problemdata.params.fct_glob['convection']=}")
         bdrycond = self.problemdata.bdrycond
@@ -127,33 +137,30 @@ class Heat(Application):
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
         # TODO: non-constant rhocp
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
-        # if not params.paramdefined('rhocp'): params.scal_glob['rhocp'] = 1
-        # self.rhocpcell = self.compute_cell_vector_from_params('rhocp', params)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             convectionfct = self.problemdata.params.fct_glob['convection']
-            self.fem.supgPoints(convectionfct, rhocp, method="centered")
-            # self.fem.supgPoints(convectionfct, rhocp, method="supg2")
-            # self.fem.plotBetaDownwind()
+            if self.stab in ['centered', 'supg', 'supg2']:
+                self.fem.supgPoints(convectionfct, rhocp, method=self.stab)
+            else:
+                self.fem.prepareStab()
     def computeMatrix(self, coeff=1, coeffmass=None):
-        bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
+        bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         A = coeff*self.fem.computematrixDiffusion(self.kheatcell)
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += coeff*self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
-            # A +=  coeff*self.fem.comptuteMatrixTransport(self.convection, self.convectionC, self.lamdconvection, colorsdir+colorsrobin)
-            # A += coeff * self.fem.comptuteMatrixTransport(colorsdir + colorsrobin)
             A += coeff * self.fem.comptuteMatrixTransport()
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
-        A, self.bdrydata = self.fem.matrixBoundary(A, method, bdrydata)
+        A, self.bdrydata = self.fem.matrixBoundary(A, self.dirichlet, bdrydata)
         return A
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None, fillzeros=True):
         if not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
-        bdrycond, method, bdrydata = self.problemdata.bdrycond, self.method, self.bdrydata
+        bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         if b is None:
             b = np.zeros(self.fem.nunknowns())
         else:
@@ -184,19 +191,9 @@ class Heat(Application):
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)
         # print(f"***{id(u)=} {type(u)=}")
-        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, method, bdrydata)
+        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, self.dirichlet, bdrydata)
         # print(f"***{id(u)=} {type(u)=}")
         return b,u
-
-    # def residualNewton(self, u):
-
-
-    #     if not hasattr(self, 'du'): self.du = np.empty_like(u)
-    #     self.du[:] = 0
-    #     self.fem.formDiffusion(self.du, u, self.kheatcell)
-    #     self.du -= self.b
-    #     self.du = self.vectorDirichletZero(self.du, self.bdrydata)
-    #     return self.du
 
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
