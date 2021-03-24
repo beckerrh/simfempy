@@ -219,21 +219,6 @@ class Application(object):
     #     # print(f"solveForNewton du={np.linalg.norm(du)}")
     #     return du
 
-    def build_pyamg(self,A):
-        import pyamg
-        B = np.ones((A.shape[0], 1))
-        SA_build_args = {
-            'max_levels': 10,
-            'max_coarse': 25,
-            'coarse_solver': 'pinv2',
-            'symmetry': 'hermitian'}
-        smooth = ('energy', {'krylov': 'cg'})
-        strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-        presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        # self.ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
-        return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
-
     def linearSolver(self, A, b, u=None, solver = None, verbose=0):
         # print(f"### linearSolver {solver=}")
         if spsp.issparse(A):
@@ -267,13 +252,14 @@ class Application(object):
         elif solver == 'pyamg':
             import pyamg
             res=[]
-            maxiter = 50
+            maxiter = 1000
             SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
             if spsp.issparse(A): ml = self.build_pyamg(A)
             else: ml = A
             # if not hasattr(self, 'ml'): self.build_pyamg(A)
             # print(f"*LS*{id(u)=}")
             u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
+            # u = ml.solve(b=b, x0=u, residuals=res)
             if len(res) >= maxiter:
                 raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
@@ -281,6 +267,21 @@ class Application(object):
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
+
+    def build_pyamg(self,A):
+        import pyamg
+        B = np.ones((A.shape[0], 1))
+        SA_build_args = {
+            'max_levels': 10,
+            'max_coarse': 25,
+            'coarse_solver': 'pinv2',
+            'symmetry': 'hermitian'}
+        smooth = ('energy', {'krylov': 'cg'})
+        strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
+        presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+        postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
+        # self.ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
 
 
 
