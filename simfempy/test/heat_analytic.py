@@ -57,5 +57,6 @@ def test(dim, exactsolution='Linear', fems=['p1'], dirichlets=['new','trad'], st
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'], stabs=['lps'])
+    # test(dim=2, exactsolution = 'Linear', fems=['p1'], stabs=['lps'])
+    test(dim=2, exactsolution = 'Quadratic', fems=['p1'], stabs=['lps'])
     # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])

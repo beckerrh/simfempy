@@ -150,7 +150,7 @@ class CR1(fem.Fem):
         mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
         nfaces = self.mesh.nfaces
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-    def computematrixDiffusion(self, coeff):
+    def computeMatrixDiffusion(self, coeff):
         nfaces = self.mesh.nfaces
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
         matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
@@ -317,7 +317,7 @@ class CR1(fem.Fem):
         import scipy.sparse.linalg as splinalg
         colors = mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdir=colors)
-        A = self.computematrixDiffusion(coeff=1)
+        A = self.computeMatrixDiffusion(coeff=1)
         A, bdrydata = self.matrixBoundary(A, method='trad', bdrydata=bdrydata)
         b = np.zeros(self.nunknowns())
         rhs = np.vectorize(lambda x,y,z: 1)

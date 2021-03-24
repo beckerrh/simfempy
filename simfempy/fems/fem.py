@@ -33,6 +33,9 @@ class Fem(object):
         #TODO : remplacer -1 par nan dans les indices
         innerfaces = cellsOfFaces[:,1]>=0
         cellsOfInteriorFaces= cellsOfFaces[innerfaces]
+        self.cellsOfInteriorFaces = cellsOfInteriorFaces
+        self.innerfaces = innerfaces
+        return
         # print(f"{innerfaces=}")
         print(f"{cellsOfInteriorFaces=}")
         raise NotImplementedError(f"no")

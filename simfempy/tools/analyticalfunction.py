@@ -93,7 +93,7 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
         perm = list(permutations(p))
         return [t for p in perm for t in p]
     vars = ['x', 'y', 'z']
-    p = _p(ncomp * dim)
+    p = _p(ncomp * 2*dim)
     for i in range(ncomp):
         # print(f"{p=}")
         fct = '{:3.1f}'.format(p.pop())

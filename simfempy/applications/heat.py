@@ -43,16 +43,6 @@ class Heat(Application):
         if fem == 'p1': self.fem = fems.p1.P1()
         elif fem == 'cr1': self.fem = fems.cr1.CR1()
         else: raise ValueError("unknown fem '{}'".format(fem))
-        # if 'convection' in self.problemdata.params.fct_glob.keys():
-        #     convection_given = self.problemdata.params.fct_glob['convection']
-        #     if not isinstance(convection_given, list):
-        #         p = "problemdata.params.fct_glob['convection']"
-        #         raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
-        #     elif isinstance(convection_given[0],str):
-        #         self.problemdata.params.fct_glob['convection'] = [AnalyticalFunction(expr=e) for e in convection_given]
-        #     else:
-        #         if not isinstance(convection_given[0], AnalyticalFunction):
-        #             raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
     def _checkProblemData(self):
         self.problemdata.check(self.mesh)
         if 'convection' in self.problemdata.params.fct_glob.keys():
@@ -142,16 +132,17 @@ class Heat(Application):
             if self.stab in ['centered', 'supg', 'supg2']:
                 self.fem.supgPoints(convectionfct, rhocp, method=self.stab)
             else:
+                self.fem.supgPoints(convectionfct, rhocp, method='centered')
                 self.fem.prepareStab()
     def computeMatrix(self, coeff=1, coeffmass=None):
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
-        A = coeff*self.fem.computematrixDiffusion(self.kheatcell)
+        A = coeff*self.fem.computeMatrixDiffusion(self.kheatcell)
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += coeff*self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
-            A += coeff * self.fem.comptuteMatrixTransport()
+            A += coeff * self.fem.comptuteMatrixTransport(self.stab=='lps')
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
@@ -194,7 +185,6 @@ class Heat(Application):
         b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, self.dirichlet, bdrydata)
         # print(f"***{id(u)=} {type(u)=}")
         return b,u
-
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
         data = {'point':{}, 'cell':{}, 'global':{}}
