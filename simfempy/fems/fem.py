@@ -134,7 +134,7 @@ class Fem(object):
         dS = linalg.norm(normalsS, axis=1)
         scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
         betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
-        scale *= dS*betan
+        scale *= 0.01*dS*betan
         cg0 = self.cellgrads[ci[:,0], :, :]
         cg1 = self.cellgrads[ci[:,1], :, :]
         mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)

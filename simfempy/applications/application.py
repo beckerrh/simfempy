@@ -251,15 +251,13 @@ class Application(object):
             return u, counter.niter
         elif solver == 'pyamg':
             import pyamg
-            res=[]
-            maxiter = 1000
-            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
             if spsp.issparse(A): ml = self.build_pyamg(A)
             else: ml = A
-            # if not hasattr(self, 'ml'): self.build_pyamg(A)
-            # print(f"*LS*{id(u)=}")
+            res=[]
+            maxiter = 1000
+            # SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
+            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'gmres'}
             u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
-            # u = ml.solve(b=b, x0=u, residuals=res)
             if len(res) >= maxiter:
                 raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
@@ -275,12 +273,15 @@ class Application(object):
             'max_levels': 10,
             'max_coarse': 25,
             'coarse_solver': 'pinv2',
-            'symmetry': 'hermitian'}
-        smooth = ('energy', {'krylov': 'cg'})
+            'symmetry': 'nonsymmetric'
+            # 'symmetry': 'hermitian'
+        }
+        # smooth = ('energy', {'krylov': 'cg'})
+        smooth = ('energy', {'krylov': 'gmres', 'degree': 2})
         strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-        presmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        postsmoother = ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1})
-        # self.ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+        presmoother = ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 1})
+        postsmoother = ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 1})
+        # return pyamg.rootnode_solver(A, B, **SA_build_args)
         return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
 
 
