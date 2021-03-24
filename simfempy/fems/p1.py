@@ -20,15 +20,14 @@ class P1(fem.Fem):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
-    def nunknowns(self): return self.mesh.nnodes
     def nlocal(self): return self.mesh.dimension+1
+    def nunknowns(self): return self.mesh.nnodes
+    def dofspercell(self): return self.mesh.simplices
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         scale = -1/self.mesh.dimension
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     def tonode(self, u): return u
-    def prepareStab(self):
-        self.computeStencilInnerSidesCell(self.mesh.simplices)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
@@ -138,44 +137,44 @@ class P1(fem.Fem):
         massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeMatrixLps(self):
-        dimension, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
-        nloc, dofspercell = dimension+1, self.mesh.simplices
-        betaC = self.supdata['convectionC']
-        ci = self.cellsOfInteriorFaces
-        normalsS = self.mesh.normals[self.innerfaces]
-        dS = linalg.norm(normalsS, axis=1)
-        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
-        betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
-        scale *= dS*betan
-        # print(f"{scale.shape=}")
-        cg0 = self.cellgrads[ci[:,0], :, :]
-        cg1 = self.cellgrads[ci[:,1], :, :]
-        # print(f"{cg0.shape=} {cg1.shape=}")
-        mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
-        mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
-        mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
-        mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
-        rows0 = dofspercell[ci[:,0],:].repeat(nloc)
-        cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
-        rows1 = dofspercell[ci[:,1],:].repeat(nloc)
-        cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
-        # print(f"{rows0.shape=}")
-        # print(f"{cols0.shape=}")
-        # print(f"{mat00.shape=}")
-        A00 = sparse.coo_matrix((mat00.reshape(-1), (rows0, cols0)), shape=(nnodes, nnodes))
-        A01 = sparse.coo_matrix((mat01.reshape(-1), (rows0, cols1)), shape=(nnodes, nnodes))
-        A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(nnodes, nnodes))
-        A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(nnodes, nnodes))
-        return A00+A01+A10+A11
+    # def computeMatrixLps(self):
+    #     dimension, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
+    #     nloc, dofspercell = dimension+1, self.mesh.simplices
+    #     betaC = self.supdata['convectionC']
+    #     ci = self.mesh.cellsOfInteriorFaces
+    #     normalsS = self.mesh.normals[self.mesh.innerfaces]
+    #     dS = linalg.norm(normalsS, axis=1)
+    #     scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
+    #     betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
+    #     scale *= dS*betan
+    #     # print(f"{scale.shape=}")
+    #     cg0 = self.cellgrads[ci[:,0], :, :]
+    #     cg1 = self.cellgrads[ci[:,1], :, :]
+    #     # print(f"{cg0.shape=} {cg1.shape=}")
+    #     mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
+    #     mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
+    #     mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
+    #     mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
+    #     rows0 = dofspercell[ci[:,0],:].repeat(nloc)
+    #     cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
+    #     rows1 = dofspercell[ci[:,1],:].repeat(nloc)
+    #     cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
+    #     # print(f"{rows0.shape=}")
+    #     # print(f"{cols0.shape=}")
+    #     # print(f"{mat00.shape=}")
+    #     A00 = sparse.coo_matrix((mat00.reshape(-1), (rows0, cols0)), shape=(nnodes, nnodes))
+    #     A01 = sparse.coo_matrix((mat01.reshape(-1), (rows0, cols1)), shape=(nnodes, nnodes))
+    #     A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(nnodes, nnodes))
+    #     A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(nnodes, nnodes))
+    #     return A00+A01+A10+A11
 
-    def computeMatrixDiffusion(self, coeff):
-        nnodes = self.mesh.nnodes
-        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
-        return  sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+    # def computeMatrixDiffusion(self, coeff):
+    #     nnodes = self.mesh.nnodes
+    #     matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+    #     matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+    #     matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+    #     mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
+    #     return  sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
@@ -205,21 +204,16 @@ class P1(fem.Fem):
                 massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-    def comptuteMatrixTransport(self, lps):
+    def computeMatrixTransport(self, lps):
         beta, betaC, ld = self.supdata['convection'], self.supdata['convectionC'], self.supdata['lam']
-        # self.supdata['xd'], self.supdata['lam'], self.supdata['delta']
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
         if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, ld)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         if lps:
-            A += self.computeMatrixLps()
+            A += self.computeMatrixLps(betaC)
         return A
-        # print(f"transport {A.toarray()=}")
-        # B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0), colors=colors)
-        # print(f"transport {B.toarray()=}")
-        # return A+B
     def computeMassMatrixSupg(self, xd, coeff=1):
         dim, dV, nnodes, xK = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes, self.mesh.pointsc
         massloc = simfempy.tools.barycentric.tensor(d=dim, k=2)

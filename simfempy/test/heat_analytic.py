@@ -17,9 +17,10 @@ def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], diri
         for dirichlet in dirichlets:
             for stab in stabs:
                 kwargs = {'problemdata':data, 'fem':fem, 'dirichlet':dirichlet, 'stab':stab, 'masslumpedbdry':False}
-            kwargs['exactsolution'] = exactsolution
-            kwargs['random'] = False
-            sims[fem+dirichlet+stab] = Heat(**kwargs)
+                kwargs['exactsolution'] = exactsolution
+                kwargs['random'] = False
+                kwargs['linearsolver'] = 'pyamg'
+                sims[fem+dirichlet+stab] = Heat(**kwargs)
     comp = CompareMethods(sims, createMesh=createMesh, plot=False)
     result = comp.compare(h=h)
     # global refine
@@ -27,10 +28,10 @@ def test_analytic(createMesh, h, data, exactsolution="Linear", fems=['p1'], diri
     # result = comp.compare(niter=3)
 
 #----------------------------------------------------------------#
-def test(dim, exactsolution='Linear', fems=['p1'], dirichlets=['new','trad'], stabs=['supg','lps']):
+def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad'], stabs=['supg','lps']):
     data = simfempy.applications.problemdata.ProblemData()
-    data.params.scal_glob['kheat'] = 1
-    data.params.fct_glob['convection'] = ["y", "-x"]
+    data.params.scal_glob['kheat'] = 0.01
+    # data.params.fct_glob['convection'] = ["y", "-x"]
     data.params.fct_glob['convection'] = dim*["1"]
     if dim==1:
         createMesh = testmeshes.unitline
@@ -57,6 +58,6 @@ def test(dim, exactsolution='Linear', fems=['p1'], dirichlets=['new','trad'], st
 
 #================================================================#
 if __name__ == '__main__':
-    # test(dim=2, exactsolution = 'Linear', fems=['p1'], stabs=['lps'])
-    test(dim=2, exactsolution = 'Quadratic', fems=['p1'], stabs=['lps'])
+    test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'], stabs=['lps'])
+    # test(dim=2, exactsolution = 'Quadratic', fems=['p1'], stabs=['lps'])
     # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])

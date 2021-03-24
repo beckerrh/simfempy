@@ -8,6 +8,7 @@ import numpy as np
 import numpy.linalg as linalg
 from simfempy import fems
 from simfempy.meshes.simplexmesh import SimplexMesh
+import scipy.sparse as sparse
 
 
 #=================================================================#
@@ -26,26 +27,25 @@ class Fem(object):
         # self.cols = self.cols.reshape(-1)
         # self.rows = self.rows.reshape(-1)
 
-    def computeStencilInnerSidesCell(self, dofspercell):
-        nloc, faces, cellsOfFaces = self.nloc, self.mesh.faces, self.mesh.cellsOfFaces
-        # print(f"{faces=}")
-        # print(f"{cellsOfFaces=}")
-        #TODO : remplacer -1 par nan dans les indices
-        innerfaces = cellsOfFaces[:,1]>=0
-        cellsOfInteriorFaces= cellsOfFaces[innerfaces]
-        self.cellsOfInteriorFaces = cellsOfInteriorFaces
-        self.innerfaces = innerfaces
-        return
-        # print(f"{innerfaces=}")
-        print(f"{cellsOfInteriorFaces=}")
-        raise NotImplementedError(f"no")
-        ncells, nloc = dofspercell.shape[0], dofspercell.shape[1]
-        print(f"{ncells=} {nloc=}")
-        print(f"{dofspercell[cellsOfInteriorFaces,:].shape=}")
-        rows = dofspercell[cellsOfInteriorFaces,:].repeat(nloc)
-        cols = np.tile(dofspercell[cellsOfInteriorFaces,:],nloc)
-        print(f"{rows=}")
-        print(f"{cols=}")
+    # def computeStencilInnerSidesCell(self, dofspercell):
+    #     nloc, faces, cellsOfFaces = self.nloc, self.mesh.faces, self.mesh.cellsOfFaces
+    #     # print(f"{faces=}")
+    #     # print(f"{cellsOfFaces=}")
+    #     innerfaces = cellsOfFaces[:,1]>=0
+    #     cellsOfInteriorFaces= cellsOfFaces[innerfaces]
+    #     self.cellsOfInteriorFaces = cellsOfInteriorFaces
+    #     self.innerfaces = innerfaces
+    #     return
+    #     # print(f"{innerfaces=}")
+    #     print(f"{cellsOfInteriorFaces=}")
+    #     raise NotImplementedError(f"no")
+    #     ncells, nloc = dofspercell.shape[0], dofspercell.shape[1]
+    #     print(f"{ncells=} {nloc=}")
+    #     print(f"{dofspercell[cellsOfInteriorFaces,:].shape=}")
+    #     rows = dofspercell[cellsOfInteriorFaces,:].repeat(nloc)
+    #     cols = np.tile(dofspercell[cellsOfInteriorFaces,:],nloc)
+    #     print(f"{rows=}")
+    #     print(f"{cols=}")
 
     def interpolateCell(self, f):
         if isinstance(f, dict):
@@ -119,6 +119,37 @@ class Fem(object):
         self.supdata['convection'] = convection
         self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
         self.supdata['convectionC'] = rt.toCell(convection)
+    def computeMatrixDiffusion(self, coeff):
+        ndofs = self.nunknowns()
+        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
+        return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(ndofs, ndofs)).tocsr()
+    def computeMatrixLps(self, betaC):
+        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        ci = self.mesh.cellsOfInteriorFaces
+        normalsS = self.mesh.normals[self.mesh.innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
+        betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
+        scale *= dS*betan
+        cg0 = self.cellgrads[ci[:,0], :, :]
+        cg1 = self.cellgrads[ci[:,1], :, :]
+        mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
+        mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
+        mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
+        mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
+        rows0 = dofspercell[ci[:,0],:].repeat(nloc)
+        cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
+        rows1 = dofspercell[ci[:,1],:].repeat(nloc)
+        cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
+        A00 = sparse.coo_matrix((mat00.reshape(-1), (rows0, cols0)), shape=(ndofs, ndofs))
+        A01 = sparse.coo_matrix((mat01.reshape(-1), (rows0, cols1)), shape=(ndofs, ndofs))
+        A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(ndofs, ndofs))
+        A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
+        return A00+A01+A10+A11
 
 
 # ------------------------------------- #

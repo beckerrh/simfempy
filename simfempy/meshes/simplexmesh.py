@@ -34,6 +34,9 @@ class SimplexMesh(object):
              normals on boundary are external
     sigma: orientation of normal per cell and face (ncells, dimension+1)
 
+    innerfaces: mask for interior faces
+    cellsOfInteriorFaces: cellsOfFaces[innerfaces]
+
     dV: shape (ncells), volumes of simplices
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
     cellsoflabel: dictionary(keys: colors, values: id's of cells)
@@ -95,6 +98,9 @@ class SimplexMesh(object):
         else:
             self.cell_sets = mesh.cell_sets
             self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
+        #TODO : remplacer -1 par nan dans les indices
+        self.innerfaces = self.cellsOfFaces[:,1]>=0
+        self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
 
     def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):
         # cell_sets: dict label --> list of None or np.array for each cell_type

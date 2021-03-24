@@ -133,7 +133,6 @@ class Heat(Application):
                 self.fem.supgPoints(convectionfct, rhocp, method=self.stab)
             else:
                 self.fem.supgPoints(convectionfct, rhocp, method='centered')
-                self.fem.prepareStab()
     def computeMatrix(self, coeff=1, coeffmass=None):
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         A = coeff*self.fem.computeMatrixDiffusion(self.kheatcell)
@@ -142,7 +141,7 @@ class Heat(Application):
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += coeff*self.Arobin
         if 'convection' in self.problemdata.params.fct_glob.keys():
-            A += coeff * self.fem.comptuteMatrixTransport(self.stab=='lps')
+            A += coeff * self.fem.computeMatrixTransport(self.stab=='lps')
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)

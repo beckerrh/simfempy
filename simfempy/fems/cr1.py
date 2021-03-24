@@ -22,7 +22,9 @@ class CR1(fem.Fem):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
         self.cellgrads = self.computeCellGrads()
+    def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nfaces
+    def dofspercell(self): return self.mesh.facesOfCells
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
         if u.shape[0] != self.mesh.nfaces: raise ValueError(f"{u.shape=} {self.mesh.nfaces=}")
@@ -33,7 +35,6 @@ class CR1(fem.Fem):
         np.add.at(countnodes, self.mesh.simplices.T, 1)
         unodes /= countnodes
         return unodes
-    def nlocal(self): return self.mesh.dimension+1
     def computeCellGrads(self):
         ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
@@ -150,13 +151,13 @@ class CR1(fem.Fem):
         mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
         nfaces = self.mesh.nfaces
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-    def computeMatrixDiffusion(self, coeff):
-        nfaces = self.mesh.nfaces
-        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
-        return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+    # def computeMatrixDiffusion(self, coeff):
+    #     nfaces = self.mesh.nfaces
+    #     matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+    #     matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+    #     matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+    #     mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
+    #     return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nfaces = self.mesh.nfaces
         rows = np.empty(shape=(0), dtype=int)
@@ -177,13 +178,15 @@ class CR1(fem.Fem):
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
-    def comptuteMatrixTransport(self):
+    def computeMatrixTransport(self, lps):
         beta, betaC, ld = self.supdata['convection'], self.supdata['convectionC'], self.supdata['lam']
         ncells, nfaces, dim = self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
         if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, -dim*ld+1)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        if lps:
+            A += self.computeMatrixLps(betaC)
         return A
         # print(f"transport {A.toarray()=}")
         # B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0), colors=colors)
