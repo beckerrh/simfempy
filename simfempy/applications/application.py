@@ -256,7 +256,7 @@ class Application(object):
             res=[]
             maxiter = 1000
             # SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
-            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'gmres'}
+            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
             u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if len(res) >= maxiter:
                 raise ValueError(f"***no convergence {res=}")

@@ -135,7 +135,7 @@ class CR1(fem.Fem):
             nx, ny, nz = normalsS.T
             x, y, z = self.mesh.pointsf[faces].T
             # constant normal on whole boundary part !!
-            nx, ny, nz = np.mean(normalsS, axis=0)
+            # nx, ny, nz = np.mean(normalsS, axis=0)
             try:
                 b[faces] = f[color](x, y, z, nx, ny, nz)
             except:
@@ -292,18 +292,18 @@ class CR1(fem.Fem):
         raise NotImplemented(f"computeRhsCell")
     def computeRhsPoint(self, b, rhspoint):
         raise NotImplemented(f"computeRhsPoint")
-    def computeRhsBoundary(self, b, bdrycond, types):
+    def computeRhsBoundary(self, b, bdryfct, colors):
         normals =  self.mesh.normals
-        scale = 1 / self.mesh.dimension
-        for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] not in types: continue
-            if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
+        scale = 1
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            if not color in bdryfct or bdryfct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS[:,np.newaxis]
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
-            b[faces] += scale * bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
+            b[faces] += scale * bdryfct[color](xf, yf, zf, nx, ny, nz) * dS
         return b
     def computeRhsBoundaryMass(self, b, bdrycond, types, mass):
         raise NotImplemented(f"")

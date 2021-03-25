@@ -137,37 +137,6 @@ class P1(fem.Fem):
         massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    # def computeMatrixLps(self):
-    #     dimension, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
-    #     nloc, dofspercell = dimension+1, self.mesh.simplices
-    #     betaC = self.supdata['convectionC']
-    #     ci = self.mesh.cellsOfInteriorFaces
-    #     normalsS = self.mesh.normals[self.mesh.innerfaces]
-    #     dS = linalg.norm(normalsS, axis=1)
-    #     scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
-    #     betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
-    #     scale *= dS*betan
-    #     # print(f"{scale.shape=}")
-    #     cg0 = self.cellgrads[ci[:,0], :, :]
-    #     cg1 = self.cellgrads[ci[:,1], :, :]
-    #     # print(f"{cg0.shape=} {cg1.shape=}")
-    #     mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
-    #     mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
-    #     mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
-    #     mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
-    #     rows0 = dofspercell[ci[:,0],:].repeat(nloc)
-    #     cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
-    #     rows1 = dofspercell[ci[:,1],:].repeat(nloc)
-    #     cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
-    #     # print(f"{rows0.shape=}")
-    #     # print(f"{cols0.shape=}")
-    #     # print(f"{mat00.shape=}")
-    #     A00 = sparse.coo_matrix((mat00.reshape(-1), (rows0, cols0)), shape=(nnodes, nnodes))
-    #     A01 = sparse.coo_matrix((mat01.reshape(-1), (rows0, cols1)), shape=(nnodes, nnodes))
-    #     A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(nnodes, nnodes))
-    #     A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(nnodes, nnodes))
-    #     return A00+A01+A10+A11
-
     # def computeMatrixDiffusion(self, coeff):
     #     nnodes = self.mesh.nnodes
     #     matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
@@ -265,6 +234,7 @@ class P1(fem.Fem):
                 assert coeff.shape[0]==self.mesh.nfaces
                 scalemass = 1
                 dS *= coeff[faces]
+            # print(f"{scalemass=}")
             massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
             r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
             np.add.at(b, nodes, r)
@@ -295,19 +265,19 @@ class P1(fem.Fem):
             # print("xc, yc, zc, f", xc, yc, zc, fct(xc, yc, zc))
             b[points] += fct(xc, yc, zc)
         return b
-    def computeRhsBoundary(self, b, bdrycond, types):
+    def computeRhsBoundary(self, b, bdryfct, colors):
         normals =  self.mesh.normals
         scale = 1 / self.mesh.dimension
-        for color, faces in self.mesh.bdrylabels.items():
-            if bdrycond.type[color] not in types: continue
-            if not color in bdrycond.fct or bdrycond.fct[color] is None: continue
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            if not color in bdryfct or bdryfct[color] is None: continue
             normalsS = normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS[:,np.newaxis]
             assert(dS.shape[0] == len(faces))
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
-            bS = scale * bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS
+            bS = scale * bdryfct[color](xf, yf, zf, nx, ny, nz) * dS
             np.add.at(b, self.mesh.faces[faces].T, bS)
         return b
     def computeRhsBoundaryMass(self, b, bdrycond, types, mass):

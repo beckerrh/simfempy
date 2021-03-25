@@ -172,11 +172,17 @@ class Heat(Application):
         colorsneu = bdrycond.colorsOfType("Neumann")
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0)*coeff, colors=colorsdir+colorsrobin)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0)*coeff, colors=colorsdir)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
         self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff={k:coeff*v for k,v in bdrycond.param.items()})
+
+
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
+        # print(f"{self.fem.__class__} {fp1=}")
         self.fem.massDotBoundary(b, fp1, colorsneu, coeff=coeff)
+
+        # self.fem.computeRhsBoundary(b, bdrycond.fct, colorsneu)
+
         if coeffmass is not None:
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)

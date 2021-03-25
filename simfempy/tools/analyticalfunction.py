@@ -97,7 +97,8 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
     for i in range(ncomp):
         # print(f"{p=}")
         fct = '{:3.1f}'.format(p.pop())
-        if function == 'Linear' or function == 'Quadratic':
+        if function == 'Constant': pass
+        elif function == 'Linear' or function == 'Quadratic':
             for d in range(dim): fct += "+{:3.1f}*{:1s}".format(p.pop(), vars[d])
             if function == 'Quadratic':
                 for d in range(dim): fct += "+{:3.1f}*{:1s}**2".format(p.pop(), vars[d])
