@@ -68,7 +68,7 @@ class PostProcess(object):
         self.type = {}
         self.color = {}
     def set(self, name, type, colors):
-        colors = list(colors)
+        if isinstance(colors, int): colors=[colors]
         self.type[name] = type
         self.color[name] = colors
     def colors(self, name):

@@ -12,6 +12,13 @@ def tensor(d, k):
     return A
 
 # ------------------------------------- #
+def crbdryothers(d):
+    massloc = -np.ones(shape=(d, d)) / (d + 1)
+    massloc[np.diag_indices(d)] = (d - 1) / (d + 1)
+    return massloc
+
+
+# ------------------------------------- #
 if __name__ == '__main__':
     print(f"{tensor(d=3, k=2)=}")
     print(f"{tensor(d=3, k=1)=}")

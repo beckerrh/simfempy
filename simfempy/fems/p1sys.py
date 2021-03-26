@@ -91,7 +91,6 @@ class P1sys(femsys.Femsys):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * mucell).T
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * mucell).T
         A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nnodes, ncomp*nnodes)).tocsr()
-        A += self.computeMatrixLps()
         return A
     def matrixDirichlet(self, method, A):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp

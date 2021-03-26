@@ -36,7 +36,7 @@ def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad
     data = simfempy.applications.problemdata.ProblemData()
     data.params.scal_glob['kheat'] = 0.01
     # data.params.fct_glob['convection'] = ["y", "-x"]
-    data.params.fct_glob['convection'] = dim*["1"]
+    # data.params.fct_glob['convection'] = dim*["1"]
     # stabs = ['centered']
     if dim==1:
         createMesh = testmeshes.unitline
@@ -59,7 +59,7 @@ def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad
         colorsneu = [102,105]
         h = [1.0, 0.5, 0.25, 0.125]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
-    print(f"{colorsdir=}")
+    # print(f"{colorsdir=}")
     # from simfempy.meshes import plotmesh
     # plotmesh.meshWithBoundaries(createMesh(h[0]))
     if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
@@ -67,14 +67,12 @@ def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad
     data.bdrycond.set("Neumann", colorsneu)
     data.bdrycond.set("Robin", colorsrob)
     for col in colorsrob: data.bdrycond.param[col] = 11.
-    data.postproc.type['bdrymean'] = "bdry_mean"
-    data.postproc.color['bdrymean'] = colorsneu
-    data.postproc.type['nflux'] = "bdry_nflux"
-    data.postproc.color['nflux'] = colorsdir
+    data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     test_analytic(createMesh=createMesh, h=h, data=data, exactsolution=exactsolution, fems=fems, dirichlets=dirichlets, stabs=stabs)
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'], stabs=['supg','lps'], dirichlets=['new'])
-    # test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'], stabs=['supg','lps'], dirichlets=['new'])
-    # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'])
+    # test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'], stabs=['supg','lps'], dirichlets=['new'])
+    # test(dim=2, exactsolution = 'Linear', fems=['p1','cr1'], stabs=['supg'], dirichlets=['new'])
+    test(dim=2, exactsolution = 'Quadratic', fems=['p1','cr1'], stabs=['supg'])

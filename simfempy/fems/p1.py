@@ -8,14 +8,14 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
-import simfempy.tools.barycentric
 from simfempy.fems import fem
+from simfempy.tools import barycentric
 
 #=================================================================#
 class P1(fem.Fem):
     def __init__(self, mesh=None):
         super().__init__(mesh)
-        self.dirichlet_al = 10
+        self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
@@ -134,7 +134,7 @@ class P1(fem.Fem):
     # matrices
     def computeMassMatrix(self, coeff=1):
         dimension, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
-        massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
+        massloc = barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     # def computeMatrixDiffusion(self, coeff):

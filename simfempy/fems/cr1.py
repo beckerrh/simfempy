@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
-import simfempy.tools.barycentric
+from simfempy.tools import barycentric
 from simfempy.fems import fem
 
 
@@ -168,7 +168,6 @@ class CR1(fem.Fem):
             if lumped: self.computeBdryMassMatrixColorLumped(rows, cols, mat, faces, scalemass*dS)
             else: self.computeBdryMassMatrixColor(rows, cols, mat, faces, scalemass*dS)
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-        raise ValueError(f"{lumped=}")
     def computeBdryMassMatrixColorLumped(self, rows, cols, mat, faces, dS):
         cols = np.append(cols, faces)
         rows = np.append(rows, faces)
@@ -181,13 +180,32 @@ class CR1(fem.Fem):
         fi = self.mesh.facesOfCells[ci][:,:-1]
         # print(f"{fi=}")
         d = self.mesh.dimension
-        massloc = -np.ones(shape=(d,d))/(d+1)
-        di = np.diag_indices(d)
-        massloc[di] = (d-1)/(d+1)
+        massloc = barycentric.crbdryothers(d)
         # print(f"{massloc=}")
         cols = np.append(cols, fi.repeat(d))
         rows = np.append(rows, np.tile(fi,d).reshape(-1))
         mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
+    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
+        if colors is None: colors = self.mesh.bdrylabels.keys()
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            if isinstance(coeff, (int,float)): scalemass = coeff
+            elif isinstance(coeff, dict): scalemass = coeff[color]
+            else:
+                assert coeff.shape[0]==self.mesh.nfaces
+                scalemass = 1
+                dS *= coeff[faces]
+            b[faces] += scalemass *dS*f[faces]
+            if not lumped:
+                ci = self.mesh.cellsOfFaces[faces][:, 0]
+                fi = self.mesh.facesOfCells[ci][:, :-1]
+                d = self.mesh.dimension
+                massloc = barycentric.crbdryothers(d)
+                r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
+                np.add.at(b, fi, r)
+        return b
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
     def computeMatrixTransport(self, lps):
@@ -228,20 +246,6 @@ class CR1(fem.Fem):
         r = np.einsum('n,nik,nk -> ni', coeff*dV*fm, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim])
         # print(f"{r=}")
         np.add.at(b, facesOfCells, r)
-        return b
-    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
-        if colors is None: colors = self.mesh.bdrylabels.keys()
-        for color in colors:
-            faces = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS, axis=1)
-            if isinstance(coeff, (int,float)): scalemass = coeff
-            elif isinstance(coeff, dict): scalemass = coeff[color]
-            else:
-                assert coeff.shape[0]==self.mesh.nfaces
-                scalemass = 1
-                dS *= coeff[faces]
-            b[faces] += scalemass *dS*f[faces]
         return b
     # rhs
     # postprocess

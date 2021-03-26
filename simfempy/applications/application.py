@@ -64,7 +64,7 @@ class Application(object):
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
-        # print("self.problemdata.solexact", self.problemdata.solexact)
+        print("self.problemdata.solexact", self.problemdata.solexact)
         solexact = self.problemdata.solexact
         self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         for color in self.mesh.bdrylabels:
