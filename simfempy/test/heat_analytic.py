@@ -37,6 +37,7 @@ def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad
     data.params.scal_glob['kheat'] = 0.01
     # data.params.fct_glob['convection'] = ["y", "-x"]
     data.params.fct_glob['convection'] = dim*["1"]
+    # stabs = ['centered']
     if dim==1:
         createMesh = testmeshes.unitline
         colors = [10000,10001]
@@ -59,8 +60,8 @@ def test(dim, exactsolution='Linear', fems=['p1','cr1'], dirichlets=['new','trad
         h = [1.0, 0.5, 0.25, 0.125]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
     print(f"{colorsdir=}")
-    from simfempy.meshes import plotmesh
-    plotmesh.meshWithBoundaries(createMesh(h[0]))
+    # from simfempy.meshes import plotmesh
+    # plotmesh.meshWithBoundaries(createMesh(h[0]))
     if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
     data.bdrycond.set("Dirichlet", colorsdir)
     data.bdrycond.set("Neumann", colorsneu)

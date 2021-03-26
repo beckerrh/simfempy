@@ -25,7 +25,7 @@ class Application(object):
         except:
             import warnings
             warnings.warn("*** pyamg not found (umf used instead)***")
-        self.linearsolver = 'umf'
+        self.linearsolver = kwargs.pop('linearsolver', 'umf')
         self.timer = simfempy.tools.timer.Timer(verbose=0)
         if 'problemdata' in kwargs:
             # self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
@@ -255,34 +255,18 @@ class Application(object):
             else: ml = A
             res=[]
             maxiter = 1000
-            # SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10}
-            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
+            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
             u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
-            if len(res) >= maxiter:
-                raise ValueError(f"***no convergence {res=}")
+            if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
-            # print(f"*LS*{id(u)=}")
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
 
     def build_pyamg(self,A):
         import pyamg
+        return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
-        SA_build_args = {
-            'max_levels': 10,
-            'max_coarse': 25,
-            'coarse_solver': 'pinv2',
-            'symmetry': 'nonsymmetric'
-            # 'symmetry': 'hermitian'
-        }
-        # smooth = ('energy', {'krylov': 'cg'})
-        smooth = ('energy', {'krylov': 'gmres', 'degree': 2})
-        strength = [('evolution', {'k': 2, 'epsilon': 4.0})]
-        presmoother = ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 1})
-        postsmoother = ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 1})
-        # return pyamg.rootnode_solver(A, B, **SA_build_args)
-        return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
 
 
 

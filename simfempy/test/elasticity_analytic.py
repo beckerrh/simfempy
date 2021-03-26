@@ -8,7 +8,7 @@ from simfempy.applications.elasticity import Elasticity
 from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
-def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'], verbose=5):
+def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], verbose=5):
     import simfempy.tools.comparemethods
     data = simfempy.applications.problemdata.ProblemData()
     if dim==2:
@@ -40,14 +40,16 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
         data.postproc.type['bdry_nflux'] = "bdry_nflux"
         data.postproc.color['bdry_nflux'] = [101,102,103,104]
     if isinstance(fems, str): fems = [fems]
-    if isinstance(methods, str): methods = [methods]
+    if isinstance(dirichlets, str): dirichlets = [dirichlets]
     sims = {}
     for fem in fems:
-        for method in methods:
-            kwargs = {'problemdata': data, 'fem': fem, 'method': method}
+        for dirichlet in dirichlets:
+            kwargs = {'problemdata': data, 'fem': fem, 'dirichlet': dirichlet}
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
-            sims[fem + method] = Elasticity(**kwargs)
+            kwargs['linearsolver'] = 'pyamg'
+            # kwargs['linearsolver'] = 'umf'
+            sims[fem + dirichlet] = Elasticity(**kwargs)
     comp = CompareMethods(sims, createMesh=createMesh, plot=False)
     result = comp.compare(h=h)
 
@@ -56,5 +58,5 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], methods=['new','trad'
 #================================================================#
 if __name__ == '__main__':
     # test_analytic(dim=3, exactsolution="Linear")
-    test_analytic(dim=2, exactsolution="Linear", fems=['cr1'])
+    test_analytic(dim=2, exactsolution="Linear", fems=['cr1', 'p1'])
     # test_analytic(dim=2, exactsolution="Quadratic")

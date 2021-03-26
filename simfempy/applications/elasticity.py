@@ -24,7 +24,6 @@ class Elasticity(Application):
         return self.toLame(E, nu)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolver = 'pyamg'
         fem = kwargs.pop('fem', 'p1')
         if fem == 'p1':
             # self.fem = fems.femp1sys.FemP1()
@@ -35,8 +34,7 @@ class Elasticity(Application):
             raise ValueError("unknown fem '{}'".format(fem))
         material = kwargs.pop('material', "Acier")
         self.setParameters(*self.material2Lame(material))
-        if 'method' in kwargs: self.method = kwargs.pop('method')
-        else: self.method="trad"
+        self.dirichlet = kwargs.pop('dirichlet', "trad")
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh)
@@ -84,10 +82,10 @@ class Elasticity(Application):
     def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, u=None):
         b = self.fem.computeRhs(self.problemdata)
-        return self.fem.vectorDirichlet(self.problemdata, self.method, b, u)
+        return self.fem.vectorDirichlet(self.problemdata, self.dirichlet, b, u)
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        return self.fem.matrixDirichlet(self.method,A).tobsr()
+        return self.fem.matrixDirichlet(self.dirichlet,A).tobsr()
     def postProcess(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):

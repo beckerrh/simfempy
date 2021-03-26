@@ -151,13 +151,6 @@ class CR1(fem.Fem):
         mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
         nfaces = self.mesh.nfaces
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-    # def computeMatrixDiffusion(self, coeff):
-    #     nfaces = self.mesh.nfaces
-    #     matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-    #     matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-    #     matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-    #     mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
-    #     return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nfaces = self.mesh.nfaces
         rows = np.empty(shape=(0), dtype=int)
@@ -172,10 +165,29 @@ class CR1(fem.Fem):
             else:
                 scalemass = 1
                 dS = linalg.norm(normalsS, axis=1)*coeff[faces]
-            cols = np.append(cols, faces)
-            rows = np.append(rows, faces)
-            mat = np.append(mat, scalemass*dS)
+            if lumped: self.computeBdryMassMatrixColorLumped(rows, cols, mat, faces, scalemass*dS)
+            else: self.computeBdryMassMatrixColor(rows, cols, mat, faces, scalemass*dS)
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        raise ValueError(f"{lumped=}")
+    def computeBdryMassMatrixColorLumped(self, rows, cols, mat, faces, dS):
+        cols = np.append(cols, faces)
+        rows = np.append(rows, faces)
+        mat = np.append(mat, dS)
+    def computeBdryMassMatrixColor(self, rows, cols, mat, faces, dS):
+        self.computeBdryMassMatrixColorLumped(rows, cols, mat, faces, dS)
+        ci = self.mesh.cellsOfFaces[faces][:,0]
+        assert np.all(faces == self.mesh.facesOfCells[ci][:,-1])
+        # print(f"{faces=}")
+        fi = self.mesh.facesOfCells[ci][:,:-1]
+        # print(f"{fi=}")
+        d = self.mesh.dimension
+        massloc = -np.ones(shape=(d,d))/(d+1)
+        di = np.diag_indices(d)
+        massloc[di] = (d-1)/(d+1)
+        # print(f"{massloc=}")
+        cols = np.append(cols, fi.repeat(d))
+        rows = np.append(rows, np.tile(fi,d).reshape(-1))
+        mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
     def computeMatrixTransport(self, lps):

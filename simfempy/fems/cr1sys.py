@@ -45,30 +45,34 @@ class CR1sys(femsys.Femsys):
                 indices = i + self.ncomp * faces
                 np.add.at(b, indices.T, bS)
         return b
-    def computeMatrixStabilization(self):
-        ncomp = self.ncomp
-        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
-        nloc, dofspercell = self.nlocal(), self.dofspercell()
-        ci = self.mesh.cellsOfInteriorFaces
-        normalsS = self.mesh.normals[self.mesh.innerfaces]
-        dS = linalg.norm(normalsS, axis=1)
-        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
-        scale *= 0.01*dS
-        cg0 = self.cellgrads[ci[:,0], :, :]
-        cg1 = self.cellgrads[ci[:,1], :, :]
-        mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
-        mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
-        mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
-        mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
-        rows0 = dofspercell[ci[:,0],:].repeat(nloc)
-        cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
-        rows1 = dofspercell[ci[:,1],:].repeat(nloc)
-        cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
-        A00 = sparse.coo_matrix((mat00.ravel(), (rows0, cols0)), shape=(ndofs, ndofs))
-        A01 = sparse.coo_matrix((mat01.ravel(), (rows0, cols1)), shape=(ndofs, ndofs))
-        A10 = sparse.coo_matrix((mat10.ravel(), (rows1, cols0)), shape=(ndofs, ndofs))
-        A11 = sparse.coo_matrix((mat11.ravel(), (rows1, cols1)), shape=(ndofs, ndofs))
-        return A00+A01+A10+A11
+    # def computeMatrixStabilization(self):
+    #     ncomp = self.ncomp
+    #     dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
+    #     nloc, dofspercell, nall = self.nlocal(), self.dofspercell(), ncomp*ndofs
+    #     ci = self.mesh.cellsOfInteriorFaces
+    #     normalsS = self.mesh.normals[self.mesh.innerfaces]
+    #     dS = linalg.norm(normalsS, axis=1)
+    #     scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
+    #     scale *= 0.0001*dS
+    #     cg0 = self.fem.cellgrads[ci[:,0], :, :]
+    #     cg1 = self.fem.cellgrads[ci[:,1], :, :]
+    #     mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
+    #     mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
+    #     mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
+    #     mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
+    #     A = sparse.coo_matrix((nall, nall))
+    #     for icomp in range(ncomp):
+    #         d0 = ncomp*dofspercell[ci[:,0],:]+icomp
+    #         d1 = ncomp*dofspercell[ci[:,1],:]+icomp
+    #         rows0 = d0.repeat(nloc)
+    #         cols0 = np.tile(d0,nloc).reshape(-1)
+    #         rows1 = d1.repeat(nloc)
+    #         cols1 = np.tile(d1,nloc).reshape(-1)
+    #         A += sparse.coo_matrix((mat00.ravel(), (rows0, cols0)), shape=(nall, nall))
+    #         A += sparse.coo_matrix((mat01.ravel(), (rows0, cols1)), shape=(nall, nall))
+    #         A += sparse.coo_matrix((mat10.ravel(), (rows1, cols0)), shape=(nall, nall))
+    #         A += sparse.coo_matrix((mat11.ravel(), (rows1, cols1)), shape=(nall, nall))
+    #     return A
 
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
@@ -80,7 +84,7 @@ class CR1sys(femsys.Femsys):
                 mat[:, i::ncomp, j::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, i]).T * dV * mucell).T
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * mucell).T
         A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
-        A += self.computeMatrixStabilization()
+        A += self.computeMatrixLps()
         return A
     def vectorDirichlet(self, problemdata, method, b, u):
         bdrydata = self.bdrydata

@@ -34,7 +34,6 @@ class Heat(Application):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.linearsolver = kwargs.pop('linearsolver', 'pyamg')
         self.dirichlet = kwargs.pop('dirichlet', "trad")
         self.stab = kwargs.pop('stab', "supg")
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
@@ -220,6 +219,32 @@ class Heat(Application):
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
         data['cell']['k'] = self.kheatcell
         return data
+    def build_pyamg(self, A):
+        import pyamg
+        B = np.ones((A.shape[0], 1))
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            symmetry = 'nonsymmetric'
+            smooth = ('energy', {'krylov': 'gmres'})
+            improve_candidates =[ ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 4}), None]
+        else:
+            symmetry = 'hermitian'
+            smooth = ('energy', {'krylov': 'cg'})
+            improve_candidates = None
+        SA_build_args = {
+            'max_levels': 10,
+            'max_coarse': 25,
+            'coarse_solver': 'pinv2',
+            'symmetry': symmetry
+        }
+        strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
+        smoother = 'gauss_seidel_nr'
+        # smoother = 'gauss_seidel'
+        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
+        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
+        return pyamg.smoothed_aggregation_solver(A, B, smooth=smooth, strength=strength, presmoother=presmoother,
+                                                 postsmoother=postsmoother, improve_candidates=improve_candidates,
+                                                **SA_build_args)
+        # return pyamg.rootnode_solver(A, B, **SA_build_args)
 
 
 #=================================================================#
