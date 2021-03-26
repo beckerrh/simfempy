@@ -67,9 +67,20 @@ class CR1sys(femsys.Femsys):
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
 
-        # ci = self.mesh.cellsOfFaces[faces][:,0]
-        fi0 = self.mesh.facesOfCells[ci0][:,:-1]
-        fi1 = self.mesh.facesOfCells[ci1][:,:-1]
+        ifaces = self.mesh.faces[self.mesh.innerfaces]
+
+
+
+        faces = np.arange(ndofs)[self.mesh.innerfaces]
+        ind0 = self.mesh.facesOfCells[ci0]!=faces[:,np.newaxis]
+        fi0 = self.mesh.facesOfCells[ci0][ind0]
+        ind1 = self.mesh.facesOfCells[ci1]!=faces[:,np.newaxis]
+        fi1 = self.mesh.facesOfCells[ci1][ind1]
+        # print(f"{self.mesh.facesOfCells[ci0]=}")
+        # print(f"{faces=}")
+        # print(f"{fi0=}")
+
+
         d = self.mesh.dimension
         massloc = barycentric.crbdryothers(d)
         if isinstance(mucell,float):

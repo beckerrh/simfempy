@@ -15,7 +15,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
         data.ncomp=2
         createMesh = testmeshes.unitsquare
         h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
-        if exactsolution=="Linear": h = h[:-2]
+        if exactsolution=="Linear": h = h[:2]
         data.bdrycond.type[1000] = "Neumann"
         data.bdrycond.type[1001] = "Dirichlet"
         data.bdrycond.type[1002] = "Neumann"
@@ -48,7 +48,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
             kwargs['linearsolver'] = 'pyamg'
-            # kwargs['linearsolver'] = 'umf'
+            kwargs['linearsolver'] = 'umf'
             sims[fem + dirichlet] = Elasticity(**kwargs)
     comp = CompareMethods(sims, createMesh=createMesh, plot=False)
     result = comp.compare(h=h)
