@@ -67,6 +67,22 @@ class CR1sys(femsys.Femsys):
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
 
+        faces = self.mesh.faces[self.mesh.innerfaces]
+        simp = self.mesh.simplices[ci0]
+        for i in range(faces.shape[0]):
+            print(f"{faces[i]=}")
+            print(f"{simp[i]=}")
+            index = np.argsort(simp[i])
+            print(f"{index=}")
+            sorted = simp[i][index]
+            print(f"{sorted=}")
+            sorted_index = np.searchsorted(sorted, faces[i])
+            print(f"{sorted_index=}")
+            yindex = np.take(index, sorted_index, mode="clip")
+            print(f"{yindex=}")
+
+        raise ValueError("nope")
+
         ifaces = self.mesh.faces[self.mesh.innerfaces]
 
 
