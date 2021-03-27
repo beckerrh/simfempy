@@ -1,6 +1,23 @@
 import numpy as np
 
 # ------------------------------------- #
+def positionin(x,y):
+    assert len(x.shape) ==2
+    assert len(y.shape) ==2
+    assert x.shape[0]==y.shape[0]
+    pos = np.empty_like(x)
+    for i in range(x.shape[0]):
+        index = np.argsort(y[i])
+        ysorted = y[i][index]
+        sorted_index = np.searchsorted(ysorted, x[i])
+        pos[i] = np.take(index, sorted_index, mode="clip")
+        # print(f"{x[i]=}")
+        # print(f"{y[i]=}")
+        # print(f"{pos[i]=}")
+    return pos
+
+
+# ------------------------------------- #
 def unique_all(a):
     """
     https://stackoverflow.com/questions/30003068/get-a-list-of-all-indices-of-repeated-elements-in-a-numpy-array

@@ -14,7 +14,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
-        h = [0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
+        h = [1.0, 0.5, 0.25, 0.125, 0.06, 0.03, 0.015, 0.008]
         data.bdrycond.type[1000] = "Neumann"
         data.bdrycond.type[1001] = "Dirichlet"
         data.bdrycond.type[1002] = "Neumann"
@@ -25,7 +25,6 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
         data.ncomp=3
         createMesh = testmeshes.unitcube
         h = [2, 1, 0.5, 0.25, 0.125, 0.08]
-        if exactsolution=="Linear": h = h[:-2]
         data.bdrycond.type[100] = "Neumann"
         data.bdrycond.type[105] = "Neumann"
         data.bdrycond.type[101] = "Dirichlet"
@@ -36,7 +35,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
         data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[101,102,103,104])
     if isinstance(fems, str): fems = [fems]
     if isinstance(dirichlets, str): dirichlets = [dirichlets]
-    if exactsolution == "Constant" or exactsolution == "Linear": h = h[:2]
+    if exactsolution == "Constant" or exactsolution == "Linear": h = h[:3]
     sims = {}
     for fem in fems:
         for dirichlet in dirichlets:
@@ -44,7 +43,7 @@ def test_analytic(dim, exactsolution="Sinus", fems=['p1'], dirichlets=['new'], v
             kwargs['exactsolution'] = exactsolution
             kwargs['random'] = False
             kwargs['linearsolver'] = 'pyamg'
-            kwargs['linearsolver'] = 'umf'
+            # kwargs['linearsolver'] = 'umf'
             sims[fem + dirichlet] = Elasticity(**kwargs)
     comp = CompareMethods(sims, createMesh=createMesh, plot=False)
     result = comp.compare(h=h)

@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 from simfempy.fems import femsys, cr1
-from simfempy.tools import barycentric
+from simfempy.tools import barycentric, npext
 
 #=================================================================#
 class CR1sys(femsys.Femsys):
@@ -68,33 +68,17 @@ class CR1sys(femsys.Femsys):
         dS = linalg.norm(normalsS, axis=1)
 
         faces = self.mesh.faces[self.mesh.innerfaces]
-        simp = self.mesh.simplices[ci0]
-        for i in range(faces.shape[0]):
-            print(f"{faces[i]=}")
-            print(f"{simp[i]=}")
-            index = np.argsort(simp[i])
-            print(f"{index=}")
-            sorted = simp[i][index]
-            print(f"{sorted=}")
-            sorted_index = np.searchsorted(sorted, faces[i])
-            print(f"{sorted_index=}")
-            yindex = np.take(index, sorted_index, mode="clip")
-            print(f"{yindex=}")
-
-        raise ValueError("nope")
-
-        ifaces = self.mesh.faces[self.mesh.innerfaces]
-
-
-
-        faces = np.arange(ndofs)[self.mesh.innerfaces]
-        ind0 = self.mesh.facesOfCells[ci0]!=faces[:,np.newaxis]
-        fi0 = self.mesh.facesOfCells[ci0][ind0]
-        ind1 = self.mesh.facesOfCells[ci1]!=faces[:,np.newaxis]
-        fi1 = self.mesh.facesOfCells[ci1][ind1]
-        # print(f"{self.mesh.facesOfCells[ci0]=}")
-        # print(f"{faces=}")
-        # print(f"{fi0=}")
+        ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
+        ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        fi0 = np.take(self.mesh.facesOfCells[ci0],ind0)
+        fi1 = np.take(self.mesh.facesOfCells[ci1],ind1)
+        # fi0 = self.mesh.facesOfCells[ci0][ind0]
+        # fi1 = self.mesh.facesOfCells[ci1][ind1]
+        print(f"{self.mesh.facesOfCells[ci0].shape=}")
+        print(f"{faces.shape=}")
+        print(f"{self.mesh.simplices[ci0].shape=}")
+        print(f"{ind0.shape=}")
+        print(f"{fi0.shape=}")
 
 
         d = self.mesh.dimension
@@ -112,6 +96,11 @@ class CR1sys(femsys.Femsys):
             cols0 = np.tile(d0,nloc-1).reshape(-1)
             rows1 = d1.repeat(nloc-1)
             cols1 = np.tile(d1,nloc-1).reshape(-1)
+            print(f"{mat.shape=}")
+            print(f"{rows0.shape=}")
+            print(f"{cols0.shape=}")
+            print(f"{fi0.shape=}")
+            print(f"{fi1.shape=}")
             A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(nall, nall))
             A += sparse.coo_matrix((-mat, (rows0, cols1)), shape=(nall, nall))
             A += sparse.coo_matrix((-mat, (rows1, cols0)), shape=(nall, nall))
