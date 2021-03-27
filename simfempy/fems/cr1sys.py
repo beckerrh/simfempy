@@ -70,8 +70,8 @@ class CR1sys(femsys.Femsys):
         faces = self.mesh.faces[self.mesh.innerfaces]
         ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
         ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
-        fi0 = np.take(self.mesh.facesOfCells[ci0],ind0)
-        fi1 = np.take(self.mesh.facesOfCells[ci1],ind1)
+        fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
+        fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
         # fi0 = self.mesh.facesOfCells[ci0][ind0]
         # fi1 = self.mesh.facesOfCells[ci1][ind1]
         print(f"{self.mesh.facesOfCells[ci0].shape=}")
