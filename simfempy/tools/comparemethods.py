@@ -26,10 +26,14 @@ class CompareMethods(object):
             import os, shutil
             try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
             except: pass
-        self.latex = kwargs.pop("latex", True)
+        self.latex = kwargs.pop("latex", False)
         self.plot = kwargs.pop("plot", False)
         self.plotpostprocs = kwargs.pop("plotpostprocs", False)
-        self.verbose = kwargs.pop("verbose", 0)
+        # print(f"{kwargs=}")
+        # print(f"{kwargs['verbose']=}")
+        self.verbose = kwargs.pop("verbose", 1)
+        # raise ValueError(f"{kwargs=}")
+        # raise ValueError(f"{self.verbose=}")
         if self.verbose > 0: self.latex = True
         if self.verbose > 1: self.plotpostprocs = True
         if self.verbose > 2: self.plot = True
@@ -52,7 +56,6 @@ class CompareMethods(object):
             with self.geom(h) as geom:
                 mesh = geom.generate_mesh()
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-
     def compare(self, h=None, params=None, niter=None):
         if self.paramname == "ncells":
             if h is None:

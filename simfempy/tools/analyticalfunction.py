@@ -14,6 +14,7 @@ class AnalyticalFunction():
     for a given expression, derivatives computed with sympy
     """
     def __repr__(self):
+        return f"expr={str(self.expr)}"
         return f"dim={self.dim} expr={str(self.expr)}"
     def __call__(self, *x):
         return self.fct(*x)
