@@ -3,6 +3,7 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 from simfempy import fems
 from simfempy.applications.application import Application
+from simfempy.tools.analyticalfunction import analyticalSolution
 
 #=================================================================#
 class Stokes(Application):
@@ -18,106 +19,46 @@ class Stokes(Application):
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = np.full(self.mesh.ncells, self.mu)
+    def defineAnalyticalSolution(self, exactsolution, random=True):
+        dim = self.mesh.dimension
+        # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
+        v = analyticalSolution(exactsolution[0], dim, dim, random)
+        p = analyticalSolution(exactsolution[1], dim, 1, random)
+        return v,p
+
     def defineRhsAnalyticalSolution(self, solexact):
+        v,p = solexact
         def _fctu(x, y, z):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            mu, lam = self.mu, self.lam
+            rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhsp = np.zeros(x.shape[0])
+            mu = self.mu
             # print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
-                    rhs[i] -= mu * solexact[i].dd(j, j, x, y, z)
-            return rhs
+                rhsv[i] -= mu * v[i].dd(i, i, x, y, z)
+                rhsv[i] += p.d(i, x, y, z)
+                rhsp += v[i].d(i, x, y, z)
+            return rhsv, rhsp
         return _fctu
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            v, p = solexact
+            rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
-            mu, lam = self.mu, self.lam
+            mu = self.mu
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
-                    rhs[i] += lam * solexact[j].d(j, x, y, z) * normals[i]
-                    rhs[i] += mu  * solexact[i].d(j, x, y, z) * normals[j]
-                    rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
-            return rhs
+                    rhsv[i] += mu  * v[i].d(j, x, y, z) * normals[j]
+                rhsv[i] -= p(x, y, z) * normals[i]
+            return rhsv
         return _fctneumann
-    def setParameters(self, mu, lam):
-        self.mu, self.lam = mu, lam
-        self.mufct = np.vectorize(lambda j: mu)
-        self.lamfct = np.vectorize(lambda j: lam)
-        if hasattr(self,'mesh'):
-            self.mucell = self.mufct(self.mesh.cell_labels)
-            self.lamcell = self.lamfct(self.mesh.cell_labels)
     def solve(self, iter, dirname): return self.static(iter, dirname)
+    def computeMatrix(self):
+        A = self.femv.computeMatrixLaplace(self.mucell)
+        B = self.femv.computeMatrixDivergence()
+        return A,B
     def computeRhs(self, u=None):
         b = self.fem.computeRhs(self.problemdata)
-        return self.fem.vectorDirichlet(self.problemdata, self.dirichlet, b, u)
-    def computeMatrix(self):
-        A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        return self.fem.matrixDirichlet(self.dirichlet,A).tobsr()
-    def postProcess(self, u):
-        data = {'point':{}, 'cell':{}, 'global':{}}
-        for icomp in range(self.ncomp):
-            data['point']['U_{:02d}'.format(icomp)] = self.fem.fem.tonode(u[icomp::self.ncomp])
-        if self.problemdata.solexact:
-            err, e = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['global']['error_L2'] = np.sum(err)
-            for icomp in range(self.ncomp):
-                data['point']['E_{:02d}'.format(icomp)] = self.fem.fem.tonode(e[icomp])
-        if self.problemdata.postproc:
-            types = ["bdry_mean", "bdry_nflux", "pointvalues", "meanvalues"]
-            for name, type in self.problemdata.postproc.type.items():
-                colors = self.problemdata.postproc.colors(name)
-                if type == types[0]:
-                    data['global'][name] = self.fem.computeBdryMean(u, colors)
-                elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors)
-                elif type == types[2]:
-                    data['global'][name] = self.fem.computePointValues(u, colors)
-                else:
-                    raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-        return data
-
-    def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
-        if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")
-        if solver == 'umf':
-            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        elif solver in ['gmres','lgmres','bicgstab','cg']:
-            M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
-            M_x = lambda x: M2.solve(x)
-            M = splinalg.LinearOperator(A.shape, M_x)
-            counter = tools.iterationcounter.IterationCounter(name=solver)
-            args=""
-            if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
-            cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
-            exec(cmd)
-            return u, counter.niter
-        elif solver == 'pyamg':
-            import pyamg
-            config = pyamg.solver_configuration(A, verb=False)
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
-            ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-            # print("ml", ml)
-            res=[]
-            # if u is not None: print("u norm", np.linalg.norm(u))
-            u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
-            if verbose: print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
-            return u, len(res)
-        else:
-            raise ValueError("unknown solve '{}'".format(solver))
-
-        # ml = pyamg.ruge_stuben_solver(A)
-        # B = np.ones((A.shape[0], 1))
-        # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
-        # res = []
-        # # u = ml.solve(b, tol=1e-10, residuals=res)
-        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False,accel='cg')
-        # for i, r in enumerate(res):
-        #     print("{:2d} {:8.2e}".format(i,r))
-        # lu = umfpack.splu(A)
-        # u = umfpack.spsolve(A, b)
 
 #=================================================================#
 if __name__ == '__main__':

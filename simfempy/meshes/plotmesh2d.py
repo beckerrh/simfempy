@@ -287,6 +287,6 @@ def meshWithData(**kwargs):
     for addplot in addplots:
         ax = axs[count // ncols, count % ncols]
         addplot(ax)
-    if title: fig.canvas.set_window_title(title)
+    # if title: fig.canvas.set_window_title(title)
     return fig, axs
     # plt.tight_layout()

@@ -42,4 +42,4 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution="Linear")
+    test(dim=2, exactsolution="Quadratic", fem=['p1'], niter=8)

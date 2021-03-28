@@ -80,7 +80,7 @@ class Elasticity(Application):
             self.mucell = self.mufct(self.mesh.cell_labels)
             self.lamcell = self.lamfct(self.mesh.cell_labels)
     def solve(self, iter, dirname): return self.static(iter, dirname)
-    def computeRhs(self, u=None):
+    def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
         b = self.fem.computeRhs(self.problemdata)
         return self.fem.vectorDirichlet(self.problemdata, self.dirichlet, b, u)
     def computeMatrix(self):
@@ -109,45 +109,53 @@ class Elasticity(Application):
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
 
-    def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
-        if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")
-        if solver == 'umf':
-            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        elif solver in ['gmres','lgmres','bicgstab','cg']:
-            M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
-            M_x = lambda x: M2.solve(x)
-            M = splinalg.LinearOperator(A.shape, M_x)
-            counter = tools.iterationcounter.IterationCounter(name=solver)
-            args=""
-            if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
-            cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
-            exec(cmd)
-            return u, counter.niter
-        elif solver == 'pyamg':
-            import pyamg
-            config = pyamg.solver_configuration(A, verb=False)
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
-            # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
-            ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-            # print("ml", ml)
-            res=[]
-            # if u is not None: print("u norm", np.linalg.norm(u))
-            u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
-            if verbose: print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
-            return u, len(res)
-        else:
-            raise ValueError("unknown solve '{}'".format(solver))
+    def build_pyamg(self,A):
+        import pyamg
+        B = np.ones((A.shape[0], 1))
+        config = pyamg.solver_configuration(A, verb=False)
+        # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+        # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
+        return pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
 
-        # ml = pyamg.ruge_stuben_solver(A)
-        # B = np.ones((A.shape[0], 1))
-        # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
-        # res = []
-        # # u = ml.solve(b, tol=1e-10, residuals=res)
-        # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False,accel='cg')
-        # for i, r in enumerate(res):
-        #     print("{:2d} {:8.2e}".format(i,r))
-        # lu = umfpack.splu(A)
-        # u = umfpack.spsolve(A, b)
+    # def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
+    #     if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")
+    #     if solver == 'umf':
+    #         return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
+    #     elif solver in ['gmres','lgmres','bicgstab','cg']:
+    #         M2 = splinalg.spilu(A, drop_tol=0.2, fill_factor=2)
+    #         M_x = lambda x: M2.solve(x)
+    #         M = splinalg.LinearOperator(A.shape, M_x)
+    #         counter = tools.iterationcounter.IterationCounter(name=solver)
+    #         args=""
+    #         if solver == 'lgmres': args = ', inner_m=20, outer_k=4'
+    #         cmd = "u = splinalg.{}(A, b, M=M, callback=counter {})".format(solver,args)
+    #         exec(cmd)
+    #         return u, counter.niter
+    #     elif solver == 'pyamg':
+    #         import pyamg
+    #         config = pyamg.solver_configuration(A, verb=False)
+    #         # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+    #         # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
+    #         ml = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+    #         # print("ml", ml)
+    #         res=[]
+    #         # if u is not None: print("u norm", np.linalg.norm(u))
+    #         u = ml.solve(b, x0=u, tol=1e-12, residuals=res, accel='gmres')
+    #         if verbose: print("pyamg {:3d} ({:7.1e})".format(len(res),res[-1]/res[0]))
+    #         return u, len(res)
+    #     else:
+    #         raise ValueError("unknown solve '{}'".format(solver))
+    #
+    #     # ml = pyamg.ruge_stuben_solver(A)
+    #     # B = np.ones((A.shape[0], 1))
+    #     # ml = pyamg.smoothed_aggregation_solver(A, B, max_coarse=10)
+    #     # res = []
+    #     # # u = ml.solve(b, tol=1e-10, residuals=res)
+    #     # u = pyamg.solve(A, b, tol=1e-10, residuals=res, verb=False,accel='cg')
+    #     # for i, r in enumerate(res):
+    #     #     print("{:2d} {:8.2e}".format(i,r))
+    #     # lu = umfpack.splu(A)
+    #     # u = umfpack.spsolve(A, b)
 
 #=================================================================#
 if __name__ == '__main__':

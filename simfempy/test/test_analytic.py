@@ -12,7 +12,8 @@ def test_analytic(application, createMesh, paramargs, applicationargs, **kwargs)
             'plotmesh': just plot first mesh with boundary labels
     :return:
     """
-    h = [0.5**i for i in range(3)]
+    niter = kwargs.pop('niter', 3)
+    h = [0.5**i for i in range(niter)]
     if 'plotmesh' in kwargs:
         from simfempy.meshes import plotmesh
         plotmesh.meshWithBoundaries(createMesh(h[0]))

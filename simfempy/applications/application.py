@@ -25,6 +25,7 @@ class Application(object):
         except:
             import warnings
             warnings.warn("*** pyamg not found (umf used instead)***")
+        self.verbose = kwargs.pop('verbose', 0)
         self.linearsolver = kwargs.pop('linearsolver', 'umf')
         self.timer = simfempy.tools.timer.Timer(verbose=0)
         if 'problemdata' in kwargs:
@@ -47,6 +48,7 @@ class Application(object):
         self._setMeshCalled = False
     def setMesh(self, mesh):
         self.mesh = mesh
+        if self.verbose: print(f"{self.mesh=}")
         self._setMeshCalled = True
         if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
@@ -106,9 +108,16 @@ class Application(object):
         A = self.computeMatrix()
         self.timer.add('matrix')
         b, u = self.computeRhs()
+        if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
+        print(f"{np.linalg.norm(b)=}")
+        print(f"{np.linalg.norm(u)=}")
         self.timer.add('rhs')
-        u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
-        # print(f"{u=}")
+        import warnings
+        warnings.filterwarnings("error")
+        try:
+            u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
+        except Warning:
+            raise ValueError(f"matrix is singular {A.shape=} {A.diagonal()=}")
         self.timer.add('solve')
         pp = self.postProcess(u)
         self.timer.add('postp')
@@ -174,8 +183,8 @@ class Application(object):
                 rhs += 1/(a*dt)*self.M.dot(u)
                 rhs += expl*self.Aimp.dot(u)
                 print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
-                # rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt), fillzeros=False)
-                rhs,up = self.computeRhs(b=rhs, coeff=1, fillzeros=False)
+                # rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt))
+                rhs,up = self.computeRhs(b=rhs, coeff=1)
                 print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('rhs')
                 u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
@@ -254,7 +263,7 @@ class Application(object):
             if spsp.issparse(A): ml = self.build_pyamg(A)
             else: ml = A
             res=[]
-            maxiter = 1000
+            maxiter = 100
             SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
             u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
             if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")

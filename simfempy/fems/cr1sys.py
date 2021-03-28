@@ -21,6 +21,23 @@ class CR1sys(femsys.Femsys):
         for i in range(ncomp):
             unodes[i::ncomp] = self.fem.tonode(u[i::ncomp])
         return unodes
+    def computeRhsCell(self, b, rhscell):
+        ncomp = self.ncomp
+        raise NotImplementedError()
+    def computeRhsBoundary(self, b, bdryfct, colors):
+        raise NotImplementedError()
+        normals =  self.mesh.normals
+        scale = 1
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            if not color in bdryfct or bdryfct[color] is None: continue
+            normalsS = normals[faces]
+            dS = linalg.norm(normalsS,axis=1)
+            normalsS = normalsS/dS[:,np.newaxis]
+            xf, yf, zf = self.mesh.pointsf[faces].T
+            nx, ny, nz = normalsS.T
+            b[faces] += scale * bdryfct[color](xf, yf, zf, nx, ny, nz) * dS
+        return b
     def computeRhs(self, problemdata):
         ncomp = self.ncomp
         b = np.zeros(self.mesh.nfaces * self.ncomp)
@@ -46,6 +63,22 @@ class CR1sys(femsys.Femsys):
                 indices = i + self.ncomp * faces
                 np.add.at(b, indices.T, bS)
         return b
+    def computeMatrixDivergence(self):
+        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
+        nloc, cellgrads, facesOfCells = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
+        rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(ncells * nloc, ncomp)
+        colsB = np.repeat(facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + nfaces * np.arange(ncomp)
+        matB = (cellgrads[:, :, :ncomp].T * dV).T
+        return sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))),
+                                    shape=(ncells, nfaces * ncomp)).tocsr()
+    def computeMatrixLaplace(self, mucell):
+        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
+        nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
+        mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
+        for i in range(ncomp):
+            mat[:, i::ncomp, i::ncomp] += (np.einsum('nkj,nlj->nkl', cellgrads, cellgrads).T * dV * mucell).T
+        A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        return A
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
