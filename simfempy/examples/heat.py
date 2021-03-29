@@ -19,8 +19,8 @@ def main(mode = 'dynamic', plotnumbering=False):
         problemdata = createDataStatic()
     else:
         problemdata = createDataDynamic()
-    mesh = createMesh(h=1)
-    heat = Heat(mesh=mesh, problemdata=problemdata, verbose=2)
+    mesh = createMesh(h=0.1)
+    heat = Heat(mesh=mesh, problemdata=problemdata, verbose=2, fem='cr1')
     if plotnumbering:
         from simfempy.meshes.plotmesh import plotmeshWithNumbering
         plotmeshWithNumbering(mesh)
@@ -45,8 +45,9 @@ def createMesh(h=0.2):
     rect = [-2, 2, -2, 2]
     with pygmsh.geo.Geometry() as geom:
         holes = []
-        # holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
         holes.append(hole(geom, xc=-1, yc=-1, r=0.5, mesh_size=h, label="200", make_surface=True))
+        # holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
+        holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000"))
         p = geom.add_rectangle(*rect, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
@@ -56,8 +57,8 @@ def createMesh(h=0.2):
 def createDataStatic():
     data = ProblemData()
     data.bdrycond.set("Dirichlet", [1000, 1001, 1003])
-    # data.bdrycond.set("Neumann", [1002, 3000, 3001, 3002])
-    data.bdrycond.set("Neumann", [1002])
+    data.bdrycond.set("Neumann", [1002, 3000, 3001, 3002, 3003])
+    # data.bdrycond.set("Neumann", [1002])
     data.bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
     data.bdrycond.fct[1001] = data.bdrycond.fct[1003] = lambda x,y,z: 120
     data.bdrycond.fct[1000] = lambda x,y,z: 150

@@ -9,9 +9,11 @@ import meshio
 import numpy as np
 from scipy import sparse
 from simfempy.tools import npext
-from simfempy.tools import timer
 
-from .testmeshes import __pygmsh6__
+if __name__ == '__main__':
+    from testmeshes import __pygmsh6__
+else:
+    from .testmeshes import __pygmsh6__
 
 #=================================================================#
 class SimplexMesh(object):
@@ -56,6 +58,15 @@ class SimplexMesh(object):
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
         self._initMeshPyGmsh(mesh)
+        self.check()
+    def check(self):
+        if len(np.unique(self.simplices)) != self.nnodes:
+            # raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+            print(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+            # nnp = len(np.unique(self.simplices))
+            # self.points = self.points[:nnp]
+            # self.nnodes = self.points.shape[0]
+
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
@@ -141,7 +152,6 @@ class SimplexMesh(object):
         #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
         bdrylabelsgmsh = cellsoflabel[self.facesname]
         self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
-
     def _initMeshPyGmsh6(self, cells, cdphys, bdryfacesgmsh):
         if len(cdphys) != len(self.celltypes):
             raise KeyError(f"not enough physical labels:\n {self.celltypes=}\n {len(cdphys)=}")
@@ -164,7 +174,6 @@ class SimplexMesh(object):
         if self.dimension > 1 and 'vertex' in _cells.keys():
             self.vertices = _cells['vertex'].reshape(-1)
             self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
-
     def _constructFacesFromSimplices(self):
         simplices = self.simplices
         ncells = simplices.shape[0]
@@ -259,8 +268,6 @@ class SimplexMesh(object):
                 for i in range(len(cb)): self.bdrylabels[int(col)][i] = bdryids[fp[binv[cb[i]]]]
             # else:
             #     assert not indices[bpi[cb[0]]]
-
-
     def _constructBoundaryFaces6(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
@@ -300,7 +307,6 @@ class SimplexMesh(object):
             self.bdrylabels[color][counts[color]] = perm[i]
             counts[color] += 1
         # print ("self.bdrylabels", self.bdrylabels)
-
     def _constructNormalsAndAreas(self):
         elem = self.simplices
         self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
@@ -350,7 +356,6 @@ class SimplexMesh(object):
                 xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
-
     # ----------------------------------------------------------------#
     def write(self, filename, dirname = None, point_data=None):
         if dirname is not None:
@@ -391,7 +396,6 @@ class SimplexMesh(object):
                 cells['triangle'] = self.facesdata
             mesh = meshio.Mesh(self.points, cells)
             meshio.write(filename, mesh)
-
     # ----------------------------------------------------------------#
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
@@ -409,31 +413,44 @@ class SimplexMesh(object):
             plotmesh.meshWithNodesAndTriangles(meshdata)
             plt.show()
 
-    # def plot(self, **kwargs):
-    #     from simfempy.meshes import plotmesh
-    #     plotmesh.plotmesh(self, **kwargs)
-    # def plotWithBoundaries(self):
-    #     # from . import plotmesh
-    #     from simfempy.meshes import plotmesh
-    #     plotmesh.meshWithBoundaries(self)
-    # def plotWithNumbering(self, **kwargs):
-    #     # from . import plotmesh
-    #     from simfempy.meshes import plotmesh
-    #     plotmesh.plotmeshWithNumbering(self, **kwargs)
-    # def plotWithData(self, **kwargs):
-    #     # from . import plotmesh
-    #     from simfempy.meshes import plotmesh
-    #     plotmesh.meshWithData(self, **kwargs)
-
-
 #=================================================================#
 if __name__ == '__main__':
-    import geomdefs
-    geometry = geomdefs.unitsquare.Unitsquare()
-    mesh = SimplexMesh(geometry=geometry, hmean=2)
+    import pygmsh
+    rect = [-2, 2, -2, 2]
+    with pygmsh.geo.Geometry() as geom:
+        z=0
+        xc, yc, r = 0.5, 0.5, 0.5
+        mesh_size = 2
+        hole = geom.add_circle(x0=[xc,yc], radius=r, mesh_size=mesh_size, make_surface=False)
+        # print(f"{dir(hole.curve_loop)=}")
+        # lines = hole.curve_loop.curves
+        # labels = [f"{3000 + i}" for i in range(len(lines))]
+        # for lab, l in zip(labels, lines): geom.add_physical(l, label=lab)
+
+        # xc, yc, r = -0.5, -0.5, 0.5
+        # hcoord = [[xc-r, yc-r], [xc-r, yc+r], [xc+r, yc+r], [xc+r, yc-r]]
+        # xhole = np.insert(np.array(hcoord), 2, z, axis=1)
+        # hole2 = geom.add_polygon(points=xhole, mesh_size=mesh_size, make_surface=True)
+        # geom.add_physical(hole2.surface, label="200")
+        # labels = [f"{10 * 200 + i}" for i in range(len(hole2.lines))]
+        # holes = [hole, hole2]
+        holes = [hole]
+
+        # from simfempy.meshes.hole import hole
+        # h = 1
+        # holes = []
+        # holes.append(hole(geom, xc=-1, yc=-1, r=0.5, mesh_size=h, label="200", make_surface=True))
+        # holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
+
+        p = geom.add_rectangle(*rect, z=0, mesh_size=1, holes=holes)
+        geom.add_physical(p.surface, label="100")
+        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        # geom.synchronize()
+        mesh = geom.generate_mesh()
+    mesh = SimplexMesh(mesh=mesh)
     import plotmesh
     import matplotlib.pyplot as plt
     fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
     plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
-    plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)
+    # plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)

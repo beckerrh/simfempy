@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-from . import plotmesh1d, plotmesh2d, plotmesh3d
+# from . import plotmesh1d, plotmesh2d, plotmesh3d
+from simfempy.meshes import plotmesh1d, plotmesh2d, plotmesh3d
 import meshio
 
 #----------------------------------------------------------------#
