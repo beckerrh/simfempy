@@ -1,3 +1,4 @@
+```python
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
@@ -49,3 +50,4 @@ outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
 plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
 plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1, fig=fig, outer=outer[1])
 plt.show()
+```
