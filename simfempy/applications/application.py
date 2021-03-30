@@ -113,7 +113,7 @@ class Application(object):
         print(f"{np.linalg.norm(u)=}")
         self.timer.add('rhs')
         import warnings
-        warnings.filterwarnings("error")
+        # warnings.filterwarnings("error")
         try:
             u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
         except Warning:
@@ -123,12 +123,16 @@ class Application(object):
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter={'lin':niter})
         return result
-    def initialCondition(self, expr):
-        if not self._setMeshCalled: self.setMesh(self.mesh)
-        self.Mass = self.fem.computeMassMatrix()
-        fp1 = self.fem.interpolate(AnalyticalFunction(expr))
+    def initialCondition(self, interpolate=True):
         #TODO: higher order interpolation
-        return fp1
+        if not 'initial_condition' in self.problemdata.params.fct_glob:
+            raise ValueError(f"missing 'initial_condition' in {self.problemdata.params.fct_glob=}")
+        if not self._setMeshCalled: self.setMesh(self.mesh)
+        ic = AnalyticalFunction(self.problemdata.params.fct_glob['initial_condition'])
+        fp1 = self.fem.interpolate(ic)
+        if interpolate:
+            return fp1
+        self.Mass = self.fem.computeMassMatrix()
         b = np.zeros(self.fem.nunknowns())
         self.fem.massDot(b, fp1)
         u, niter = self.linearSolver(self.Mass, b, u=fp1)
@@ -163,9 +167,10 @@ class Application(object):
         niter = nitertotal//nframes
         result = simfempy.applications.problemdata.Results()
         self.timer.add('init')
+        if not hasattr(self, 'Mass'):
+            self.Mass = self.fem.computeMassMatrix()
         if not hasattr(self, 'A'):
             self.Aimp = self.computeMatrix(coeff=a, coeffmass=1/dt)
-            self.M = self.fem.computeMassMatrix()
             self.ml = self.build_pyamg(self.Aimp)
         self.timer.add('matrix')
         u = u0
@@ -180,19 +185,70 @@ class Application(object):
             for iter in range(niter):
                 self.time += dt
                 rhs.fill(0)
-                rhs += 1/(a*dt)*self.M.dot(u)
+                rhs += 1/(a*dt)*self.Mass.dot(u)
                 rhs += expl*self.Aimp.dot(u)
                 print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 # rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt))
                 rhs,up = self.computeRhs(b=rhs, coeff=1)
                 print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('rhs')
-                u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
+                # u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
+                u, res = self.solve_pyamg(self.ml, rhs, u=u)
+                u, niterslinsol[iter] = u, len(res)
                 print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('solve')
             result.addData(self.postProcess(u), time=self.time, iter=niterslinsol.mean())
             if callback: callback(self.time, u)
         return result
+
+    def linearSolver(self, A, b, u=None, solver = None, verbose=0):
+        # print(f"### linearSolver {solver=}")
+        if spsp.issparse(A):
+            if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
+                raise ValueError(f"{A.shape=} {b.shape=}")
+        if solver is None: solver = self.linearsolver
+        if not hasattr(self, 'info'): self.info={}
+        if solver not in self.linearsolvers: solver = "umf"
+        if solver == 'umf':
+            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
+        elif solver in ['gmres','lgmres','bicgstab','cg']:
+            if solver == 'cg':
+                def gaussSeidel(A):
+                    dd = A.diagonal()
+                    D = spsp.dia_matrix(A.shape)
+                    D.setdiag(dd)
+                    L = spsp.tril(A, -1)
+                    U = spsp.triu(A, 1)
+                    return splinalg.factorized(D + L)
+                M2 = gaussSeidel(A)
+            else:
+                # defaults: drop_tol=0.0001, fill_factor=10
+                M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
+            M_x = lambda x: M2.solve(x)
+            M = splinalg.LinearOperator(A.shape, M_x)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
+            args=""
+            cmd = "u = splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(solver,args)
+            exec(cmd)
+            return u, counter.niter
+        elif solver == 'pyamg':
+            ml = self.build_pyamg(A)
+            u, res = self.solve_pyamg(ml, u, b)
+            if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
+            return u, len(res)
+        else:
+            raise NotImplementedError("unknown solve '{}'".format(solver))
+    def solve_pyamg(self, ml, b, u):
+        res = []
+        maxiter = 100
+        SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
+        u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
+        if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
+        return u, res
+    def build_pyamg(self,A):
+        import pyamg
+        return pyamg.smoothed_aggregation_solver(A)
+        B = np.ones((A.shape[0], 1))
 
 
     # def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):
@@ -227,55 +283,6 @@ class Application(object):
     #     du, niter = self.linearSolver(self.A, r, x, verbose=0)
     #     # print(f"solveForNewton du={np.linalg.norm(du)}")
     #     return du
-
-    def linearSolver(self, A, b, u=None, solver = None, verbose=0):
-        # print(f"### linearSolver {solver=}")
-        if spsp.issparse(A):
-            if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
-                raise ValueError(f"{A.shape=} {b.shape=}")
-        if solver is None: solver = self.linearsolver
-        if not hasattr(self, 'info'): self.info={}
-        if solver not in self.linearsolvers: solver = "umf"
-        if solver == 'umf':
-            return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        elif solver in ['gmres','lgmres','bicgstab','cg']:
-            if solver == 'cg':
-                def gaussSeidel(A):
-                    dd = A.diagonal()
-                    D = spsp.dia_matrix(A.shape)
-                    D.setdiag(dd)
-                    L = spsp.tril(A, -1)
-                    U = spsp.triu(A, 1)
-                    return splinalg.factorized(D + L)
-                M2 = gaussSeidel(A)
-            else:
-                # defaults: drop_tol=0.0001, fill_factor=10
-                M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
-            M_x = lambda x: M2.solve(x)
-            M = splinalg.LinearOperator(A.shape, M_x)
-            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
-            args=""
-            cmd = "u = splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(solver,args)
-            exec(cmd)
-            return u, counter.niter
-        elif solver == 'pyamg':
-            import pyamg
-            if spsp.issparse(A): ml = self.build_pyamg(A)
-            else: ml = A
-            res=[]
-            maxiter = 100
-            SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
-            u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
-            if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
-            if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
-            return u, len(res)
-        else:
-            raise NotImplementedError("unknown solve '{}'".format(solver))
-
-    def build_pyamg(self,A):
-        import pyamg
-        return pyamg.smoothed_aggregation_solver(A)
-        B = np.ones((A.shape[0], 1))
 
 
 

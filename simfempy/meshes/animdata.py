@@ -24,13 +24,14 @@ class AnimData:
         plt.colorbar(matplotlib.cm.ScalarMappable(norm=self.norm, cmap=cmap), ax=ax)
         self.u, self.ax = u, ax
         self.x, self.y, self.tris = x, y, tris
-        self.anim = animation.FuncAnimation(fig, self, frames=len(u), repeat=False)
+        self.nframes = len(u)
+        self.anim = animation.FuncAnimation(fig, self, frames=self.nframes, repeat=False)
 
     def __call__(self, i):
         u, ax = self.u, self.ax
         x, y, tris = self.x, self.y, self.tris
         ax.cla()
-        ax.set_title(f"Iter {i}")
+        ax.set_title(f"Iter {i+1}/{self.nframes}")
         # print(f"{i=} {np.linalg.norm(self.u[i])}")
         ax.tricontourf(x, y, tris, self.u[i], **self.argscf)
         ax.tricontour(x, y, tris, self.u[i], **self.argsc)

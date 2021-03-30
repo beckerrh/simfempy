@@ -1,47 +1,59 @@
 assert __name__ == '__main__'
-# use own pygmsh
-# import os, sys
-# simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'pygmsh'))
-# sys.path.insert(0,simfempypath)
+# in shell
+import os, sys
+simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
+sys.path.insert(0,simfempypath)
 
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import pygmsh
 from simfempy.applications.heat import Heat
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
-from simfempy.meshes.animdata import AnimData
-from simfempy.meshes import plotmesh
+from simfempy.meshes import plotmesh, animdata
 
 # ---------------------------------------------------------------- #
-def main(mode = 'dynamic', h=0.1, fem='p1', plotnumbering=False):
-    if mode == 'static':
-        problemdata = createDataStatic()
-    else:
-        problemdata = createDataDynamic()
+def main(mode = 'static', h=0.1, convection=True, fem='p1', plot='data'):
+    #create mesh
     mesh = createMesh(h=h)
-    heat = Heat(mesh=mesh, problemdata=problemdata, verbose=2, fem='cr1')
-    if plotnumbering:
+    if plot=='numbering':
         from simfempy.meshes.plotmesh import plotmeshWithNumbering
         plotmeshWithNumbering(mesh)
-    plotmesh.meshWithBoundaries(heat.mesh)
+        return
+    if plot=='boundary':
+        plotmesh.meshWithBoundaries(mesh)
+        return
+    #create problem data
+    problemdata = createProblemData(mode, convection=convection)
+    #create application
+    heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1')
     if mode == 'static':
         result = heat.static()
         print(f"{result.info['timer']}")
         print(f"postproc:")
-        for p in ['bdrymean_low', 'bdrymean_up', 'bdrynflux']: print(f"{p}: {result.data['global'][p]}")
-        plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1)
+        for p,v in result.data['global'].items(): print(f"{p}: {v}")
+        fig = plt.figure(figsize=(10, 8))
+        outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
+        plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
+        plotmesh.meshWithData(heat.mesh, data=result.data, title="Heat static", alpha=1,fig=fig, outer=outer[1])
         plt.show()
     elif mode == 'dynamic':
-        u0 = heat.initialCondition("200")
-        # result = heat.dynamic(u0, t_span=(0,2000), nframes=40, dt=10)
-        result = heat.dynamic(u0, t_span=(0,20), nframes=2, dt=10, method='BE')
-        anim = AnimData(mesh, result.data['point']['U'])
+        u0 = heat.initialCondition()
+        t_final, dt = 2000, 10
+        nframes = int(t_final/dt/4)
+        result = heat.dynamic(u0, t_span=(0,t_final), nframes=nframes, dt=dt, method='BE')
+        u = result.data['point']['U']
+        fig = plt.figure(figsize=(10, 8))
+        outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
+        plotmesh.meshWithData(heat.mesh, point_data={'u0':u0}, fig=fig, outer=outer[0])
+        plotmesh.meshWithData(heat.mesh, point_data={'u1':u[0]}, fig=fig, outer=outer[1])
+        plotmesh.meshWithData(heat.mesh, point_data={'uN':u[-1]}, fig=fig, outer=outer[2])
+        anim = animdata.AnimData(mesh, u)
         plt.show()
     else: raise ValueError(f"unknown{ mode=}")
 
 # ---------------------------------------------------------------- #
 def createMesh(h=0.2):
-    rect = [-2, 2, -2, 2]
     with pygmsh.geo.Geometry() as geom:
         holes = []
         rectangle = geom.add_rectangle(xmin=-1.5, xmax=-0.5, ymin=-1.5, ymax=-0.5, z=0, mesh_size=h)
@@ -51,81 +63,32 @@ def createMesh(h=0.2):
         circle = geom.add_circle(x0=[0,0], radius=0.5, mesh_size=h, num_sections=6, make_surface=False)
         geom.add_physical(circle.curve_loop.curves, label="3000")
         holes.append(circle)
-        p = geom.add_rectangle(*rect, z=0, mesh_size=h, holes=holes)
+        p = geom.add_rectangle(xmin=-2, xmax=2, ymin=-2, ymax=2, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
         mesh = geom.generate_mesh()
     return SimplexMesh(mesh=mesh)
 # ---------------------------------------------------------------- #
-def createDataStatic():
+def createProblemData(mode='static', convection=False):
     data = ProblemData()
-    data.bdrycond.set("Dirichlet", [1000, 1001, 1003])
-    data.bdrycond.set("Neumann", [1002, 3000])
-    # data.bdrycond.set("Neumann", [1002])
-    data.bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
-    data.bdrycond.fct[1001] = data.bdrycond.fct[1003] = lambda x,y,z: 120
-    data.bdrycond.fct[1000] = lambda x,y,z: 150
-    data.postproc.set(name='bdrymean_low', type='bdry_mean', colors=1000)
+    #boundary conditions
+    data.bdrycond.set("Dirichlet", [1000, 3000])
+    data.bdrycond.set("Neumann", [1001, 1002, 1003])
+    data.bdrycond.fct[1000] = lambda x,y,z: 200
+    data.bdrycond.fct[3000] = lambda x,y,z: 320
+    #postprocess
+    data.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
+    data.postproc.set(name='bdrymean_left', type='bdry_mean', colors=1003)
     data.postproc.set(name='bdrymean_up', type='bdry_mean', colors=1002)
-    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[1001, 1003])
-    params = data.params
-    params.set_scal_cells("kheat", [100], 0.001)
-    params.set_scal_cells("kheat", [200], 10.0)
-    # alternative:
-    # def kheat(label, x, y, z):
-    #     if label==100: return 0.0001
-    #     return 0.1*label
-    # params.fct_glob["kheat"] = kheat
-    # params.fct_glob["convection"] = ["0", "0.01"]
-    return data
-# ---------------------------------------------------------------- #
-def createDataDynamic():
-    data = ProblemData()
-    bdrycond =  data.bdrycond
-    bdrycond.set("Robin", [1000])
-    bdrycond.param[1000] = 10
-    bdrycond.set("Neumann", [1002, 1001, 1003, 3000, 3001, 3002])
-    bdrycond.fct[1000] = lambda x,y,z: 120
-    postproc = data.postproc
-    postproc.type['bdrymean_low'] = "bdry_mean"
-    postproc.color['bdrymean_low'] = [1000]
-    postproc.type['bdrymean_up'] = "bdry_mean"
-    postproc.color['bdrymean_up'] = [1002]
-    postproc.type['fluxn'] = "bdry_nflux"
-    postproc.color['fluxn'] = [1000]
-    params = data.params
-    params.set_scal_cells("kheat", [100], 0.001)
-    params.set_scal_cells("kheat", [200], 10.0)
-    # alternative:
-    # def kheat(label, x, y, z):
-    #     if label==100: return 0.0001
-    #     return 0.1*label
-    # params.fct_glob["kheat"] = kheat
-    # params.fct_glob["convection"] = ["0", "0.01"]
-    return data
-# ---------------------------------------------------------------- #
-def createDataConvection():
-    data = ProblemData()
-    bdrycond =  data.bdrycond
-    bdrycond.set("Robin", [1000])
-    bdrycond.set("Dirichlet", [1000, 3000, 3001, 3002])
-    bdrycond.set("Neumann", [1001, 1002, 1003])
-    bdrycond.fct[1001] = bdrycond.fct[1003] = bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
-    bdrycond.fct[3000] = bdrycond.fct[3001] = bdrycond.fct[3002] = lambda x,y,z: 320
-    bdrycond.fct[1000] = lambda x, y, z: 200
-    postproc = data.postproc
-    postproc.type['bdrymean_low'] = "bdry_mean"
-    postproc.color['bdrymean_low'] = [1000]
-    postproc.type['bdrymean_up'] = "bdry_mean"
-    postproc.color['bdrymean_up'] = [1002]
-    postproc.type['fluxn'] = "bdry_nflux"
-    postproc.color['fluxn'] = [1001, 1003]
-    params = data.params
-    params.set_scal_cells("kheat", [100], 0.001)
-    params.set_scal_cells("kheat", [200], 10.0)
-    params.fct_glob["convection"] = ["0", "0.001"]
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
+    #paramaters in equation
+    data.params.set_scal_cells("kheat", [100], 0.001)
+    data.params.set_scal_cells("kheat", [200], 10.0)
+    if convection: data.params.fct_glob["convection"] = ["0", "0.001"]
+    if mode=='dynamic': data.params.fct_glob["initial_condition"] = "200"
     return data
 
 # ================================================================c#
 
-main(mode='static', plotnumbering=False)
+main(mode='static', convection=True)
+# main(mode='dynamic', convection=True, h=0.1)

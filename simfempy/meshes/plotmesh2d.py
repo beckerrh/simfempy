@@ -98,7 +98,13 @@ def plotmesh(**kwargs):
 
 #=================================================================#
 def meshWithBoundaries(x, y, tris, **kwargs):
-    if 'ax' in kwargs: ax = kwargs.pop('ax')
+    if 'outer' in kwargs:
+        import matplotlib.gridspec as gridspec
+        inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
+        if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
+        fig = kwargs['fig']
+        ax = plt.Subplot(fig, inner[0])
+    elif 'ax' in kwargs: ax = kwargs.pop('ax')
     else: ax = plt
     lines = kwargs.pop('lines')
     bdrylabels = kwargs.pop('bdrylabels')
@@ -130,16 +136,16 @@ def meshWithBoundaries(x, y, tris, **kwargs):
         cellsoflabel = kwargs.pop('cellsoflabel')
         # print(f"{tris.shape=}")
         celllabels = np.empty(tris.shape[0])
-        for color, cells in cellsoflabel.items():
-            celllabels[cells] = color
+        for color, cells in cellsoflabel.items(): celllabels[cells] = color
         cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-        clb = plt.colorbar(cnt)
-        # clb = plt.colorbar(cnt, ax=ax)
-        # clb.ax.set_title(cdn)
-        clb.set_label("cellcolors")
-
+        # clb = plt.colorbar(cnt)
+        # clb.set_label("cellcolors")
+    # clb = plt.colorbar(cnt, ax=ax)
+    # clb.ax.set_title(cdn)
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")
+    fig.add_subplot(ax)
+
 
 #=================================================================#
 def mesh(x, y, tris, **kwargs):
@@ -196,7 +202,28 @@ def mesh(x, y, tris, **kwargs):
         _plotFaces(x, y, xf, yf, meshsides, ax=ax)
         _plotNormalsAndSigma(xc, yc, xf, yf, meshnormals, sidesofcells, meshsigma, ax=ax)
     _settitle(ax, title)
-
+#=================================================================#
+def plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha):
+    if not isinstance(pd, np.ndarray):
+        raise ValueError(f"Problem in data {type(pd)=}")
+    if x.shape != pd.shape:
+        raise ValueError(f"Problem in data {x.shape=} {pd.shape=}")
+    ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+    cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
+    ax.set_aspect(aspect='equal')
+    clb = plt.colorbar(cnt, ax=ax)
+    # clb.set_label(pdn)
+    _settitle(ax, pdn)
+#=================================================================#
+def plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha):
+    if tris.shape[0] != cd.shape[0]:
+        raise ValueError("wrong length in '{}' {}!={}".format(cdn, tris.shape[0], cd.shape[0]))
+    cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
+    ax.set_aspect(aspect='equal')
+    clb = plt.colorbar(cnt, ax=ax)
+    # clb.ax.set_title(cdn)
+    clb.set_label(cdn)
+    _settitle(ax, cdn)
 #=================================================================#
 def meshWithData(**kwargs):
     """
@@ -205,88 +232,74 @@ def meshWithData(**kwargs):
     addplots  : additional plot functions (in new axes)
     """
     x, y, tris, xc, yc = kwargs['x'], kwargs['y'], kwargs['tris'], kwargs['xc'], kwargs['yc']
-    addplots = []
-    if 'addplots' in kwargs: addplots = kwargs['addplots']
-    if addplots is None: addplots=[]
-    point_data, cell_data, quiver_cell_data = None, None, None
-    numbering = False
-    title, suptitle = None, None
-    # if 'point_data' in kwargs: point_data = kwargs['point_data']
-    # if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
-    if 'data' in kwargs:
-        point_data = kwargs['data'].pop('point', None)
-        cell_data = kwargs['data'].pop('cell', None)
-    if 'point_data' in kwargs: point_data = kwargs['point_data']
-    if 'cell_data' in kwargs: cell_data = kwargs['cell_data']
-    if 'quiver_cell_data' in kwargs: quiver_cell_data = kwargs['quiver_cell_data']
-    if 'numbering' in kwargs: numbering = kwargs['numbering']
-    if 'title' in kwargs: title = kwargs['title']
-    if 'suptitle' in kwargs: suptitle = kwargs['suptitle']
+    addplots = kwargs.pop('addplots',[])
+    numbering = kwargs.pop('numbering',False)
+    title = kwargs.pop('title', None)
+    suptitle = kwargs.pop('suptitle', None)
     alpha = kwargs.pop('alpha', 0.6)
+    if 'data' in kwargs:
+        point_data = kwargs['data'].pop('point', {})
+        cell_data = kwargs['data'].pop('cell', {})
+    else:
+        point_data = {}
+        cell_data = {}
+    if 'point_data' in kwargs: point_data.update(kwargs['point_data'])
+    if 'cell_data' in kwargs: cell_data.update(kwargs['cell_data'])
+    quiver_cell_data = kwargs.pop('quiver_cell_data', {})
 
-    nplots=0
-    if not point_data is None:
-        # if not isinstance(point_data, dict): raise ValueError("point_data should by dict: name->data")
-        if not isinstance(point_data, dict): point_data={"u":point_data}
-        nplots += len(point_data)
-    if not cell_data is None:
-        if not isinstance(cell_data, dict): cell_data={"u":cell_data}
-        nplots += len(cell_data)
-    if quiver_cell_data: nplots += len(quiver_cell_data)
-    nplots += len(addplots)
-    if nplots==0:
-        raise ValueError("meshWithData(): no data")
-    ncols = min(nplots,3)
-    nrows = nplots//3 + bool(nplots%3)
-    # print("nrows, ncols", nrows, ncols)
-    fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
-    if suptitle: fig.suptitle(suptitle)
-    # aspect = (np.max(x)-np.mean(x))/(np.max(y)-np.mean(y))
+
+    nplots = len(point_data) + len(cell_data) + len(quiver_cell_data) + len(addplots)
+    if nplots==0: raise ValueError("meshWithData(): no data")
+    if 'outer' in kwargs:
+        import matplotlib.gridspec as gridspec
+        inner = gridspec.GridSpecFromSubplotSpec(nplots, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
+        if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
+        fig = kwargs['fig']
+    else:
+        ncols = min(nplots,3)
+        nrows = nplots//3 + bool(nplots%3)
+        fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
+        if suptitle: fig.suptitle(suptitle)
     count=0
-    if point_data:
-        for pdn, pd in point_data.items():
-            if not isinstance(pd,np.ndarray):
-                raise ValueError(f"Problem in data {type(pd)=}")
-            if x.shape != pd.shape:
-                raise ValueError(f"Problem in data {x.shape=} {pd.shape=}")
+    for pdn, pd in point_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
             ax = axs[count//ncols,count%ncols]
-            ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-            cnt = ax.tricontourf(x, y, tris, pd, 16, cmap='jet')
-            ax.set_aspect(aspect='equal')
-            if numbering:
-                _plotVertices(x, y, tris, xc, yc, ax=ax)
-                _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-            clb = plt.colorbar(cnt, ax=ax)
-            # clb.set_label(pdn)
-            _settitle(ax, pdn)
-            count += 1
-    if cell_data:
-        for cdn, cd in cell_data.items():
-            if tris.shape[0] != cd.shape[0]:
-                raise ValueError("wrong length in '{}' {}!={}".format(cdn,tris.shape[0],cd.shape[0]))
-            # ax = axs[count//3,count%3]
+        plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha)
+        if numbering:
+            _plotVertices(x, y, tris, xc, yc, ax=ax)
+            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+        fig.add_subplot(ax)
+        count += 1
+    for cdn, cd in cell_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
             ax = axs[count//ncols,count%ncols]
-            cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
-            ax.set_aspect(aspect='equal')
-            if numbering:
-                _plotVertices(x, y, tris, xc, yc, ax=ax)
-                _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-            clb = plt.colorbar(cnt, ax=ax)
-            # clb.ax.set_title(cdn)
-            clb.set_label(cdn)
-            _settitle(ax, cdn)
-            count += 1
-    if quiver_cell_data:
-        for cdn, cd in quiver_cell_data.items():
+        plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha)
+        if numbering:
+            _plotVertices(x, y, tris, xc, yc, ax=ax)
+            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+        fig.add_subplot(ax)
+        count += 1
+    for cdn, cd in quiver_cell_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
             ax = axs[count//ncols,count%ncols]
-            ax.set_aspect(aspect='equal')
-            if 'plotmesh' in kwargs and kwargs['plotmesh']: plotmesh(x=x, y=y, tris=tris, ax=ax, alpha=0.3)
-            ax.quiver(xc, yc, cd[0], cd[1], units='xy')
-            count += 1
-
+        ax.set_aspect(aspect='equal')
+        if 'plotmesh' in kwargs and kwargs['plotmesh']: plotmesh(x=x, y=y, tris=tris, ax=ax, alpha=0.3)
+        ax.quiver(xc, yc, cd[0], cd[1], units='xy')
+        fig.add_subplot(ax)
+        count += 1
     for addplot in addplots:
-        ax = axs[count // ncols, count % ncols]
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
         addplot(ax)
+        count += 1
     # if title: fig.canvas.set_window_title(title)
-    return fig, axs
+    # return fig, axs
     # plt.tight_layout()

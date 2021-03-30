@@ -26,10 +26,8 @@ def plotmesh(mesh, **kwargs):
     # if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
 
 #=================================================================#
-def meshWithBoundaries(meshdata, ax=plt):
+def meshWithBoundaries(meshdata, **kwargs):
     dim, meshdataismesh = _getDim(meshdata)
-    kwargs = {}
-    kwargs['ax'] = ax
     if dim==1:
         x, lines = meshdata.points[:, 0], meshdata.simplices
         plotmesh1d.meshWithBoundaries(x, lines, **kwargs)
@@ -51,10 +49,9 @@ def meshWithBoundaries(meshdata, ax=plt):
         if meshdataismesh:
             x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
             faces, bdrylabels = meshdata.faces, meshdata.bdrylabels
-            plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, ax)
+            plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, **kwargs)
         else:
-            plotmesh3d.meshWithBoundaries(meshdata, ax)
-    if ax==plt: plt.show()
+            plotmesh3d.meshWithBoundaries(meshdata, **kwargs)
 
 #=================================================================#
 # def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
