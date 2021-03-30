@@ -8,18 +8,17 @@ import matplotlib.pyplot as plt
 import pygmsh
 from simfempy.applications.heat import Heat
 from simfempy.applications.problemdata import ProblemData
-from simfempy.meshes.hole import hole
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes.animdata import AnimData
 from simfempy.meshes import plotmesh
 
 # ---------------------------------------------------------------- #
-def main(mode = 'dynamic', plotnumbering=False):
+def main(mode = 'dynamic', h=0.1, fem='p1', plotnumbering=False):
     if mode == 'static':
         problemdata = createDataStatic()
     else:
         problemdata = createDataDynamic()
-    mesh = createMesh(h=0.1)
+    mesh = createMesh(h=h)
     heat = Heat(mesh=mesh, problemdata=problemdata, verbose=2, fem='cr1')
     if plotnumbering:
         from simfempy.meshes.plotmesh import plotmeshWithNumbering
@@ -45,9 +44,13 @@ def createMesh(h=0.2):
     rect = [-2, 2, -2, 2]
     with pygmsh.geo.Geometry() as geom:
         holes = []
-        holes.append(hole(geom, xc=-1, yc=-1, r=0.5, mesh_size=h, label="200", make_surface=True))
-        # holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
-        holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000"))
+        rectangle = geom.add_rectangle(xmin=-1.5, xmax=-0.5, ymin=-1.5, ymax=-0.5, z=0, mesh_size=h)
+        geom.add_physical(rectangle.surface, label="200")
+        geom.add_physical(rectangle.lines, label="20") #required for correct boundary labels (!?)
+        holes.append(rectangle)
+        circle = geom.add_circle(x0=[0,0], radius=0.5, mesh_size=h, num_sections=6, make_surface=False)
+        geom.add_physical(circle.curve_loop.curves, label="3000")
+        holes.append(circle)
         p = geom.add_rectangle(*rect, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
@@ -57,7 +60,7 @@ def createMesh(h=0.2):
 def createDataStatic():
     data = ProblemData()
     data.bdrycond.set("Dirichlet", [1000, 1001, 1003])
-    data.bdrycond.set("Neumann", [1002, 3000, 3001, 3002, 3003])
+    data.bdrycond.set("Neumann", [1002, 3000])
     # data.bdrycond.set("Neumann", [1002])
     data.bdrycond.fct[1002] = lambda x,y,z, nx, ny, nz: 0.0
     data.bdrycond.fct[1001] = data.bdrycond.fct[1003] = lambda x,y,z: 120

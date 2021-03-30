@@ -10,6 +10,11 @@ import numpy as np
 from scipy import sparse
 from simfempy.tools import npext
 
+if __name__ == '__main__':
+    from testmeshes import __pygmsh6__
+else:
+    from .testmeshes import __pygmsh6__
+
 #=================================================================#
 class SimplexMesh(object):
     """
@@ -45,6 +50,7 @@ class SimplexMesh(object):
         s += f"\nbdrylabels={list(self.bdrylabels.keys())}"
         s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
         return s
+
     def __init__(self, **kwargs):
         if 'mesh' in kwargs:
             self.geometry = 'own'
@@ -55,7 +61,12 @@ class SimplexMesh(object):
         self.check()
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
-            raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+            # raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+            print(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+            # nnp = len(np.unique(self.simplices))
+            # self.points = self.points[:nnp]
+            # self.nnodes = self.points.shape[0]
+
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
@@ -101,11 +112,15 @@ class SimplexMesh(object):
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
-        self.cell_sets = mesh.cell_sets
-        self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
+        if __pygmsh6__:
+            self._initMeshPyGmsh6(mesh.cells, mesh.cell_data['gmsh:physical'], bdryfacesgmsh)
+        else:
+            self.cell_sets = mesh.cell_sets
+            self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
         #TODO : remplacer -1 par nan dans les indices
         self.innerfaces = self.cellsOfFaces[:,1]>=0
         self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
+
     def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
@@ -145,6 +160,28 @@ class SimplexMesh(object):
         #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
         bdrylabelsgmsh = cellsoflabel[self.facesname]
         self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
+    def _initMeshPyGmsh6(self, cells, cdphys, bdryfacesgmsh):
+        if len(cdphys) != len(self.celltypes):
+            raise KeyError(f"not enough physical labels:\n {self.celltypes=}\n {len(cdphys)=}")
+        # first attempt, 'np.append' copies data...
+        _cells = {}
+        _labels = {}
+        for (key, cellblock), cd in zip(cells,cdphys):
+            if len(cellblock) != len(cd):
+                raise ValueError(f"mismatch in {key} {len(cellblock)} {len(cd)}")
+            if not key in _cells.keys():
+                _cells[key] = cellblock
+                _labels[key] = cd
+            else:
+                _cells[key] = np.append(_cells[key], cellblock, axis=0)
+                _labels[key] = np.append(_labels[key], cd, axis=0)
+        self._constructBoundaryFaces6(bdryfacesgmsh, _labels[self.facesname])
+        # self.cellsoflabel = npext.creatdict_unique_all(self.cell_labels)
+        self.cellsoflabel = npext.creatdict_unique_all(_labels[self.simplicesname])
+        self.verticesoflabel = {}
+        if self.dimension > 1 and 'vertex' in _cells.keys():
+            self.vertices = _cells['vertex'].reshape(-1)
+            self.verticesoflabel = npext.creatdict_unique_all(_labels['vertex'])
     def _constructFacesFromSimplices(self):
         simplices = self.simplices
         ncells = simplices.shape[0]
@@ -201,14 +238,26 @@ class SimplexMesh(object):
             fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
         # print(f"{bp=}")
         # print(f"{fp=}")
+
 #https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
         indices = (bdryfacesgmsh[bp, None] == bdryfaces[fp]).all(-1).any(-1)
+        # indices = np.isin(bdryfacesgmsh, bdryfaces)
+        # print(f"{indices=}")
+
+        # fp2 = np.searchsorted(bdryfacesgmsh, bdryfaces, sorter=bp)
+        # print(f"{fp2=}")
+
+        # print(f"{bp[indices]=}")
+        # print(f"{bdryfacesgmsh[bp[indices]]=}")
+        # print(f"{bdryfaces[fp]=}")
         if not np.all(bdryfaces[fp]==bdryfacesgmsh[bp[indices]]):
             raise ValueError(f"{bdryfaces.T=}\n{bdryfacesgmsh.T=}\n{indices=}\n{bdryfaces[fp].T=}\n{bdryfacesgmsh[bp[indices]].T=}")
+
         bp2 = bp[indices]
         for i in range(len(fp)):
             if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
                 raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
+
         bpi = np.argsort(bp)
         # bp2i = {bp2[i]:i for i in range(len(bp2))}
         # print(f"{bp=} \n{bp2=} \n{bpi=} \n{bp2i=} \n{indices=}")
@@ -227,6 +276,45 @@ class SimplexMesh(object):
                 for i in range(len(cb)): self.bdrylabels[int(col)][i] = bdryids[fp[binv[cb[i]]]]
             # else:
             #     assert not indices[bpi[cb[0]]]
+    def _constructBoundaryFaces6(self, bdryfacesgmsh, bdrylabelsgmsh):
+        # bdries
+        bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
+        assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
+        bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        nbdryfaces = len(bdryids)
+        if len(bdrylabelsgmsh) != nbdryfaces:
+            raise ValueError("wrong number of boundary labels {} != {}".format(len(bdrylabelsgmsh),nbdryfaces))
+        if len(bdryfacesgmsh) != nbdryfaces:
+            raise ValueError("wrong number of bdryfaces {} != {}".format(len(bdryfacesgmsh), nbdryfaces))
+        self.bdrylabels = {}
+        colors, counts = np.unique(bdrylabelsgmsh, return_counts=True)
+        # print ("colors, counts", colors, counts)
+        for i in range(len(colors)):
+            self.bdrylabels[colors[i]] = -np.ones( (counts[i]), dtype=np.int32)
+        bdryfacesgmsh = np.sort(bdryfacesgmsh)
+        nnpc = self.simplices.shape[1]
+        s = "{0}" + (nnpc-2)*", {0}"
+        dtb = s.format(bdryfacesgmsh.dtype)
+        dtf = s.format(bdryfaces.dtype)
+        order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        if self.dimension==1:
+            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), axis=0).ravel()
+        else:
+            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).ravel()
+            fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
+        bpi = np.empty(bp.size, bp.dtype)
+        bpi[bp] = np.arange(bp.size)
+        perm = bdryids[fp[bpi]]
+        counts = {}
+        for key in list(self.bdrylabels.keys()): counts[key]=0
+        for i in range(len(perm)):
+            if np.any(bdryfacesgmsh[i] != self.faces[perm[i]]):
+                raise ValueError("Did not find boundary indices")
+            color = bdrylabelsgmsh[i]
+            self.bdrylabels[color][counts[color]] = perm[i]
+            counts[color] += 1
+        # print ("self.bdrylabels", self.bdrylabels)
     def _constructNormalsAndAreas(self):
         elem = self.simplices
         self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
@@ -283,17 +371,39 @@ class SimplexMesh(object):
             if not os.path.isdir(dirname) :
                 os.makedirs(dirname)
             filename = os.path.join(dirname, filename)
-        if self.dimension == 1:
-            cells = {'lines': self.simplices}
-            cells['vertex'] = self.facesdata
-        elif self.dimension ==2:
-            cells = {'triangle': self.simplices}
-            cells['line'] = self.facesdata
+        if __pygmsh6__:
+            cell_data_meshio = {}
+            if hasattr(self,'vertex_labels'):
+                cell_data_meshio['vertex'] = {}
+                cell_data_meshio['vertex']['gmsh:physical'] = self.vertex_labels
+            if self.dimension ==2:
+                cells = {'triangle': self.simplices}
+                cells['line'] = self._facedata[0]
+                cell_data_meshio['line']={}
+                cell_data_meshio['line']['gmsh:physical'] = self._facedata[1]
+                cell_data_meshio['triangle']={}
+                cell_data_meshio['triangle']['gmsh:physical'] = self.cell_labels
+            else:
+                cells = {'tetra': self.simplices}
+                cells['triangle'] = self._facedata[0]
+                cell_data_meshio['triangle']={}
+                cell_data_meshio['triangle']['gmsh:physical'] = self._facedata[1]
+                cell_data_meshio['tetra']={}
+                cell_data_meshio['tetra']['gmsh:physical'] = self.cell_labels
+            # print("cell_data_meshio['line']['gmsh:physical']", cell_data_meshio['line']['gmsh:physical'])
+            meshio.write_points_cells(filename=filename, points=self.points, cells=cells, point_data=point_data, cell_data=cell_data_meshio, file_format='gmsh2-ascii')
         else:
-            cells = {'tetra': self.simplices}
-            cells['triangle'] = self.facesdata
-        mesh = meshio.Mesh(self.points, cells)
-        meshio.write(filename, mesh)
+            if self.dimension == 1:
+                cells = {'lines': self.simplices}
+                cells['vertex'] = self.facesdata
+            elif self.dimension ==2:
+                cells = {'triangle': self.simplices}
+                cells['line'] = self.facesdata
+            else:
+                cells = {'tetra': self.simplices}
+                cells['triangle'] = self.facesdata
+            mesh = meshio.Mesh(self.points, cells)
+            meshio.write(filename, mesh)
     # ----------------------------------------------------------------#
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)
@@ -322,7 +432,22 @@ if __name__ == '__main__':
         hole = geom.add_circle(x0=[xc,yc], radius=r, mesh_size=mesh_size, num_sections=6, make_surface=False)
         lines = hole.curve_loop.curves
         geom.add_physical(lines, label="3000")
+
+        # xc, yc, r = -0.5, -0.5, 0.5
+        # hcoord = [[xc-r, yc-r], [xc-r, yc+r], [xc+r, yc+r], [xc+r, yc-r]]
+        # xhole = np.insert(np.array(hcoord), 2, z, axis=1)
+        # hole2 = geom.add_polygon(points=xhole, mesh_size=mesh_size, make_surface=True)
+        # geom.add_physical(hole2.surface, label="200")
+        # labels = [f"{10 * 200 + i}" for i in range(len(hole2.lines))]
+        # holes = [hole, hole2]
         holes = [hole]
+
+        # from simfempy.meshes.hole import hole
+        # h = 1
+        # holes = []
+        # holes.append(hole(geom, xc=-1, yc=-1, r=0.5, mesh_size=h, label="200", make_surface=True))
+        # holes.append(hole(geom, xc=0, yc=0, r=0.4, mesh_size=h, label="3000", circle=True))
+
         p = geom.add_rectangle(*rect, z=0, mesh_size=1, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")

@@ -1,3 +1,3 @@
 
-from . import simplexmesh, plotmesh, hole, testmeshes
+from . import simplexmesh, plotmesh, testmeshes
 
