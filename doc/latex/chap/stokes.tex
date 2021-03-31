@@ -1,26 +1,105 @@
 % !TEX root = ../simfempy.tex
 %
 %==========================================
-\section{Linear elements for the Stokes problem}\label{sec:}
+\section{Stokes problem}\label{sec:}
 %==========================================
 %
 Let $\Omega\subset \R^d$, $d=2,3$ be the computational domain. We suppose to have a disjoined partition of its boundary:
-$\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
+$\partial\Omega=\GammaD\cup\GammaN$.
 %
-\begin{equation}\label{eq:}
+\begin{equation}\label{eq:stokes:strongform}
 %
 \left\{
 \begin{aligned}
--\divv\left(\mu\nabla v\right) + \nabla p = f \quad \mbox{in $\Omega$}\\
-\divv v  = g \quad \mbox{in $\Omega$}\\
+-\div\left(\mu\nabla v\right) + \nabla p = f \quad \mbox{in $\Omega$}\\
+\div v  = g \quad \mbox{in $\Omega$}\\
 v = \vD \quad \mbox{in $\GammaD$}\\
-\mu\frac{\partial v}{\partial n} + p n = \vN \quad \mbox{in $\GammaN$}\\
-c_R v + \mu\frac{\partial v}{\partial n} + p n = \vR \quad \mbox{in $\GammaR$}\\
+\mu\frac{\partial v}{\partial n} - p n = -\pN n\quad \mbox{in $\GammaN$}
 \end{aligned}
 \right.
 %
 \end{equation}
 %
+%
+%-------------------------------------------------------------------------
+\subsection{Weak formulation}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Supposing $\abs{\GammaN}>0$, we have
+%
+\begin{equation}\label{eq:stokes:weakform}
+%
+\left\{
+\begin{aligned}
+&V :=  H^1(\Omega,\R^d)\quad Q := L^2(\Omega)\\
+&(v,p)\in V\times Q:\quad a_{\Omega}(v,p; \phi\xi) + a_{\partial\Omega}(v,p; \phi,\xi) = l_{\Omega}(\phi,\xi)+l_{\partial\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V\times Q\\
+&\begin{aligned}
+a_{\Omega}(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi - \int_{\Omega}p \div \phi + \int_{\Omega} \div v \xi\\
+ a_{\partial\Omega}(v,p; \phi,\xi) &:= \int_{\GammaD}\frac{\gamma\mu}{h}v\cdot\phi - 
+ \int_{\GammaD}\mu \left(  \dn{v}\cdot n \phi + v n \cdot \dn{\phi}\right) 
+ + \int_{\GammaD} \left( p \phi_n - v_n \xi\right)\\
+ l_{\Omega}(\phi,\xi) &:= \int_{\Omega} f\cdot\phi + \int_{\Omega} g\xi, \quad
+ l_{\partial\Omega}(\phi,\xi) = \int_{\GammaD}\mu\vD\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)- \int_{\GammaD}\vD_n\xi
+ - \int_{\GammaN} \pN \phi_n.
+\end{aligned}
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+%---------------------------------------
+\begin{lemma}\label{lemma:}
+A regular solution of the formulation (\ref{eq:stokes:weakform}) satisfies (\ref{eq:stokes:strongform}).
+\end{lemma}
+%
+%---------------------------------------
+\begin{proof}
+By integration by parts we have
+%
+\begin{align*}
+a_{\Omega}(v,p; \phi,\xi) = \int_{\Omega} \left( -\mu \Delta v+\nabla p\right)\cdot\phi + 
+\int_{\partial\Omega} \mu\dn{v}\cdot\phi - \int_{\partial\Omega} p\phi_n
++\int_{\Omega} \div v \xi
+\end{align*}
+%
+and therefore with $a:=a_{\Omega}+a_{\partial\Omega}$ and $l:=l_{\Omega}+l_{\partial\Omega}$
+%
+\begin{align*}
+a(v,p; \phi\xi) - l(v,p; \phi\xi) =& 
+\int_{\Omega} \left( -\mu \Delta v+\nabla p -f \right)\cdot\phi + \int_{\Omega} (\div v -g)\xi
++ \int_{\GammaN} \left(\mu\dn{v}-p n + \pN n\right)\cdot\phi\\
+&+  \int_{\GammaD}\frac{\gamma\mu}{h}v\cdot\phi - 
+ \int_{\GammaD}\mu(v-\vD)\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)
+ - \int_{\GammaD} (v-\vD)\cdot n\xi
+\end{align*}
+%
+
+
+\end{proof}
+%
+
+
+
+Alternatively, we can write the system as
+%
+\begin{equation}\label{eq:stokes:weakform2}
+%
+\left\{
+\begin{aligned}
+&(v,p)\in V\times Q:\quad a(v,p; \phi\xi) + b(v, \xi)- b(\phi, p) = l_{\Omega}(\phi,\xi)+l_{\partial\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V\times Q\\
+&\begin{aligned}
+a(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi +\int_{\GammaD}\frac{\gamma\mu}{h}v\cdot\phi - 
+ \int_{\GammaD}\mu \left(  \dn{v}\cdot n \phi + v n \cdot \dn{\phi}\right)\\
+b(v, \xi) &:=  \int_{\Omega} \div v \xi - \int_{\GammaD} v_n \xi
+\end{aligned}
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+
+
+
 %
 %-------------------------------------------------------------------------
 \subsection{Implementations of Dirichlet condition}\label{subsec:}

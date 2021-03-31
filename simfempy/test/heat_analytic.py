@@ -5,14 +5,14 @@ sys.path.append(simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.heat import Heat
 import simfempy.applications.problemdata
-from test_analytic import test_analytic
+from simfempy.test.test_analytic import test_analytic
 
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
     data = simfempy.applications.problemdata.ProblemData()
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramargs = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    if 'dirichlet' in kwargs: paramargs['dirichlet'] = kwargs.pop('dirichlets')
+    if 'dirichletmethod' in kwargs: paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod')
     if 'convection' in kwargs:
         data.params.fct_glob['convection'] = kwargs.pop('convection')
         paramargs['stab'] = kwargs.pop('stab', ['supg','lps'])
@@ -33,7 +33,7 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
         colorsrob = []
-        colorsneu = []
+        colorsneu = [100]
         # colorsneu = [102, 105]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
     data.bdrycond.set("Dirichlet", colorsdir)
@@ -50,7 +50,6 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # data.params.fct_glob['convection'] = ["y", "-x"]
     # data.params.fct_glob['convection'] = dim*["1"]
-    #TODO: pyamg in 1d !?
+    #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     # test(dim=1, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf')
-    #TODO: neumann 3d wrong
-    test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf')
+    test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','new'])

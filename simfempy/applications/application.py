@@ -100,7 +100,6 @@ class Application(object):
         return arr
     def static(self, iter=100, dirname='Run', mode='linear'):
         if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
-        # print(f"### static")
         if not self._setMeshCalled: self.setMesh(self.mesh)
         # self.timer.reset_all()
         result = simfempy.applications.problemdata.Results()
@@ -109,8 +108,8 @@ class Application(object):
         self.timer.add('matrix')
         b, u = self.computeRhs()
         if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
-        print(f"{np.linalg.norm(b)=}")
-        print(f"{np.linalg.norm(u)=}")
+        # print(f"{np.linalg.norm(b)=}")
+        # print(f"{np.linalg.norm(u)=}")
         self.timer.add('rhs')
         import warnings
         # warnings.filterwarnings("error")
@@ -202,7 +201,6 @@ class Application(object):
         return result
 
     def linearSolver(self, A, b, u=None, solver = None, verbose=0):
-        # print(f"### linearSolver {solver=}")
         if spsp.issparse(A):
             if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
                 raise ValueError(f"{A.shape=} {b.shape=}")
@@ -233,17 +231,19 @@ class Application(object):
             return u, counter.niter
         elif solver == 'pyamg':
             ml = self.build_pyamg(A)
-            u, res = self.solve_pyamg(ml, u, b)
+            maxiter = 100
+            u, res = self.solve_pyamg(ml, b, u, maxiter)
+            if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
-    def solve_pyamg(self, ml, b, u):
+    def pyamg_solver_args(self, maxiter):
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
+    def solve_pyamg(self, ml, b, u, maxiter):
         res = []
-        maxiter = 100
-        SA_solve_args = {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
-        u = ml.solve(b=b, x0=u, residuals=res, **SA_solve_args)
-        if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
+        solver_args = self.pyamg_solver_args(maxiter=maxiter)
+        u = ml.solve(b=b, x0=u, residuals=res, **solver_args)
         return u, res
     def build_pyamg(self,A):
         import pyamg

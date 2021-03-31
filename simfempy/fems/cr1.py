@@ -15,9 +15,9 @@ from simfempy.fems import fem
 
 #=================================================================#
 class CR1(fem.Fem):
-    def __init__(self, mesh=None):
-        super().__init__(mesh)
-        self.dirichlet_al = 10
+    def __init__(self, mesh=None, dirichletmethod='trad'):
+        super().__init__(mesh, dirichletmethod=dirichletmethod)
+        self.dirichlet_al = 1
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
@@ -54,14 +54,14 @@ class CR1(fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-    def vectorBoundary(self, b, u, bdrycond, method, bdrydata):
+    def vectorBoundary(self, b, u, bdrycond, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         if u is None: u = np.zeros_like(b)
         else: assert u.shape == b.shape
         for color, faces in facesdirflux.items():
             bdrydata.bsaved[color] = b[faces]
-        if method == 'trad':
+        if self.dirichletmethod == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = bdrycond.fct[color]
@@ -87,7 +87,7 @@ class CR1(fem.Fem):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         du[facesdirall] = 0
         return du
-    def matrixBoundary(self, A, method, bdrydata):
+    def matrixBoundary(self, A, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():
@@ -96,7 +96,7 @@ class CR1(fem.Fem):
             for i in range(nb): help[i, faces[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
-        if method == 'trad':
+        if self.dirichletmethod == 'trad':
             help = np.ones((nfaces))
             help[facesdirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
@@ -198,6 +198,9 @@ class CR1(fem.Fem):
                 scalemass = 1
                 dS *= coeff[faces]
             b[faces] += scalemass *dS*f[faces]
+            return b
+            # le suivant ne peut marcher...
+            print(f"{lumped=}")
             if not lumped:
                 ci = self.mesh.cellsOfFaces[faces][:, 0]
                 fi = self.mesh.facesOfCells[ci][:, :-1]
@@ -299,7 +302,6 @@ class CR1(fem.Fem):
             else:
                 flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
         return flux
-
     def formDiffusion(self, du, u, coeff):
         raise NotImplemented(f"formDiffusion")
     def computeRhsMass(self, b, rhs, mass):
@@ -337,7 +339,7 @@ class CR1(fem.Fem):
         colors = mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdir=colors)
         A = self.computeMatrixDiffusion(coeff=1)
-        A, bdrydata = self.matrixBoundary(A, method='trad', bdrydata=bdrydata)
+        A, bdrydata = self.matrixBoundary(A, bdrydata=bdrydata)
         b = np.zeros(self.nunknowns())
         rhs = np.vectorize(lambda x,y,z: 1)
         fp1 = self.interpolateCell(rhs)
@@ -357,5 +359,5 @@ if __name__ == '__main__':
     fem = CR1(mesh)
     u = fem.test()
     plotmesh.meshWithBoundaries(mesh)
-    plotmesh.meshWithData(mesh, point_data=u, title="P1 Test", alpha=1)
+    plotmesh.meshWithData(mesh, point_data={'u':u}, title="P1 Test", alpha=1)
     plt.show()

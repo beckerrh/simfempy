@@ -14,6 +14,7 @@ class Femsys():
     def __init__(self, fem, ncomp, mesh=None):
         self.ncomp = ncomp
         self.fem = fem
+        if mesh: self.setMesh(mesh)
     def nlocal(self): return self.fem.nlocal()
     def nunknowns(self): return self.fem.nunknowns()
     def dofspercell(self): return self.fem.dofspercell()
@@ -29,7 +30,22 @@ class Femsys():
         self.colssys = self.colssys.reshape(-1)
         self.rowssys = self.rowssys.reshape(-1)
     def prepareBoundary(self, colorsdirichlet, colorsflux=[]):
-        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        return self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+    def computeRhsCells(self, b, rhs):
+        rhsall = self.fem.interpolate(rhs)
+        for i in range(self.ncomp):
+            self.fem.massDot(b[i::self.ncomp], rhsall[i])
+        return b
+    def interpolate(self, rhs): return self.fem.interpolate(rhs).ravel()
+    def massDot(self, b, f, coeff=1):
+        if b.shape != f.shape:
+            raise ValueError(f"{b.shape=} {f.shape=}")
+        for i in range(self.ncomp):
+            self.fem.massDot(b[i::self.ncomp], f[i::self.ncomp], coeff=coeff)
+        return b
+    def vectorBoundaryZero(self, du, bdrydata):
+        for i in range(self.ncomp): self.fem.vectorBoundaryZero(du[i::self.ncomp], bdrydata)
+        return du
     def computeErrorL2(self, solex, uh):
         eall, ecall = [], []
         for icomp in range(self.ncomp):
@@ -71,6 +87,25 @@ class Femsys():
             A += sparse.coo_matrix((mat10.ravel(), (rows1, cols0)), shape=(nall, nall))
             A += sparse.coo_matrix((mat11.ravel(), (rows1, cols1)), shape=(nall, nall))
         return A
+    def getPointData(self, u):
+        return {f"u_{i}":self.fem.tonode(u[i::self.ncomp]) for i in range(self.ncomp)}
+
+
+# ------------------------------
+    def test(self):
+        import scipy.sparse.linalg as splinalg
+        colors = self.mesh.bdrylabels.keys()
+        bdrydata = self.prepareBoundary(colorsdirichlet=colors)
+        A = self.computeMatrixElasticity(mucell=1, lamcell=10)
+        A, bdrydata = self.matrixBoundary(A, bdrydata=bdrydata)
+        b = np.zeros(self.nunknowns() * self.ncomp)
+        rhs = lambda x, y, z: np.ones(shape=(self.ncomp, x.shape[0]))
+        # self.computeRhsCells(b, rhs)
+        fp1 = self.interpolate(rhs)
+        self.massDot(b, fp1, coeff=1)
+        b = self.vectorBoundaryZero(b, bdrydata)
+        return splinalg.spsolve(A, b)
+
 
 # ------------------------------------- #
 

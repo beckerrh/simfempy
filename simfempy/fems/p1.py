@@ -13,8 +13,8 @@ from simfempy.tools import barycentric
 
 #=================================================================#
 class P1(fem.Fem):
-    def __init__(self, mesh=None):
-        super().__init__(mesh)
+    def __init__(self, mesh=None, dirichletmethod='trad'):
+        super().__init__(mesh, dirichletmethod=dirichletmethod)
         self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -32,19 +32,21 @@ class P1(fem.Fem):
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.nodesdir={}
-        bdrydata.nodedirall = np.empty(shape=(0), dtype=np.int)
+        # bdrydata.nodedirall = np.empty(shape=(0), dtype=np.int)
+        bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
         for color in colorsdir:
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
         # print(f"{bdrydata.nodedirall=}")
-        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=np.int),bdrydata.nodedirall)
+        # bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=np.int),bdrydata.nodedirall)
+        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         for color in colorsflux:
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
-    def matrixBoundary(self, A, method, bdrydata):
+    def matrixBoundary(self, A, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
         for color, nodes in nodesdirflux.items():
@@ -53,7 +55,7 @@ class P1(fem.Fem):
             for i in range(nb): help[i, nodes[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
-        if method == 'trad':
+        if self.dirichletmethod == 'trad':
             help = np.ones((nnodes))
             help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
@@ -72,14 +74,14 @@ class P1(fem.Fem):
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
-    def vectorBoundary(self, b, u, bdrycond, method, bdrydata):
+    def vectorBoundary(self, b, u, bdrycond, bdrydata):
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         if u is None: u = np.zeros_like(b)
         elif u.shape != b.shape : raise ValueError("u.shape != b.shape {} != {}".format(u.shape, b.shape))
         x, y, z = self.mesh.points.T
         for color, nodes in nodesdirflux.items():
             bdrydata.bsaved[color] = b[nodes]
-        if method == 'trad':
+        if self.dirichletmethod == 'trad':
             for color, nodes in nodesdir.items():
                 if color in bdrycond.fct:
                     dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
@@ -137,13 +139,6 @@ class P1(fem.Fem):
         massloc = barycentric.tensor(d=dimension, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-    # def computeMatrixDiffusion(self, coeff):
-    #     nnodes = self.mesh.nnodes
-    #     matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-    #     matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-    #     matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-    #     mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
-    #     return  sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nnodes = self.mesh.nnodes
         rows = np.empty(shape=(0), dtype=int)
@@ -378,7 +373,7 @@ class P1(fem.Fem):
         colors = mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdir=colors)
         A = self.computeMatrixDiffusion(coeff=1)
-        A, bdrydata = self.matrixBoundary(A, method='trad', bdrydata=bdrydata)
+        A, bdrydata = self.matrixBoundary(A, bdrydata=bdrydata)
         b = np.zeros(self.nunknowns())
         rhs = np.vectorize(lambda x,y,z: 1)
         fp1 = self.interpolateCell(rhs)
@@ -398,5 +393,5 @@ if __name__ == '__main__':
     fem = P1(mesh)
     u = fem.test()
     plotmesh.meshWithBoundaries(mesh)
-    plotmesh.meshWithData(mesh, point_data=u, title="P1 Test", alpha=1)
+    plotmesh.meshWithData(mesh, point_data={'u':u}, title="P1 Test", alpha=1)
     plt.show()

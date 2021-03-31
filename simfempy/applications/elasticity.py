@@ -7,6 +7,7 @@ from simfempy.applications.application import Application
 #=================================================================#
 class Elasticity(Application):
     """
+    -div( lam*div(u) + mu*D(u)) = f
     """
     YoungPoisson = {}
     YoungPoisson["Acier"] = (210, 0.285)
@@ -22,19 +23,26 @@ class Elasticity(Application):
     def material2Lame(self, material):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
+    def setParameters(self, mu, lam):
+        self.mu, self.lam = mu, lam
+        self.mufct = np.vectorize(lambda j: mu)
+        self.lamfct = np.vectorize(lambda j: lam)
+        if hasattr(self,'mesh'):
+            self.mucell = self.mufct(self.mesh.cell_labels)
+            self.lamcell = self.lamfct(self.mesh.cell_labels)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         fem = kwargs.pop('fem', 'p1')
+        dirichletmethod = kwargs.pop('dirichletmethod', "trad")
         if fem == 'p1':
             # self.fem = fems.femp1sys.FemP1()
-            self.fem = fems.p1sys.P1sys(self.ncomp)
+            self.fem = fems.p1sys.P1sys(self.ncomp, dirichletmethod=dirichletmethod)
         elif fem == 'cr1':
-            self.fem = fems.cr1sys.CR1sys(self.ncomp)
+            self.fem = fems.cr1sys.CR1sys(self.ncomp, dirichletmethod=dirichletmethod)
         else:
             raise ValueError("unknown fem '{}'".format(fem))
         material = kwargs.pop('material', "Acier")
         self.setParameters(*self.material2Lame(material))
-        self.dirichlet = kwargs.pop('dirichlet', "trad")
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh)
@@ -72,20 +80,20 @@ class Elasticity(Application):
                     rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
             return rhs
         return _fctneumann
-    def setParameters(self, mu, lam):
-        self.mu, self.lam = mu, lam
-        self.mufct = np.vectorize(lambda j: mu)
-        self.lamfct = np.vectorize(lambda j: lam)
-        if hasattr(self,'mesh'):
-            self.mucell = self.mufct(self.mesh.cell_labels)
-            self.lamcell = self.lamfct(self.mesh.cell_labels)
     def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
-        b = self.fem.computeRhs(self.problemdata)
-        return self.fem.vectorDirichlet(self.problemdata, self.dirichlet, b, u)
+        b = np.zeros(self.fem.nunknowns() * self.ncomp)
+        rhs = self.problemdata.params.fct_glob['rhs']
+        if rhs: self.fem.computeRhsCells(b, rhs)
+        colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
+        bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
+        self.fem.computeRhsBoundary(b, colorsneu, bdrycond.fct)
+        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, bdrydata)
+        return b, u
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        return self.fem.matrixDirichlet(self.dirichlet,A).tobsr()
+        A, self.bdrydata = self.fem.matrixBoundary(A, self.bdrydata)
+        return A
     def postProcess(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):
@@ -102,20 +110,40 @@ class Elasticity(Application):
                 if type == types[0]:
                     data['global'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors)
+                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata)
                 elif type == types[2]:
                     data['global'][name] = self.fem.computePointValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
 
+    def pyamg_solver_args(self, maxiter):
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
     def build_pyamg(self,A):
         import pyamg
-        B = np.ones((A.shape[0], 1))
-        config = pyamg.solver_configuration(A, verb=False)
-        # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+        B = pyamg.solver_configuration(A, verb=False)['B']
+        symmetry = 'nonsymmetric'
+        smoother = 'gauss_seidel_nr'
+        smooth = ('energy', {'krylov': 'gmres'})
+        improve_candidates = [('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 4}), None]
+        symmetry = 'symmetric'
+        smooth = ('energy', {'krylov': 'gmres'})
+        smoother = 'gauss_seidel'
+        improve_candidates = None
+        SA_build_args = {
+            'max_levels': 10, 'max_coarse': 25,
+            'coarse_solver': 'pinv',
+            'symmetry': symmetry
+        }
+        strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
+        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 3})
+        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 3})
+        return pyamg.smoothed_aggregation_solver(A, B, smooth=smooth, strength=strength, presmoother=presmoother,
+                                                 postsmoother=postsmoother, improve_candidates=improve_candidates,
+                                                **SA_build_args)
+        return pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy')
         # ml = pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='jacobi')
-        return pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+        # return pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
 
     # def linearSolver(self, A, b, u=None, solver = 'umf', verbose=0):
     #     if not sparse.isspmatrix_bsr(A): raise ValueError("no bsr matrix")

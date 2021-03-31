@@ -25,40 +25,58 @@ class Stokes(Application):
         v = analyticalSolution(exactsolution[0], dim, dim, random)
         p = analyticalSolution(exactsolution[1], dim, 1, random)
         return v,p
-
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
-        def _fctu(x, y, z):
+        def _fctrhsv(x, y, z):
             rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
-            rhsp = np.zeros(x.shape[0])
             mu = self.mu
-            # print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
                 rhsv[i] -= mu * v[i].dd(i, i, x, y, z)
                 rhsv[i] += p.d(i, x, y, z)
-                rhsp += v[i].d(i, x, y, z)
-            return rhsv, rhsp
-        return _fctu
+            return rhsv
+        def _fctrhsp(x, y, z):
+            rhsp = np.zeros(x.shape[0])
+            for i in range(self.ncomp):
+                rhsp = v[i].d(i, x, y, z)
+            return rhsp
+        return _fctrhsv, _fctrhsp
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
-        def _fctneumann(x, y, z, nx, ny, nz):
+        def _fctneumannv(x, y, z, nx, ny, nz):
             v, p = solexact
             rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
             mu = self.mu
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
-                    rhsv[i] += mu  * v[i].d(j, x, y, z) * normals[j]
-                rhsv[i] -= p(x, y, z) * normals[i]
+                    rhsv[i] -= mu  * v[i].d(j, x, y, z) * normals[j]
+                rhsv[i] += p(x, y, z) * normals[i]
             return rhsv
-        return _fctneumann
+        def _fctneumannp(x, y, z, nx, ny, nz):
+            v, p = solexact
+            rhsp = np.zeros(shape=x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                rhsp -= v[i](x, y, z) * normals[i]
+            return rhsp
+        return _fctneumannv, _fctneumannp
     def solve(self, iter, dirname): return self.static(iter, dirname)
+    def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
+        bv = np.zeros(self.femv.nunknowns() * self.ncomp)
+        bp = np.zeros(self.femp.nunknowns())
+        rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
+        if rhsv: self.femv.computeRhsCells(bv, rhsv)
+        if rhsp: self.femp.computeRhsCells(bp, rhsp)
+        colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
+        self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
+        self.femp.computeRhsBoundary(bp, colorsdir, self.problemdata.bdrycond.fct)
+        return self.femv.vectorDirichlet(self.problemdata, 'new', bv, u), bp
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
-        B = self.femv.computeMatrixDivergence()
-        return A,B
-    def computeRhs(self, u=None):
-        b = self.fem.computeRhs(self.problemdata)
+        colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        B = self.femv.computeMatrixDivergence(colorsdir)
+        return self.femv.matrixDirichlet('new', A).tobsr(), B
 
 #=================================================================#
 if __name__ == '__main__':

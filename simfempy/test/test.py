@@ -12,17 +12,17 @@ class TestAnalytical(unittest.TestCase):
                 if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
 #---------------------------
     def test_poisson1d(self):
-        from heat_analytic import test
+        from simfempy.test.heat_analytic import test
         self._check(test(dim=1, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
     def test_poisson3d(self):
-        from heat_analytic import test
+        from simfempy.test.heat_analytic import test
         self._check(test(dim=2, exactsolution = 'Linear', verbose=0))
     def test_poisson3d(self):
-        from heat_analytic import test
+        from simfempy.test.heat_analytic import test
         self._check(test(dim=3, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
     # ---------------------------
     def test_elasticity2d(self):
-        from elasticity_analytic import test
+        from simfempy.test.elasticity_analytic import test
         self._check(test(dim=2, exactsolution = 'Linear', fem=['p1'], verbose=0))
 #     def test_elasticity3d(self):
 #         from elasticity.analytic import test_analytic

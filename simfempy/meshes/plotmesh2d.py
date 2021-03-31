@@ -98,6 +98,7 @@ def plotmesh(**kwargs):
 
 #=================================================================#
 def meshWithBoundaries(x, y, tris, **kwargs):
+    fig = None
     if 'outer' in kwargs:
         import matplotlib.gridspec as gridspec
         inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
@@ -144,7 +145,7 @@ def meshWithBoundaries(x, y, tris, **kwargs):
     # clb.ax.set_title(cdn)
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")
-    fig.add_subplot(ax)
+    if fig: fig.add_subplot(ax)
 
 
 #=================================================================#

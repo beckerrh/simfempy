@@ -13,8 +13,9 @@ import scipy.sparse as sparse
 
 #=================================================================#
 class Fem(object):
-    def __init__(self, mesh=None):
+    def __init__(self, mesh=None, **kwargs):
         if mesh is not None: self.setMesh(mesh)
+        self.dirichletmethod = kwargs.pop('dirichletmethod', "trad")
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.nlocal()

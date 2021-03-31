@@ -92,7 +92,6 @@ class SimplexMesh(object):
             assert np.all(np.unique(self.simplices)==np.arange(nnp))
             self.points = self.points[:nnp]
             self.nnodes = nnp
-
         # boundaries
         bdryfacesgmsh = np.array(bdryfacesgmshlist)
         self._constructFacesFromSimplices()
@@ -104,6 +103,7 @@ class SimplexMesh(object):
         self.cell_sets = mesh.cell_sets
         self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
         #TODO : remplacer -1 par nan dans les indices
+    def constructInnerFaces(self):
         self.innerfaces = self.cellsOfFaces[:,1]>=0
         self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
     def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):

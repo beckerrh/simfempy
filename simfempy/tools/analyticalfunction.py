@@ -85,28 +85,27 @@ def analyticalSolution(function, dim, ncomp=1, random=True):
         random: use random coefficients
     """
     solexact = []
-    from itertools import permutations
     def _p(n):
         if random:
             p = (4 * np.random.rand(n) - 2) / 3
         else:
-            p = [1.1 * (4 - d) for d in range(n)]
-        perm = list(permutations(p))
-        return [t for p in perm for t in p]
+            p = [1.1 * (n - d) for d in range(n)]
+        return p
     vars = ['x', 'y', 'z']
-    p = _p(ncomp * 2*dim)
+    p = _p(ncomp * 2*dim*dim)
     for i in range(ncomp):
         # print(f"{p=}")
         fct = '{:3.1f}'.format(p.pop())
         if function == 'Constant': pass
         elif function == 'Linear' or function == 'Quadratic':
-            for d in range(dim): fct += "+{:3.1f}*{:1s}".format(p.pop(), vars[d])
+            for d in range(dim): fct += "{:+3.1f}*{:1s}".format(p.pop(), vars[d])
             if function == 'Quadratic':
-                for d in range(dim): fct += "+{:3.1f}*{:1s}**2".format(p.pop(), vars[d])
+                for d in range(dim): fct += "{:+3.1f}*{:1s}**2".format(p.pop(), vars[d])
         elif function == 'Sinus':
-            for d in range(dim): fct += "+{:3.1f}*sin({:1s})".format(p.pop(), vars[d])
+            for d in range(dim): fct += "{:+3.1f}*sin({:1s})".format(p.pop(), vars[d])
         else:
-            fct = function
+            if ncomp==1: fct = function
+            else: fct = function[i]
         solexact.append(AnalyticalFunction(expr=fct))
     if ncomp==1: return solexact[0]
     return solexact

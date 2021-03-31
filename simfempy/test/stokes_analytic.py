@@ -6,7 +6,7 @@ sys.path.append(simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.stokes import Stokes
 import simfempy.applications.problemdata
-from test_analytic import test_analytic
+from simfempy.test.test_analytic import test_analytic
 
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
@@ -16,18 +16,17 @@ def test(dim, **kwargs):
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
-        data.bdrycond.type[1000] = "Neumann"
-        data.bdrycond.type[1001] = "Dirichlet"
-        data.bdrycond.type[1002] = "Neumann"
-        data.bdrycond.type[1003] = "Dirichlet"
-        data.postproc.set(name='bdrymean', type='bdry_mean', colors=[1000,1002])
-        data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[1001,1003])
+        colordir = [1001,1003]
+        colorneu = [1000,1002]
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
         raise NotImplementedError("no")
-    linearsolver = kwargs.pop('linearsolver', 'pyamg')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    data.bdrycond.set("Dirichlet", colordir)
+    data.bdrycond.set("Neumann", colorneu)
+    data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorneu)
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
     return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 

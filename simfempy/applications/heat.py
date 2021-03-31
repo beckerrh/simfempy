@@ -34,13 +34,13 @@ class Heat(Application):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dirichlet = kwargs.pop('dirichlet', "trad")
         self.stab = kwargs.pop('stab', "supg")
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', False)
         self.masslumpedvol = kwargs.pop('masslumpedvol', False)
         fem = kwargs.pop('fem','p1')
-        if fem == 'p1': self.fem = fems.p1.P1()
-        elif fem == 'cr1': self.fem = fems.cr1.CR1()
+        dirichletmethod = kwargs.pop('dirichletmethod', "trad")
+        if fem == 'p1': self.fem = fems.p1.P1(dirichletmethod=dirichletmethod)
+        elif fem == 'cr1': self.fem = fems.cr1.CR1(dirichletmethod=dirichletmethod)
         else: raise ValueError("unknown fem '{}'".format(fem))
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
@@ -146,7 +146,7 @@ class Heat(Application):
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
-        A, self.bdrydata = self.fem.matrixBoundary(A, self.dirichlet, bdrydata)
+        A, self.bdrydata = self.fem.matrixBoundary(A, bdrydata)
         # if self.verbose: print(f"{self.bdrydata=}")
         return A
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
@@ -184,7 +184,7 @@ class Heat(Application):
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)
         # print(f"***{id(u)=} {type(u)=}")
-        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, self.dirichlet, bdrydata)
+        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, bdrydata)
         # print(f"***{id(u)=} {type(u)=}")
         return b,u
     def postProcess(self, u):
@@ -219,26 +219,29 @@ class Heat(Application):
         return data
     def build_pyamg(self, A):
         import pyamg
+        return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
+        # B = pyamg.solver_configuration(A, verb=False)['B']
         if 'convection' in self.problemdata.params.fct_glob.keys():
             symmetry = 'nonsymmetric'
+            smoother = 'gauss_seidel_nr'
             smooth = ('energy', {'krylov': 'gmres'})
             improve_candidates =[ ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 4}), None]
         else:
             symmetry = 'hermitian'
             smooth = ('energy', {'krylov': 'cg'})
+            smoother = 'gauss_seidel'
+            # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 4}), None]
             improve_candidates = None
         SA_build_args = {
-            'max_levels': 10,
+            'max_levels': 20,
             'max_coarse': 25,
             'coarse_solver': 'pinv2',
             'symmetry': symmetry
         }
         strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
-        smoother = 'gauss_seidel_nr'
-        # smoother = 'gauss_seidel'
-        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
-        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
+        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
+        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
         return pyamg.smoothed_aggregation_solver(A, B, smooth=smooth, strength=strength, presmoother=presmoother,
                                                  postsmoother=postsmoother, improve_candidates=improve_candidates,
                                                 **SA_build_args)

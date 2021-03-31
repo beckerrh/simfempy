@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.8)  24 MAR 2021 16:19
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.2.24)  31 MAR 2021 14:54
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1056,12 +1056,26 @@ Package biblatex Warning: 'babel/polyglossia' detected but 'csquotes' missing.
 
 \@quotelevel=\count451
 \@quotereset=\count452
-(./simfempy.aux (./chap/heat.aux) (./chap/python.aux) (./chap/fem.aux
+(./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux
+
+LaTeX Warning: Label `subsec:' multiply defined.
+
+
+LaTeX Warning: Label `subsec:' multiply defined.
+
+) (./chap/python.aux
+
+LaTeX Warning: Label `sec:' multiply defined.
+
+) (./chap/fem.aux
 
 LaTeX Warning: Label `sec:' multiply defined.
 
 
 LaTeX Warning: Label `subsec:' multiply defined.
+
+
+LaTeX Warning: Label `eq:' multiply defined.
 
 
 LaTeX Warning: Label `subsec:' multiply defined.
@@ -1112,23 +1126,23 @@ LaTeX Warning: Label `eq:' multiply defined.
 ))
 \openout1 = `simfempy.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 25.
-LaTeX Font Info:    ... okay on input line 25.
-LaTeX Font Info:    Trying to load font information for T1+ppl on input line 25
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 26.
+LaTeX Font Info:    ... okay on input line 26.
+LaTeX Font Info:    Trying to load font information for T1+ppl on input line 26
 .
  (/usr/local/texlive/2020/texmf-dist/tex/latex/psnfss/t1ppl.fd
 File: t1ppl.fd 2001/06/04 font definitions for T1/ppl.
@@ -1199,7 +1213,7 @@ e
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
 \AtBeginShipoutBox=\box82
-Package hyperref Info: Link coloring OFF on input line 25.
+Package hyperref Info: Link coloring OFF on input line 26.
 (/usr/local/texlive/2020/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2019/09/16 v2.46 Cross-referencing by name of section
 
@@ -1212,9 +1226,9 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count459
 )
-LaTeX Info: Redefining \ref on input line 25.
-LaTeX Info: Redefining \pageref on input line 25.
-LaTeX Info: Redefining \nameref on input line 25.
+LaTeX Info: Redefining \ref on input line 26.
+LaTeX Info: Redefining \pageref on input line 26.
+LaTeX Info: Redefining \nameref on input line 26.
  (./simfempy.out) (./simfempy.out)
 \@outlinefile=\write7
 \openout7 = `simfempy.out'.
@@ -1239,32 +1253,32 @@ d 3.1.
 
 Package biblatex Info: ... file 'simfempy.bbl' found.
 (./simfempy.bbl)
-Package biblatex Info: Reference section=0 on input line 25.
-Package biblatex Info: Reference segment=0 on input line 25.
-LaTeX Font Info:    Trying to load font information for U+zeur on input line 29
+Package biblatex Info: Reference section=0 on input line 26.
+Package biblatex Info: Reference segment=0 on input line 26.
+LaTeX Font Info:    Trying to load font information for U+zeur on input line 30
 .
  (/usr/local/texlive/2020/texmf-dist/tex/latex/eulervm/uzeur.fd
 File: uzeur.fd 2005/01/11 v4.0 (WaS)
 )
-LaTeX Font Info:    Trying to load font information for U+zeus on input line 29
+LaTeX Font Info:    Trying to load font information for U+zeus on input line 30
 .
  (/usr/local/texlive/2020/texmf-dist/tex/latex/eulervm/uzeus.fd
 File: uzeus.fd 2005/01/11 v4.0 (WaS)
 )
-LaTeX Font Info:    Trying to load font information for U+zeuex on input line 2
-9.
+LaTeX Font Info:    Trying to load font information for U+zeuex on input line 3
+0.
 
 (/usr/local/texlive/2020/texmf-dist/tex/latex/eulervm/uzeuex.fd
 File: uzeuex.fd 2005/01/11 v4.0 (WaS)
 )
-LaTeX Font Info:    Trying to load font information for U+lasy on input line 29
+LaTeX Font Info:    Trying to load font information for U+lasy on input line 30
 .
 
 (/usr/local/texlive/2020/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
-LaTeX Font Info:    Trying to load font information for U+stmry on input line 2
-9.
+LaTeX Font Info:    Trying to load font information for U+stmry on input line 3
+0.
 
 (/usr/local/texlive/2020/texmf-dist/tex/latex/stmaryrd/Ustmry.fd)
 (./simfempy.toc)
@@ -1309,14 +1323,47 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 LaTeX Warning: Empty bibliography on input line 91.
 
 ) [3]
-\openout2 = `chap/python.aux'.
+\openout2 = `chap/stokes.aux'.
 
- (./chap/python.tex
+ (./chap/stokes.tex
 Package biblatex Info: Reference section=0 on input line 4.
 \blx@maxsegment@2=\count463
 \blx@sectionciteorder@2=\count464
 Package biblatex Info: Reference section=2 on input line 4.
 Package biblatex Info: Setting label 'refsection:2' on input line 4.
+
+Overfull \hbox (10.3959pt too wide) detected at line 48
+[] []
+ []
+
+Package hyperref Info: bookmark level for unknown lemma defaults to 0 on input 
+line 51.
+
+Overfull \hbox (7.88153pt too wide) detected at line 74
+[]
+ []
+
+LaTeX Font Info:    Trying to load font information for T1+cmss on input line 1
+13.
+(/usr/local/texlive/2020/texmf-dist/tex/latex/base/t1cmss.fd
+File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
+) [4
+
+
+]
+
+Package amsfonts Warning: Obsolete command \Bbb; \mathbb should be used instead
+ on input line 197.
+
+) [5]
+\openout2 = `chap/python.aux'.
+
+ (./chap/python.tex
+Package biblatex Info: Reference section=0 on input line 4.
+\blx@maxsegment@3=\count465
+\blx@sectionciteorder@3=\count466
+Package biblatex Info: Reference section=3 on input line 4.
+Package biblatex Info: Setting label 'refsection:3' on input line 4.
 LaTeX Font Info:    Trying to load font information for T1+pcr on input line 7.
 
 
@@ -1324,10 +1371,9 @@ LaTeX Font Info:    Trying to load font information for T1+pcr on input line 7.
 File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 )
 
-Package amsfonts Warning: Obsolete command \Bbb; \mathbb should be used instead
- on input line 28.
+LaTeX Warning: Empty bibliography on input line 28.
 
-) [4
+) [6
 
 
 ]
@@ -1335,16 +1381,11 @@ Package amsfonts Warning: Obsolete command \Bbb; \mathbb should be used instead
 
  (./chap/fem.tex
 Package biblatex Info: Reference section=0 on input line 4.
-\blx@maxsegment@3=\count465
-\blx@sectionciteorder@3=\count466
-Package biblatex Info: Reference section=3 on input line 4.
-Package biblatex Info: Setting label 'refsection:3' on input line 4.
-LaTeX Font Info:    Trying to load font information for T1+cmss on input line 1
-5.
+\blx@maxsegment@4=\count467
+\blx@sectionciteorder@4=\count468
+Package biblatex Info: Reference section=4 on input line 4.
+Package biblatex Info: Setting label 'refsection:4' on input line 4.
 
-(/usr/local/texlive/2020/texmf-dist/tex/latex/base/t1cmss.fd
-File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
-)
 Overfull \hbox (24.31464pt too wide) in paragraph at lines 16--21
 \T1/ppl/m/n/10.95 The $\U/zeur/m/n/10.95 d \U/zeus/m/n/10.95 « \T1/cmr/m/n/10.9
 5 1$ \T1/ppl/m/n/10.95 sides $\U/zeur/m/n/10.95 S[]$ \T1/ppl/m/n/10.95 (co-dime
@@ -1355,14 +1396,14 @@ m/n/10.95 x[]\U/zeus/m/n/10.95 ©$\T1/ppl/m/n/10.95 .
  []
 
 
-LaTeX Warning: Citation 'EisenbergMalvern73' on page 5 undefined on input line 
+LaTeX Warning: Citation 'EisenbergMalvern73' on page 7 undefined on input line 
 56.
 
 
-LaTeX Warning: Citation 'VermolenSegal18' on page 5 undefined on input line 56.
+LaTeX Warning: Citation 'VermolenSegal18' on page 7 undefined on input line 56.
 
 
-[5
+[7
 
 
 ]
@@ -1444,19 +1485,19 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 (hyperref)                removing `math shift' on input line 156.
 
-[6]
+[8]
 
 LaTeX Warning: Empty bibliography on input line 189.
 
-) [7]
+) [9]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
 Package biblatex Info: Reference section=0 on input line 4.
-\blx@maxsegment@4=\count467
-\blx@sectionciteorder@4=\count468
-Package biblatex Info: Reference section=4 on input line 4.
-Package biblatex Info: Setting label 'refsection:4' on input line 4.
+\blx@maxsegment@5=\count469
+\blx@sectionciteorder@5=\count470
+Package biblatex Info: Reference section=5 on input line 4.
+Package biblatex Info: Setting label 'refsection:5' on input line 4.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
@@ -1481,18 +1522,18 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 
 LaTeX Warning: Empty bibliography on input line 98.
 
-) [8
+) [10
 
 
 ]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 47.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 47.
- (./simfempy.aux (./chap/heat.aux) (./chap/python.aux) (./chap/fem.aux)
-(./chap/transport.aux))
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 47.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 47.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 49.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 49.
+ (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/python.aux) (./c
+hap/fem.aux) (./chap/transport.aux))
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 49.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 49.
 Package rerunfilecheck Info: File `simfempy.out' has not changed.
-(rerunfilecheck)             Checksum: 83D961018889C087F63E229D3025964F;789.
+(rerunfilecheck)             Checksum: 9DB3832960D00BAEDF5BB8AF50CDA8FC;1066.
 
 
 LaTeX Warning: There were undefined references.
@@ -1510,15 +1551,15 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33313 strings out of 480608
- 644989 string characters out of 5903631
- 1391160 words of memory out of 5000000
- 48503 multiletter control sequences out of 15000+600000
+ 33360 strings out of 480608
+ 645683 string characters out of 5903630
+ 1393333 words of memory out of 5000000
+ 48528 multiletter control sequences out of 15000+600000
  576210 words of font info for 130 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  63i,15n,97p,853b,1702s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}
-{/usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/tex
+{/usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
+exlive/2020/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
 live/2020/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
 ive/2020/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texli
 ve/2020/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive
@@ -1544,10 +1585,10 @@ l/texlive/2020/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texliv
 e/2020/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2020/
 texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2020/texmf-d
 ist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (8 pages, 243126 bytes).
+Output written on simfempy.pdf (10 pages, 256456 bytes).
 PDF statistics:
- 262 PDF objects out of 1000 (max. 8388607)
- 224 compressed objects within 3 object streams
- 55 named destinations out of 1000 (max. 500000)
- 109 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 304 PDF objects out of 1000 (max. 8388607)
+ 264 compressed objects within 3 object streams
+ 70 named destinations out of 1000 (max. 500000)
+ 141 words of extra memory for PDF output out of 10000 (max. 10000000)
 
