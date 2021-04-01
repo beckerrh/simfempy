@@ -59,7 +59,9 @@ class Application(object):
         if self.ncomp > 1:
             def _solexactdir(x, y, z):
                 return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+            return _solexactdir
         else:
+            return self.problemdata.solexact
             def _solexactdir(x, y, z):
                 return self.problemdata.solexact(x, y, z)
         return _solexactdir
@@ -85,9 +87,11 @@ class Application(object):
         return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
-            xc, yc, zc = self.mesh.pointsc.T
             fct = np.vectorize(params.fct_glob[name])
-            arr = fct(self.mesh.cell_labels, xc, yc, zc)
+            arr = np.empty(self.mesh.ncells)
+            for color, cells in self.mesh.cellsoflabel.items():
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                arr[cells] = fct(color, xc, yc, zc)
         elif name in params.scal_glob:
             arr = np.full(self.mesh.ncells, params.scal_glob[name])
         elif name in params.scal_cells:
@@ -107,7 +111,7 @@ class Application(object):
         A = self.computeMatrix()
         self.timer.add('matrix')
         b, u = self.computeRhs()
-        if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
+        # if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
         # print(f"{np.linalg.norm(b)=}")
         # print(f"{np.linalg.norm(u)=}")
         self.timer.add('rhs')
@@ -238,8 +242,8 @@ class Application(object):
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
-    def pyamg_solver_args(self, maxiter):
-        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
+        def pyamg_solver_args(self, maxiter):
+            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
     def solve_pyamg(self, ml, b, u, maxiter):
         res = []
         solver_args = self.pyamg_solver_args(maxiter=maxiter)

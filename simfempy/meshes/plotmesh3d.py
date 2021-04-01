@@ -16,19 +16,14 @@ def _plotNodeLabels(x, y, z, ax=plt):
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     for i in range(len(x)):
         ax.text(x[i], y[i], z[i], r'%d' % (i), fontweight='bold', bbox=props)
-
-
 #=================================================================#
 def _plotCells(x, y, z, tets, ax=plt):
     for i in range(len(tets)):
         ax.plot(x[tets[i]], y[tets[i]], z[tets[i]], color=(0.5,0.5,0.5))
-
 #=================================================================#
 def _plotCellLabels(tets, xc, yc, zc, ax=plt):
     for i in range(len(tets)):
         ax.text(xc[i], yc[i], zc[i], r'%d' % (i), color='r', fontweight='bold', fontsize=10)
-
-
 #=================================================================#
 def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=plt):
     fig = plt.figure()
@@ -49,7 +44,6 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=pl
         i += 1
     ax.legend(handles=patches)
     _settitle(ax, "Mesh and Boundary Labels")
-
 #=================================================================#
 def plotmesh(mesh, **kwargs):
     import pyvista
@@ -106,8 +100,50 @@ def plotmesh(mesh, **kwargs):
     #         ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
     # ax.legend(handles=patches)
     # _settitle(ax, title)
-
 # =================================================================#
+def plotMeshWithCellData(ax, cdn, cd, x, y, z, tets, alpha):
+    if tets.shape[0] != cd.shape[0]:
+        raise ValueError("wrong length in '{}' {}!={}".format(cdn, tets.shape[0], cd.shape[0]))
+    _plotCells(x, y, z, tets, ax)
+    ax.plot(x, y, z, 'k.')
+    # cnt = ax.plot_surface(x, y, z, tris, facecolors=cd, edgecolors='k', cmap='jet')
+    # ax.set_aspect(aspect='equal')
+    # clb = plt.colorbar(cnt, ax=ax)
+    # # clb.ax.set_title(cdn)
+    # clb.set_label(cdn)
+    _settitle(ax, cdn)
+# =================================================================#
+def meshWithDataPlt(**kwargs):
+    x, y, tris, xc, yc = kwargs['x'], kwargs['y'], kwargs['tris'], kwargs['xc'], kwargs['yc']
+    nplots = len(point_data)+len(cell_data)
+    if nplots==0:
+        print("meshWithData() no point_data")
+        return
+    fig = plt.figure(figsize=plt.figaspect(1/nplots))
+    if suptitle: fig.suptitle(suptitle)
+    axs = []
+    for i in range(nplots):
+        axs.append(fig.add_subplot("1{:1d}{:1d}".format(nplots, i+1), projection='3d'))
+    count=0
+    for pdn, pd in point_data.items():
+        ax = axs[count]
+        xyz = np.stack((x,y,z)).T
+        print("xyz", xyz.shape)
+        vts = xyz[tets, :]
+        tri = mplot3d.art3d.Poly3DCollection(vts)
+        tri.set_alpha(0.2)
+        tri.set_color('grey')
+        ax.add_collection3d(tri)
+        ax.plot(x,y,z, 'k.')
+        ax.set_axis_off()
+        # for i in range(len(tets)):
+        #     ax.plot(x[tets[i]], y[tets[i]], z[tets[i]])
+            # ax.plot_trisurf(x[tets[i]], y[tets[i]], z[tets[i]])
+        _settitle(ax, pdn)
+        count += 1
+    if title: fig.canvas.set_window_title(title)
+    plt.show()
+# ================================================================#
 def meshWithData(**kwargs):
     import pyvista
     import vtk
@@ -167,38 +203,6 @@ def meshWithData(**kwargs):
             count += 1
         cpos = plotter.show()
     return
-
-# =================================================================#
-def meshWithData2(x, y, z, tets, xc, yc, zc, point_data, cell_data, ax=plt, numbering=False, title=None, suptitle=None,addplots=[]):
-    nplots = len(point_data)+len(cell_data)
-    if nplots==0:
-        print("meshWithData() no point_data")
-        return
-    fig = plt.figure(figsize=plt.figaspect(1/nplots))
-    if suptitle: fig.suptitle(suptitle)
-    axs = []
-    for i in range(nplots):
-        axs.append(fig.add_subplot("1{:1d}{:1d}".format(nplots, i+1), projection='3d'))
-    count=0
-    for pdn, pd in point_data.items():
-        ax = axs[count]
-        xyz = np.stack((x,y,z)).T
-        print("xyz", xyz.shape)
-        vts = xyz[tets, :]
-        tri = mplot3d.art3d.Poly3DCollection(vts)
-        tri.set_alpha(0.2)
-        tri.set_color('grey')
-        ax.add_collection3d(tri)
-        ax.plot(x,y,z, 'k.')
-        ax.set_axis_off()
-        # for i in range(len(tets)):
-        #     ax.plot(x[tets[i]], y[tets[i]], z[tets[i]])
-            # ax.plot_trisurf(x[tets[i]], y[tets[i]], z[tets[i]])
-        _settitle(ax, pdn)
-        count += 1
-    if title: fig.canvas.set_window_title(title)
-    plt.show()
-
 #=================================================================#
 def meshWithData2(**kwargs):
     import pyvista

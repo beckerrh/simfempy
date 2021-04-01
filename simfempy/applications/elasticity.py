@@ -23,26 +23,43 @@ class Elasticity(Application):
     def material2Lame(self, material):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
-    def setParameters(self, mu, lam):
-        self.mu, self.lam = mu, lam
-        self.mufct = np.vectorize(lambda j: mu)
-        self.lamfct = np.vectorize(lambda j: lam)
-        if hasattr(self,'mesh'):
-            self.mucell = self.mufct(self.mesh.cell_labels)
-            self.lamcell = self.lamfct(self.mesh.cell_labels)
+    # def setParameters(self, mu, lam):
+    #     ra
+    #     self.mu, self.lam = mu, lam
+    #     self.mufct = np.vectorize(lambda j: mu)
+    #     self.lamfct = np.vectorize(lambda j: lam)
+    #     if hasattr(self,'mesh'):
+    #         self.mucell = self.mufct(self.mesh.cell_labels)
+    #         self.lamcell = self.lamfct(self.mesh.cell_labels)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         fem = kwargs.pop('fem', 'p1')
         dirichletmethod = kwargs.pop('dirichletmethod', "trad")
         if fem == 'p1':
-            # self.fem = fems.femp1sys.FemP1()
             self.fem = fems.p1sys.P1sys(self.ncomp, dirichletmethod=dirichletmethod)
         elif fem == 'cr1':
             self.fem = fems.cr1sys.CR1sys(self.ncomp, dirichletmethod=dirichletmethod)
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        material = kwargs.pop('material', "Acier")
-        self.setParameters(*self.material2Lame(material))
+        # material = kwargs.pop('material', "Acier")
+        # self.setParameters(*self.material2Lame(material))
+    def setMaterialParameters(self, params):
+        name = 'material'
+        if name in params.scal_cells:
+            self.mucell = np.empty(self.mesh.ncells)
+            self.lamcell = np.empty(self.mesh.ncells)
+            for color in params.scal_cells[name]:
+                material = params.scal_cells[name][color]
+                mu, lam = self.material2Lame(material)
+                self.mucell[self.mesh.cellsoflabel[color]] = mu
+                self.lamcell[self.mesh.cellsoflabel[color]] = lam
+        else:
+            material = params.scal_glob.pop(name,'Acier')
+            mu, lam = self.material2Lame(material)
+            self.mu, self.lam = mu, lam
+            self.mucell = np.full(self.mesh.ncells, mu)
+            self.lamcell = np.full(self.mesh.ncells, lam)
+
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.fem.setMesh(self.mesh)
@@ -51,8 +68,11 @@ class Elasticity(Application):
         # self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, colorsflux)
         self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
         # print(f"{self.bdrydata=}")
-        self.mucell = np.full(self.mesh.ncells, self.mu)
-        self.lamcell = np.full(self.mesh.ncells, self.lam)
+        self.setMaterialParameters(self.problemdata.params)
+        # self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
+        # self.lamcell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
+        # self.mucell = np.full(self.mesh.ncells, self.mu)
+        # self.lamcell = np.full(self.mesh.ncells, self.lam)
         # xc, yc, zc = self.mesh.pointsc.T
         # self.mucell = self.mufct(self.mesh.cell_labels, xc, yc, zc)
         # self.lamcell = self.lamfct(self.mesh.cell_labels, xc, yc, zc)
@@ -83,12 +103,12 @@ class Elasticity(Application):
     def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
         b = np.zeros(self.fem.nunknowns() * self.ncomp)
-        rhs = self.problemdata.params.fct_glob['rhs']
+        rhs = self.problemdata.params.fct_glob.get('rhs', None)
         if rhs: self.fem.computeRhsCells(b, rhs)
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         self.fem.computeRhsBoundary(b, colorsneu, bdrycond.fct)
-        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, bdrydata)
+        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond.fct, bdrydata)
         return b, u
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)

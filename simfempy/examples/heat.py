@@ -82,8 +82,14 @@ def createProblemData(mode='static', convection=False):
     data.postproc.set(name='bdrymean_up', type='bdry_mean', colors=1002)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
     #paramaters in equation
-    data.params.set_scal_cells("kheat", [100], 0.001)
-    data.params.set_scal_cells("kheat", [200], 10.0)
+    # cell-wise
+    # data.params.set_scal_cells("kheat", [100], 0.001)
+    # data.params.set_scal_cells("kheat", [200], 10.0)
+    # fct-wise
+    def kheat(color, x, y, z):
+        if color == 100: return 0.001
+        return 100
+    data.params.fct_glob["kheat"] = kheat
     if convection: data.params.fct_glob["convection"] = ["0", "0.001"]
     if mode=='dynamic': data.params.fct_glob["initial_condition"] = "200"
     return data

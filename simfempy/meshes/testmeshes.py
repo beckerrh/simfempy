@@ -117,24 +117,39 @@ def backwardfacingstep(h=1.):
 
 # ------------------------------------- #
 def backwardfacingstep3d(h):
-    geom = pygmsh.built_in.Geometry()
     X = []
-    X.append([-1.0,  1.0])
-    X.append([-1.0,  0.0])
-    X.append([ 0.0,  0.0])
-    X.append([ 0.0, -1.0])
-    X.append([ 3.0, -1.0])
-    X.append([ 3.0,  1.0])
-    p = geom.add_polygon(X=np.insert(np.array(X), 2, -1.0, axis=1), lcar=h)
-    geom.add_physical(p.surface, label=100)
-    axis = [0, 0, 2]
-    top, vol, ext = geom.extrude(p.surface, axis)
-    next = len(ext)
-    geom.add_physical(top, label=101+next)
-    for i in range(next):
-        geom.add_physical(ext[i], label=101+i)
-    geom.add_physical(vol, label=10)
-    return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    X.append([-1.0, 1.0])
+    X.append([-1.0, 0.0])
+    X.append([0.0, 0.0])
+    X.append([0.0, -1.0])
+    X.append([3.0, -1.0])
+    X.append([3.0, 1.0])
+    if __pygmsh6__:
+        geom = pygmsh.built_in.Geometry()
+        p = geom.add_polygon(X=np.insert(np.array(X), 2, -1.0, axis=1), lcar=h)
+        geom.add_physical(p.surface, label=100)
+        axis = [0, 0, 2]
+        top, vol, ext = geom.extrude(p.surface, axis)
+        next = len(ext)
+        geom.add_physical(top, label=101+next)
+        for i in range(next):
+            geom.add_physical(ext[i], label=101+i)
+        geom.add_physical(vol, label=10)
+        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
+    else:
+        with pygmsh.geo.Geometry() as geom:
+            p = geom.add_polygon(points=np.insert(np.array(X), 2, -1.0, axis=1), mesh_size=h)
+            geom.add_physical(p.surface, label="100")
+            axis = [0, 0, 2]
+            top, vol, ext = geom.extrude(p.surface, axis)
+            next = len(ext)
+            geom.add_physical(top, label=f"{101 + next}")
+            for i in range(next):
+                geom.add_physical(ext[i], label=f"{101 + i}")
+            geom.add_physical(vol, label="10")
+            mesh = geom.generate_mesh()
+        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+
 
 # ------------------------------------- #
 def equilateral(h):

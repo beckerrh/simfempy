@@ -47,7 +47,7 @@ class P1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
-    def vectorBoundary(self, b, u, bdrycond, bdrydata):
+    def vectorBoundary(self, b, u, bdryfct, bdrydata):
         if u is None: u = np.zeros_like(b)
         else: assert u.shape == b.shape
         x, y, z = self.mesh.points.T
@@ -63,8 +63,8 @@ class P1sys(femsys.Femsys):
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         if self.fem.dirichletmethod == 'trad':
             for color, nodes in nodesdir.items():
-                if color in bdrycond.fct:
-                    dirichlets = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                if color in bdryfct:
+                    dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         b[icomp + ncomp * nodes] = dirichlets[icomp]
                         u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
@@ -75,8 +75,8 @@ class P1sys(femsys.Femsys):
             b[indin] -= bdrydata.A_inner_dir * b[inddir]
         else:
             for color, nodes in nodesdir.items():
-                if color in bdrycond.fct:
-                    dirichlets = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
+                if color in bdryfct:
+                    dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
                     for icomp in range(ncomp):
                         u[icomp + ncomp * nodes] = dirichlets[icomp]
                         b[icomp + ncomp * nodes] = 0

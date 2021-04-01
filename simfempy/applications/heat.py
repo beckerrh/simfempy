@@ -122,8 +122,7 @@ class Heat(Application):
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
-        params = self.problemdata.params
-        self.kheatcell = self.compute_cell_vector_from_params('kheat', params)
+        self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
         # TODO: non-constant rhocp
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)

@@ -60,7 +60,7 @@ class CR1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata
-    def vectorBoundary(self, b, u, bdrycond, bdrydata):
+    def vectorBoundary(self, b, u, bdryfct, bdrydata):
         if u is None: u = np.zeros_like(b)
         else: assert u.shape == b.shape
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
@@ -77,8 +77,8 @@ class CR1sys(femsys.Femsys):
         if self.fem.dirichletmethod == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                if color in bdrycond.fct.keys():
-                    dirichlets = bdrycond.fct[color](x[faces], y[faces], z[faces])
+                if color in bdryfct.keys():
+                    dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
                     for icomp in range(ncomp):
                         b[icomp + ncomp * faces] = dirichlets[icomp]
                         u[icomp + ncomp * faces] = b[icomp + ncomp * faces]
@@ -90,8 +90,8 @@ class CR1sys(femsys.Femsys):
         else:
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
-                if color in bdrycond.fct.keys():
-                    dirichlets = bdrycond.fct[color](x[faces], y[faces], z[faces])
+                if color in bdryfct.keys():
+                    dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
                     for icomp in range(ncomp):
                         u[icomp + ncomp * faces] = dirichlets[icomp]
                         b[icomp + ncomp * faces] = 0
@@ -116,18 +116,25 @@ class CR1sys(femsys.Femsys):
                 indices = i + self.ncomp * faces
                 b[indices] += bS
         return b
-    def computeMatrixDivergence(self, colorsdir):
+    def computeMatrixDivergence(self, facesdirall):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, cellgrads, facesOfCells = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
         rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(ncells * nloc, ncomp)
         colsB = np.repeat(facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + nfaces * np.arange(ncomp)
         matB = cellgrads[:, :, :ncomp]
-        for color in colorsdir:
-            faces = self.mesh.bdrylabels[color]
-            matB[faces] = 0
+        # print(f"{matB.shape=}")
+        # for color in colorsdir:
+        #     faces = self.mesh.bdrylabels[color]
+        #     matB[faces] = 0
         matB = (matB.T * dV).T
-        return sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))),
+        B = sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))),
                                     shape=(ncells, nfaces * ncomp)).tocsr()
+        help = np.ones((ncomp * nfaces))
+        for icomp in range(ncomp):
+           help[icomp * nfaces + facesdirall] = 0
+        help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+        return B.dot(help)
+
     def computeMatrixLaplace(self, mucell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads

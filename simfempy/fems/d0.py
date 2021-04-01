@@ -14,11 +14,46 @@ from simfempy.tools import barycentric
 class D0(fem.Fem):
     def __init__(self, mesh=None):
         super().__init__(mesh)
-        self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
     def nlocal(self): return 1
     def nunknowns(self): return self.mesh.ncells
+    def tonode(self, u):
+        unodes = np.zeros(self.mesh.nnodes)
+        if u.shape[0] != self.mesh.ncells: raise ValueError(f"{u.shape=} {self.mesh.ncells=}")
+        np.add.at(unodes, self.mesh.simplices.T, u.T)
+        countnodes = np.zeros(self.mesh.nnodes, dtype=int)
+        np.add.at(countnodes, self.mesh.simplices.T, 1)
+        unodes /= countnodes
+        return unodes
+    def interpolate(self, f):
+        xc, yc, zc = self.mesh.pointsc.T
+        return f(xc, yc, zc)
+    def massDot(self, b, f, coeff=1):
+        dV = self.mesh.dV
+        b += coeff*dV*f
+        return b
+    def computeRhsCells(self, b, rhsfct):
+        rhs = self.interpolate(rhsfct)
+        self.massDot(b, rhs)
+        return b
+    def computeRhsBoundary(self, b, colors, bdryfct):
+        for color in colors:
+            if not color in bdryfct or not bdryfct[color]: continue
+            faces = self.mesh.bdrylabels[color]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            xf, yf, zf = self.mesh.pointsf[faces].T
+            nx, ny, nz = normalsS.T / dS
+            neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
+            simp = self.mesh.cellsOfFaces[faces,0]
+            b[simp] += dS * neumanns
+        return b
+    def computeErrorL2(self, solexact, uh):
+        xc, yc, zc = self.mesh.pointsc.T
+        en = solexact(xc, yc, zc) - uh
+        Men = np.zeros_like(en)
+        return np.sqrt( np.dot(en, self.massDot(Men,en)) ), en
 
 # ------------------------------------- #
 if __name__ == '__main__':

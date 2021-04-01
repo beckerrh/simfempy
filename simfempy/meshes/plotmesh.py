@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-# from . import plotmesh1d, plotmesh2d, plotmesh3d
 from simfempy.meshes import plotmesh1d, plotmesh2d, plotmesh3d
 import meshio
 
@@ -12,9 +11,7 @@ def _getDim(meshdata):
         dim = len(meshdata)-3
         meshdataismesh = False
     return dim, meshdataismesh
-
-
-#=================================================================#
+#----------------------------------------------------------------#
 def plotmesh(mesh, **kwargs):
     dim, meshdataismesh = _getDim(mesh)
     if dim == 1:
@@ -24,89 +21,7 @@ def plotmesh(mesh, **kwargs):
     else:
         plotmesh3d.plotmesh(mesh=mesh, **kwargs)
     # if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
-
-#=================================================================#
-def meshWithBoundaries(meshdata, **kwargs):
-    dim, meshdataismesh = _getDim(meshdata)
-    if dim==1:
-        x, lines = meshdata.points[:, 0], meshdata.simplices
-        plotmesh1d.meshWithBoundaries(x, lines, **kwargs)
-    elif dim==2:
-        if meshdataismesh:
-            x, y, tris = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices
-            kwargs['lines'] = meshdata.faces
-            kwargs['bdrylabels'] = meshdata.bdrylabels
-            if hasattr(meshdata, 'cell_labels'):
-                kwargs['celllabels'] = meshdata.cell_labels
-            if hasattr(meshdata, 'cellsoflabel'):
-                kwargs['cellsoflabel'] = meshdata.cellsoflabel
-        else:
-            x, y, tris = meshdata[0], meshdata[1], meshdata[2]
-            kwargs['lines'] = meshdata[3]
-            kwargs['bdrylabels'] = meshdata[4]
-        plotmesh2d.meshWithBoundaries(x, y, tris, **kwargs)
-    else:
-        if meshdataismesh:
-            x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
-            faces, bdrylabels = meshdata.faces, meshdata.bdrylabels
-            plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, **kwargs)
-        else:
-            plotmesh3d.meshWithBoundaries(meshdata, **kwargs)
-
-#=================================================================#
-# def meshWithData(meshdata, point_data=None, cell_data=None, numbering=False, title=None, suptitle=None, addplots=[]):
-def meshWithData(meshdata, **kwargs):
-
-    dim, meshdataismesh = _getDim(meshdata)
-    """
-    meshdata    : either mesh or coordinates and connectivity
-    point_data  : dictionary name->data
-    cell_data  : dictionary name->data
-    """
-    newkwargs = kwargs.copy()
-
-    if dim==1:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-        else:
-            newkwargs['x'] = meshdata[0]
-        plotmesh1d.meshWithData(**newkwargs)
-    elif dim==2:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-            newkwargs['y'] = meshdata.points[:,1]
-            newkwargs['tris'] = meshdata.simplices
-            newkwargs['xc'] = meshdata.pointsc[:,0]
-            newkwargs['yc'] = meshdata.pointsc[:,1]
-        else:
-            newkwargs['x'] = meshdata[0]
-            newkwargs['y'] = meshdata[1]
-            newkwargs['tris'] = meshdata[2]
-            newkwargs['xc'] = meshdata.pointsc[3]
-            newkwargs['yc'] = meshdata.pointsc[4]
-        return plotmesh2d.meshWithData(**newkwargs)
-    elif dim==3:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-            newkwargs['y'] = meshdata.points[:,1]
-            newkwargs['z'] = meshdata.points[:,2]
-            newkwargs['tets'] = meshdata.simplices
-            newkwargs['xc'] = meshdata.pointsc[:,0]
-            newkwargs['yc'] = meshdata.pointsc[:,1]
-            newkwargs['zc'] = meshdata.pointsc[:,2]
-        else:
-            newkwargs['x'] = meshdata[0]
-            newkwargs['y'] = meshdata[1]
-            newkwargs['z'] = meshdata[2]
-            newkwargs['tets'] = meshdata[3]
-            newkwargs['xc'] = meshdata.pointsc[4]
-            newkwargs['yc'] = meshdata.pointsc[5]
-            newkwargs['zc'] = meshdata.pointsc[6]
-        return plotmesh3d.meshWithData(**newkwargs)
-    else:
-        raise ValueError(f"wrong dimension {dim=}")
-
-#=================================================================#
+#----------------------------------------------------------------#
 def plotmeshWithNumbering(meshdata, **kwargs):
     if isinstance(meshdata,meshio._mesh.Mesh):
         types = [c.type for c in meshdata.cells]
@@ -171,13 +86,215 @@ def plotmeshWithNumbering(meshdata, **kwargs):
         kwargs['ax']= plt
         plotmesh2d.mesh(x, y, tris, **kwargs)
     plt.show()
+#----------------------------------------------------------------#
+def meshWithBoundaries(meshdata, **kwargs):
+    dim, meshdataismesh = _getDim(meshdata)
+    if dim==1:
+        x, lines = meshdata.points[:, 0], meshdata.simplices
+        plotmesh1d.meshWithBoundaries(x, lines, **kwargs)
+    elif dim==2:
+        if meshdataismesh:
+            x, y, tris = meshdata.points[:,0], meshdata.points[:,1], meshdata.simplices
+            kwargs['lines'] = meshdata.faces
+            kwargs['bdrylabels'] = meshdata.bdrylabels
+            if hasattr(meshdata, 'cell_labels'):
+                kwargs['celllabels'] = meshdata.cell_labels
+            if hasattr(meshdata, 'cellsoflabel'):
+                kwargs['cellsoflabel'] = meshdata.cellsoflabel
+        else:
+            x, y, tris = meshdata[0], meshdata[1], meshdata[2]
+            kwargs['lines'] = meshdata[3]
+            kwargs['bdrylabels'] = meshdata[4]
+        plotmesh2d.meshWithBoundaries(x, y, tris, **kwargs)
+    else:
+        if meshdataismesh:
+            x, y, z, tets = meshdata.points[:,0], meshdata.points[:,1], meshdata.points[:,2], meshdata.simplices
+            faces, bdrylabels = meshdata.faces, meshdata.bdrylabels
+            plotmesh3d.meshWithBoundaries(x, y, z, tets, faces, bdrylabels, **kwargs)
+        else:
+            plotmesh3d.meshWithBoundaries(meshdata, **kwargs)
+#----------------------------------------------------------------#
+def meshWithData_old(meshdata, **kwargs):
+    """
+    meshdata    : either mesh or coordinates and connectivity
+    point_data  : dictionary name->data
+    cell_data  : dictionary name->data
+    """
+    dim, meshdataismesh = _getDim(meshdata)
+    newkwargs = kwargs.copy()
+
+    if dim==1:
+        if meshdataismesh:
+            newkwargs['x'] = meshdata.points[:,0]
+        else:
+            newkwargs['x'] = meshdata[0]
+        plotmesh1d.meshWithData(**newkwargs)
+    elif dim==2:
+        if meshdataismesh:
+            newkwargs['x'] = meshdata.points[:,0]
+            newkwargs['y'] = meshdata.points[:,1]
+            newkwargs['tris'] = meshdata.simplices
+            newkwargs['xc'] = meshdata.pointsc[:,0]
+            newkwargs['yc'] = meshdata.pointsc[:,1]
+        else:
+            newkwargs['x'] = meshdata[0]
+            newkwargs['y'] = meshdata[1]
+            newkwargs['tris'] = meshdata[2]
+            newkwargs['xc'] = meshdata.pointsc[3]
+            newkwargs['yc'] = meshdata.pointsc[4]
+        return plotmesh2d.meshWithData(**newkwargs)
+    elif dim==3:
+        if meshdataismesh:
+            newkwargs['x'] = meshdata.points[:,0]
+            newkwargs['y'] = meshdata.points[:,1]
+            newkwargs['z'] = meshdata.points[:,2]
+            newkwargs['tets'] = meshdata.simplices
+            newkwargs['xc'] = meshdata.pointsc[:,0]
+            newkwargs['yc'] = meshdata.pointsc[:,1]
+            newkwargs['zc'] = meshdata.pointsc[:,2]
+        else:
+            newkwargs['x'] = meshdata[0]
+            newkwargs['y'] = meshdata[1]
+            newkwargs['z'] = meshdata[2]
+            newkwargs['tets'] = meshdata[3]
+            newkwargs['xc'] = meshdata.pointsc[4]
+            newkwargs['yc'] = meshdata.pointsc[5]
+            newkwargs['zc'] = meshdata.pointsc[6]
+        return plotmesh3d.meshWithData2(**newkwargs)
+    else:
+        raise ValueError(f"wrong dimension {dim=}")
+#----------------------------------------------------------------#
+def meshWithData(meshdata, **kwargs):
+    """
+    meshdata    : either mesh or coordinates and connectivity
+    point_data  : dictionary name->data
+    cell_data  : dictionary name->data
+    """
+    dim, meshdataismesh = _getDim(meshdata)
+    newkwargs = kwargs.copy()
+    if dim==1:
+        if meshdataismesh:
+            newkwargs['x'] = meshdata.points[:,0]
+        else:
+            newkwargs['x'] = meshdata[0]
+        return plotmesh1d.meshWithData(**newkwargs)
+    if meshdataismesh:
+        simp = meshdata.simplices
+        if dim == 2:
+            x, y, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.pointsc[:,0], meshdata.pointsc[:,1]
+        else:
+            x, y, z = meshdata.points[:, 0], meshdata.points[:, 1], meshdata.points[:, 2]
+            xc, yc, zc = meshdata.pointsc[:, 0], meshdata.pointsc[:, 1], meshdata.pointsc[:, 2]
+    else:
+        if dim == 2:
+            x, y, simp, xc, yc = meshdata
+        else:
+            x, y, z, simp, xc, yc, zc = meshdata
+    addplots = kwargs.pop('addplots',[])
+    numbering = kwargs.pop('numbering',False)
+    title = kwargs.pop('title', None)
+    suptitle = kwargs.pop('suptitle', None)
+    alpha = kwargs.pop('alpha', 0.6)
+    plotmesh = kwargs.pop('plotmesh', None)
+    if 'data' in kwargs:
+        point_data = kwargs['data'].pop('point', {})
+        cell_data = kwargs['data'].pop('cell', {})
+    else:
+        point_data = {}
+        cell_data = {}
+    if 'point_data' in kwargs:
+        assert isinstance(kwargs['point_data'], dict)
+        point_data.update(kwargs['point_data'])
+    if 'cell_data' in kwargs:
+        assert isinstance(kwargs['cell_data'], dict)
+        cell_data.update(kwargs['cell_data'])
+    quiver_cell_data = kwargs.pop('quiver_cell_data', {})
+    nplots = len(point_data) + len(cell_data) + len(quiver_cell_data) + len(addplots)
+    if nplots==0: raise ValueError("meshWithData(): no data")
+    if 'outer' in kwargs:
+        import matplotlib.gridspec as gridspec
+        inner = gridspec.GridSpecFromSubplotSpec(nplots, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
+        if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
+        fig = kwargs['fig']
+    else:
+        ncols = min(nplots,3)
+        nrows = nplots//3 + bool(nplots%3)
+        if dim==2:
+            fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
+        else:
+            fig = plt.figure(figsize=(ncols*4.5,nrows*4))
+            axl=[]
+            for ir in range(nrows):
+                for ic in range(ncols):
+                    pos = 100*nplots + 10*(ir+1) + (ic+1)
+                    axl.append(fig.add_subplot(pos, projection='3d'))
+            axs = np.array(axl).reshape(nrows,ncols)
+        if suptitle: fig.suptitle(suptitle)
+    count=0
+    for pdn, pd in point_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
+        if dim==2:
+            plotmesh2d.plotMeshWithPointData(ax, pdn, pd, x, y, simp, alpha)
+        else:
+            plotmesh3d.plotMeshWithPointData(ax, pdn, pd, x, y, z, simp, alpha)
+        if numbering:
+            if dim == 2:
+                plotmesh2d._plotVertices(x, y, simp, xc, yc, ax=ax)
+                plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
+            else: raise NotImplementedError("3d...")
+        fig.add_subplot(ax)
+        count += 1
+    for cdn, cd in cell_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
+        if dim==2:
+            plotmesh2d.plotMeshWithCellData(ax, cdn, cd, x, y, simp, alpha)
+        else:
+            plotmesh3d.plotMeshWithCellData(ax, cdn, cd, x, y, z, simp, alpha)
+        if numbering:
+            if dim == 2:
+                plotmesh2d._plotVertices(x, y, simp, xc, yc, ax=ax)
+                plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
+            else:
+                raise NotImplementedError("3d...")
+        fig.add_subplot(ax)
+        count += 1
+    for cdn, cd in quiver_cell_data.items():
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
+        ax.set_aspect(aspect='equal')
+        if dim == 2:
+            if plotmesh:
+                plotmesh2d.plotmesh(x=x, y=y, tris=simp, ax=ax, alpha=0.3)
+            ax.quiver(xc, yc, cd[0], cd[1], units='xy')
+        else:
+            raise NotImplementedError("3d...")
+        fig.add_subplot(ax)
+        count += 1
+    for addplot in addplots:
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
+        addplot(ax)
+        count += 1
+
 
 #=================================================================#
-#=================================================================#
 if __name__ == '__main__':
-    import simplexmesh
-    import geomdefs
-    geometry = geomdefs.unitsquare.Unitsquare()
-    mesh = simplexmesh.SimplexMesh(geometry=geometry, hmean=1)
-    # plotmeshWithNumbering(mesh, localnumbering=True)
-    plotmesh(mesh)
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from simfempy.meshes import testmeshes
+
+    # mesh = testmeshes.backwardfacingstep(h=1)
+    mesh = testmeshes.backwardfacingstep3d(h=1)
+    xc, yc, zc = mesh.pointsc.T
+    u = xc**2 + yc**2 + zc**2
+    meshWithData(mesh, cell_data={'U':xc**2 + yc**2 + zc**2}, plotmesh=True)

@@ -94,60 +94,6 @@ def plotmesh(**kwargs):
     #             ax.plot(x[vertex], y[vertex],'X', color=pltcolors[i])
     #     ax.legend(handles=patches)
     _settitle(ax, title)
-
-
-#=================================================================#
-def meshWithBoundaries(x, y, tris, **kwargs):
-    fig = None
-    if 'outer' in kwargs:
-        import matplotlib.gridspec as gridspec
-        inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
-        if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
-        fig = kwargs['fig']
-        ax = plt.Subplot(fig, inner[0])
-    elif 'ax' in kwargs: ax = kwargs.pop('ax')
-    else: ax = plt
-    lines = kwargs.pop('lines')
-    bdrylabels = kwargs.pop('bdrylabels')
-    ax.triplot(x, y, tris, color='k')
-    if ax ==plt:
-        plt.gca().set_aspect(aspect='equal')
-        ax.xlabel(r'x')
-        ax.ylabel(r'y')
-    else:
-        ax.set_aspect(aspect='equal')
-        ax.set_xlabel(r'x')
-        ax.set_ylabel(r'y')
-    pltcolors = 'bgrcmykbgrcmyk'
-    patches=[]
-    i=0
-    for color, edges in bdrylabels.items():
-        patches.append(mpatches.Patch(color=pltcolors[i], label=color))
-        for ie in edges:
-            ax.plot(x[lines[ie]], y[lines[ie]], color=pltcolors[i], lw=4)
-        i += 1
-    if 'celllabels' in kwargs:
-        celllabels = kwargs.pop('celllabels')
-        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-        clb = plt.colorbar(cnt)
-        # clb = plt.colorbar(cnt, ax=ax)
-        # clb.ax.set_title(cdn)
-        clb.set_label("cellcolors")
-    if 'cellsoflabel' in kwargs:
-        cellsoflabel = kwargs.pop('cellsoflabel')
-        # print(f"{tris.shape=}")
-        celllabels = np.empty(tris.shape[0])
-        for color, cells in cellsoflabel.items(): celllabels[cells] = color
-        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
-        # clb = plt.colorbar(cnt)
-        # clb.set_label("cellcolors")
-    # clb = plt.colorbar(cnt, ax=ax)
-    # clb.ax.set_title(cdn)
-    ax.legend(handles=patches)
-    _settitle(ax, "Mesh and Boundary Labels")
-    if fig: fig.add_subplot(ax)
-
-
 #=================================================================#
 def mesh(x, y, tris, **kwargs):
     ax = kwargs.pop('ax', plt)
@@ -226,81 +172,133 @@ def plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha):
     clb.set_label(cdn)
     _settitle(ax, cdn)
 #=================================================================#
-def meshWithData(**kwargs):
-    """
-    point_data  : dictionary name->data
-    cell_data  : dictionary name->data
-    addplots  : additional plot functions (in new axes)
-    """
-    x, y, tris, xc, yc = kwargs['x'], kwargs['y'], kwargs['tris'], kwargs['xc'], kwargs['yc']
-    addplots = kwargs.pop('addplots',[])
-    numbering = kwargs.pop('numbering',False)
-    title = kwargs.pop('title', None)
-    suptitle = kwargs.pop('suptitle', None)
-    alpha = kwargs.pop('alpha', 0.6)
-    if 'data' in kwargs:
-        point_data = kwargs['data'].pop('point', {})
-        cell_data = kwargs['data'].pop('cell', {})
-    else:
-        point_data = {}
-        cell_data = {}
-    if 'point_data' in kwargs: point_data.update(kwargs['point_data'])
-    if 'cell_data' in kwargs: cell_data.update(kwargs['cell_data'])
-    quiver_cell_data = kwargs.pop('quiver_cell_data', {})
-
-
-    nplots = len(point_data) + len(cell_data) + len(quiver_cell_data) + len(addplots)
-    if nplots==0: raise ValueError("meshWithData(): no data")
+def meshWithBoundaries(x, y, tris, **kwargs):
+    fig = None
     if 'outer' in kwargs:
         import matplotlib.gridspec as gridspec
-        inner = gridspec.GridSpecFromSubplotSpec(nplots, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
+        inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
         if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
         fig = kwargs['fig']
+        ax = plt.Subplot(fig, inner[0])
+    elif 'ax' in kwargs: ax = kwargs.pop('ax')
+    else: ax = plt
+    lines = kwargs.pop('lines')
+    bdrylabels = kwargs.pop('bdrylabels')
+    ax.triplot(x, y, tris, color='k')
+    if ax ==plt:
+        plt.gca().set_aspect(aspect='equal')
+        ax.xlabel(r'x')
+        ax.ylabel(r'y')
     else:
-        ncols = min(nplots,3)
-        nrows = nplots//3 + bool(nplots%3)
-        fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
-        if suptitle: fig.suptitle(suptitle)
-    count=0
-    for pdn, pd in point_data.items():
-        if 'outer' in kwargs:
-            ax = plt.Subplot(fig, inner[count])
-        else:
-            ax = axs[count//ncols,count%ncols]
-        plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha)
-        if numbering:
-            _plotVertices(x, y, tris, xc, yc, ax=ax)
-            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-        fig.add_subplot(ax)
-        count += 1
-    for cdn, cd in cell_data.items():
-        if 'outer' in kwargs:
-            ax = plt.Subplot(fig, inner[count])
-        else:
-            ax = axs[count//ncols,count%ncols]
-        plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha)
-        if numbering:
-            _plotVertices(x, y, tris, xc, yc, ax=ax)
-            _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
-        fig.add_subplot(ax)
-        count += 1
-    for cdn, cd in quiver_cell_data.items():
-        if 'outer' in kwargs:
-            ax = plt.Subplot(fig, inner[count])
-        else:
-            ax = axs[count//ncols,count%ncols]
         ax.set_aspect(aspect='equal')
-        if 'plotmesh' in kwargs and kwargs['plotmesh']: plotmesh(x=x, y=y, tris=tris, ax=ax, alpha=0.3)
-        ax.quiver(xc, yc, cd[0], cd[1], units='xy')
-        fig.add_subplot(ax)
-        count += 1
-    for addplot in addplots:
-        if 'outer' in kwargs:
-            ax = plt.Subplot(fig, inner[count])
-        else:
-            ax = axs[count//ncols,count%ncols]
-        addplot(ax)
-        count += 1
-    # if title: fig.canvas.set_window_title(title)
-    # return fig, axs
-    # plt.tight_layout()
+        ax.set_xlabel(r'x')
+        ax.set_ylabel(r'y')
+    pltcolors = 'bgrcmykbgrcmyk'
+    patches=[]
+    i=0
+    for color, edges in bdrylabels.items():
+        patches.append(mpatches.Patch(color=pltcolors[i], label=color))
+        for ie in edges:
+            ax.plot(x[lines[ie]], y[lines[ie]], color=pltcolors[i], lw=4)
+        i += 1
+    if 'celllabels' in kwargs:
+        celllabels = kwargs.pop('celllabels')
+        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+        clb = plt.colorbar(cnt)
+        # clb = plt.colorbar(cnt, ax=ax)
+        # clb.ax.set_title(cdn)
+        clb.set_label("cellcolors")
+    if 'cellsoflabel' in kwargs:
+        cellsoflabel = kwargs.pop('cellsoflabel')
+        # print(f"{tris.shape=}")
+        celllabels = np.empty(tris.shape[0])
+        for color, cells in cellsoflabel.items(): celllabels[cells] = color
+        cnt = ax.tripcolor(x, y, tris, facecolors=celllabels, edgecolors='k', cmap='jet', alpha=0.4)
+        # clb = plt.colorbar(cnt)
+        # clb.set_label("cellcolors")
+    # clb = plt.colorbar(cnt, ax=ax)
+    # clb.ax.set_title(cdn)
+    ax.legend(handles=patches)
+    _settitle(ax, "Mesh and Boundary Labels")
+    if fig: fig.add_subplot(ax)
+#=================================================================#
+# def meshWithData(**kwargs):
+#     """
+#     point_data  : dictionary name->data
+#     cell_data  : dictionary name->data
+#     addplots  : additional plot functions (in new axes)
+#     """
+#     x, y, tris, xc, yc = kwargs['x'], kwargs['y'], kwargs['tris'], kwargs['xc'], kwargs['yc']
+#     addplots = kwargs.pop('addplots',[])
+#     numbering = kwargs.pop('numbering',False)
+#     title = kwargs.pop('title', None)
+#     suptitle = kwargs.pop('suptitle', None)
+#     alpha = kwargs.pop('alpha', 0.6)
+#     if 'data' in kwargs:
+#         point_data = kwargs['data'].pop('point', {})
+#         cell_data = kwargs['data'].pop('cell', {})
+#     else:
+#         point_data = {}
+#         cell_data = {}
+#     if 'point_data' in kwargs:
+#         assert isinstance(kwargs['point_data'], dict)
+#         point_data.update(kwargs['point_data'])
+#     if 'cell_data' in kwargs:
+#         assert isinstance(kwargs['cell_data'], dict)
+#         cell_data.update(kwargs['cell_data'])
+#     quiver_cell_data = kwargs.pop('quiver_cell_data', {})
+#     nplots = len(point_data) + len(cell_data) + len(quiver_cell_data) + len(addplots)
+#     if nplots==0: raise ValueError("meshWithData(): no data")
+#     if 'outer' in kwargs:
+#         import matplotlib.gridspec as gridspec
+#         inner = gridspec.GridSpecFromSubplotSpec(nplots, 1, subplot_spec=kwargs['outer'], wspace=0.1, hspace=0.1)
+#         if not 'fig' in kwargs: raise KeyError(f"needs argument 'fig")
+#         fig = kwargs['fig']
+#     else:
+#         ncols = min(nplots,3)
+#         nrows = nplots//3 + bool(nplots%3)
+#         fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
+#         if suptitle: fig.suptitle(suptitle)
+#     count=0
+#     for pdn, pd in point_data.items():
+#         if 'outer' in kwargs:
+#             ax = plt.Subplot(fig, inner[count])
+#         else:
+#             ax = axs[count//ncols,count%ncols]
+#         plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha)
+#         if numbering:
+#             _plotVertices(x, y, tris, xc, yc, ax=ax)
+#             _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+#         fig.add_subplot(ax)
+#         count += 1
+#     for cdn, cd in cell_data.items():
+#         if 'outer' in kwargs:
+#             ax = plt.Subplot(fig, inner[count])
+#         else:
+#             ax = axs[count//ncols,count%ncols]
+#         plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha)
+#         if numbering:
+#             _plotVertices(x, y, tris, xc, yc, ax=ax)
+#             _plotCellsLabels(x, y, tris, xc, yc, ax=ax)
+#         fig.add_subplot(ax)
+#         count += 1
+#     for cdn, cd in quiver_cell_data.items():
+#         if 'outer' in kwargs:
+#             ax = plt.Subplot(fig, inner[count])
+#         else:
+#             ax = axs[count//ncols,count%ncols]
+#         ax.set_aspect(aspect='equal')
+#         if 'plotmesh' in kwargs and kwargs['plotmesh']: plotmesh(x=x, y=y, tris=tris, ax=ax, alpha=0.3)
+#         ax.quiver(xc, yc, cd[0], cd[1], units='xy')
+#         fig.add_subplot(ax)
+#         count += 1
+#     for addplot in addplots:
+#         if 'outer' in kwargs:
+#             ax = plt.Subplot(fig, inner[count])
+#         else:
+#             ax = axs[count//ncols,count%ncols]
+#         addplot(ax)
+#         count += 1
+#     # if title: fig.canvas.set_window_title(title)
+#     # return fig, axs
+#     # plt.tight_layout()
