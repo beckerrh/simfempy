@@ -19,9 +19,15 @@ class Stokes(Application):
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = np.full(self.mesh.ncells, self.mu)
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
+
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
+        if exactsolution=="Linear":
+            exactsolution = ["Linear", "Constant"]
         v = analyticalSolution(exactsolution[0], dim, dim, random)
         p = analyticalSolution(exactsolution[1], dim, 1, random)
         return v,p
@@ -71,12 +77,16 @@ class Stokes(Application):
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         self.femp.computeRhsBoundary(bp, colorsdir, self.problemdata.bdrycond.fct)
-        return self.femv.vectorDirichlet(self.problemdata, 'new', bv, u), bp
+        if u is not None: (uv,up) = u
+        else: (uv,up) = (None,None)
+        bv, uv, self.bdrydata = self.femv.vectorBoundary(bv, uv, self.problemdatabdrycond, self.bdrydata)
+        return (bv,bp), (uv,up)
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         B = self.femv.computeMatrixDivergence(colorsdir)
-        return self.femv.matrixDirichlet('new', A).tobsr(), B
+        A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
+        return A, B
 
 #=================================================================#
 if __name__ == '__main__':
