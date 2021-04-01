@@ -26,17 +26,11 @@ class CompareMethods(object):
             import os, shutil
             try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
             except: pass
-        self.latex = kwargs.pop("latex", False)
-        self.plot = kwargs.pop("plot", False)
-        self.plotpostprocs = kwargs.pop("plotpostprocs", False)
-        # print(f"{kwargs=}")
-        # print(f"{kwargs['verbose']=}")
         self.verbose = kwargs.pop("verbose", 1)
-        # raise ValueError(f"{kwargs=}")
-        # raise ValueError(f"{self.verbose=}")
-        if self.verbose > 0: self.latex = True
-        if self.verbose > 1: self.plotpostprocs = True
-        if self.verbose > 2: self.plot = True
+        self.latex = kwargs.pop("latex", True)
+        self.plotsolution = kwargs.pop("plotsolution", False)
+        self.plotpostprocs = kwargs.pop("plotpostprocs", False)
+        if self.verbose == 0: self.latex = False
         self.paramname = kwargs.pop("paramname", "ncells")
         self.plot = kwargs.pop("plot", False)
         self.createMesh = kwargs.pop("createMesh", None)
@@ -69,6 +63,11 @@ class CompareMethods(object):
         else:
             mesh = self._mesh_from_geom_or_fct()
             # mesh = SimplexMesh(geometry=geometry, hmean=self.h)
+        if self.plotsolution:
+            import matplotlib.gridspec as gridspec
+            fig = plt.figure(figsize=(10, 8))
+            outer = gridspec.GridSpec(1, len(params)*len(self.methods), wspace=0.2, hspace=0.2)
+            plotcount = 0
         for iter, param in enumerate(params):
             if self.verbose: print(f"{self.paramname=} {param=}")
             if self.paramname == "ncells":
@@ -84,10 +83,11 @@ class CompareMethods(object):
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": method.setParameter(self.paramname, param)
                 result = method.solve(iter, self.dirname)
-                if self.plot:
-                    from ..meshes import plotmesh
+                if self.plotsolution:
+                    from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
-                    plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle)
+                    plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
+                    plotcount += 1
                     plt.show()
                 resdict = result.info.copy()
                 resdict.update(result.data['global'])
@@ -195,8 +195,8 @@ class CompareMethods(object):
                         if self.paramname == "ncells":
                             orders, order = self.computeOrder(parameters, val2[name], self.dim)
                             axs[cr, cc].loglog(parameters, orders, '-', label="order {}".format(order))
-                    else:
-                        axs[cr, cc].plot(parameters, val2[name], '-x', label="{}_{}".format(key2, name))
+                    # else:
+                    #     axs[cr, cc].plot(parameters, val2[name], '-x', label="{}_{}".format(key2, name))
                 axs[cr, cc].legend()
                 if key not in singleplots:
                     axs[cr, cc].set_title("{} {}".format(key, key2))

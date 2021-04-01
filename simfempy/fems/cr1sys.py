@@ -103,17 +103,16 @@ class CR1sys(femsys.Femsys):
             b[inddir] = bdrydata.A_dir_dir * u[inddir]
         return b, u, bdrydata
     def computeRhsBoundary(self, b, colors, bdryfct):
-        scale = 1
         for color in colors:
             if not color in bdryfct or not bdryfct[color]: continue
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS,axis=1)
             xf, yf, zf = self.mesh.pointsf[faces].T
-            nx, ny, nz = normalsS.T
+            nx, ny, nz = normalsS.T / dS
             neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
             for i in range(self.ncomp):
-                bS = scale * dS * neumanns[i]
+                bS = dS * neumanns[i]
                 indices = i + self.ncomp * faces
                 b[indices] += bS
         return b
@@ -164,14 +163,6 @@ class CR1sys(femsys.Femsys):
         ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
         fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
         fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
-        # fi0 = self.mesh.facesOfCells[ci0][ind0]
-        # fi1 = self.mesh.facesOfCells[ci1][ind1]
-        # print(f"{self.mesh.facesOfCells[ci0].shape=}")
-        # print(f"{faces.shape=}")
-        # print(f"{self.mesh.simplices[ci0].shape=}")
-        # print(f"{ind0.shape=}")
-        # print(f"{fi0.shape=}")
-
 
         d = self.mesh.dimension
         massloc = barycentric.crbdryothers(d)
@@ -179,7 +170,7 @@ class CR1sys(femsys.Femsys):
             scale = mucell*dS/(dV[ci0]+ dV[ci1])
         else:
             scale = (mucell[ci0] + mucell[ci1]) * dS / (dV[ci0] + dV[ci1])
-        scale *= 5.
+        scale *= 10.
         A = sparse.coo_matrix((nall, nall))
         mat = np.einsum('n,kl->nkl', dS*scale, massloc).reshape(-1)
         for icomp in range(ncomp):

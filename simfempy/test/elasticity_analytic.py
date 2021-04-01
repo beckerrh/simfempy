@@ -19,8 +19,8 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitsquare
         colordir = [1001,1003]
         colorneu = [1000,1002]
-        # colordir = [1000,1002,1001,1003]
-        # colorneu = []
+        colordir = [1002,1001,1003]
+        colorneu = [1000]
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
@@ -42,4 +42,4 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # test(dim=2, exactsolution=["1", "y"], fem=['p1','cr1'], niter=4)
     # test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['trad','new'], niter=4)
-    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], niter=3)
+    test(dim=2, exactsolution='Quadratic', fem=['p1','cr1'], niter=4)
