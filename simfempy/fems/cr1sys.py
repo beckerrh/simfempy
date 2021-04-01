@@ -170,7 +170,7 @@ class CR1sys(femsys.Femsys):
             scale = mucell*dS/(dV[ci0]+ dV[ci1])
         else:
             scale = (mucell[ci0] + mucell[ci1]) * dS / (dV[ci0] + dV[ci1])
-        scale *= 10.
+        scale *= 8
         A = sparse.coo_matrix((nall, nall))
         mat = np.einsum('n,kl->nkl', dS*scale, massloc).reshape(-1)
         for icomp in range(ncomp):
