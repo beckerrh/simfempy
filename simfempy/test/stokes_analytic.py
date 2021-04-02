@@ -33,4 +33,4 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution="Linear", niter=1, h1=4)
+    test(dim=2, exactsolution=[["x","0"],"0"], niter=1, h1=4, plotsolution=True)

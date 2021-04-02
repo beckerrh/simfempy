@@ -126,7 +126,7 @@ class Stokes(Application):
         A1 = scipy.sparse.hstack([A, -B.T])
         A2 = scipy.sparse.hstack([B, nullP])
         Aall = scipy.sparse.vstack([A1, A2])
-        return Aall
+        return Aall.tocsr()
 
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
