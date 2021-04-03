@@ -13,17 +13,15 @@ class Stokes(Application):
         super().__init__(**kwargs)
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
-        self.mu = kwargs.pop('mu', 1)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
-        self.mucell = np.full(self.mesh.ncells, self.mu)
+        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
-        self.pmean = self.problemdata.bdrycond.type.values() == len(self.problemdata.bdrycond.type)*"Dirichlet"
-        assert not self.pmean
+        self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
 
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
@@ -43,9 +41,9 @@ class Stokes(Application):
         return _solexactdirv, _solexactdirp
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
+        mu = self.problemdata.params.scal_glob['mu']
         def _fctrhsv(x, y, z):
             rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
-            mu = self.mu
             for i in range(self.ncomp):
                 rhsv[i] -= mu * v[i].dd(i, i, x, y, z)
                 rhsv[i] += p.d(i, x, y, z)
@@ -53,16 +51,16 @@ class Stokes(Application):
         def _fctrhsp(x, y, z):
             rhsp = np.zeros(x.shape[0])
             for i in range(self.ncomp):
-                rhsp = v[i].d(i, x, y, z)
+                rhsp += v[i].d(i, x, y, z)
             return rhsp
         return _fctrhsv, _fctrhsp
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
+        mu = self.problemdata.params.scal_glob['mu']
         def _fctneumannv(x, y, z, nx, ny, nz):
             v, p = solexact
             rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
-            mu = self.mu
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhsv[i] -= mu  * v[i].d(j, x, y, z) * normals[j]
@@ -91,20 +89,51 @@ class Stokes(Application):
         bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
         self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
         self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
-        if u is not None: (uv,up) = u
-        else: (uv,up) = (None,None)
-        bv, uv, self.bdrydata = self.femv.vectorBoundary(bv, uv, bdryfctv, self.bdrydata)
-        return (bv,bp), (uv,up)
+        b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, bdryfctv)
+        # print(f"{bv=}")
+        # print(f"{bp=}")
+        if not self.pmean: return b,u
+        if hasattr(self.problemdata,'solexact'):
+            p = self.problemdata.solexact[1]
+            pmean = self.femp.computeMean(p)
+        else: pmean=0
+        print(f"{pmean=}")
+        return (bv,bp,pmean), (u[0], u[1], 0)
+
+        # if u is not None: (uv,up) = u
+        # else: (uv,up) = (None,None)
+        # bv, uv, self.bdrydata = self.femv.vectorBoundary(bv, uv, bdryfctv, self.bdrydata)
+        # print(f"{bv=}")
+        # print(f"{bp=}")
+        # return (bv,bp), (uv,up)
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
-        A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
         # colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        B = self.femv.computeMatrixDivergence(self.bdrydata.facesdirall)
-        # print(f"{A.todense()=}")
-        # print(f"{B.todense()=}")
-        return A, B
+        B = self.femv.computeMatrixDivergence()
+        # A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
+        # print(f"avant bdry B\n{B.todense()}")
+
+        uh = np.vstack([np.ones(self.mesh.nfaces),np.zeros(self.mesh.nfaces)]).T.ravel()
+        # print(f"{uh=}")
+        # print(f"{B@uh=}")
+
+        A, B, self.bdrydata = self.matrixBoundary(A, B)
+        # print(f"A\n{A.todense()}")
+        # print(f"B\n{B.todense()}")
+        if not self.pmean:
+            return A, B
+        ncells = self.mesh.ncells
+        rows = np.zeros(ncells, dtype=int)
+        cols = np.arange(0, ncells)
+        C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
+        return A,B,C
     def postProcess(self, u):
-        v,p =  u
+        if self.pmean:
+            v,p,lam =  u
+            print(f"{lam=}")
+        else: v,p =  u
+        # print(f"{v=}")
+        # print(f"{p=}")
         data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):
             data['point'][f'V_{icomp:02d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
@@ -116,16 +145,112 @@ class Stokes(Application):
             data['global']['error_P_L2'] = err
         return data
 
+    def vectorBoundary(self, b, u, bdryfctv):
+        bv, bp = b
+        if u is None:
+            uv = np.zeros_like(bv)
+            up = np.zeros_like(bp)
+        else:
+            uv, up = u
+            assert uv.shape == bv.shape
+            assert up.shape == bp.shape
+        xf, yf, zf = self.mesh.pointsf.T
+        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
+        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
+        self.bdrydata.bsaved = []
+        for icomp in range(ncomp):
+            self.bdrydata.bsaved.append({})
+            for key, faces in facesdirflux.items():
+                # self.bdrydata.bsaved[icomp][key] = bv[icomp*nfaces + faces]
+                self.bdrydata.bsaved[icomp][key] = bv[icomp + ncomp * faces]
+        if self.femv.fem.dirichletmethod == 'trad':
+            for color in colorsdir:
+                faces = self.mesh.bdrylabels[color]
+                if color in bdryfctv.keys():
+                    dirichlets = bdryfctv[color](xf[faces], yf[faces], zf[faces])
+                    for icomp in range(ncomp):
+                        # print(f"{icomp=} {dirichlets[icomp]=}")
+                        bv[icomp + ncomp * faces] = dirichlets[icomp]
+                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
+                else:
+                    for icomp in range(ncomp):
+                        bv[icomp + ncomp * faces] = 0
+                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
+            indin = np.repeat(ncomp * facesinner, ncomp)
+            for icomp in range(ncomp): indin[icomp::ncomp] += icomp
+            inddir = np.repeat(ncomp * facesdirall, ncomp)
+            for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+            # print(f"{bv=}")
+            # print(f"{bv=}")
+            bv[indin] -= self.bdrydata.A_inner_dir * bv[inddir]
+            # print(f"{bv[inddir]=}")
+            # print(f"{self.bdrydata.B_inner_dir.todense()=}")
+            bp -= self.bdrydata.B_inner_dir * bv[inddir]
+            # for icomp in range(ncomp):
+            #     # indin = icomp*nfaces + facesinner
+            #     # inddir = icomp*nfaces + facesdirall
+            #     inddir = icomp + ncomp*facesdirall
+            #     bp -= self.bdrydata.B_inner_dir[icomp] * bv[inddir]
+        else:
+            raise NotImplementedError()
+        return (bv,bp), (uv,up), self.bdrydata
+    def matrixBoundary(self, A, B):
+        A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
+        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
+        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
+        self.bdrydata.Bsaved = {}
+        for key, faces in facesdirflux.items():
+            nb = faces.shape[0]
+            # help = sparse.dok_matrix((nb, nfaces))
+            # for i in range(nb): help[i, faces[i]] = 1
+            # self.bdrydata.Asaved[key] = help.dot(A)
+            helpB = sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
+            for icomp in range(ncomp):
+                # for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
+                for i in range(nb): helpB[icomp + ncomp*faces[i], icomp + ncomp*i] = 1
+            self.bdrydata.Bsaved[key] = B.dot(helpB)
+        # self.bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
+        inddir = np.repeat(ncomp * facesdirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        self.bdrydata.B_inner_dir = B[:,:][:,inddir]
+
+        # self.bdrydata.B_inner_dir = []
+        # for icomp in range(ncomp):
+        #     # inddir = icomp * nfaces + facesdirall
+        #     inddir = icomp + ncomp*facesdirall
+        #     self.bdrydata.B_inner_dir.append(B[:,:][:,inddir])
+        # B
+        help = np.ones((ncomp * nfaces))
+        # for icomp in range(ncomp):
+        #     # help[icomp*nfaces + facesdirall] = 0
+        #     help[icomp + ncomp*facesdirall] = 0
+        help[inddir] = 0
+        help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
+        B = B.dot(help)
+        return A,B, self.bdrydata
+
     def _to_single_matrix(self, Ain):
-        import scipy.sparse
         ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
-        assert not self.pmean
         # print("Ain", Ain)
-        A, B = Ain
-        nullP = scipy.sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
-        A1 = scipy.sparse.hstack([A, -B.T])
-        A2 = scipy.sparse.hstack([B, nullP])
-        Aall = scipy.sparse.vstack([A1, A2])
+        if self.pmean:
+            A, B, C = Ain
+        else:
+            A, B = Ain
+        nullP = sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
+        A1 = sparse.hstack([A, -B.T])
+        A2 = sparse.hstack([B, nullP])
+        Aall = sparse.vstack([A1, A2])
+        if not self.pmean:
+            return Aall.tocsr()
+        ncomp = self.ncomp
+        rows = np.zeros(ncomp*nfaces, dtype=int)
+        cols = np.arange(0, ncomp*nfaces)
+        nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
+        CL = sparse.hstack([nullV, C])
+        Abig = sparse.hstack([Aall,CL.T])
+        nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
+        Cbig = sparse.hstack([CL,nullL])
+        Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
 
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
@@ -133,18 +258,21 @@ class Stokes(Application):
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
             # print(f"{Aall.diagonal()=}")
-            ball = np.hstack((bin[0],bin[1]))
-            print(f"{ball.shape=}")
+            # print(f"{len(bin)=}")
+            if self.pmean:
+                ball = np.hstack((bin[0],bin[1],bin[2]))
+            else: ball = np.hstack((bin[0],bin[1]))
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
-            print(f"{uall.shape=}")
-            return (uall[:nfaces*ncomp],uall[nfaces*ncomp:]), 1
+            # print(f"{uall.shape=}")
+            if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
+            else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp]), 1
         elif solver == 'gmres':
             nfaces, ncells, ncomp, pstart = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.pstart
             counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
             if self.pmean:
                 A, B, C = Ain
                 nall = ncomp*nfaces + ncells + 1
-                BP = scipy.sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+                BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
                 CP = splinalg.inv(C*BP*C.T)
                 import pyamg
                 config = pyamg.solver_configuration(A, verb=False)
@@ -176,7 +304,7 @@ class Stokes(Application):
             else:
                 A, B = Ain
                 nall = ncomp*nfaces + ncells
-                BP = scipy.sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+                BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
                 import pyamg
                 config = pyamg.solver_configuration(A, verb=False)
                 API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')

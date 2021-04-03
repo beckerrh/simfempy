@@ -54,6 +54,9 @@ class D0(fem.Fem):
         en = solexact(xc, yc, zc) - uh
         Men = np.zeros_like(en)
         return np.sqrt( np.dot(en, self.massDot(Men,en)) ), en
+    def computeMean(self, fct):
+        xc, yc, zc = self.mesh.pointsc.T
+        return np.sum(self.mesh.dV*fct(xc,yc,zc))
 
 # ------------------------------------- #
 if __name__ == '__main__':

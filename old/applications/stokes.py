@@ -203,7 +203,6 @@ class Stokes(solvers.solver.Application):
                 b[indin] -= self.bdrydata.A_inner_dir * u[inddir]
                 b[inddir] += self.bdrydata.A_dir_dir * u[inddir]
         return b, u
-
     def matrixDirichlet(self, Aall):
         A, B = Aall
         facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
@@ -254,7 +253,6 @@ class Stokes(solvers.solver.Application):
         help = scipy.sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
         B = B.dot(help)
         return (A,B)
-
     def boundary(self, Aall, b, u):
         if self.pmean:
             A, B, C = Aall

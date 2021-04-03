@@ -12,12 +12,15 @@ from simfempy.test.test_analytic import test_analytic
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     data = simfempy.applications.problemdata.ProblemData()
+    data.params.scal_glob['mu'] = kwargs.pop('mu', 1)
     paramargs = {}
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
         colordir = [1001,1003]
         colorneu = [1000,1002]
+        colordir = [1000,1002,1001,1003]
+        colorneu = []
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
@@ -33,4 +36,5 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution=[["x","0"],"0"], niter=1, h1=4, plotsolution=True)
+    test(dim=2, exactsolution=[["x","y"],"0"], niter=3, h1=1, plotsolution=True)
+    # test(dim=2, exactsolution=[["1","0"],"0"], niter=2, h1=2)
