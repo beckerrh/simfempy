@@ -45,8 +45,10 @@ class Stokes(Application):
         def _fctrhsv(x, y, z):
             rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
             for i in range(self.ncomp):
-                rhsv[i] -= mu * v[i].dd(i, i, x, y, z)
+                for j in range(self.ncomp):
+                    rhsv[i] -= mu * v[i].dd(j, j, x, y, z)
                 rhsv[i] += p.d(i, x, y, z)
+            # print(f"{rhsv=}")
             return rhsv
         def _fctrhsp(x, y, z):
             rhsp = np.zeros(x.shape[0])
@@ -81,17 +83,14 @@ class Stokes(Application):
         rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
         if rhsv: self.femv.computeRhsCells(bv, rhsv)
         if rhsp: self.femp.computeRhsCells(bp, rhsp)
+        # print(f"{bv=}")
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        # for k, v in self.problemdata.bdrycond.fct.items():
-        #     print(f"{k} {v}")
         bdryfctv = {k:v[0] for k,v in self.problemdata.bdrycond.fct.items()}
         bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
         self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
-        self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
+        # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
         b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, bdryfctv)
-        # print(f"{bv=}")
-        # print(f"{bp=}")
         if not self.pmean: return b,u
         if hasattr(self.problemdata,'solexact'):
             p = self.problemdata.solexact[1]
@@ -99,24 +98,10 @@ class Stokes(Application):
         else: pmean=0
         print(f"{pmean=}")
         return (bv,bp,pmean), (u[0], u[1], 0)
-
-        # if u is not None: (uv,up) = u
-        # else: (uv,up) = (None,None)
-        # bv, uv, self.bdrydata = self.femv.vectorBoundary(bv, uv, bdryfctv, self.bdrydata)
-        # print(f"{bv=}")
-        # print(f"{bp=}")
-        # return (bv,bp), (uv,up)
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
         # colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         B = self.femv.computeMatrixDivergence()
-        # A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
-        # print(f"avant bdry B\n{B.todense()}")
-
-        uh = np.vstack([np.ones(self.mesh.nfaces),np.zeros(self.mesh.nfaces)]).T.ravel()
-        # print(f"{uh=}")
-        # print(f"{B@uh=}")
-
         A, B, self.bdrydata = self.matrixBoundary(A, B)
         # print(f"A\n{A.todense()}")
         # print(f"B\n{B.todense()}")
@@ -132,8 +117,6 @@ class Stokes(Application):
             v,p,lam =  u
             print(f"{lam=}")
         else: v,p =  u
-        # print(f"{v=}")
-        # print(f"{p=}")
         data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):
             data['point'][f'V_{icomp:02d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
@@ -161,7 +144,6 @@ class Stokes(Application):
         for icomp in range(ncomp):
             self.bdrydata.bsaved.append({})
             for key, faces in facesdirflux.items():
-                # self.bdrydata.bsaved[icomp][key] = bv[icomp*nfaces + faces]
                 self.bdrydata.bsaved[icomp][key] = bv[icomp + ncomp * faces]
         if self.femv.fem.dirichletmethod == 'trad':
             for color in colorsdir:
@@ -169,7 +151,6 @@ class Stokes(Application):
                 if color in bdryfctv.keys():
                     dirichlets = bdryfctv[color](xf[faces], yf[faces], zf[faces])
                     for icomp in range(ncomp):
-                        # print(f"{icomp=} {dirichlets[icomp]=}")
                         bv[icomp + ncomp * faces] = dirichlets[icomp]
                         uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
                 else:
@@ -180,17 +161,8 @@ class Stokes(Application):
             for icomp in range(ncomp): indin[icomp::ncomp] += icomp
             inddir = np.repeat(ncomp * facesdirall, ncomp)
             for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-            # print(f"{bv=}")
-            # print(f"{bv=}")
             bv[indin] -= self.bdrydata.A_inner_dir * bv[inddir]
-            # print(f"{bv[inddir]=}")
-            # print(f"{self.bdrydata.B_inner_dir.todense()=}")
             bp -= self.bdrydata.B_inner_dir * bv[inddir]
-            # for icomp in range(ncomp):
-            #     # indin = icomp*nfaces + facesinner
-            #     # inddir = icomp*nfaces + facesdirall
-            #     inddir = icomp + ncomp*facesdirall
-            #     bp -= self.bdrydata.B_inner_dir[icomp] * bv[inddir]
         else:
             raise NotImplementedError()
         return (bv,bp), (uv,up), self.bdrydata
@@ -201,9 +173,6 @@ class Stokes(Application):
         self.bdrydata.Bsaved = {}
         for key, faces in facesdirflux.items():
             nb = faces.shape[0]
-            # help = sparse.dok_matrix((nb, nfaces))
-            # for i in range(nb): help[i, faces[i]] = 1
-            # self.bdrydata.Asaved[key] = help.dot(A)
             helpB = sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
             for icomp in range(ncomp):
                 # for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
@@ -213,17 +182,7 @@ class Stokes(Application):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         self.bdrydata.B_inner_dir = B[:,:][:,inddir]
-
-        # self.bdrydata.B_inner_dir = []
-        # for icomp in range(ncomp):
-        #     # inddir = icomp * nfaces + facesdirall
-        #     inddir = icomp + ncomp*facesdirall
-        #     self.bdrydata.B_inner_dir.append(B[:,:][:,inddir])
-        # B
         help = np.ones((ncomp * nfaces))
-        # for icomp in range(ncomp):
-        #     # help[icomp*nfaces + facesdirall] = 0
-        #     help[icomp + ncomp*facesdirall] = 0
         help[inddir] = 0
         help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
         B = B.dot(help)
@@ -257,18 +216,16 @@ class Stokes(Application):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
-            # print(f"{Aall.diagonal()=}")
-            # print(f"{len(bin)=}")
             if self.pmean:
                 ball = np.hstack((bin[0],bin[1],bin[2]))
             else: ball = np.hstack((bin[0],bin[1]))
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
-            # print(f"{uall.shape=}")
             if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
             else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp]), 1
         elif solver == 'gmres':
-            nfaces, ncells, ncomp, pstart = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.pstart
-            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver)
+            from simfempy import tools
+            nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
+            counter = tools.iterationcounter.IterationCounter(name=solver)
             if self.pmean:
                 A, B, C = Ain
                 nall = ncomp*nfaces + ncells + 1
@@ -278,29 +235,27 @@ class Stokes(Application):
                 config = pyamg.solver_configuration(A, verb=False)
                 API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
                 def amult(x):
-                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
+                    v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
                     w = -B.T.dot(p)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] += A.dot(v[i*nfaces: (i+1)*nfaces])
-                    q = B.dot(v)+C.T.dot(lam).ravel()
+                    w += A.dot(v)
+                    q = B.dot(v)+C.T.dot(lam)
                     return np.hstack([w, q, C.dot(p)])
                 Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
                 def pmult(x):
-                    v, p, lam = x[:pstart], x[pstart:pstart+ncells], x[pstart+ncells:]
+                    v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
                     w = np.zeros_like(v)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    w = API.solve(v, maxiter=1, tol=1e-16)
                     q = BP.dot(p-B.dot(w))
                     mu = CP.dot(lam-C.dot(q)).ravel()
                     q += BP.dot(C.T.dot(mu).ravel())
                     h = B.T.dot(q)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] += API.solve(h[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    w += API.solve(h, maxiter=1, tol=1e-16)
                     return np.hstack([w, q, mu])
                 P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
-                u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
+                b = np.hstack([bin[0], bin[1], bin[2]])
+                u, info = splinalg.lgmres(Amult, b, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
                 if info: raise ValueError("no convergence info={}".format(info))
-                return u, counter.niter
+                return (u[:ncomp*nfaces], u[ncomp*nfaces:ncomp*nfaces+ncells], u[-1]*np.ones(1)), counter.niter
             else:
                 A, B = Ain
                 nall = ncomp*nfaces + ncells

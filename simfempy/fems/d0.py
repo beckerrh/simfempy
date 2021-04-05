@@ -46,8 +46,8 @@ class D0(fem.Fem):
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T / dS
             neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
-            simp = self.mesh.cellsOfFaces[faces,0]
-            b[simp] += dS * neumanns
+            faces = self.mesh.cellsOfFaces[faces,0]
+            # b[faces] -= dS * neumanns
         return b
     def computeErrorL2(self, solexact, uh):
         xc, yc, zc = self.mesh.pointsc.T

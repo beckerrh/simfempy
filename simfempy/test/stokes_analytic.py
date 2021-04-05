@@ -29,12 +29,14 @@ def test(dim, **kwargs):
     data.bdrycond.set("Neumann", colorneu)
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
+    linearsolver = kwargs.pop('linearsolver', 'umf')
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
     return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution=[["x","y"],"0"], niter=3, h1=1, plotsolution=True)
-    # test(dim=2, exactsolution=[["1","0"],"0"], niter=2, h1=2)
+    test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=3, h1=1, plotsolution=False, linearsolver='gmres')
+    # test(dim=2, exactsolution=[["-y","x**2"],"x*y"], niter=5, h1=1, plotsolution=False, linearsolver='gmres')
+    # test(dim=2, exactsolution=[["1","0"],"1"], niter=2, h1=2)

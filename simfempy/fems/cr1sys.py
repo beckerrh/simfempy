@@ -149,7 +149,6 @@ class CR1sys(femsys.Femsys):
         #    help[icomp + ncomp*facesdirall] = 0
         # help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
         # return B.dot(help)
-
     def computeMatrixLaplace(self, mucell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads

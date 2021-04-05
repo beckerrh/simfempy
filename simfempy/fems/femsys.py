@@ -34,6 +34,7 @@ class Femsys():
     def computeRhsCells(self, b, rhs):
         rhsall = self.fem.interpolate(rhs)
         for i in range(self.ncomp):
+            # print(f"{i=} {rhsall[i]=}")
             self.fem.massDot(b[i::self.ncomp], rhsall[i])
         return b
     def interpolate(self, rhs): return self.fem.interpolate(rhs).ravel()
