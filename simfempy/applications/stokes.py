@@ -65,8 +65,8 @@ class Stokes(Application):
             normals = nx, ny, nz
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
-                    rhsv[i] -= mu  * v[i].d(j, x, y, z) * normals[j]
-                rhsv[i] += p(x, y, z) * normals[i]
+                    rhsv[i] += mu  * v[i].d(j, x, y, z) * normals[j]
+                rhsv[i] -= p(x, y, z) * normals[i]
             return rhsv
         def _fctneumannp(x, y, z, nx, ny, nz):
             v, p = solexact
@@ -243,7 +243,6 @@ class Stokes(Application):
                 Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
                 def pmult(x):
                     v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-                    w = np.zeros_like(v)
                     w = API.solve(v, maxiter=1, tol=1e-16)
                     q = BP.dot(p-B.dot(w))
                     mu = CP.dot(lam-C.dot(q)).ravel()
@@ -264,27 +263,24 @@ class Stokes(Application):
                 config = pyamg.solver_configuration(A, verb=False)
                 API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
                 def amult(x):
-                    v, p= x[:pstart], x[pstart:pstart+ncells]
+                    v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
                     w = -B.T.dot(p)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] += A.dot(v[i*nfaces: (i+1)*nfaces])
+                    w += A.dot(v)
                     q = B.dot(v)
                     return np.hstack([w, q])
                 Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
                 def pmult(x):
-                    v, p = x[:pstart], x[pstart:pstart+ncells]
-                    w = np.zeros_like(v)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] = API.solve(v[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
+                    w = API.solve(v, maxiter=1, tol=1e-16)
                     q = BP.dot(p-B.dot(w))
                     h = B.T.dot(q)
-                    for i in range(ncomp):
-                        w[i*nfaces: (i+1)*nfaces] += API.solve(h[i*nfaces: (i+1)*nfaces], maxiter=1, tol=1e-16)
+                    w += API.solve(h, maxiter=1, tol=1e-16)
                     return np.hstack([w, q])
                 P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
-                u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
+                b = np.hstack([bin[0], bin[1]])
+                u, info = splinalg.lgmres(Amult, b, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
                 if info: raise ValueError("no convergence info={}".format(info))
-                return u, counter.niter
+                return (u[:ncomp*nfaces], u[ncomp*nfaces:ncomp*nfaces+ncells]), counter.niter
         else:
             raise ValueError(f"unknown solve '{solver=}'")
 
