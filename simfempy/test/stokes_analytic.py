@@ -32,7 +32,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'umf')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    return test_analytic(application=StokesN, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
+    return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 
 

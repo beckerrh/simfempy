@@ -52,4 +52,4 @@ if __name__ == '__main__':
     # data.params.fct_glob['convection'] = dim*["1"]
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     # test(dim=1, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf')
-    test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','new'])
+    test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=3, linearsolver='pyamg', dirichletmethod=['trad','new'])

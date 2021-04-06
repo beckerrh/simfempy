@@ -41,5 +41,5 @@ def test(dim, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(dim=2, exactsolution=["1", "y"], fem=['p1','cr1'], niter=4)
-    # test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['trad','new'], niter=4)
-    test(dim=2, exactsolution='Quadratic', fem=['p1','cr1'], niter=6)
+    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['trad','new'], niter=4)
+    # test(dim=2, exactsolution='Quadratic', fem=['p1','cr1'], niter=6)

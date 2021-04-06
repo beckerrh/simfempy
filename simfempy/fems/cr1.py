@@ -17,7 +17,7 @@ from simfempy.fems import fem
 class CR1(fem.Fem):
     def __init__(self, mesh=None, dirichletmethod='trad'):
         super().__init__(mesh, dirichletmethod=dirichletmethod)
-        self.dirichlet_al = 1
+        self.dirichlet_al = 10
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
@@ -54,7 +54,11 @@ class CR1(fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-    def vectorBoundary(self, b, u, bdrycond, bdrydata):
+    def vectorBoundaryZero(self, du, bdrydata):
+        facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
+        du[facesdirall] = 0
+        return du
+    def vectorBoundary_old(self, b, u, bdrycond, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         if u is None: u = np.zeros_like(b)
@@ -83,10 +87,26 @@ class CR1(fem.Fem):
             b[facesinner] -= bdrydata.A_inner_dir * u[facesdirall]
             b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
         return b, u, bdrydata
-    def vectorBoundaryZero(self, du, bdrydata):
+    def vectorBoundary(self, b, u, bdrycond, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
-        du[facesdirall] = 0
-        return du
+        x, y, z = self.mesh.pointsf.T
+        if u is None: u = np.zeros_like(b)
+        else: assert u.shape == b.shape
+        for color, faces in facesdirflux.items():
+            bdrydata.bsaved[color] = b[faces]
+        for color in colorsdir:
+            faces = self.mesh.bdrylabels[color]
+            dirichlet = bdrycond.fct[color]
+            if color in bdrycond.fct:
+                u[faces] = dirichlet(x[faces], y[faces], z[faces])
+            else:
+                u[faces] = 0
+        b[facesinner] -= bdrydata.A_inner_dir * u[facesdirall]
+        if self.dirichletmethod == 'trad':
+            b[facesdirall] = u[facesdirall]
+        else:
+            b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
+        return b, u, bdrydata
     def matrixBoundary(self, A, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces

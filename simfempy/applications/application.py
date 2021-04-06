@@ -242,8 +242,8 @@ class Application(object):
             return u, len(res)
         else:
             raise NotImplementedError("unknown solve '{}'".format(solver))
-        def pyamg_solver_args(self, maxiter):
-            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
+    def pyamg_solver_args(self, maxiter):
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
     def solve_pyamg(self, ml, b, u, maxiter):
         res = []
         solver_args = self.pyamg_solver_args(maxiter=maxiter)

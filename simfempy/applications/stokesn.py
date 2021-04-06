@@ -161,8 +161,8 @@ class StokesN(Application):
                 if color in bdryfctv.keys():
                     dirichlets = bdryfctv[color](xf[faces], yf[faces], zf[faces])
                     for icomp in range(ncomp):
-                        bv[icomp + ncomp * faces] = dirichlets[icomp]
-                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
+                        bv[icomp + ncomp * faces] += dirichlets[icomp]
+                        # uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
                 else:
                     for icomp in range(ncomp):
                         bv[icomp + ncomp * faces] = 0

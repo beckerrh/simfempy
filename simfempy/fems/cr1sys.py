@@ -74,34 +74,19 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        for color in colorsdir:
+            faces = self.mesh.bdrylabels[color]
+            if color in bdryfct.keys():
+                dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
+                for icomp in range(ncomp):
+                    u[icomp + ncomp * faces] = dirichlets[icomp]
+            else:
+                for icomp in range(ncomp):
+                    u[icomp + ncomp * faces] = 0
+        b[indin] -= bdrydata.A_inner_dir * u[inddir]
         if self.fem.dirichletmethod == 'trad':
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                if color in bdryfct.keys():
-                    dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
-                    # print(f"{dirichlets=}")
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * faces] = dirichlets[icomp]
-                        u[icomp + ncomp * faces] = b[icomp + ncomp * faces]
-                else:
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * faces] = 0
-                        u[icomp + ncomp * faces] = b[icomp + ncomp * faces]
-                # print(f"{color=} {b=}")
-            b[indin] -= bdrydata.A_inner_dir * b[inddir]
+            b[inddir] = u[inddir]
         else:
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                if color in bdryfct.keys():
-                    dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
-                    for icomp in range(ncomp):
-                        u[icomp + ncomp * faces] = dirichlets[icomp]
-                        b[icomp + ncomp * faces] = 0
-                else:
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * faces] = 0
-                        u[icomp + ncomp * faces] = b[icomp + ncomp * faces]
-            b[indin] -= bdrydata.A_inner_dir * u[inddir]
             b[inddir] = bdrydata.A_dir_dir * u[inddir]
         # print(f"{b=}")
         return b, u, bdrydata

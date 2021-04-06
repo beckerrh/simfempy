@@ -14,7 +14,7 @@ class TestAnalytical(unittest.TestCase):
     def test_poisson1d(self):
         from simfempy.test.heat_analytic import test
         self._check(test(dim=1, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
-    def test_poisson3d(self):
+    def test_poisson2d(self):
         from simfempy.test.heat_analytic import test
         self._check(test(dim=2, exactsolution = 'Linear', verbose=0))
     def test_poisson3d(self):

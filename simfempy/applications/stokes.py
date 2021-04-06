@@ -11,7 +11,7 @@ class Stokes(Application):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.femv = fems.cr1sys.CR1sys(self.ncomp)
+        self.femv = fems.cr1sys.CR1sys(self.ncomp, dirichletmethod='trad')
         self.femp = fems.d0.D0()
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -161,7 +161,7 @@ class Stokes(Application):
             uv, up = u
             assert uv.shape == bv.shape
             assert up.shape == bp.shape
-        xf, yf, zf = self.mesh.pointsf.T
+        bv, uv, self.bdrydata = self.femv.vectorBoundary(bv, uv, bdryfctv, self.bdrydata)
         facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
         self.bdrydata.bsaved = {}
@@ -169,26 +169,9 @@ class Stokes(Application):
             indfaces = np.repeat(ncomp * faces, ncomp)
             for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
             self.bdrydata.bsaved[key] = bv[indfaces]
-        if self.femv.fem.dirichletmethod == 'trad':
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                if color in bdryfctv.keys():
-                    dirichlets = bdryfctv[color](xf[faces], yf[faces], zf[faces])
-                    for icomp in range(ncomp):
-                        bv[icomp + ncomp * faces] = dirichlets[icomp]
-                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
-                else:
-                    for icomp in range(ncomp):
-                        bv[icomp + ncomp * faces] = 0
-                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
-            indin = np.repeat(ncomp * facesinner, ncomp)
-            for icomp in range(ncomp): indin[icomp::ncomp] += icomp
-            inddir = np.repeat(ncomp * facesdirall, ncomp)
-            for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-            bv[indin] -= self.bdrydata.A_inner_dir * bv[inddir]
-            bp -= self.bdrydata.B_inner_dir * bv[inddir]
-        else:
-            raise NotImplementedError()
+        inddir = np.repeat(ncomp * facesdirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        bp -= self.bdrydata.B_inner_dir * bv[inddir]
         return (bv,bp), (uv,up), self.bdrydata
     def matrixBoundary(self, A, B):
         A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
@@ -199,10 +182,8 @@ class Stokes(Application):
             nb = faces.shape[0]
             helpB = sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
             for icomp in range(ncomp):
-                # for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
                 for i in range(nb): helpB[icomp + ncomp*faces[i], icomp + ncomp*i] = 1
             self.bdrydata.Bsaved[key] = B.dot(helpB)
-        # self.bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         self.bdrydata.B_inner_dir = B[:,:][:,inddir]
