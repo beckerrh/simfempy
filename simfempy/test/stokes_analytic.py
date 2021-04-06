@@ -5,6 +5,7 @@ sys.path.append(simfempypath)
 
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.stokes import Stokes
+from simfempy.applications.stokesn import StokesN
 import simfempy.applications.problemdata
 from simfempy.test.test_analytic import test_analytic
 
@@ -17,8 +18,8 @@ def test(dim, **kwargs):
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
-        colordir = [1001,1003]
-        colorneu = [1000,1002]
+        colordir = [1000,1001,1003]
+        colorneu = [1002]
         # colordir = [1000,1002,1001,1003]
         # colorneu = []
     else:
@@ -27,11 +28,11 @@ def test(dim, **kwargs):
         raise NotImplementedError("no")
     data.bdrycond.set("Dirichlet", colordir)
     data.bdrycond.set("Neumann", colorneu)
-    data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorneu)
+    data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'umf')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
+    return test_analytic(application=StokesN, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 
 

@@ -6,7 +6,7 @@ from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import analyticalSolution
 
 #=================================================================#
-class Stokes(Application):
+class StokesN(Application):
     """
     """
     def __init__(self, **kwargs):
@@ -22,7 +22,6 @@ class Stokes(Application):
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
         self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
-
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
@@ -90,6 +89,7 @@ class Stokes(Application):
         bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
         self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
         # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
+        self.computeRhsNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct)
         b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, bdryfctv)
         if not self.pmean: return b,u
         if hasattr(self.problemdata,'solexact'):
@@ -102,8 +102,6 @@ class Stokes(Application):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         A, B, self.bdrydata = self.matrixBoundary(A, B)
-        # print(f"A\n{A.todense()}")
-        # print(f"B\n{B.todense()}")
         if not self.pmean:
             return A, B
         ncells = self.mesh.ncells
@@ -125,32 +123,20 @@ class Stokes(Application):
             data['global']['error_V_L2'] = np.sum(err)
             err, e = self.femp.computeErrorL2(self.problemdata.solexact[1], p)
             data['global']['error_P_L2'] = err
-        if self.problemdata.postproc:
-            types = ["bdry_pmean", "bdry_nflux"]
-            for name, type in self.problemdata.postproc.type.items():
-                colors = self.problemdata.postproc.colors(name)
-                if type == types[0]:
-                    data['global'][name] = self.femp.computeBdryMean(p, colors)
-                elif type == types[1]:
-                    data['global'][name] = self.computeBdryNormalFlux(v, p, colors)
-                else:
-                    raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
-
-    def computeBdryNormalFlux(self, v, p, colors):
-        nfaces, ncells, ncomp, bdrydata  = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.bdrydata
-        flux, omega = np.zeros(shape=(ncomp,len(colors))), np.zeros(len(colors))
-        for i,color in enumerate(colors):
+    def computeRhsNitsche(self, b, colorsdir, bdryfct):
+        bv, bp = b
+        xf, yf, zf = self.mesh.pointsf.T
+        for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
+            cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces]
-            dS = np.linalg.norm(normalsS, axis=1)
-            omega[i] = np.sum(dS)
-            As = bdrydata.Asaved[color]
-            Bs = bdrydata.Bsaved[color]
-            res = bdrydata.bsaved[color] - As * v + Bs.T * p
-            for icomp in range(ncomp):
-                flux[icomp, i] = np.sum(res[icomp::ncomp])
-        return flux
+            dS = np.linalg.norm(normalsS,axis=1)
+            # normalsS = normalsS/dS[:,np.newaxis]
+            if color in bdryfct.keys():
+                bfctv, bfctp = bdryfct[color]
+                dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+                bp[cells] -= np.einsum('kn,nk->n', dirichv, normalsS[:,:self.ncomp])
 
     def vectorBoundary(self, b, u, bdryfctv):
         bv, bp = b
@@ -164,11 +150,11 @@ class Stokes(Application):
         xf, yf, zf = self.mesh.pointsf.T
         facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
-        self.bdrydata.bsaved = {}
-        for key, faces in facesdirflux.items():
-            indfaces = np.repeat(ncomp * faces, ncomp)
-            for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
-            self.bdrydata.bsaved[key] = bv[indfaces]
+        self.bdrydata.bsaved = []
+        for icomp in range(ncomp):
+            self.bdrydata.bsaved.append({})
+            for key, faces in facesdirflux.items():
+                self.bdrydata.bsaved[icomp][key] = bv[icomp + ncomp * faces]
         if self.femv.fem.dirichletmethod == 'trad':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
@@ -186,7 +172,7 @@ class Stokes(Application):
             inddir = np.repeat(ncomp * facesdirall, ncomp)
             for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
             bv[indin] -= self.bdrydata.A_inner_dir * bv[inddir]
-            bp -= self.bdrydata.B_inner_dir * bv[inddir]
+            # bp -= self.bdrydata.B_inner_dir * bv[inddir]
         else:
             raise NotImplementedError()
         return (bv,bp), (uv,up), self.bdrydata

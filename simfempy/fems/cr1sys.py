@@ -119,36 +119,14 @@ class CR1sys(femsys.Femsys):
                 indices = i + self.ncomp * faces
                 b[indices] += bS
         return b
-    def computeMatrixDivergence(self, facesdirall=None):
+    def computeMatrixDivergence(self):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, cellgrads, facesOfCells = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
         rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(-1)
         colsB = ncomp*np.repeat(facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
-        # print(f"{rowsB=}")
-        # print(f"{facesOfCells=}")
-        # print(f"{colsB.ravel()=}")
         mat = np.einsum('nkl,n->nkl', cellgrads[:, :, :ncomp], dV)
-        # print(f"{mat.shape=}")
         B = sparse.coo_matrix((mat.reshape(-1), (rowsB, colsB.ravel())),shape=(ncells, nfaces * ncomp)).tocsr()
         return B
-        #
-        # rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(ncells * nloc, ncomp)
-        # colsB = np.repeat(facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + nfaces * np.arange(ncomp)
-        # matB = cellgrads[:, :, :ncomp]
-        # print(f"{matB.shape=}")
-        # for color in colorsdir:
-        #     faces = self.mesh.bdrylabels[color]
-        #     matB[faces] = 0
-        # matB = (matB.T * dV).T
-        # B = sparse.coo_matrix((matB.reshape(-1), (rowsB.reshape(-1), colsB.reshape(-1))),
-        #                             shape=(ncells, nfaces * ncomp)).tocsr()
-        # if facesdirall is None:
-        #     return B
-        # help = np.ones((ncomp * nfaces))
-        # for icomp in range(ncomp):
-        #    help[icomp + ncomp*facesdirall] = 0
-        # help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
-        # return B.dot(help)
     def computeMatrixLaplace(self, mucell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads

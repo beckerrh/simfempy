@@ -46,9 +46,20 @@ class D0(fem.Fem):
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T / dS
             neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
-            faces = self.mesh.cellsOfFaces[faces,0]
-            # b[faces] -= dS * neumanns
+            cells = self.mesh.cellsOfFaces[faces,0]
+            # b[cells] -= dS * neumanns
         return b
+    def computeBdryMean(self, b, colors):
+        res, omega = 0, 0
+        for color in colors:
+            faces = self.mesh.bdrylabels[color]
+            cells = self.mesh.cellsOfFaces[faces,0]
+            normalsS = self.mesh.normals[faces]
+            dS = linalg.norm(normalsS, axis=1)
+            res += dS*b[cells]
+            omega += np.sum(dS)
+        return res/omega
+
     def computeErrorL2(self, solexact, uh):
         xc, yc, zc = self.mesh.pointsc.T
         en = solexact(xc, yc, zc) - uh
