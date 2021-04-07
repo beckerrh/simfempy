@@ -140,6 +140,7 @@ class Heat(Application):
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += coeff*self.Arobin
+        self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir, coeff)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             A += coeff * self.fem.computeMatrixTransport(self.stab=='lps')
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
@@ -170,6 +171,7 @@ class Heat(Application):
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         colorsneu = bdrycond.colorsOfType("Neumann")
+        self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, coeff)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0)*coeff, colors=colorsdir)

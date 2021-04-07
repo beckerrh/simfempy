@@ -42,6 +42,7 @@ class CR1(fem.Fem):
         self.computeStencilInnerSidesCell(self.mesh.facesOfCells)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
+        if self.dirichletmethod == 'nitsche': return
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint)
         bdrydata.colorsdir = colorsdir
@@ -54,40 +55,37 @@ class CR1(fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
+
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, coeff=1):
+        if self.dirichletmethod != 'nitsche': return
+        raise NotImplemented()
+        return b
+    def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
+        if self.dirichletmethod != 'nitsche': return
+        rows = np.empty(shape=(0), dtype=int)
+        cols = np.empty(shape=(0), dtype=int)
+        mat = np.empty(shape=(0), dtype=float)
+        nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
+        for color in colorsdir:
+            faces = self.mesh.bdrylabels[color]
+            cells = self.mesh.cellsOfFaces[faces,0]
+            normalsS = self.mesh.normals[faces][:,:dim]
+            dS = np.linalg.norm(normalsS,axis=1)
+            cols = np.append(cols, faces)
+            rows = np.append(rows, cells.repeat(nlocal))
+            mat = np.append(mat, np.einsum('fi,fij->fj', normalsS, self.cellgrads[cells,:,:]))
+            # print(f"{rows.shape=} {cols.shape=} {mat.shape=}")
+        AN = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
+        raise NotImplemented()
+        return A
+
     def vectorBoundaryZero(self, du, bdrydata):
+        if self.dirichletmethod == 'nitsche': return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         du[facesdirall] = 0
         return du
-    def vectorBoundary_old(self, b, u, bdrycond, bdrydata):
-        facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
-        x, y, z = self.mesh.pointsf.T
-        if u is None: u = np.zeros_like(b)
-        else: assert u.shape == b.shape
-        for color, faces in facesdirflux.items():
-            bdrydata.bsaved[color] = b[faces]
-        if self.dirichletmethod == 'trad':
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                dirichlet = bdrycond.fct[color]
-                if color in bdrycond.fct:
-                    b[faces] = dirichlet(x[faces], y[faces], z[faces])
-                else:
-                    b[faces] = 0
-                u[faces] = b[faces]
-            b[facesinner] -= bdrydata.A_inner_dir * b[facesdirall]
-        else:
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                dirichlet = bdrycond.fct[color]
-                if dirichlet:
-                    u[faces] = dirichlet(x[faces], y[faces], z[faces])
-                else:
-                    u[faces] = 0
-                b[faces] = 0
-            b[facesinner] -= bdrydata.A_inner_dir * u[facesdirall]
-            b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
-        return b, u, bdrydata
     def vectorBoundary(self, b, u, bdrycond, bdrydata):
+        if self.dirichletmethod == 'nitsche': return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         if u is None: u = np.zeros_like(b)
@@ -108,6 +106,7 @@ class CR1(fem.Fem):
             b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
         return b, u, bdrydata
     def matrixBoundary(self, A, bdrydata):
+        if self.dirichletmethod == 'nitsche': return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():

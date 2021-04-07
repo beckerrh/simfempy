@@ -102,6 +102,8 @@ class StokesN(Application):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         A, B, self.bdrydata = self.matrixBoundary(A, B)
+        colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        A, B = self.computeMatrixNitsche(A, B, colorsdir)
         if not self.pmean:
             return A, B
         ncells = self.mesh.ncells
@@ -130,13 +132,31 @@ class StokesN(Application):
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
             cells = self.mesh.cellsOfFaces[faces,0]
-            normalsS = self.mesh.normals[faces]
+            normalsS = self.mesh.normals[faces][:,:self.ncomp]
             dS = np.linalg.norm(normalsS,axis=1)
             # normalsS = normalsS/dS[:,np.newaxis]
             if color in bdryfct.keys():
                 bfctv, bfctp = bdryfct[color]
                 dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
-                bp[cells] -= np.einsum('kn,nk->n', dirichv, normalsS[:,:self.ncomp])
+                bp[cells] -= np.einsum('kn,nk->n', dirichv, normalsS)
+    def computeMatrixNitsche(self, A, B, colorsdir):
+        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
+        rows = np.empty(shape=(0), dtype=int)
+        cols = np.empty(shape=(0), dtype=int)
+        mat = np.empty(shape=(0), dtype=float)
+        for color in colorsdir:
+            faces = self.mesh.bdrylabels[color]
+            cells = self.mesh.cellsOfFaces[faces,0]
+            normalsS = self.mesh.normals[faces][:,:self.ncomp]
+            dS = np.linalg.norm(normalsS,axis=1)
+            indfaces = np.repeat(ncomp * faces, ncomp)
+            for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
+            cols = np.append(cols, indfaces)
+            rows = np.append(rows, cells.repeat(ncomp))
+            mat = np.append(mat, normalsS)
+            # print(f"{rows.shape=} {cols.shape=} {mat.shape=}")
+        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
+        return A,B-BN
 
     def vectorBoundary(self, b, u, bdryfctv):
         bv, bp = b
@@ -188,14 +208,9 @@ class StokesN(Application):
                 # for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
                 for i in range(nb): helpB[icomp + ncomp*faces[i], icomp + ncomp*i] = 1
             self.bdrydata.Bsaved[key] = B.dot(helpB)
-        # self.bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         self.bdrydata.B_inner_dir = B[:,:][:,inddir]
-        help = np.ones((ncomp * nfaces))
-        help[inddir] = 0
-        help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
-        B = B.dot(help)
         return A,B, self.bdrydata
 
     def _to_single_matrix(self, Ain):
