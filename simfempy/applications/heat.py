@@ -140,7 +140,9 @@ class Heat(Application):
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += coeff*self.Arobin
-        self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir, coeff)
+        # print(f"{A.todense()=}")
+        A = self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir, coeff)
+        # print(f"{A.todense()=}")
         if 'convection' in self.problemdata.params.fct_glob.keys():
             A += coeff * self.fem.computeMatrixTransport(self.stab=='lps')
             A += coeff * self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
@@ -150,9 +152,6 @@ class Heat(Application):
         # if self.verbose: print(f"{self.bdrydata=}")
         return A
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
-        if not hasattr(self.bdrydata,"A_inner_dir"):
-            raise ValueError("matrix() has to be called befor computeRhs()")
-        bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         if b is None:
             b = np.zeros(self.fem.nunknowns())
         else:
@@ -168,10 +167,13 @@ class Heat(Application):
             self.fem.massDotCell(b, fp1, coeff=coeff)
         if 'rhspoint' in self.problemdata.params.fct_glob:
             self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'], coeff=coeff)
+        if self.fem.dirichletmethod != 'nitsche' and not hasattr(self.bdrydata,"A_inner_dir"):
+            raise ValueError("matrix() has to be called befor computeRhs()")
+        bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         colorsneu = bdrycond.colorsOfType("Neumann")
-        self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, coeff)
+        self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond, coeff)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0)*coeff, colors=colorsdir)

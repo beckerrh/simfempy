@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
-from simfempy.tools import barycentric
+from simfempy.tools import barycentric,npext
 from simfempy.fems import fem
 
 
@@ -56,12 +56,34 @@ class CR1(fem.Fem):
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
 
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, coeff=1):
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, bdrycond, coeff=1):
         if self.dirichletmethod != 'nitsche': return
-        raise NotImplemented()
+        nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
+        x, y, z = self.mesh.pointsf.T
+        for color in colorsdir:
+            faces = self.mesh.bdrylabels[color]
+            cells = self.mesh.cellsOfFaces[faces,0]
+            normalsS = self.mesh.normals[faces][:,:dim]
+            dS = np.linalg.norm(normalsS,axis=1)
+            dirichlet = bdrycond.fct[color]
+            if not color in bdrycond.fct: continue
+            u = dirichlet(x[faces], y[faces], z[faces])
+            mat = np.einsum('f,fi,fji->fj', u*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
+            np.add.at(b, self.mesh.facesOfCells[cells], -mat)
+            ind = npext.positionin(faces, self.mesh.facesOfCells[cells]).astype(int)
+            if not np.all(faces == self.mesh.facesOfCells[cells,ind]):
+                print(f"{faces=}")
+                print(f"{self.mesh.facesOfCells[cells]=}")
+                print(f"{self.mesh.facesOfCells[cells,ind]=}")
+            # print(f"{mat.shape=} {ind.shape=}")
+            # print(f"{mat[np.ix_(np.arange(ind.shape[0]),ind)].shape=}")
+            # print(f"{np.choose(ind,mat.T)=}")
+            # for i in range(mat.shape[0]): print(f"{mat[i,ind[i]]=}", end=' ')
+            # print(f"{np.take(mat,ind,axis=0)=}")
+            b[faces] += 2 * np.choose(ind,mat.T)
         return b
     def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
-        if self.dirichletmethod != 'nitsche': return
+        if self.dirichletmethod != 'nitsche': return A
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
         mat = np.empty(shape=(0), dtype=float)
@@ -71,21 +93,23 @@ class CR1(fem.Fem):
             cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces][:,:dim]
             dS = np.linalg.norm(normalsS,axis=1)
-            cols = np.append(cols, faces)
-            rows = np.append(rows, cells.repeat(nlocal))
-            mat = np.append(mat, np.einsum('fi,fij->fj', normalsS, self.cellgrads[cells,:,:]))
+            cols = np.append(cols, self.mesh.facesOfCells[cells,:])
+            rows = np.append(rows, faces.repeat(nlocal))
+            mat = np.append(mat, np.einsum('f,fi,fji->fj', diffcoff[cells], normalsS, self.cellgrads[cells,:,:dim]))
             # print(f"{rows.shape=} {cols.shape=} {mat.shape=}")
         AN = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-        raise NotImplemented()
-        return A
+        assert AN.diagonal().shape[0] == nfaces
+        # print(f"{AN.diagonal()=}")
+        AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(nfaces, nfaces))
+        return A- AN -AN.T + 2*AD
 
     def vectorBoundaryZero(self, du, bdrydata):
-        if self.dirichletmethod == 'nitsche': return
+        if self.dirichletmethod == 'nitsche': return du
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         du[facesdirall] = 0
         return du
     def vectorBoundary(self, b, u, bdrycond, bdrydata):
-        if self.dirichletmethod == 'nitsche': return
+        if self.dirichletmethod == 'nitsche': return b, u, bdrydata
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         if u is None: u = np.zeros_like(b)
@@ -106,7 +130,7 @@ class CR1(fem.Fem):
             b[facesdirall] += bdrydata.A_dir_dir * u[facesdirall]
         return b, u, bdrydata
     def matrixBoundary(self, A, bdrydata):
-        if self.dirichletmethod == 'nitsche': return
+        if self.dirichletmethod == 'nitsche': return A, bdrydata
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():

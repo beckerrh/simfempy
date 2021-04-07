@@ -2,10 +2,14 @@ import numpy as np
 
 # ------------------------------------- #
 def positionin(x,y):
-    assert len(x.shape) ==2
     assert len(y.shape) ==2
     assert x.shape[0]==y.shape[0]
     pos = np.empty_like(x)
+    if len(x.shape) == 1:
+        for i in range(x.shape[0]):
+            pos[i]= np.nonzero(y[i]==x[i])[0]
+            # print(f"{x[i]=} {y[i]=} {pos[i]=}")
+        return pos
     for i in range(x.shape[0]):
         index = np.argsort(y[i])
         ysorted = y[i][index]
