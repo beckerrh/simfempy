@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.8)  6 APR 2021 15:43
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.8)  7 APR 2021 17:36
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1056,7 +1056,11 @@ Package biblatex Warning: 'babel/polyglossia' detected but 'csquotes' missing.
 
 \@quotelevel=\count451
 \@quotereset=\count452
-(./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux
+(./simfempy.aux (./chap/heat.aux
+
+LaTeX Warning: Label `subsec:' multiply defined.
+
+) (./chap/stokes.aux
 
 LaTeX Warning: Label `subsec:' multiply defined.
 
@@ -1295,32 +1299,31 @@ LaTeX Font Info:    Trying to load font information for U+stmry on input line 3
 \blx@sectionciteorder@1=\count462
 Package biblatex Info: Reference section=1 on input line 4.
 Package biblatex Info: Setting label 'refsection:1' on input line 4.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `math shift' on input line 68.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `subscript' on input line 68.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `superscript' on input line 68.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `\Omega' on input line 68.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `math shift' on input line 68.
-
-[2
+ [2
 
 ]
 
-LaTeX Warning: Empty bibliography on input line 91.
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `math shift' on input line 110.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `subscript' on input line 110.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `superscript' on input line 110.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `\Omega' on input line 110.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `math shift' on input line 110.
+
+
+LaTeX Warning: Empty bibliography on input line 133.
 
 ) [3]
 \openout2 = `chap/stokes.aux'.
@@ -1532,15 +1535,9 @@ Package atveryend Info: Empty hook `AfterLastShipout' on input line 49.
 hap/fem.aux) (./chap/transport.aux))
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 49.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 49.
+Package rerunfilecheck Info: File `simfempy.out' has not changed.
+(rerunfilecheck)             Checksum: 6C8B091FAAF61D72AA55BF68DEE8BBF5;1211.
 
-
-Package rerunfilecheck Warning: File `simfempy.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `simfempy.out':
-(rerunfilecheck)             Before: 83D961018889C087F63E229D3025964F;789
-(rerunfilecheck)             After:  9DB3832960D00BAEDF5BB8AF50CDA8FC;1066.
 
 LaTeX Warning: There were undefined references.
 
@@ -1557,13 +1554,13 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33356 strings out of 480608
- 645619 string characters out of 5903631
- 1393326 words of memory out of 5000000
- 48524 multiletter control sequences out of 15000+600000
+ 33366 strings out of 480608
+ 645786 string characters out of 5903631
+ 1393380 words of memory out of 5000000
+ 48531 multiletter control sequences out of 15000+600000
  576210 words of font info for 130 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 63i,15n,97p,853b,1702s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 63i,15n,97p,853b,1696s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
 exlive/2020/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
 live/2020/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
@@ -1591,10 +1588,10 @@ l/texlive/2020/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texliv
 e/2020/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2020/
 texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2020/texmf-d
 ist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (10 pages, 256096 bytes).
+Output written on simfempy.pdf (10 pages, 258768 bytes).
 PDF statistics:
- 292 PDF objects out of 1000 (max. 8388607)
- 252 compressed objects within 3 object streams
- 70 named destinations out of 1000 (max. 500000)
- 109 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 317 PDF objects out of 1000 (max. 8388607)
+ 277 compressed objects within 3 object streams
+ 73 named destinations out of 1000 (max. 500000)
+ 157 words of extra memory for PDF output out of 10000 (max. 10000000)
 

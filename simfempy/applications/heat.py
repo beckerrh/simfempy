@@ -209,7 +209,7 @@ class Heat(Application):
                 elif type == types[1]:
                     data['global'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
-                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond)
+                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
                 elif type == types[3]:
                     data['global'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:

@@ -69,6 +69,43 @@ and then with the different boundary conditions, we find
 %-------------------------------------------------------------------------
 %
 %
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Nitsche's method}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+\begin{equation}\label{eq:laplace:weakform}
+%
+\left\{
+\begin{aligned}
+&u_h\in V_h:\quad a_{\Omega}(u_h, \phi) + a_{\partial\Omega}(u_h,\phi) = l_{\Omega}(\phi)+l_{\partial\Omega}(\phi) \quad\forall \phi\in V_h\\
+&\begin{aligned}
+a_{\Omega}(v,\phi) &:= \int_{\Omega} \mu \nabla u\cdot\nabla\phi \\
+ a_{\partial\Omega}(v,\phi) &:= \int_{\GammaD}\frac{\gamma\mu}{h}u\phi - 
+ \int_{\GammaD}\mu \left(  \dn{u} \phi + u  \dn{\phi}\right) \\
+ l_{\Omega}(\phi) &:= \int_{\Omega} f\phi, \quad
+ l_{\partial\Omega}(\phi) = \int_{\GammaD}\mu\uD\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)
+\end{aligned}
+\end{aligned}
+\right.
+%
+\end{equation}
+%
+Let $-\div(\mu \nabla z)= 0$ and $\Rest{z}{\GammaD}=1$ and $\Rest{z}{\GammaN}=0$. Then
+%
+\begin{align*}
+\int_{\Omega} \mu \nabla u\cdot\nabla z -\int_{\Omega} fz =&  \int_{\Omega} \left( \mu \nabla u\cdot\nabla z + \div(\mu \nabla u)z\right) 
+= \int_{\GammaD}\mu\dn{u}.
+\end{align*}
+%
+Now, if $z_h\in V_h$ such that $z-z_h\in H^1_0(\Omega)$ 
+%
+\begin{align*}
+\int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla(z-z_h) = \int_{\Omega} f(z-z_h) -\int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h)
+\end{align*}
+%
+
+%
 %-------------------------------------------------------------------------
 \subsection{Computation of the matrices for $\Pspace_h^1(\Omega)$}\label{subsec:}
 %-------------------------------------------------------------------------

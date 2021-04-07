@@ -3,7 +3,11 @@
 \defcounter {refsection}{1}\relax 
 \contentsline {section}{\numberline {1}Heat equation}{2}{section.1}%
 \defcounter {refsection}{1}\relax 
-\contentsline {subsection}{\numberline {1.1}Computation of the matrices for $\mathcal {P}_h^1(\Omega )$}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.1}Boundary conditions}{2}{subsection.1.1}%
+\defcounter {refsection}{1}\relax 
+\contentsline {subsubsection}{\numberline {1.1.1}Nitsche's method}{2}{subsubsection.1.1.1}%
+\defcounter {refsection}{1}\relax 
+\contentsline {subsection}{\numberline {1.2}Computation of the matrices for $\mathcal {P}_h^1(\Omega )$}{3}{subsection.1.2}%
 \defcounter {refsection}{2}\relax 
 \contentsline {section}{\numberline {2}Stokes problem}{4}{section.2}%
 \defcounter {refsection}{2}\relax 

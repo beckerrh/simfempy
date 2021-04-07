@@ -41,7 +41,7 @@ def test(dim, **kwargs):
     data.bdrycond.set("Robin", colorsrob)
     for col in colorsrob: data.bdrycond.param[col] = 11.
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
-    # data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
     return test_analytic(application=Heat, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
@@ -53,5 +53,5 @@ if __name__ == '__main__':
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     # test(dim=1, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf')
     # test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=3, linearsolver='pyamg', dirichletmethod=['trad','new'])
-    test(dim=3, exactsolution = 'Linear', fem=['cr1'], niter=3, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
+    test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=3, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
     # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche'])
