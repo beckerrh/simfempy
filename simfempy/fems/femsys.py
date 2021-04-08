@@ -24,7 +24,7 @@ class Femsys():
         ncomp, nloc, ncells = self.ncomp, self.fem.nloc, self.mesh.ncells
         dofs = self.fem.dofspercell()
         nlocncomp = ncomp * nloc
-        self.rowssys = np.repeat(ncomp * dofs, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp, dtype="uint")
+        self.rowssys = np.repeat(ncomp * dofs, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp, dtype=np.uint32)
         self.rowssys = self.rowssys.reshape(ncells, nlocncomp).repeat(nlocncomp).reshape(ncells, nlocncomp, nlocncomp)
         self.colssys = self.rowssys.swapaxes(1, 2)
         self.colssys = self.colssys.reshape(-1)

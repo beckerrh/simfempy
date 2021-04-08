@@ -22,7 +22,6 @@ class Stokes(Application):
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
         self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
-
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
@@ -136,7 +135,6 @@ class Stokes(Application):
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
-
     def computeBdryNormalFlux(self, v, p, colors):
         nfaces, ncells, ncomp, bdrydata  = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.bdrydata
         flux, omega = np.zeros(shape=(ncomp,len(colors))), np.zeros(len(colors))
@@ -151,7 +149,6 @@ class Stokes(Application):
             for icomp in range(ncomp):
                 flux[icomp, i] = np.sum(res[icomp::ncomp])
         return flux
-
     def vectorBoundary(self, b, u, bdryfctv):
         bv, bp = b
         if u is None:

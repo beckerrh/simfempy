@@ -45,7 +45,7 @@ class CR1(fem.Fem):
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         if self.dirichletmethod == 'nitsche': return
         bdrydata = simfempy.fems.bdrydata.BdryData()
-        bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint)
+        bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint32)
         bdrydata.colorsdir = colorsdir
         for color in colorsdir:
             facesdir = self.mesh.bdrylabels[color]
@@ -85,7 +85,6 @@ class CR1(fem.Fem):
         return b
     def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
         if self.dirichletmethod != 'nitsche': return A
-
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]

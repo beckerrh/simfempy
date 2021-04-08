@@ -4,6 +4,7 @@ import scipy.sparse.linalg as splinalg
 from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import analyticalSolution
+from simfempy.tools import npext
 
 #=================================================================#
 class StokesN(Application):
@@ -13,14 +14,12 @@ class StokesN(Application):
         super().__init__(**kwargs)
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
+        self.dirichlet_nitsche = 4
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
         self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
@@ -79,6 +78,10 @@ class StokesN(Application):
     def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
         bv = np.zeros(self.femv.nunknowns() * self.ncomp)
         bp = np.zeros(self.femp.nunknowns())
+        if u is None:
+            uv = np.zeros_like(bv)
+            up = np.zeros_like(bp)
+            u = (uv,up)
         rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
         if rhsv: self.femv.computeRhsCells(bv, rhsv)
         if rhsp: self.femp.computeRhsCells(bp, rhsp)
@@ -89,9 +92,8 @@ class StokesN(Application):
         bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
         self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
         # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
-        self.computeRhsNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct)
-        b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, bdryfctv)
-        if not self.pmean: return b,u
+        self.computeRhsNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell, coeff)
+        if not self.pmean: return (bv,bp), u
         if hasattr(self.problemdata,'solexact'):
             p = self.problemdata.solexact[1]
             pmean = self.femp.computeMean(p)
@@ -101,9 +103,8 @@ class StokesN(Application):
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
-        A, B, self.bdrydata = self.matrixBoundary(A, B)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        A, B = self.computeMatrixNitsche(A, B, colorsdir)
+        A, B = self.computeMatrixNitsche(A, B, colorsdir, self.mucell)
         if not self.pmean:
             return A, B
         ncells = self.mesh.ncells
@@ -126,93 +127,64 @@ class StokesN(Application):
             err, e = self.femp.computeErrorL2(self.problemdata.solexact[1], p)
             data['global']['error_P_L2'] = err
         return data
-    def computeRhsNitsche(self, b, colorsdir, bdryfct):
+    def computeRhsNitsche(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
         xf, yf, zf = self.mesh.pointsf.T
+        nfaces, ncells, dim, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.ncomp
+        cellgrads = self.femv.fem.cellgrads
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
             cells = self.mesh.cellsOfFaces[faces,0]
-            normalsS = self.mesh.normals[faces][:,:self.ncomp]
+            normalsS = self.mesh.normals[faces][:,:ncomp]
             dS = np.linalg.norm(normalsS,axis=1)
             # normalsS = normalsS/dS[:,np.newaxis]
-            if color in bdryfct.keys():
-                bfctv, bfctp = bdryfct[color]
-                dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
-                bp[cells] -= np.einsum('kn,nk->n', dirichv, normalsS)
-    def computeMatrixNitsche(self, A, B, colorsdir):
-        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
-        rows = np.empty(shape=(0), dtype=int)
-        cols = np.empty(shape=(0), dtype=int)
-        mat = np.empty(shape=(0), dtype=float)
-        for color in colorsdir:
-            faces = self.mesh.bdrylabels[color]
-            cells = self.mesh.cellsOfFaces[faces,0]
-            normalsS = self.mesh.normals[faces][:,:self.ncomp]
-            dS = np.linalg.norm(normalsS,axis=1)
-            indfaces = np.repeat(ncomp * faces, ncomp)
-            for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
-            cols = np.append(cols, indfaces)
-            rows = np.append(rows, cells.repeat(ncomp))
-            mat = np.append(mat, normalsS)
-            # print(f"{rows.shape=} {cols.shape=} {mat.shape=}")
-        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
-        return A,B-BN
-
-    def vectorBoundary(self, b, u, bdryfctv):
-        bv, bp = b
-        if u is None:
-            uv = np.zeros_like(bv)
-            up = np.zeros_like(bp)
-        else:
-            uv, up = u
-            assert uv.shape == bv.shape
-            assert up.shape == bp.shape
-        xf, yf, zf = self.mesh.pointsf.T
-        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
-        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
-        self.bdrydata.bsaved = []
-        for icomp in range(ncomp):
-            self.bdrydata.bsaved.append({})
-            for key, faces in facesdirflux.items():
-                self.bdrydata.bsaved[icomp][key] = bv[icomp + ncomp * faces]
-        if self.femv.fem.dirichletmethod == 'trad':
-            for color in colorsdir:
-                faces = self.mesh.bdrylabels[color]
-                if color in bdryfctv.keys():
-                    dirichlets = bdryfctv[color](xf[faces], yf[faces], zf[faces])
-                    for icomp in range(ncomp):
-                        bv[icomp + ncomp * faces] += dirichlets[icomp]
-                        # uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
-                else:
-                    for icomp in range(ncomp):
-                        bv[icomp + ncomp * faces] = 0
-                        uv[icomp + ncomp * faces] = bv[icomp + ncomp * faces]
-            indin = np.repeat(ncomp * facesinner, ncomp)
-            for icomp in range(ncomp): indin[icomp::ncomp] += icomp
-            inddir = np.repeat(ncomp * facesdirall, ncomp)
-            for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-            bv[indin] -= self.bdrydata.A_inner_dir * bv[inddir]
-            # bp -= self.bdrydata.B_inner_dir * bv[inddir]
-        else:
-            raise NotImplementedError()
-        return (bv,bp), (uv,up), self.bdrydata
-    def matrixBoundary(self, A, B):
-        A, self.bdrydata = self.femv.matrixBoundary(A, self.bdrydata)
-        facesdirall, facesinner, colorsdir, facesdirflux = self.bdrydata.facesdirall, self.bdrydata.facesinner, self.bdrydata.colorsdir, self.bdrydata.facesdirflux
-        nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
-        self.bdrydata.Bsaved = {}
-        for key, faces in facesdirflux.items():
-            nb = faces.shape[0]
-            helpB = sparse.dok_matrix((ncomp*nfaces, ncomp*nb))
+            if not color in bdryfct.keys(): return
+            bfctv, bfctp = bdryfct[color]
+            dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+            bp[cells] -= np.einsum('kn,nk->n', coeff*dirichv, normalsS)
+            mat = np.einsum('f,fi,fji->fj', coeff*mucell[cells], normalsS, cellgrads[cells, :, :dim])
+            indfaces = self.mesh.facesOfCells[cells]
             for icomp in range(ncomp):
-                # for i in range(nb): helpB[icomp*nfaces + faces[i], icomp*nb + i] = 1
-                for i in range(nb): helpB[icomp + ncomp*faces[i], icomp + ncomp*i] = 1
-            self.bdrydata.Bsaved[key] = B.dot(helpB)
-        inddir = np.repeat(ncomp * facesdirall, ncomp)
-        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
-        self.bdrydata.B_inner_dir = B[:,:][:,inddir]
-        return A,B, self.bdrydata
+                mat2 = np.einsum('fj,f->fj', mat, dirichv[icomp])
+                np.add.at(bv, icomp+ncomp*indfaces, -mat2)
+            ind = npext.positionin(faces, indfaces).astype(int)
+            for icomp in range(ncomp):
+                bv[icomp+ncomp*faces] += self.dirichlet_nitsche * np.choose(ind, mat.T)*dirichv[icomp]
+        # print(f"{bv.shape=} {bp.shape=}")
 
+    def computeMatrixNitsche(self, A, B, colorsdir, mucell, coeff=1):
+        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
+        nloc = dim+1
+        nlocncomp = ncomp * nloc
+        cellgrads = self.femv.fem.cellgrads
+        faces = self.mesh.bdryFaces(colorsdir)
+        cells = self.mesh.cellsOfFaces[faces, 0]
+        normalsS = self.mesh.normals[faces][:, :self.ncomp]
+        indfaces = np.repeat(ncomp * faces, ncomp)
+        for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
+        cols = indfaces.ravel()
+        rows = cells.repeat(ncomp).ravel()
+        mat = normalsS.ravel()
+        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
+
+        mat = np.einsum('f,fi,fji->fj', coeff * mucell[cells], normalsS, cellgrads[cells, :, :dim])
+        mats = mat.repeat(ncomp)
+        dofs = self.mesh.facesOfCells[cells, :]
+        cols = np.repeat(ncomp * dofs, ncomp).reshape(dofs.shape[0], nloc, ncomp)
+        for icomp in range(ncomp): cols[:,:,icomp::ncomp] += icomp
+        indfaces = np.repeat(ncomp * faces, ncomp*nloc).reshape(dofs.shape[0],nloc,ncomp)
+        for icomp in range(ncomp): indfaces[:,:,icomp::ncomp] += icomp
+        cols = cols.reshape(dofs.shape[0],nloc*ncomp)
+        rows = indfaces.reshape(dofs.shape[0],nloc*ncomp)
+        AN = sparse.coo_matrix((mats, (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
+        A = A- AN -AN.T + self.dirichlet_nitsche*AD
+        # print(f"{AN.todense()=}")
+        # print(f"{AD.toarray()=}")
+        # print(f"{A.toarray()=}")
+        # print(f"{A=}")
+        B -= BN
+        return A,B
     def _to_single_matrix(self, Ain):
         ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
         # print("Ain", Ain)

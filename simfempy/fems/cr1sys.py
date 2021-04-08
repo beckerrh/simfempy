@@ -141,7 +141,6 @@ class CR1sys(femsys.Femsys):
         assert np.all(ci1>=0)
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
-
         faces = self.mesh.faces[self.mesh.innerfaces]
         ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
         ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
