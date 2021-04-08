@@ -101,10 +101,20 @@ Let $-\div(\mu \nabla z)= 0$ and $\Rest{z}{\GammaD}=1$ and $\Rest{z}{\GammaN}=0$
 Now, if $z_h\in V_h$ such that $z-z_h\in H^1_0(\Omega)$ 
 %
 \begin{align*}
-\int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla(z-z_h) = \int_{\Omega} f(z-z_h) -\int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h)
+\int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla(z-z_h) =& \int_{\Omega} f(z-z_h) -\int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h)\\
+=&\int_{\Omega} fz - \int_{\Omega} \mu \nabla u_h\cdot\nabla z + \int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h) -\int_{\Omega} fz_h\\
+=&-\int_{\GammaD}\mu\dn{u}+ \int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla z 
++ \int_{\GammaD}\mu(\uD-u_h)\left( \frac{\gamma}{h}z_h - \dn{z_h}\right)+ \int_{\GammaD}\mu \dn{u_h}\\
+=&\int_{\GammaD}\mu \dn{u_h}+ \int_{\GammaD}(\uD-u_h)\frac{\mu\gamma}{h} -\int_{\GammaD}\mu\dn{u}
++ \int_{\GammaD}\mu(u-u_h) \dn{z-z_h},
 \end{align*}
 %
-
+so we get a possibly second-order approximation of the flux by
+%
+\begin{equation}\label{eq:}
+F_h := \int_{\GammaD}\mu \dn{u_h}+ \int_{\GammaD}(\uD-u_h)\frac{\mu\gamma}{h}.
+\end{equation}
+%
 %
 %-------------------------------------------------------------------------
 \subsection{Computation of the matrices for $\Pspace_h^1(\Omega)$}\label{subsec:}

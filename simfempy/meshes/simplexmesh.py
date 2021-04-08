@@ -56,6 +56,13 @@ class SimplexMesh(object):
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+    def bdryFaces(self, colors):
+        pos = [0]
+        for color in colors: pos.append(pos[-1]+len(self.bdrylabels[color]))
+        faces = np.empty(pos[-1], dtype=np.uint32)
+        for i,color in enumerate(colors): faces[pos[i]:pos[i+1]] = self.bdrylabels[color]
+        return faces
+
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
