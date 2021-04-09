@@ -56,7 +56,6 @@ class CR1(fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-
     def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, bdrycond, coeff=1):
         if self.dirichletmethod != 'nitsche': return
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
@@ -95,7 +94,6 @@ class CR1(fem.Fem):
         AN = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
         AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(nfaces, nfaces))
         return A- AN -AN.T + self.dirichlet_nitsche*AD
-
     def vectorBoundaryZero(self, du, bdrydata):
         if self.dirichletmethod == 'nitsche': return du
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir

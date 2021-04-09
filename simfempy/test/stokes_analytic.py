@@ -38,6 +38,6 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=8, plotsolution=False, linearsolver='gmres')
-    # test(dim=2, exactsolution=[["-y","x"],"1"], niter=3, plotsolution=False, linearsolver='gmres')
+    # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=8, plotsolution=False, linearsolver='gmres')
+    test(dim=2, exactsolution=[["-y","x"],"0"], niter=3, plotsolution=False, linearsolver='gmres')
     # test(dim=2, exactsolution=[["1","0"],"1"], niter=2, h1=2)

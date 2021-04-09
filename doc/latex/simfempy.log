@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.8)  8 APR 2021 10:34
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.2.24)  9 APR 2021 10:45
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1067,6 +1067,9 @@ LaTeX Warning: Label `subsec:' multiply defined.
 
 LaTeX Warning: Label `subsec:' multiply defined.
 
+
+LaTeX Warning: Label `eq:' multiply defined.
+
 ) (./chap/python.aux
 
 LaTeX Warning: Label `sec:' multiply defined.
@@ -1559,7 +1562,7 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
  ) 
 Here is how much of TeX's memory you used:
  33367 strings out of 480608
- 645798 string characters out of 5903631
+ 645798 string characters out of 5903630
  1393380 words of memory out of 5000000
  48531 multiletter control sequences out of 15000+600000
  576210 words of font info for 130 fonts, out of 8000000 for 9000
@@ -1592,7 +1595,7 @@ l/texlive/2020/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texliv
 e/2020/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2020/
 texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2020/texmf-d
 ist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (10 pages, 259509 bytes).
+Output written on simfempy.pdf (10 pages, 259545 bytes).
 PDF statistics:
  318 PDF objects out of 1000 (max. 8388607)
  278 compressed objects within 3 object streams
