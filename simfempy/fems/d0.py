@@ -13,7 +13,7 @@ from simfempy.tools import barycentric
 #=================================================================#
 class D0(fem.Fem):
     def __init__(self, mesh=None):
-        super().__init__(mesh)
+        super().__init__(mesh=mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
     def nlocal(self): return 1

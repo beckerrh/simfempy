@@ -82,7 +82,6 @@ class StokesBase(Application):
             print(f"{lam=}")
         else: v,p =  u
         data = {'point':{}, 'cell':{}, 'global':{}}
-        print(f"{self.ncomp=}")
         for icomp in range(self.ncomp):
             data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
         data['cell']['P'] = p
@@ -134,7 +133,7 @@ class StokesBase(Application):
             else: ball = np.hstack((bin[0],bin[1]))
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
             if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
-            else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp]), 1
+            else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:]), 1
         elif solver == 'gmres':
             from simfempy import tools
             nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp

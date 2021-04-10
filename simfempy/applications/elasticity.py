@@ -101,7 +101,7 @@ class Elasticity(Application):
             return rhs
         return _fctneumann
     def solve(self, iter, dirname): return self.static(iter, dirname)
-    def computeRhs(self, b=None, u=None, coeff=1, coeffmass=None):
+    def computeRhs(self, b=None, u=None, coeffmass=None):
         b = np.zeros(self.fem.nunknowns() * self.ncomp)
         rhs = self.problemdata.params.fct_glob.get('rhs', None)
         if rhs: self.fem.computeRhsCells(b, rhs)

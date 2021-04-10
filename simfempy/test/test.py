@@ -24,9 +24,15 @@ class TestAnalytical(unittest.TestCase):
     def test_elasticity2d(self):
         from simfempy.test.elasticity_analytic import test
         self._check(test(dim=2, exactsolution = 'Linear', fem=['p1'], verbose=0))
-#     def test_elasticity3d(self):
-#         from elasticity.analytic import test_analytic
-#         self._check(test_analytic(exactsolution = 'Linear', geomname = "unitcube", verbose=0))
+    def test_elasticity3d(self):
+        from simfempy.test.elasticity_analytic import test
+        self._check(test(dim=3, exactsolution = 'Linear', fem=['p1'], verbose=0))
+    # ---------------------------
+    def test_stokes2d(self):
+        from simfempy.test.stokes_analytic import test
+        self._check(test(dim=2, exactsolution='Linear', verbose=0))
+
+
 #     # ---------------------------
 #     def test_mixedlaplace2d(self):
 #         from mixed.laplace import test_analytic

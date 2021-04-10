@@ -16,7 +16,7 @@ from simfempy.fems import fem
 #=================================================================#
 class CR1(fem.Fem):
     def __init__(self, mesh=None, dirichletmethod='trad'):
-        super().__init__(mesh, dirichletmethod=dirichletmethod)
+        super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
         self.dirichlet_al = 10
         self.dirichlet_nitsche = 4
     def setMesh(self, mesh):
