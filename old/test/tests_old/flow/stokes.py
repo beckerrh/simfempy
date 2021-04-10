@@ -3,7 +3,7 @@ simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
 
 from simfempy.meshes import geomdefs
-from simfempy.applications.stokes import Stokes
+from simfempy.applications.stokesstrong import StokesStrong
 
 #----------------------------------------------------------------#
 def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
@@ -30,12 +30,12 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
         postproc['bdrymean'] = "bdrymean:100,105"
         postproc['bdrydn'] = "bdrydn:101,102,103,104"
         geometry = geomdefs.unitcube.Unitcube()
-    stokes = Stokes(geometry=geometry, showmesh=False)
+    stokes = StokesStrong(geometry=geometry, showmesh=False)
     problemdata = stokes.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc, random=False)
     print("problemdata", problemdata)
     methods = {}
     for rhsmethod in ['cr','rt']:
-        methods[rhsmethod] = Stokes(problemdata=problemdata, rhsmethod=rhsmethod)
+        methods[rhsmethod] = StokesStrong(problemdata=problemdata, rhsmethod=rhsmethod)
     comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     res = {}

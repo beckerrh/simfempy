@@ -4,7 +4,7 @@ simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.append(simfempypath)
 
 import simfempy.meshes.testmeshes as testmeshes
-from simfempy.applications.stokes import Stokes
+from simfempy.applications.stokesstrong import StokesStrong
 from simfempy.applications.stokesn import StokesN
 import simfempy.applications.problemdata
 from simfempy.test.test_analytic import test_analytic
@@ -32,7 +32,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'umf')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    return test_analytic(application=StokesN, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
+    return test_analytic(application=StokesStrong, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 
 

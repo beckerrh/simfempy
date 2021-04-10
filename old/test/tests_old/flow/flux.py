@@ -36,7 +36,7 @@ def test_flux(geomname = "unitsquare", verbose=5):
     print("problemdata",problemdata)
     compares = {}
     for rhsmethod in ['cr','rt']:
-        compares[rhsmethod] = applications.stokes.Stokes(problemdata=problemdata,rhsmethod=rhsmethod)
+        compares[rhsmethod] = applications.stokes.StokesStrong(problemdata=problemdata, rhsmethod=rhsmethod)
     comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     result = comp.compare(geometry=geometry, h=h)
     print("result", result)

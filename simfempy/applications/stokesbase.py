@@ -16,12 +16,10 @@ class StokesBase(Application):
         self.femp = fems.d0.D0()
     def setMesh(self, mesh):
         super().setMesh(mesh)
+        assert self.ncomp==self.mesh.dimension
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        # colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        # colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        # self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
         self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
@@ -38,7 +36,7 @@ class StokesBase(Application):
             return [v[icomp](x, y, z) for icomp in range(self.ncomp)]
         def _solexactdirp(x, y, z, nx, ny, nz):
             return p(x, y, z)
-        return _solexactdirv, _solexactdirp
+        return _solexactdirv
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
         mu = self.problemdata.params.scal_glob['mu']
@@ -75,16 +73,18 @@ class StokesBase(Application):
             for i in range(self.ncomp):
                 rhsp -= v[i](x, y, z) * normals[i]
             return rhsp
-        return _fctneumannv, _fctneumannp
-    def solve(self, iter, dirname): return self.static(iter, dirname)
+        return _fctneumannv
+    def solve(self, iter, dirname):
+        return self.static(iter, dirname)
     def postProcess(self, u):
         if self.pmean:
             v,p,lam =  u
             print(f"{lam=}")
         else: v,p =  u
         data = {'point':{}, 'cell':{}, 'global':{}}
+        print(f"{self.ncomp=}")
         for icomp in range(self.ncomp):
-            data['point'][f'V_{icomp:02d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
+            data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
         data['cell']['P'] = p
         if self.problemdata.solexact:
             err, e = self.femv.computeErrorL2(self.problemdata.solexact[0], v)

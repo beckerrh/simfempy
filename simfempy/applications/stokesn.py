@@ -82,19 +82,24 @@ class StokesN(StokesBase):
             uv = np.zeros_like(bv)
             up = np.zeros_like(bp)
             u = (uv,up)
-        rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
-        if rhsv: self.femv.computeRhsCells(bv, rhsv)
-        if rhsp: self.femp.computeRhsCells(bp, rhsp)
+        if 'rhs' in self.problemdata.params.fct_glob:
+            rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
+            if rhsv: self.femv.computeRhsCells(bv, rhsv)
+            if rhsp: self.femp.computeRhsCells(bp, rhsp)
         # print(f"{bv=}")
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        bdryfctv = {k:v[0] for k,v in self.problemdata.bdrycond.fct.items()}
-        bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
-        self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
+        # print(f"{self.problemdata.bdrycond=}")
+        # bdryfctv = {k:v[0] if len(v)>1 else None for k,v in self.problemdata.bdrycond.fct.items()}
+        # bdryfctv = {c:self.problemdata.bdrycond.fct[c][0] for c in colorsneu if c in self.problemdata.bdrycond.fct}
+        # bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
+        # self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
+        self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
         self.computeRhsNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell, coeff)
         if not self.pmean: return (bv,bp), u
-        if hasattr(self.problemdata,'solexact'):
+        # if hasattr(self.problemdata,'solexact'):
+        if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
             pmean = self.femp.computeMean(p)
         else: pmean=0
@@ -140,9 +145,9 @@ class StokesN(StokesBase):
             cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces][:,:ncomp]
             dS = np.linalg.norm(normalsS, axis=1)
-            if not color in bdryfct.keys(): return
             if color in bdryfct:
-                bfctv, bfctp = bdryfct[color]
+                # bfctv, bfctp = bdryfct[color]
+                bfctv = bdryfct[color]
                 dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
             flux[i] -= np.einsum('f,fk->k', p[cells], normalsS)
             indfaces = self.mesh.facesOfCells[cells]
@@ -172,8 +177,9 @@ class StokesN(StokesBase):
             normalsS = self.mesh.normals[faces][:,:ncomp]
             dS = np.linalg.norm(normalsS,axis=1)
             # normalsS = normalsS/dS[:,np.newaxis]
-            if not color in bdryfct.keys(): return
-            bfctv, bfctp = bdryfct[color]
+            print(f"{color=} {bdryfct.keys()=}")
+            if not color in bdryfct.keys(): continue
+            bfctv = bdryfct[color]
             dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
             bp[cells] -= np.einsum('kn,nk->n', coeff*dirichv, normalsS)
             mat = np.einsum('f,fi,fji->fj', coeff*mucell[cells], normalsS, cellgrads[cells, :, :dim])

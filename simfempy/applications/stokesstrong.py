@@ -6,7 +6,7 @@ from simfempy.applications.stokesbase import StokesBase
 from simfempy.tools.analyticalfunction import analyticalSolution
 
 #=================================================================#
-class Stokes(StokesBase):
+class StokesStrong(StokesBase):
     """
     """
     def __init__(self, **kwargs):
@@ -85,11 +85,11 @@ class Stokes(StokesBase):
         # print(f"{bv=}")
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        bdryfctv = {k:v[0] for k,v in self.problemdata.bdrycond.fct.items()}
-        bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
-        self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
+        # bdryfctv = {k:v[0] for k,v in self.problemdata.bdrycond.fct.items()}
+        # bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
+        self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
-        b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, bdryfctv)
+        b, u, self.bdrydata = self.vectorBoundary((bv, bp), u, self.problemdata.bdrycond.fct)
         if not self.pmean: return b,u
         if hasattr(self.problemdata,'solexact'):
             p = self.problemdata.solexact[1]
@@ -148,7 +148,8 @@ class Stokes(StokesBase):
             res = bdrydata.bsaved[color] - As * v + Bs.T * p
             for icomp in range(ncomp):
                 flux[icomp, i] = np.sum(res[icomp::ncomp])
-            print(f"{flux=}")
+            # print(f"{flux=}")
+            #TODO flux Stokes Dirichlet strong wrong
         return flux
     def vectorBoundary(self, b, u, bdryfctv):
         bv, bp = b
