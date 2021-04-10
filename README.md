@@ -1,3 +1,5 @@
+SIMple Finite Element Methods in PYthon
+
 ```python
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
