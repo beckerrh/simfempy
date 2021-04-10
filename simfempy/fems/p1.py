@@ -14,7 +14,7 @@ from simfempy.tools import barycentric
 #=================================================================#
 class P1(fem.Fem):
     def __init__(self, mesh=None, dirichletmethod='trad'):
-        super().__init__(mesh, dirichletmethod=dirichletmethod)
+        super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
         self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -332,7 +332,7 @@ class P1(fem.Fem):
                 uRmean =  np.sum(dS * uR(xf, yf, zf))
         else: uRmean=0
         return cR*(uRmean-uhmean)
-    def computeBdryNormalFlux(self, u, colors, bdrydata, bdrycond):
+    def computeBdryNormalFlux(self, u, colors, bdrydata, bdrycond, diffcoff):
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]

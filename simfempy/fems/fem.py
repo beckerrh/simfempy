@@ -13,7 +13,7 @@ import scipy.sparse as sparse
 
 #=================================================================#
 class Fem(object):
-    def __init__(self, mesh=None, **kwargs):
+    def __init__(self, **kwargs):
         self.dirichletmethod = kwargs.pop('dirichletmethod', "trad")
         mesh = kwargs.pop('mesh', None)
         if mesh is not None: self.setMesh(mesh)
@@ -152,6 +152,13 @@ class Fem(object):
         A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(ndofs, ndofs))
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, bdrycond, coeff=1):
+        if self.dirichletmethod != 'nitsche': return
+        raise NotImplementedError()
+        return b
+    def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
+        if self.dirichletmethod != 'nitsche': return A
+        raise NotImplementedError()
 
 
 # ------------------------------------- #

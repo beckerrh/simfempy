@@ -141,13 +141,17 @@ class Application(object):
         u, niter = self.linearSolver(self.Mass, b, u=fp1)
         return u
     def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='CN', verbose=1):
+        if mode=='linear': return self.dynamic_linear(u0, t_span, nframes, dt, callback, method, verbose)
+        raise NotImplementedError()
+    def dynamic_linear(self, u0, t_span, nframes, dt=None, callback=None, method='CN', verbose=1):
         # TODO: passing time
         """
         u_t + A u = f, u(t_0) = u_0
         M(u^{n+1}-u^n)/dt + a Au^{n+1} + (1-a) A u^n = f
         (M/dt+aA) u^{n+1} =  f + (M/dt -(1-a)A)u^n
-                          =  f + 1/a (M/dt) u^n -  (1-a)/a (M/dt+aA)u^n
-        (M/(a*dt)+A) u^{n+1} =  (1/a)*f -  (1-a)/a (M/(a*dt)+A)u^n
+                          =  f + 1/a (M/dt) u^n - (1-a)/a (M/dt+aA)u^n
+        (M/(a*dt)+A) u^{n+1} =  (1/a)*f + (M/(a*dt)-(1-a)/a A)u^n
+                             =  (1/a)*f + 1/(a*a*dt) M u^n  - (1-a)/a*(M/(a*dt)+A)u^n
         :param u0: initial condition
         :param t_span: time interval bounds (tuple)
         :param nframes: number of frames to store
@@ -157,7 +161,6 @@ class Application(object):
         :param method: CN or BE for Crank-Nicolson (a=1/2) or backward Euler (a=1)
         :return: results with data per frame
         """
-        if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
         if not dt or dt<=0: raise NotImplementedError(f"needs constant positive 'dt")
         if t_span[0]>=t_span[1]: raise ValueError(f"something wrong in {t_span=}")
         if method not in ['BE','CN']: raise ValueError(f"unknown method {method=}")
@@ -173,7 +176,7 @@ class Application(object):
         if not hasattr(self, 'Mass'):
             self.Mass = self.fem.computeMassMatrix()
         if not hasattr(self, 'A'):
-            self.Aimp = self.computeMatrix(coeff=a, coeffmass=1/dt)
+            self.Aimp = self.computeMatrix(coeffmass=1/dt/a)
             self.ml = self.build_pyamg(self.Aimp)
         self.timer.add('matrix')
         u = u0
@@ -184,21 +187,22 @@ class Application(object):
         niterslinsol = np.zeros(niter)
         expl = (a-1)/a
         for iframe in range(nframes):
-            if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=}")
+            if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=} {a=}")
             for iter in range(niter):
                 self.time += dt
                 rhs.fill(0)
-                rhs += 1/(a*dt)*self.Mass.dot(u)
+                rhs += 1/(a*a*dt)*self.Mass.dot(u)
                 rhs += expl*self.Aimp.dot(u)
-                print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
-                # rhs,u = self.computeRhs(b=rhs, u=u, coeffmass=1/(a*dt))
-                rhs,up = self.computeRhs(b=rhs, coeff=1)
-                print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+                # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+                rhs2,up2 = self.computeRhs()
+                rhs += (1/a)*rhs2
+                # print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('rhs')
                 # u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
-                u, res = self.solve_pyamg(self.ml, rhs, u=u)
+                #TODO organiser solveur linéaire
+                u, res = self.solve_pyamg(self.ml, rhs, u=u, maxiter = 100)
                 u, niterslinsol[iter] = u, len(res)
-                print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+                # print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('solve')
             result.addData(self.postProcess(u), time=self.time, iter=niterslinsol.mean())
             if callback: callback(self.time, u)

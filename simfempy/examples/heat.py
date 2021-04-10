@@ -41,7 +41,7 @@ def main(mode = 'static', h=0.1, convection=True, fem='p1', plot='data'):
         u0 = heat.initialCondition()
         t_final, dt = 2000, 10
         nframes = int(t_final/dt/4)
-        result = heat.dynamic(u0, t_span=(0,t_final), nframes=nframes, dt=dt, method='BE')
+        result = heat.dynamic(u0, t_span=(0,t_final), nframes=nframes, dt=dt, method='CN')
         u = result.data['point']['U']
         fig = plt.figure(figsize=(10, 8))
         outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
@@ -96,5 +96,5 @@ def createProblemData(mode='static', convection=False):
 
 # ================================================================c#
 
-main(mode='static', convection=True)
-# main(mode='dynamic', convection=True, h=0.1)
+# main(mode='static', convection=True)
+main(mode='dynamic', convection=True, h=0.1)

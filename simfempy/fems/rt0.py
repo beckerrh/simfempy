@@ -17,7 +17,7 @@ class RT0(fem.Fem):
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """
     def __init__(self, mesh=None, massproj=None):
-        super().__init__(mesh)
+        super().__init__(mesh=mesh)
         self.massproj=massproj
     def setMesh(self, mesh):
         super().setMesh(mesh)

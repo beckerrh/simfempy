@@ -7,7 +7,7 @@ from simfempy.tools.analyticalfunction import analyticalSolution
 from simfempy.tools import npext
 
 #=================================================================#
-class StokesN(StokesBase):
+class Stokes(StokesBase):
     """
     """
     def __init__(self, **kwargs):
@@ -177,7 +177,6 @@ class StokesN(StokesBase):
             normalsS = self.mesh.normals[faces][:,:ncomp]
             dS = np.linalg.norm(normalsS,axis=1)
             # normalsS = normalsS/dS[:,np.newaxis]
-            print(f"{color=} {bdryfct.keys()=}")
             if not color in bdryfct.keys(): continue
             bfctv = bdryfct[color]
             dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])

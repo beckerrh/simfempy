@@ -197,8 +197,8 @@ def meshWithData(meshdata, **kwargs):
     alpha = kwargs.pop('alpha', 0.6)
     plotmesh = kwargs.pop('plotmesh', None)
     if 'data' in kwargs:
-        point_data = kwargs['data'].pop('point', {})
-        cell_data = kwargs['data'].pop('cell', {})
+        point_data = kwargs['data'].get('point', {})
+        cell_data = kwargs['data'].get('cell', {})
     else:
         point_data = {}
         cell_data = {}
@@ -208,8 +208,8 @@ def meshWithData(meshdata, **kwargs):
     if 'cell_data' in kwargs:
         assert isinstance(kwargs['cell_data'], dict)
         cell_data.update(kwargs['cell_data'])
-    quiver_cell_data = kwargs.pop('quiver_cell_data', {})
-    nplots = len(point_data) + len(cell_data) + len(quiver_cell_data) + len(addplots)
+    quiver_data = kwargs.get('quiver_data', {})
+    nplots = len(point_data) + len(cell_data) + len(quiver_data) + len(addplots)
     if nplots==0: raise ValueError("meshWithData(): no data")
     if 'outer' in kwargs:
         import matplotlib.gridspec as gridspec
@@ -264,16 +264,19 @@ def meshWithData(meshdata, **kwargs):
                 raise NotImplementedError("3d...")
         fig.add_subplot(ax)
         count += 1
-    for cdn, cd in quiver_cell_data.items():
+    for qdn, qd in quiver_data.items():
         if 'outer' in kwargs:
             ax = plt.Subplot(fig, inner[count])
         else:
             ax = axs[count//ncols,count%ncols]
         ax.set_aspect(aspect='equal')
         if dim == 2:
-            if plotmesh:
-                plotmesh2d.plotmesh(x=x, y=y, tris=simp, ax=ax, alpha=0.3)
-            ax.quiver(xc, yc, cd[0], cd[1], units='xy')
+            if plotmesh: plotmesh2d.plotmesh(x=x, y=y, tris=simp, ax=ax, alpha=0.3)
+            if len(qd)!=2: raise ValueError(f"{len(qd)=} {quiver_data=}")
+            if qd[0].shape[0] == x.shape[0]:
+                ax.quiver(x, y, qd[0], qd[1], units='xy')
+            else:
+                ax.quiver(xc, yc, qd[0], qd[1], units='xy')
         else:
             raise NotImplementedError("3d...")
         fig.add_subplot(ax)
