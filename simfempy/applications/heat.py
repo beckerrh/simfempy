@@ -32,15 +32,22 @@ class Heat(Application):
         bdry_mean: computes mean temperature over boundary parts according to given color
         bdry_nflux: computes mean normal flux over boundary parts according to given color
     """
+    def __repr__(self):
+        repr = super(Heat, self).__repr__()
+        repr += f"\nfem={self.fem}"
+        repr += f"\nstab={self.stab}"
+        repr += f"\ndirichletmethod={self.fem.dirichletmethod}"
+        repr += f"\nmasslumpedbdry={self.masslumpedbdry}"
+        return repr
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.stab = kwargs.pop('stab', "supg")
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', False)
         self.masslumpedvol = kwargs.pop('masslumpedvol', False)
         fem = kwargs.pop('fem','p1')
-        dirichletmethod = kwargs.pop('dirichletmethod', "trad")
-        if fem == 'p1': self.fem = fems.p1.P1(dirichletmethod=dirichletmethod)
-        elif fem == 'cr1': self.fem = fems.cr1.CR1(dirichletmethod=dirichletmethod)
+        femargs = {'dirichletmethod':kwargs.pop('dirichletmethod', "trad"), 'innersides':self.stab=='lps'}
+        if fem == 'p1': self.fem = fems.p1.P1(**femargs)
+        elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
@@ -138,6 +145,7 @@ class Heat(Application):
         if self.verbose: print(f"{A.diagonal()=}")
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
+        colorsneu = bdrycond.colorsOfType("Neumann")
         self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         A += self.Arobin
         # print(f"{A.todense()=}")
@@ -145,7 +153,8 @@ class Heat(Application):
         # print(f"{A.todense()=}")
         if 'convection' in self.problemdata.params.fct_glob.keys():
             A += self.fem.computeMatrixTransport(self.stab=='lps')
-            A += self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colorsdir + colorsrobin)
+            colors = colorsdir
+            A += self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colors, lumped=self.masslumpedbdry)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
         A, self.bdrydata = self.fem.matrixBoundary(A, bdrydata)
@@ -160,7 +169,6 @@ class Heat(Application):
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             if 'convection' in self.problemdata.params.fct_glob.keys():
                 self.fem.massDotSupg(b, fp1)
-            # else:
             self.fem.massDot(b, fp1)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
@@ -176,7 +184,8 @@ class Heat(Application):
         self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0), colors=colorsdir)
+            colors = colorsdir
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.supdata['convection'], 0), colors=colors, lumped=self.masslumpedbdry)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
         self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff={k:v for k,v in bdrycond.param.items()})
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)

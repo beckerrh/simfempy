@@ -114,56 +114,6 @@ def meshWithBoundaries(meshdata, **kwargs):
         else:
             plotmesh3d.meshWithBoundaries(meshdata, **kwargs)
 #----------------------------------------------------------------#
-def meshWithData_old(meshdata, **kwargs):
-    """
-    meshdata    : either mesh or coordinates and connectivity
-    point_data  : dictionary name->data
-    cell_data  : dictionary name->data
-    """
-    dim, meshdataismesh = _getDim(meshdata)
-    newkwargs = kwargs.copy()
-
-    if dim==1:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-        else:
-            newkwargs['x'] = meshdata[0]
-        plotmesh1d.meshWithData(**newkwargs)
-    elif dim==2:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-            newkwargs['y'] = meshdata.points[:,1]
-            newkwargs['tris'] = meshdata.simplices
-            newkwargs['xc'] = meshdata.pointsc[:,0]
-            newkwargs['yc'] = meshdata.pointsc[:,1]
-        else:
-            newkwargs['x'] = meshdata[0]
-            newkwargs['y'] = meshdata[1]
-            newkwargs['tris'] = meshdata[2]
-            newkwargs['xc'] = meshdata.pointsc[3]
-            newkwargs['yc'] = meshdata.pointsc[4]
-        return plotmesh2d.meshWithData(**newkwargs)
-    elif dim==3:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-            newkwargs['y'] = meshdata.points[:,1]
-            newkwargs['z'] = meshdata.points[:,2]
-            newkwargs['tets'] = meshdata.simplices
-            newkwargs['xc'] = meshdata.pointsc[:,0]
-            newkwargs['yc'] = meshdata.pointsc[:,1]
-            newkwargs['zc'] = meshdata.pointsc[:,2]
-        else:
-            newkwargs['x'] = meshdata[0]
-            newkwargs['y'] = meshdata[1]
-            newkwargs['z'] = meshdata[2]
-            newkwargs['tets'] = meshdata[3]
-            newkwargs['xc'] = meshdata.pointsc[4]
-            newkwargs['yc'] = meshdata.pointsc[5]
-            newkwargs['zc'] = meshdata.pointsc[6]
-        return plotmesh3d.meshWithData2(**newkwargs)
-    else:
-        raise ValueError(f"wrong dimension {dim=}")
-#----------------------------------------------------------------#
 def meshWithData(meshdata, **kwargs):
     """
     meshdata    : either mesh or coordinates and connectivity
@@ -289,6 +239,13 @@ def meshWithData(meshdata, **kwargs):
         addplot(ax)
         count += 1
 
+# ----------------------------------------------------------------#
+def meshTriSurf(mesh, data, fig, outer, **kwargs):
+    """
+    """
+    ax = fig.add_subplot(outer, projection='3d')
+    x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+    ax.plot_trisurf(x, y, tris, Z=data, cmap='jet')
 
 #=================================================================#
 if __name__ == '__main__':
