@@ -71,7 +71,7 @@ class Beam(Application):
         E[1:] += D
         # print(f"{E=}")
         B = sparse.diags((D, E, D), offsets=(-1,0,1), shape=(n, n))
-        # raise ValueError(f"{B.toarray()=}\n")
+        # raise ValueError(f"B=\n{B.toarray()}\n")
         return A, B, C
     def computeRhs(self, b=None, u=None, coeffmass=None):
         if b is None:
@@ -82,9 +82,9 @@ class Beam(Application):
             xc, yc, zc = self.mesh.pointsc.T
             dV, simplices = self.mesh.dV, self.mesh.simplices
             fc = self.problemdata.params.fct_glob['rhs'](xc, yc, zc)
-            print(f"{fc=}")
+            # print(f"{fc=}")
             self.fem.massDotCell(a, fc)
-            Dmub = -dV**3/self.EIcell/24
+            Dmub = -dV**3/self.EIcell/24*fc
             np.add.at(b, simplices, Dmub[:, np.newaxis])
         colors = self.problemdata.bdrycond.colorsOfType("Clamped")
         x, y, z = self.mesh.pointsf.T
@@ -96,13 +96,15 @@ class Beam(Application):
             nx, ny, nz = normalsS.T
             if not color in self.problemdata.bdrycond.fct: continue
             fct1, fct2 = self.problemdata.bdrycond.fct[color]
-            c[i] = fct1(x[faces], y[faces], z[faces])
-            b[faces] += fct2(x[faces], y[faces], z[faces], nx, ny, nz)
+            c[faces[0]] = fct1(x[faces], y[faces], z[faces])
+            dn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
+            print(f"{dn=} {x[faces]=} {nx=} {faces=}")
+            b[faces] += dn
         return (a,b,c), u
     def postProcess(self, uin):
         data = {'point':{}, 'cell':{}, 'global':{}}
         u,w,l = uin
-        print(f"{l=} {u[0]=} {u[-1]=}")
+        print(f"{l=} {u[0]=} {u[1]=}")
         data['point']['U'] = self.fem.tonode(u)
         data['point']['W'] = self.fem.tonode(w)
         if self.problemdata.solexact:
@@ -119,8 +121,10 @@ class Beam(Application):
         A1 = sparse.hstack([null1, A.T, C.T])
         A2 = sparse.hstack([A, B, null2.T])
         A3 = sparse.hstack([C, null2, null3])
-        Aall = sparse.vstack([A1, A2, A3])
-        return Aall.tocsr()
+        Aall = sparse.vstack([A1, A2, A3]).tocsr()
+        assert np.allclose(Aall.data, Aall.T.data)
+        # print(f"A=\n{A.toarray()}")
+        return Aall
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
         n = self.fem.nunknowns()
         if solver == 'umf':
