@@ -17,22 +17,28 @@
 \defcounter {refsection}{2}\relax 
 \contentsline {subsubsection}{\numberline {2.2.1}Pressure mean}{5}{subsubsection.2.2.1}%
 \defcounter {refsection}{3}\relax 
-\contentsline {section}{\numberline {A}Python implementation}{6}{appendix.A}%
+\contentsline {section}{\numberline {3}Beam problem}{6}{section.3}%
+\defcounter {refsection}{3}\relax 
+\contentsline {subsection}{\numberline {3.1}Weak formulation}{6}{subsection.3.1}%
+\defcounter {refsection}{3}\relax 
+\contentsline {subsection}{\numberline {3.2}Lowest order approximation}{6}{subsection.3.2}%
 \defcounter {refsection}{4}\relax 
-\contentsline {section}{\numberline {B}Finite elements on simplices}{7}{appendix.B}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsection}{\numberline {B.1}Simplices}{7}{subsection.B.1}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{7}{subsection.B.2}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsection}{\numberline {B.3}Finite elements}{8}{subsection.B.3}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{8}{subsubsection.B.3.1}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\tmspace -\thinmuskip {.1667em}R}^1_h(\Omega )$}{8}{subsubsection.B.3.2}%
-\defcounter {refsection}{4}\relax 
-\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\tmspace -\thinmuskip {.1667em}T}^0_h(\Omega )$}{9}{subsubsection.B.3.3}%
+\contentsline {section}{\numberline {A}Python implementation}{8}{appendix.A}%
 \defcounter {refsection}{5}\relax 
-\contentsline {section}{\numberline {C}Discreization of the transport equation}{10}{appendix.C}%
+\contentsline {section}{\numberline {B}Finite elements on simplices}{9}{appendix.B}%
 \defcounter {refsection}{5}\relax 
-\contentsline {subsection}{\numberline {C.1}$\mathcal {P}^1_h(\Omega )$}{10}{subsection.C.1}%
+\contentsline {subsection}{\numberline {B.1}Simplices}{9}{subsection.B.1}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{9}{subsection.B.2}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsection}{\numberline {B.3}Finite elements}{10}{subsection.B.3}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{10}{subsubsection.B.3.1}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\tmspace -\thinmuskip {.1667em}R}^1_h(\Omega )$}{10}{subsubsection.B.3.2}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\tmspace -\thinmuskip {.1667em}T}^0_h(\Omega )$}{11}{subsubsection.B.3.3}%
+\defcounter {refsection}{6}\relax 
+\contentsline {section}{\numberline {C}Discreization of the transport equation}{12}{appendix.C}%
+\defcounter {refsection}{6}\relax 
+\contentsline {subsection}{\numberline {C.1}$\mathcal {P}^1_h(\Omega )$}{12}{subsection.C.1}%

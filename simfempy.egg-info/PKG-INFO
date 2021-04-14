@@ -1,12 +1,14 @@
 Metadata-Version: 2.1
 Name: simfempy
-Version: 2.0.3
+Version: 2.0.4
 Summary: A small package for fem
 Home-page: https://github.com/beckerrh/simfempy
 Author: Roland Becker
 Author-email: beckerrolandh@gmail.com
 License: License :: OSI Approved :: MIT License
-Description: ```python
+Description: SIMple Finite Element Methods in PYthon
+        
+        ```python
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
         import pygmsh
