@@ -35,6 +35,7 @@ class AnalyticalFunction():
         self.fct_x = []
         self.fct_xx = []
         for i in range(dim):
+            self.fct_xxxx = np.vectorize(sympy.lambdify(symbc, sympy.diff(expr, s[0], 4)),otypes=[float])
             if dim==1: fx = sympy.diff(expr, s)
             else: fx = sympy.diff(expr, s[i])
             self.fct_x.append(np.vectorize(sympy.lambdify(symbc, fx),otypes=[float]))
@@ -53,6 +54,8 @@ class AnalyticalFunction():
         return self.fct_x[2](*x)
     def dd(self, i, j, *x):
         return self.fct_xx[i][j](*x)
+    def dddd(self, *x):
+        return self.fct_xxxx(*x)
     def xx(self, *x):
         return self.fct_xx[0][0](*x)
     def xy(self, *x):
