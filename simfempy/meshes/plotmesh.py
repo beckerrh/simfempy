@@ -121,13 +121,6 @@ def meshWithData(meshdata, **kwargs):
     cell_data  : dictionary name->data
     """
     dim, meshdataismesh = _getDim(meshdata)
-    newkwargs = kwargs.copy()
-    if dim==1:
-        if meshdataismesh:
-            newkwargs['x'] = meshdata.points[:,0]
-        else:
-            newkwargs['x'] = meshdata[0]
-        return plotmesh1d.meshWithData(**newkwargs)
     if meshdataismesh:
         simp = meshdata.simplices
         if dim == 2:
@@ -186,7 +179,9 @@ def meshWithData(meshdata, **kwargs):
             ax = plt.Subplot(fig, inner[count])
         else:
             ax = axs[count//ncols,count%ncols]
-        if dim==2:
+        if dim==1:
+            plotmesh1d.plotMeshWithPointData(ax, pdn, pd, x, alpha)
+        elif dim==2:
             plotmesh2d.plotMeshWithPointData(ax, pdn, pd, x, y, simp, alpha)
         else:
             plotmesh3d.plotMeshWithPointData(ax, pdn, pd, x, y, z, simp, alpha)
@@ -195,6 +190,7 @@ def meshWithData(meshdata, **kwargs):
                 plotmesh2d._plotVertices(x, y, simp, xc, yc, ax=ax)
                 plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
             else: raise NotImplementedError("3d...")
+        # ax.set_aspect(aspect='equal')
         fig.add_subplot(ax)
         count += 1
     for cdn, cd in cell_data.items():
@@ -202,7 +198,9 @@ def meshWithData(meshdata, **kwargs):
             ax = plt.Subplot(fig, inner[count])
         else:
             ax = axs[count//ncols,count%ncols]
-        if dim==2:
+        if dim==1:
+            plotmesh1d.plotMeshWithCellData(ax, cdn, cd, x, alpha)
+        elif dim==2:
             plotmesh2d.plotMeshWithCellData(ax, cdn, cd, x, y, simp, alpha)
         else:
             plotmesh3d.plotMeshWithCellData(ax, cdn, cd, x, y, z, simp, alpha)
@@ -212,6 +210,7 @@ def meshWithData(meshdata, **kwargs):
                 plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
             else:
                 raise NotImplementedError("3d...")
+        ax.set_aspect(aspect='equal')
         fig.add_subplot(ax)
         count += 1
     for qdn, qd in quiver_data.items():
@@ -229,6 +228,7 @@ def meshWithData(meshdata, **kwargs):
                 ax.quiver(xc, yc, qd[0], qd[1], units='xy')
         else:
             raise NotImplementedError("3d...")
+        ax.set_aspect(aspect='equal')
         fig.add_subplot(ax)
         count += 1
     for addplot in addplots:

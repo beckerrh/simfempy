@@ -1,6 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+#=================================================================#
+def plotMeshWithPointData(ax, pdn, pd, x, alpha):
+    if not isinstance(pd, np.ndarray):
+        raise ValueError(f"Problem in data {type(pd)=}")
+    if x.shape != pd.shape:
+        raise ValueError(f"Problem in data {x.shape=} {pd.shape=}")
+    i = np.argsort(x)
+    ax.plot(x, np.zeros_like(x), "x")
+    ax.plot(x[i], pd[i], 'x-', label=pdn)
+    ax.legend()
+    # clb.set_label(pdn)
+#=================================================================#
+def plotMeshWithCellData(ax, cdn, cd, x, alpha):
+    i = np.argsort(x)
+    xi = x[i]
+    xc = 0.5 * (xi[:-1] + xi[1:])
+    if xc.shape != cd.shape:
+        raise ValueError(f"Problem in data {xc.shape=} {cd.shape=}")
+    ax.plot(xc, cd, 'x-', label=cdn)
+    ax.legend()
+
+
 def plotmesh(mesh, **kwargs):
     ax = kwargs.pop('ax', plt)
     x, lines = mesh.points[:, 0], mesh.simplices

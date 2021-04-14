@@ -59,7 +59,8 @@ class Beam(Application):
         n = self.fem.nunknowns()
         mats = np.ones(2)
         rows = np.array([0,1])
-        cols = np.array([0,n-1])
+        # l'extrémité droite et le deuxième points !
+        cols = np.array([0,1])
         C = sparse.coo_matrix((mats, (rows, cols)), shape=(2, n)).tocsr()
         dV = self.mesh.dV
         D = dV / self.EIcell / 4
@@ -81,15 +82,14 @@ class Beam(Application):
             xc, yc, zc = self.mesh.pointsc.T
             dV, simplices = self.mesh.dV, self.mesh.simplices
             fc = self.problemdata.params.fct_glob['rhs'](xc, yc, zc)
+            print(f"{fc=}")
             self.fem.massDotCell(a, fc)
             Dmub = -dV**3/self.EIcell/24
             np.add.at(b, simplices, Dmub[:, np.newaxis])
         colors = self.problemdata.bdrycond.colorsOfType("Clamped")
         x, y, z = self.mesh.pointsf.T
-        nfaces, ncells, dim, nlocal = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.fem.nlocal()
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
-            cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces]
             dS = np.linalg.norm(normalsS,axis=1)
             normalsS = normalsS/dS
@@ -102,7 +102,9 @@ class Beam(Application):
     def postProcess(self, uin):
         data = {'point':{}, 'cell':{}, 'global':{}}
         u,w,l = uin
+        print(f"{l=} {u[0]=} {u[-1]=}")
         data['point']['U'] = self.fem.tonode(u)
+        data['point']['W'] = self.fem.tonode(w)
         if self.problemdata.solexact:
             data['global']['err_pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
             data['global']['err_pnL2'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
@@ -111,7 +113,7 @@ class Beam(Application):
     def _to_single_matrix(self, Ain):
         n = self.fem.nunknowns()
         A, B, C = Ain
-        null1 = sparse.dia_matrix((np.zeros(n), 0), shape=(n, n))
+        null1 = sparse.coo_matrix(([], ([], [])), shape=(n, n))
         null2 = sparse.coo_matrix(([], ([], [])), shape=(2, n))
         null3 = sparse.coo_matrix(([], ([], [])), shape=(2, 2))
         A1 = sparse.hstack([null1, A.T, C.T])
@@ -121,13 +123,8 @@ class Beam(Application):
         return Aall.tocsr()
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
         n = self.fem.nunknowns()
-        print(f"{n=}")
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
-            print(f"{bin[0]=}")
-            print(f"{bin[1]=}")
-            print(f"{bin[2]=}")
-
             ball = np.hstack((bin[0], bin[1], bin[2]))
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
             return (uall[:n], uall[n:2*n], uall[2*n:]), 1

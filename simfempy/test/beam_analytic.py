@@ -21,4 +21,4 @@ def test(**kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(exactsolution = 'Linear', niter=3, h1=0.25, linearsolver='umf')
+    test(exactsolution = 'x**4', niter=4, h1=0.25, linearsolver='umf', plotsolution=True)
