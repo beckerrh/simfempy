@@ -15,11 +15,13 @@ import scipy.sparse as sparse
 class Fem(object):
     def __init__(self, **kwargs):
         self.dirichletmethod = kwargs.pop('dirichletmethod', "trad")
+        self.innersides = kwargs.pop('innersides', False)
         mesh = kwargs.pop('mesh', None)
         if mesh is not None: self.setMesh(mesh)
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.nlocal()
+        if self.innersides: self.mesh.constructInnerFaces()
     def computeStencilCell(self, dofspercell):
         self.cols = np.tile(dofspercell, self.nloc).reshape(-1)
         self.rows = np.repeat(dofspercell, self.nloc).reshape(-1)

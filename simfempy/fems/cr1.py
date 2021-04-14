@@ -15,8 +15,10 @@ from simfempy.fems import fem
 
 #=================================================================#
 class CR1(fem.Fem):
-    def __init__(self, mesh=None, dirichletmethod='trad'):
-        super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
+    def __init__(self, **kwargs):
+    # def __init__(self, mesh=None, dirichletmethod='trad'):
+        super().__init__(**kwargs)
+        # super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
         self.dirichlet_al = 10
         self.dirichlet_nitsche = 4
     def setMesh(self, mesh):
@@ -65,8 +67,8 @@ class CR1(fem.Fem):
             cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces][:,:dim]
             dS = np.linalg.norm(normalsS,axis=1)
-            dirichlet = bdrycond.fct[color]
             if not color in bdrycond.fct: continue
+            dirichlet = bdrycond.fct[color]
             u = dirichlet(x[faces], y[faces], z[faces])
             mat = np.einsum('f,fi,fji->fj', coeff*u*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
             np.add.at(b, self.mesh.facesOfCells[cells], -mat)
@@ -109,8 +111,8 @@ class CR1(fem.Fem):
             bdrydata.bsaved[color] = b[faces]
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
-            dirichlet = bdrycond.fct[color]
             if color in bdrycond.fct:
+                dirichlet = bdrycond.fct[color]
                 u[faces] = dirichlet(x[faces], y[faces], z[faces])
             else:
                 u[faces] = 0

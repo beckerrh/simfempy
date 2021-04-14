@@ -13,8 +13,9 @@ from simfempy.tools import barycentric
 
 #=================================================================#
 class P1(fem.Fem):
-    def __init__(self, mesh=None, dirichletmethod='trad'):
-        super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
+    def __init__(self, **kwargs):
+    # def __init__(self, mesh=None, dirichletmethod='trad'):
+        super().__init__(**kwargs)
         self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)

@@ -17,6 +17,11 @@ from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Application(object):
+    def __repr__(self):
+        repr = f"problemdata={self.problemdata}"
+        repr += f"\nlinearsolver={self.linearsolver}"
+        repr += f"\n{self.timer}"
+        return repr
     def __init__(self, **kwargs):
         self.linearsolvers=['umf', 'lgmres', 'bicgstab']
         try:
@@ -104,10 +109,10 @@ class Application(object):
         return arr
     def static(self, iter=100, dirname='Run', mode='linear'):
         if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
-        if not self._setMeshCalled: self.setMesh(self.mesh)
         # self.timer.reset_all()
         result = simfempy.applications.problemdata.Results()
-        self.timer.add('init')
+        if not self._setMeshCalled: self.setMesh(self.mesh)
+        self.timer.add('setMesh')
         A = self.computeMatrix()
         self.timer.add('matrix')
         b, u = self.computeRhs()
