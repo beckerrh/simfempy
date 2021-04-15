@@ -38,6 +38,8 @@
 \contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\tmspace -\thinmuskip {.1667em}R}^1_h(\Omega )$}{10}{subsubsection.B.3.2}%
 \defcounter {refsection}{5}\relax 
 \contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\tmspace -\thinmuskip {.1667em}T}^0_h(\Omega )$}{11}{subsubsection.B.3.3}%
+\defcounter {refsection}{5}\relax 
+\contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{11}{subsubsection.B.3.4}%
 \defcounter {refsection}{6}\relax 
 \contentsline {section}{\numberline {C}Discreization of the transport equation}{12}{appendix.C}%
 \defcounter {refsection}{6}\relax 
