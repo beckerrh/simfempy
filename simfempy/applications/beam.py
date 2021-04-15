@@ -123,7 +123,7 @@ class Beam(Application):
         A3 = sparse.hstack([C, null2, null3])
         Aall = sparse.vstack([A1, A2, A3]).tocsr()
         assert np.allclose(Aall.data, Aall.T.data)
-        # print(f"A=\n{A.toarray()}")
+        print(f"A=\n{Aall.toarray()}")
         return Aall
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
         n = self.fem.nunknowns()
