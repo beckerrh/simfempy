@@ -14,7 +14,7 @@ from simfempy.tools import barycentric, npext
 #=================================================================#
 class CR1sys(femsys.Femsys):
     def __init__(self, ncomp, mesh=None, dirichletmethod='trad'):
-        super().__init__(cr1.CR1(mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
+        super().__init__(cr1.CR1(mesh=mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.mesh.constructInnerFaces()

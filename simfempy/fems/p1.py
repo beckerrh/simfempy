@@ -8,19 +8,29 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 import simfempy.fems.bdrydata
-from simfempy.fems import fem
+from simfempy import fems
 from simfempy.tools import barycentric
+from simfempy.meshes import move
 
 #=================================================================#
-class P1(fem.Fem):
+class P1(fems.fem.Fem):
     def __init__(self, **kwargs):
-    # def __init__(self, mesh=None, dirichletmethod='trad'):
         super().__init__(**kwargs)
+        self.stab = kwargs.pop('stab', 'none')
         self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
+    def prepareAdvection(self, beta, scale, method):
+        rt = fems.rt0.RT0(self.mesh)
+        convection = scale*rt.interpolate(beta)
+        beta = rt.toCell(convection)
+        move.move_points(self.mesh, -beta)
+        self.supdata={}
+        self.supdata['convection'] = convection
+        self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
+        self.supdata['convectionC'] = rt.toCell(convection)
     def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nnodes
     def dofspercell(self): return self.mesh.simplices

@@ -49,8 +49,10 @@ class Application(object):
             mesh = self.geom.generate_mesh()
             self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
         if 'mesh' in kwargs:
-            self.mesh = kwargs.pop('mesh')
-        self._setMeshCalled = False
+            # self.mesh = kwargs.pop('mesh')
+            self.setMesh(kwargs.pop('mesh'))
+        else:
+            self._setMeshCalled = False
     def setMesh(self, mesh):
         self.mesh = mesh
         if self.verbose: print(f"{self.mesh=}")

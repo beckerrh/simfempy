@@ -19,6 +19,8 @@ def main(h=0.1):
     #create application
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='lps', dirichletmethod='nitsche', masslumpedbdry=True)
     heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='supg', dirichletmethod='trad', masslumpedbdry=True)
+    # heat.fem.plotBetaDownwind()
+    return
     result = heat.static()
     print(f"{heat=}")
     print(f"postproc:")
@@ -54,4 +56,4 @@ def ramp(h=0.2):
 # ================================================================c#
 
 # main(mode='static', convection=True)
-main(h=0.1)
+main(h=1)

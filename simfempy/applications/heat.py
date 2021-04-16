@@ -40,15 +40,30 @@ class Heat(Application):
         repr += f"\nmasslumpedbdry={self.masslumpedbdry}"
         return repr
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self.stab = kwargs.pop('stab', "supg")
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', False)
         self.masslumpedvol = kwargs.pop('masslumpedvol', False)
         fem = kwargs.pop('fem','p1')
-        femargs = {'dirichletmethod':kwargs.pop('dirichletmethod', "trad"), 'innersides':self.stab=='lps'}
+        femargs = {'dirichletmethod':kwargs.pop('dirichletmethod', "trad"), 'innersides':self.stab=='lps', 'stab':self.stab}
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
+        super().__init__(**kwargs)
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        # if mesh is not None: self.mesh = mesh
+        self._checkProblemData()
+        self.fem.setMesh(self.mesh)
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
+        self.problemdata.params.scal_glob.setdefault('rhocp',1)
+        # TODO: non-constant rhocp
+        rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
+        if 'convection' in self.problemdata.params.fct_glob.keys():
+            convectionfct = self.problemdata.params.fct_glob['convection']
+            self.fem.prepareAdvection(convectionfct, rhocp, method=self.stab)
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
         self.problemdata.check(self.mesh)
@@ -121,24 +136,6 @@ class Heat(Application):
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
     def solve(self, iter, dirname): return self.static(iter, dirname)
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
-        # if mesh is not None: self.mesh = mesh
-        self._checkProblemData()
-        self.fem.setMesh(self.mesh)
-        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
-        self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
-        self.problemdata.params.scal_glob.setdefault('rhocp',1)
-        # TODO: non-constant rhocp
-        rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
-        if 'convection' in self.problemdata.params.fct_glob.keys():
-            convectionfct = self.problemdata.params.fct_glob['convection']
-            if self.stab in ['centered', 'supg', 'supg2']:
-                self.fem.supgPoints(convectionfct, rhocp, method=self.stab)
-            else:
-                self.fem.supgPoints(convectionfct, rhocp, method='centered')
     def computeMatrix(self, coeffmass=None):
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         A = self.fem.computeMatrixDiffusion(self.kheatcell)

@@ -11,10 +11,10 @@ class Stokes(StokesBase):
     """
     """
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.femv = fems.cr1sys.CR1sys(self.ncomp)
+        self.femv = fems.cr1sys.CR1sys(ncomp=kwargs['problemdata'].ncomp)
         self.femp = fems.d0.D0()
         self.dirichlet_nitsche = 4
+        super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.femv.setMesh(self.mesh)

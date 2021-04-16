@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.2.24)  15 APR 2021 16:55
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.2.24)  16 APR 2021 14:32
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1128,6 +1128,9 @@ LaTeX Warning: Label `eq:' multiply defined.
 LaTeX Warning: Label `eq:' multiply defined.
 
 
+LaTeX Warning: Label `lemma:' multiply defined.
+
+
 LaTeX Warning: Label `eq:' multiply defined.
 
 ) (./chap/transport.aux
@@ -1533,11 +1536,11 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 (hyperref)                removing `math shift' on input line 156.
 
-[10]
+[10] [11]
 
-LaTeX Warning: Empty bibliography on input line 239.
+LaTeX Warning: Empty bibliography on input line 268.
 
-) [11]
+) [12]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
@@ -1570,7 +1573,7 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 
 LaTeX Warning: Empty bibliography on input line 98.
 
-) [12
+) [13
 
 
 ]
@@ -1599,9 +1602,9 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33422 strings out of 480608
- 646530 string characters out of 5903630
- 1396610 words of memory out of 5000000
+ 33426 strings out of 480608
+ 646586 string characters out of 5903630
+ 1396642 words of memory out of 5000000
  48558 multiletter control sequences out of 15000+600000
  576646 words of font info for 132 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -1634,10 +1637,10 @@ ocal/texlive/2020/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/tex
 live/2020/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/20
 20/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2020/texm
 f-dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (12 pages, 284200 bytes).
+Output written on simfempy.pdf (13 pages, 286343 bytes).
 PDF statistics:
- 373 PDF objects out of 1000 (max. 8388607)
- 329 compressed objects within 4 object streams
- 93 named destinations out of 1000 (max. 500000)
+ 382 PDF objects out of 1000 (max. 8388607)
+ 337 compressed objects within 4 object streams
+ 97 named destinations out of 1000 (max. 500000)
  189 words of extra memory for PDF output out of 10000 (max. 10000000)
 

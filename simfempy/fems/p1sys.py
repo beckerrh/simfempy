@@ -13,7 +13,7 @@ from simfempy.fems import femsys, p1
 #=================================================================#
 class P1sys(femsys.Femsys):
     def __init__(self, ncomp, mesh=None, dirichletmethod='trad'):
-        super().__init__(p1.P1(mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
+        super().__init__(p1.P1(mesh=mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
     def matrixBoundary(self, A, bdrydata):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux

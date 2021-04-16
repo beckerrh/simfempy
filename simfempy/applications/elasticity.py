@@ -32,17 +32,18 @@ class Elasticity(Application):
     #         self.mucell = self.mufct(self.mesh.cell_labels)
     #         self.lamcell = self.lamfct(self.mesh.cell_labels)
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         fem = kwargs.pop('fem', 'p1')
+        ncomp = kwargs['problemdata'].ncomp
         dirichletmethod = kwargs.pop('dirichletmethod', "trad")
         if fem == 'p1':
-            self.fem = fems.p1sys.P1sys(self.ncomp, dirichletmethod=dirichletmethod)
+            self.fem = fems.p1sys.P1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
         elif fem == 'cr1':
-            self.fem = fems.cr1sys.CR1sys(self.ncomp, dirichletmethod=dirichletmethod)
+            self.fem = fems.cr1sys.CR1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
         else:
             raise ValueError("unknown fem '{}'".format(fem))
         # material = kwargs.pop('material', "Acier")
         # self.setParameters(*self.material2Lame(material))
+        super().__init__(**kwargs)
     def setMaterialParameters(self, params):
         name = 'material'
         if name in params.scal_cells:

@@ -219,18 +219,47 @@ which gives
 Now $\delta$ has to be chosen, such that the point $x_{\beta}$ lies inside $K$, i.e.
 %
 \begin{align*}
-0 \le \lambda_i + \delta b_i \le 1 \quad\Leftrightarrow\quad -\lambda_i \le  \delta b_i \le 1-\lambda_i\quad \forall 1\le i\le d.
+%
+\left\{
+\begin{aligned}
+0 \le \lambda_i + \delta b_i \le 1\\
+0 \le \sum_{i=1}^d (\lambda_i + \delta b_i)  \le 1
+\end{aligned}
+\right.
+%
+ \quad\Leftrightarrow\quad 
+\left\{
+\begin{aligned}
+-\lambda_i \le  \delta b_i \le 1-\lambda_i\quad \forall 1\le i\le d,\\
+\delta \sum_{i=1}^db_i \le \lambda_0
+\end{aligned}
+\right.
 \end{align*}
 %
-The maximization of $\delta$ under these constraints has the solution
+%---------------------------------------
+\begin{lemma}\label{lemma:}
+Let $0 \le \lambda_i \le 1$. Then the solution of
 %
-%
-\begin{equation}\label{eq:fem_upw_sol}
-\delta = \max \Set{ \max\SetDef{\frac{1-\lambda_i}{b_i}}{b_i>0},  \max\SetDef{\frac{\lambda_i}{-b_i}}{b_i<0}}.
+\begin{equation}\label{eq:}
+\max\SetDef{\delta}{-\lambda_i \le \delta b_i \le 1-\lambda_i\quad\forall 1\le i\le d,\quad \delta \sum_{i=1}^db_i \le \lambda_0}
 \end{equation}
 %
+is
 %
+\begin{equation}\label{eq:fem_upw_sol_delta}
+\delta = \min \Set{ \min\SetDef{\frac{1-\lambda_i}{b_i}}{b_i>0},  \min\SetDef{\frac{-\lambda_i}{b_i}}{b_i<0},
+\frac{\lambda_0}{\sum_{i=1}^db_i}}\quad \mbox{if} \quad \sum_{i=1}^db_i>0
+\end{equation}
+%
+\end{lemma}
+%
+%---------------------------------------
+\begin{proof}
+For $b_i>0$ we have $\delta \le \frac{1-\lambda_i}{b_i}$, so $0 \le\delta b_i + \lambda_i\le 1$.
 
+For $b_i<0$ we have $\delta \le \frac{-\lambda_i}{b_i}$, so $0\le\lambda_i+\delta b_i \le \lambda_i\le 1$.
+\end{proof}
+%
 
 
 

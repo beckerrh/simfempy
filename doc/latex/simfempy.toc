@@ -41,6 +41,6 @@
 \defcounter {refsection}{5}\relax 
 \contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{11}{subsubsection.B.3.4}%
 \defcounter {refsection}{6}\relax 
-\contentsline {section}{\numberline {C}Discreization of the transport equation}{12}{appendix.C}%
+\contentsline {section}{\numberline {C}Discreization of the transport equation}{13}{appendix.C}%
 \defcounter {refsection}{6}\relax 
-\contentsline {subsection}{\numberline {C.1}$\mathcal {P}^1_h(\Omega )$}{12}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.1}$\mathcal {P}^1_h(\Omega )$}{13}{subsection.C.1}%

@@ -50,7 +50,6 @@ class Fem(object):
     #     cols = np.tile(dofspercell[cellsOfInteriorFaces,:],nloc)
     #     print(f"{rows=}")
     #     print(f"{cols=}")
-
     def interpolateCell(self, f):
         if isinstance(f, dict):
             b = np.zeros(self.mesh.ncells)
@@ -68,11 +67,12 @@ class Fem(object):
         from simfempy.meshes import plotmesh
         beta, betaC, mesh = self.supdata['convection'], self.supdata['convectionC'], self.mesh
         celldata = {f"beta": [betaC[:, i] for i in range(mesh.dimension)]}
-        fig, axs = plotmesh.meshWithData(mesh, quiver_cell_data=celldata, plotmesh=True)
+        plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
+        ax = plt.gca()
         xd, ld, delta = self.downWind(beta)
-        axs[0, 0].plot(xd[:, 0], xd[:, 1], 'or')
+        ax.plot(xd[:, 0], xd[:, 1], 'xr')
         xd, ld, delta = self.downWind(beta, method='supg2')
-        axs[0, 0].plot(xd[:, 0], xd[:, 1], 'xb')
+        ax.plot(xd[:, 0], xd[:, 1], 'xb')
         plt.show()
     def downWind(self, beta, method='supg'):
         # beta is supposed RT0
@@ -116,7 +116,7 @@ class Fem(object):
         delta = np.linalg.norm(np.einsum('nji,nj -> ni', points[simplices], lamd-1/(dim+1)),axis=1)
         # if not np.allclose(lamd, lamd2): print(f"{lamd=} {lamd2=}")
         return xd, lamd, delta
-    def supgPoints(self, beta, scale, method):
+    def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
         self.supdata={}
         convection = scale*rt.interpolate(beta)

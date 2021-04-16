@@ -238,6 +238,7 @@ def meshWithData(meshdata, **kwargs):
             ax = axs[count//ncols,count%ncols]
         addplot(ax)
         count += 1
+    return fig
 
 # ----------------------------------------------------------------#
 def meshTriSurf(mesh, data, fig, outer, **kwargs):
