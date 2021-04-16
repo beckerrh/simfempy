@@ -13,9 +13,16 @@ import scipy.sparse as sparse
 
 #=================================================================#
 class Fem(object):
+    def __repr__(self):
+        repr = f"fem={self.__class__.__name__}"
+        repr += f"\tstab={self.stab}"
+        repr += f"\tdirichletmethod={self.dirichletmethod}"
+        # repr += f"\nmasslumpedbdry={self.masslumpedbdry}"
+        return repr
     def __init__(self, **kwargs):
         self.dirichletmethod = kwargs.pop('dirichletmethod', "trad")
-        self.innersides = kwargs.pop('innersides', False)
+        self.stab = kwargs.pop('stab', 'none')
+        self.innersides = self.stab=="lps"
         mesh = kwargs.pop('mesh', None)
         if mesh is not None: self.setMesh(mesh)
     def setMesh(self, mesh):
@@ -62,67 +69,67 @@ class Fem(object):
         else:
             xc, yc, zc = self.mesh.pointsc.T
             return f(xc, yc, zc)
-    def plotBetaDownwind(self):
-        import matplotlib.pyplot as plt
-        from simfempy.meshes import plotmesh
-        beta, betaC, mesh = self.supdata['convection'], self.supdata['convectionC'], self.mesh
-        celldata = {f"beta": [betaC[:, i] for i in range(mesh.dimension)]}
-        plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
-        ax = plt.gca()
-        xd, ld, delta = self.downWind(beta)
-        ax.plot(xd[:, 0], xd[:, 1], 'xr')
-        xd, ld, delta = self.downWind(beta, method='supg2')
-        ax.plot(xd[:, 0], xd[:, 1], 'xb')
-        plt.show()
-    def downWind(self, beta, method='supg'):
-        # beta is supposed RT0
-        dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma
-        normals, dV = self.mesh.normals, self.mesh.dV
-        # method = 'centered'
-        if method=='centered':
-            lamd = np.ones((ncells,dim+1)) / (dim + 1)
-        elif method=='supg':
-            dS = linalg.norm(normals[fofc],axis=2)
-            # print(f"{dS.shape=}")
-            vs = beta[fofc]*sigma*dS/dV[:,np.newaxis]/dim
-            vp = np.maximum(vs, 0)
-            ips = vp.argmax(axis=1)
-            # print(f"{ips=}")
-            vps = np.choose(ips, vp.T)
-            # print(f"{vps=}")
-            delta = 1/vps
-            # print(f"{delta.shape=} {sigma.shape=} {v[fofc].shape=}")
-            if not np.all(delta > 0): raise ValueError(f"{delta=}\n{vp[ips]=}")
-            lamd = (np.ones(ncells)[:,np.newaxis] - delta[:,np.newaxis]*vs)/(dim+1)
-            if not np.allclose(lamd.sum(axis=1),1):
-                raise ValueError(f"{lamd=}\n{(beta[fofc]*sigma).sum(axis=1)}")
-            delta /= (dim+1)
-        elif method=='supg2':
-            # vp = np.maximum(v[fofc]*sigma, 0)
-            # vps = vp.sum(axis=1)
-            # if not np.all(vps > 0): raise ValueError(f"{vps=}\n{vp=}")
-            # vp /= vps[:,np.newaxis]
-            # lamd = (np.ones(ncells)[:,np.newaxis] - vp)/dim
-            vm = np.minimum(beta[fofc]*sigma, 0)
-            vms = vm.sum(axis=1)
-            if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
-            vm /= vms[:,np.newaxis]
-            lamd = vm
-        else:
-            raise ValueError(f"unknown method {method}")
-        # print(f"{v[fofc].shape} {lamd2.shape=}")
-        points, simplices = self.mesh.points, self.mesh.simplices
-        xd = np.einsum('nji,nj -> ni', points[simplices], lamd)
-        delta = np.linalg.norm(np.einsum('nji,nj -> ni', points[simplices], lamd-1/(dim+1)),axis=1)
-        # if not np.allclose(lamd, lamd2): print(f"{lamd=} {lamd2=}")
-        return xd, lamd, delta
-    def prepareAdvection(self, beta, scale, method):
-        rt = fems.rt0.RT0(self.mesh)
-        self.supdata={}
-        convection = scale*rt.interpolate(beta)
-        self.supdata['convection'] = convection
-        self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
-        self.supdata['convectionC'] = rt.toCell(convection)
+    # def plotBetaDownwind(self):
+    #     import matplotlib.pyplot as plt
+    #     from simfempy.meshes import plotmesh
+    #     beta, betaC, mesh = self.supdata['convection'], self.supdata['convectionC'], self.mesh
+    #     celldata = {f"beta": [betaC[:, i] for i in range(mesh.dimension)]}
+    #     plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
+    #     ax = plt.gca()
+    #     xd, ld, delta = self.downWind(beta)
+    #     ax.plot(xd[:, 0], xd[:, 1], 'xr')
+    #     xd, ld, delta = self.downWind(beta, method='supg2')
+    #     ax.plot(xd[:, 0], xd[:, 1], 'xb')
+    #     plt.show()
+    # def downWind(self, beta, method='supg'):
+    #     # beta is supposed RT0
+    #     dim, ncells, fofc, sigma = self.mesh.dimension, self.mesh.ncells, self.mesh.facesOfCells, self.mesh.sigma
+    #     normals, dV = self.mesh.normals, self.mesh.dV
+    #     # method = 'centered'
+    #     if method=='centered':
+    #         lamd = np.ones((ncells,dim+1)) / (dim + 1)
+    #     elif method=='supg':
+    #         dS = linalg.norm(normals[fofc],axis=2)
+    #         # print(f"{dS.shape=}")
+    #         vs = beta[fofc]*sigma*dS/dV[:,np.newaxis]/dim
+    #         vp = np.maximum(vs, 0)
+    #         ips = vp.argmax(axis=1)
+    #         # print(f"{ips=}")
+    #         vps = np.choose(ips, vp.T)
+    #         # print(f"{vps=}")
+    #         delta = 1/vps
+    #         # print(f"{delta.shape=} {sigma.shape=} {v[fofc].shape=}")
+    #         if not np.all(delta > 0): raise ValueError(f"{delta=}\n{vp[ips]=}")
+    #         lamd = (np.ones(ncells)[:,np.newaxis] - delta[:,np.newaxis]*vs)/(dim+1)
+    #         if not np.allclose(lamd.sum(axis=1),1):
+    #             raise ValueError(f"{lamd=}\n{(beta[fofc]*sigma).sum(axis=1)}")
+    #         delta /= (dim+1)
+    #     elif method=='supg2':
+    #         # vp = np.maximum(v[fofc]*sigma, 0)
+    #         # vps = vp.sum(axis=1)
+    #         # if not np.all(vps > 0): raise ValueError(f"{vps=}\n{vp=}")
+    #         # vp /= vps[:,np.newaxis]
+    #         # lamd = (np.ones(ncells)[:,np.newaxis] - vp)/dim
+    #         vm = np.minimum(beta[fofc]*sigma, 0)
+    #         vms = vm.sum(axis=1)
+    #         if not np.all(vms < 0): raise ValueError(f"{vms=}\n{vm=}")
+    #         vm /= vms[:,np.newaxis]
+    #         lamd = vm
+    #     else:
+    #         raise ValueError(f"unknown method {method}")
+    #     # print(f"{v[fofc].shape} {lamd2.shape=}")
+    #     points, simplices = self.mesh.points, self.mesh.simplices
+    #     xd = np.einsum('nji,nj -> ni', points[simplices], lamd)
+    #     delta = np.linalg.norm(np.einsum('nji,nj -> ni', points[simplices], lamd-1/(dim+1)),axis=1)
+    #     # if not np.allclose(lamd, lamd2): print(f"{lamd=} {lamd2=}")
+    #     return xd, lamd, delta
+    # def prepareAdvection(self, beta, scale, method):
+        # rt = fems.rt0.RT0(self.mesh)
+        # self.supdata={}
+        # convection = scale*rt.interpolate(beta)
+        # self.supdata['convection'] = convection
+        # self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
+        # self.supdata['convectionC'] = rt.toCell(convection)
     def computeMatrixDiffusion(self, coeff):
         ndofs = self.nunknowns()
         matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])

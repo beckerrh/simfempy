@@ -48,10 +48,7 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    # data.params.fct_glob['convection'] = ["y", "-x"]
-    # data.params.fct_glob['convection'] = dim*["1"]
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
-    # test(dim=1, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf')
-    # test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=3, linearsolver='pyamg', dirichletmethod=['trad','new'])
-    test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
-    # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche'])
+    # test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
+    # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=7, convection=["1","1"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)
+    test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=7, convection=["y","-x"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)

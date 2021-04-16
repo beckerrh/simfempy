@@ -16,21 +16,33 @@ from simfempy.meshes import move
 class P1(fems.fem.Fem):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.stab = kwargs.pop('stab', 'none')
         self.dirichlet_al = 2
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
-    def prepareAdvection(self, beta, scale, method):
+    def prepareAdvection(self, beta, scale):
         rt = fems.rt0.RT0(self.mesh)
-        convection = scale*rt.interpolate(beta)
-        beta = rt.toCell(convection)
-        move.move_points(self.mesh, -beta)
-        self.supdata={}
-        self.supdata['convection'] = convection
-        self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
-        self.supdata['convectionC'] = rt.toCell(convection)
+        self.betart = scale*rt.interpolate(beta)
+        self.beta = rt.toCell(self.betart)
+        if self.stab == 'supg':
+            self.md = move.move_midpoints(self.mesh, self.beta)
+            self.md.plot(self.mesh, self.beta, type='midpoints')
+        elif self.stab == 'supg2':
+            self.md = move.move_midpoints(self.mesh, self.beta, extreme=True)
+            self.md.plot(self.mesh, self.beta, type='midpoints')
+        elif self.stab == 'upw':
+            self.md = move.move_points(self.mesh, -self.beta)
+            self.md.plot(self.mesh, self.beta)
+        else:
+            raise ValueError(f"don't know {self.stab=}")
+        # self.supdata={}
+        # self.supdata['convection'] = convection
+        # self.supdata['xd'], self.supdata['lam'], self.supdata['delta'] = self.downWind(convection, method=method)
+        # print(f"{md.mus-self.supdata['lam']}")
+        # print(f"{md.deltas-self.supdata['delta']}")
+        # self.supdata['convectionC'] = beta
+        # self.plotBetaDownwind()
     def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nnodes
     def dofspercell(self): return self.mesh.simplices
@@ -179,15 +191,18 @@ class P1(fems.fem.Fem):
                 massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).reshape(-1))
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeMatrixTransport(self, lps):
-        beta, betaC, ld = self.supdata['convection'], self.supdata['convectionC'], self.supdata['lam']
+    def computeMatrixTransport(self, bdrylumped, colors):
+        beta, mus = self.beta, self.md.mus
+        # beta, betaC, ld = self.supdata['convection'], self.supdata['convectionC'], self.supdata['lam']
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
-        if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
-        if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
-        mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, ld)
+        # if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
+        # if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
+        # mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, ld)
+        mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-        if lps:
-            A += self.computeMatrixLps(betaC)
+        if self.stab =='lps':
+            A += self.computeMatrixLps(beta)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart,0), colors=colors, lumped=bdrylumped)
         return A
     def computeMassMatrixSupg(self, xd, coeff=1):
         dim, dV, nnodes, xK = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes, self.mesh.pointsc
@@ -212,20 +227,16 @@ class P1(fems.fem.Fem):
         np.add.at(b, simplices, (massloc*coeff*dV*f)[:, np.newaxis])
         return b
     def massDot(self, b, f, coeff=1):
-        dimension, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        massloc = simfempy.tools.barycentric.tensor(d=dimension, k=2)
-        r = np.einsum('n,kl,nl->nk', coeff*dV, massloc, f[simplices])
+        dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
+        massloc = simfempy.tools.barycentric.tensor(d=dim, k=2)
+        r = np.einsum('n,kl,nl->nk', coeff * dV, massloc, f[simplices])
         np.add.at(b, simplices, r)
         return b
     def massDotSupg(self, b, f, coeff=1):
-        xd = self.supdata['xd']
-        dim, simp, points, dV, xK = self.mesh.dimension, self.mesh.simplices, self.mesh.points, self.mesh.dV, self.mesh.pointsc
-        fm = f[simp].mean(axis=1)
-        # marche si xd = xK + delta*betaC
-        # r = np.einsum('n,nik,nk -> ni', delta*dV*fm, self.cellgrads[:,:,:dim], betaC)
-        r = np.einsum('n,nik,nk -> ni', coeff*dV*fm, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim])
-        # print(f"{r=}")
-        np.add.at(b, simp, r)
+        if self.stab[:4] != 'supg': return b
+        dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
+        r = np.einsum('n,nk,n->nk', coeff*dV, self.md.mus-1/(dim+1), f[simplices].mean(axis=1))
+        np.add.at(b, simplices, r)
         return b
     def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
         if colors is None: colors = self.mesh.bdrylabels.keys()

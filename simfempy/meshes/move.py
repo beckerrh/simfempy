@@ -1,11 +1,38 @@
 import numpy as np
 
+class MoveData():
+    def __init__(self, n, d, cells=True, deltas=True):
+        self.mus = np.empty(shape=(n, d + 1))
+        if deltas: self.deltas = np.empty(n)
+        if cells:
+            self.imax = np.iinfo(np.uint).max
+            self.cells = np.full(n, self.imax, dtype=np.uint)
+    def mask(self):
+        return self.cells != self.imax
+    def plot(self, mesh, beta, type='nodes'):
+        assert mesh.dimension==2
+        import matplotlib.pyplot as plt
+        from simfempy.meshes import plotmesh
+        celldata = {f"beta": [beta[:, i] for i in range(mesh.dimension)]}
+        plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
+        ax = plt.gca()
+        if type=='nodes':
+            mask = self.mask()
+            ax.plot(mesh.points[mask, 0], mesh.points[mask, 1], 'xr')
+            mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices[self.cells[mask]]], self.mus[mask])
+            ax.plot(mp[:, 0], mp[:, 1], 'xb')
+        elif type=='midpoints':
+            ax.plot(mesh.pointsc[:, 0], mesh.pointsc[:, 1], 'xr')
+            mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices], self.mus)
+            ax.plot(mp[:, 0], mp[:, 1], 'xb')
+        plt.show()
+
+
 #=================================================================#
 def _coef_beta_in_simplex(i, mesh, beta):
     d = mesh.dimension
     s = mesh.simplices[i]
     p = mesh.points[s][:,:d]
-    a = np.empty((d,d))
     a = p[1:]-p[0]
     betacoef = np.linalg.solve(a.T,beta)
     # print(f"{p=} {a=} {betacoef=}")
@@ -30,36 +57,34 @@ def _move_in_simplex(i, lamb, betacoef):
 
 #=================================================================#
 def move_points(mesh, beta):
-    assert beta.shape == (mesh.ncells, mesh.dimension)
-    d, nn = mesh.dimension, mesh.nnodes
+    d, nn, nc = mesh.dimension, mesh.nnodes, mesh.ncells
+    assert beta.shape == (nc, d)
     lambdas = np.eye(d+1)
-    imax = np.iinfo(np.uint).max
-    print(f"{imax=}")
-    cells, deltas, mus = np.full(nn, imax, dtype=np.uint), np.empty(nn), np.empty(shape=(nn,d+1))
+    md = MoveData(nn, d)
     for i in range(mesh.ncells):
         betacoef = _coef_beta_in_simplex(i, mesh, beta[i])
         for ipl in range(d+1):
             delta, mu = _move_in_simplex(i, lambdas[ipl], betacoef)
             if delta>0:
                 ip = mesh.simplices[i, ipl]
-                cells[ip] = i
-                deltas[ip] = delta
-                mus[ip] = mu
-    import matplotlib.pyplot as plt
-    from simfempy.meshes import plotmesh
-    celldata = {f"beta": [beta[:, i] for i in range(mesh.dimension)]}
-    plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
-    ax = plt.gca()
-    mask = cells != imax
-    # print(f"{cells=} {mask}")
-    ax.plot(mesh.points[mask, 0], mesh.points[mask, 1], 'xr')
-
-    mp = np.einsum('nik,ni->nk',mesh.points[mesh.simplices[cells[mask]]],mus[mask])
-    print(f"{mp.shape=}")
-    ax.plot(mp[:, 0], mp[:, 1], 'xb')
-
-    # xd, ld, delta = self.downWind(beta)
-    # ax.plot(xd[:, 0], xd[:, 1], 'xr')
-    # xd, ld, delta = self.downWind(beta, method='supg2')
-    # ax.plot(xd[:, 0], xd[:, 1], 'xb')
-    plt.show()
+                md.cells[ip] = i
+                md.deltas[ip] = delta
+                md.mus[ip] = mu
+    return md
+#=================================================================#
+def move_midpoints(mesh, beta, extreme=False):
+    d, nn, nc = mesh.dimension, mesh.nnodes, mesh.ncells
+    assert beta.shape == (nc, d)
+    lambdas = np.ones(d+1)/(d+1)
+    md = MoveData(nc, d, cells=False, deltas=not extreme)
+    for i in range(mesh.ncells):
+        betacoef = _coef_beta_in_simplex(i, mesh, beta[i])
+        delta, mu = _move_in_simplex(i, lambdas, betacoef)
+        assert delta>0
+        if not extreme: md.deltas[i] = delta
+        md.mus[i] = mu
+    if extreme:
+        ind = np.argmax(md.mus,axis=1)
+        md.mus.fill(0)
+        np.put_along_axis(md.mus, np.expand_dims(ind,axis=1), 1, axis=1)
+    return md

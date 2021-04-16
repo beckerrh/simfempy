@@ -96,5 +96,5 @@ def createProblemData(mode='static', convection=False):
 
 # ================================================================c#
 
-# main(mode='static', convection=True)
-main(mode='dynamic', convection=True, h=0.1)
+main(mode='static', convection=True, h=2)
+# main(mode='dynamic', convection=True, h=0.1)

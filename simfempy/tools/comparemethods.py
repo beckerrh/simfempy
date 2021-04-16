@@ -79,6 +79,7 @@ class CompareMethods(object):
             else:
                 self.parameters.append(param)
             for name, method in self.methods.items():
+                if self.verbose: print(f"\t{method.fem=}")
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": method.setParameter(self.paramname, param)

@@ -18,9 +18,9 @@ def main(h=0.1):
     mesh, problemdata = ramp(h=h)
     #create application
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='lps', dirichletmethod='nitsche', masslumpedbdry=True)
-    heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='supg', dirichletmethod='trad', masslumpedbdry=True)
+    heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='supg2', dirichletmethod='trad', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()
-    return
+    # return
     result = heat.static()
     print(f"{heat=}")
     print(f"postproc:")

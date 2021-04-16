@@ -158,18 +158,15 @@ def plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha):
     ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
     cnt = ax.tricontourf(x, y, tris, pd, levels=16, cmap='jet')
     clb = plt.colorbar(cnt, ax=ax, shrink=0.6)
-    ax.set_aspect(aspect='equal')
-    # clb.set_label(pdn)
+    clb.ax.set_title(pdn)
     _settitle(ax, pdn)
 #=================================================================#
 def plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha):
     if tris.shape[0] != cd.shape[0]:
         raise ValueError("wrong length in '{}' {}!={}".format(cdn, tris.shape[0], cd.shape[0]))
     cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
-    ax.set_aspect(aspect='equal')
-    clb = plt.colorbar(cnt, cax=ax)
-    # clb.ax.set_title(cdn)
-    clb.set_label(cdn)
+    clb = plt.colorbar(cnt, ax=ax, shrink=0.6)
+    clb.ax.set_title(cdn)
     _settitle(ax, cdn)
 #=================================================================#
 def meshWithBoundaries(x, y, tris, **kwargs):
