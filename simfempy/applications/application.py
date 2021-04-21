@@ -190,7 +190,7 @@ class Application(object):
         u = u0
         self.time = t_span[0]
         # rhs=None
-        rhs=np.empty_like(u, dtype=float)
+        rhs = np.empty_like(u, dtype=float)
         # will be create by computeRhs()
         niterslinsol = np.zeros(niter)
         expl = (a-1)/a
@@ -202,7 +202,7 @@ class Application(object):
                 rhs += 1/(a*a*dt)*self.Mass.dot(u)
                 rhs += expl*self.Aimp.dot(u)
                 # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
-                rhs2,up2 = self.computeRhs()
+                rhs2 = self.computeRhs()
                 rhs += (1/a)*rhs2
                 # print(f"@2@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('rhs')
@@ -224,6 +224,7 @@ class Application(object):
         if not hasattr(self, 'info'): self.info={}
         if solver not in self.linearsolvers: solver = "umf"
         if solver == 'umf':
+            return splinalg.spsolve(A, b), 1
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
         elif solver in ['gmres','lgmres','bicgstab','cg']:
             if solver == 'cg':

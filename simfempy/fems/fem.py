@@ -30,8 +30,8 @@ class Fem(object):
         self.nloc = self.nlocal()
         if self.innersides: self.mesh.constructInnerFaces()
     def computeStencilCell(self, dofspercell):
-        self.cols = np.tile(dofspercell, self.nloc).reshape(-1)
-        self.rows = np.repeat(dofspercell, self.nloc).reshape(-1)
+        self.cols = np.tile(dofspercell, self.nloc).ravel()
+        self.rows = np.repeat(dofspercell, self.nloc).ravel()
         #Alternative
         # self.rows = dofspercell.repeat(self.nloc).reshape(self.mesh.ncells, self.nloc, self.nloc)
         # self.cols = self.rows.swapaxes(1, 2)

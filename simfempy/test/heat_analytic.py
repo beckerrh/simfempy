@@ -15,7 +15,7 @@ def test(dim, **kwargs):
     paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['trad','new'])
     if 'convection' in kwargs:
         data.params.fct_glob['convection'] = kwargs.pop('convection')
-        paramargs['stab'] = kwargs.pop('stab', ['supg','lps'])
+        paramargs['stab'] = kwargs.pop('stab', ['supg'])
     data.params.scal_glob['kheat'] = kwargs.pop('kheat', 0.01)
     if dim==1:
         createMesh = testmeshes.unitline
@@ -33,7 +33,7 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
         colorsrob = []
-        colorsneu = [100]
+        colorsneu = []
         # colorsneu = [102, 105]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
     data.bdrycond.set("Dirichlet", colorsdir)
@@ -51,5 +51,6 @@ if __name__ == '__main__':
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     # test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
     # test(dim=2, exactsolution = 'Linear', niter=3, linearsolver='umf', dirichletmethod=['trad','new'],kheat=1.0001)
-    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["1","1.1"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg'],kheat=0.0001)
+    # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["1","1.1"], linearsolver='umf', dirichletmethod=['nitsche'], stab=['supg'],kheat=0.0001)
+    test(dim=2, exactsolution = '1+x', fem=['cr1'], niter=2, linearsolver='umf', dirichletmethod=['trad','nitsche'], kheat=1, plotsolution=True)
     # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=2, convection=["y","-x"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)

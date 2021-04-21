@@ -90,10 +90,11 @@ class CompareMethods(object):
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])
                     plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
                     plotcount += 1
-                    plt.show()
+                    # plt.show()
                 resdict = result.info.copy()
                 resdict.update(result.data['global'])
                 self.fillInfo(iter, name, resdict, len(params))
+        if self.plotsolution: plt.show()
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)
         if self.latex:

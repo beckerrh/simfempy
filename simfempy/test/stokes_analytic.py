@@ -20,8 +20,8 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitsquare
         colordir = [1000,1001,1003]
         colorneu = [1002]
-        colordir = [1000,1002,1001,1003]
-        colorneu = []
+        # colordir = [1000,1002,1001,1003]
+        # colorneu = []
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube

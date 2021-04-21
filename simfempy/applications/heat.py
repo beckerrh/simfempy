@@ -3,7 +3,7 @@ from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 
-#=================================================================#
+# ================================================================= #
 class Heat(Application):
     """
     Class for the (stationary) heat equation
@@ -157,7 +157,7 @@ class Heat(Application):
         # A, self.bdrydata = self.fem.matrixBoundary(A, bdrydata)
         # if self.verbose: print(f"{self.bdrydata=}")
         return A
-    def computeRhs(self, b=None, coeffmass=None):
+    def computeRhs(self, b=None, coeffmass=None, u=None):
         if b is None:
             b = np.zeros(self.fem.nunknowns())
         else:
@@ -181,8 +181,7 @@ class Heat(Application):
         self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond)
         if 'convection' in self.problemdata.params.fct_glob.keys():
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
-            colors = colorsdir
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), colors=colors, lumped=self.masslumpedbdry)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
         self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff={k:v for k,v in bdrycond.param.items()})
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
@@ -194,8 +193,9 @@ class Heat(Application):
             self.fem.massDot(b, u, coeff=coeffmass)
         # print(f"***{id(u)=} {type(u)=}")
         # b, self.bdrydata = self.fem.vectorBoundary(b, bdrycond, bdrydata)
+        # print(f"***1{b=}")
         b = self.fem.vectorBoundary(b, bdrycond, bdrydata)
-        # print(f"***{id(u)=} {type(u)=}")
+        # print(f"***2{b=}")
         return b
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
