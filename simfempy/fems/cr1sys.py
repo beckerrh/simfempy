@@ -17,7 +17,8 @@ class CR1sys(femsys.Femsys):
         super().__init__(cr1.CR1(mesh=mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        self.mesh.constructInnerFaces()
+        # raise ValueError(f"CR1sys setMesh {self.mesh=}")
+        # self.mesh.constructInnerFaces()
     def tonode(self, u):
         ncomp, nnodes = self.ncomp, self.mesh.nnodes
         unodes = np.zeros(ncomp*nnodes)
@@ -59,10 +60,8 @@ class CR1sys(femsys.Femsys):
             help2[inddir] = 1
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, bdrydata
-    def vectorBoundary(self, b, u, bdryfct, bdrydata):
-        if u is None: u = np.zeros_like(b)
-        else: assert u.shape == b.shape
+        return A
+    def vectorBoundary(self, b, bdryfct, bdrydata):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -74,22 +73,36 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        help = np.zeros_like(b)
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
-            if color in bdryfct.keys():
+            if color in bdryfct:
                 dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
                 for icomp in range(ncomp):
-                    u[icomp + ncomp * faces] = dirichlets[icomp]
-            else:
-                for icomp in range(ncomp):
-                    u[icomp + ncomp * faces] = 0
-        b[indin] -= bdrydata.A_inner_dir * u[inddir]
+                    help[icomp + ncomp * faces] = dirichlets[icomp]
+        b[indin] -= bdrydata.A_inner_dir * help[inddir]
         if self.fem.dirichletmethod == 'trad':
-            b[inddir] = u[inddir]
+            b[inddir] = help[inddir]
+            # print(f"{b[inddir]=}")
         else:
-            b[inddir] = bdrydata.A_dir_dir * u[inddir]
-        # print(f"{b=}")
-        return b, u, bdrydata
+            b[inddir] = bdrydata.A_dir_dir * help[inddir]
+        return b
+        # for color in colorsdir:
+        #     faces = self.mesh.bdrylabels[color]
+        #     if color in bdryfct.keys():
+        #         dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
+        #         for icomp in range(ncomp):
+        #             u[icomp + ncomp * faces] = dirichlets[icomp]
+        #     else:
+        #         for icomp in range(ncomp):
+        #             u[icomp + ncomp * faces] = 0
+        # b[indin] -= bdrydata.A_inner_dir * u[inddir]
+        # if self.fem.dirichletmethod == 'trad':
+        #     b[inddir] = u[inddir]
+        # else:
+        #     b[inddir] = bdrydata.A_dir_dir * u[inddir]
+        # # print(f"{b=}")
+        # return b, u, bdrydata
     def computeRhsBoundary(self, b, colors, bdryfct):
         for color in colors:
             if not color in bdryfct or not bdryfct[color]: continue

@@ -50,6 +50,7 @@ class D0(fem.Fem):
             # b[cells] -= dS * neumanns
         return b
     def computeBdryMean(self, b, colors):
+        if not len(colors): return 0
         res, omega = 0, 0
         for color in colors:
             faces = self.mesh.bdrylabels[color]

@@ -99,10 +99,10 @@ class Params(object):
         self.scal_cells = {}
     def __repr__(self):
         repr = ""
-        if len(self.fct_glob): repr += f"fct_glob={self.fct_glob}"
-        if len(self.scal_glob): repr += f"scal_glob={self.scal_glob}"
-        if len(self.scal_cells): repr += f"scal_cells={self.scal_cells}"
-        return repr
+        if len(self.fct_glob): repr += f" fct_glob={self.fct_glob}"
+        if len(self.scal_glob): repr += f" scal_glob={self.scal_glob}"
+        if len(self.scal_cells): repr += f" scal_cells={self.scal_cells}"
+        return repr[1:]
     def set_scal_cells(self, name, colors, value):
         if not name in self.scal_cells: self.scal_cells[name]={}
         for color in colors: self.scal_cells[name][color] = value

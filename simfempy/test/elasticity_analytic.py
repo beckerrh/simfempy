@@ -12,7 +12,7 @@ from simfempy.test.test_analytic import test_analytic
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramargs = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    if 'dirichletmethod' in kwargs: paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod')
+    paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['trad','new'])
     data = simfempy.applications.problemdata.ProblemData()
     if dim==2:
         data.ncomp=2
@@ -41,5 +41,5 @@ def test(dim, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(dim=2, exactsolution=["1", "y"], fem=['p1','cr1'], niter=4)
-    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['trad','new'], niter=4)
+    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['trad','new'], niter=3, linearsolver='pyamg')
     # test(dim=2, exactsolution='Quadratic', fem=['p1','cr1'], niter=6)

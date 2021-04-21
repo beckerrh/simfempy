@@ -43,7 +43,7 @@ class Heat(Application):
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', False)
         self.masslumpedvol = kwargs.pop('masslumpedvol', False)
         fem = kwargs.pop('fem','p1')
-        femargs = {'dirichletmethod':kwargs.pop('dirichletmethod', "trad"), 'stab':kwargs.pop('stab', "none")}
+        femargs = {'dirichletmethod':kwargs.pop('dirichletmethod', "trad"), 'stab':kwargs.pop('stab', "supg")}
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
@@ -153,10 +153,11 @@ class Heat(Application):
             # A += self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colors, lumped=self.masslumpedbdry)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
-        A, self.bdrydata = self.fem.matrixBoundary(A, bdrydata)
+        A = self.fem.matrixBoundary(A, bdrydata)
+        # A, self.bdrydata = self.fem.matrixBoundary(A, bdrydata)
         # if self.verbose: print(f"{self.bdrydata=}")
         return A
-    def computeRhs(self, b=None, u=None, coeffmass=None):
+    def computeRhs(self, b=None, coeffmass=None):
         if b is None:
             b = np.zeros(self.fem.nunknowns())
         else:
@@ -192,9 +193,10 @@ class Heat(Application):
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)
         # print(f"***{id(u)=} {type(u)=}")
-        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond, bdrydata)
+        # b, self.bdrydata = self.fem.vectorBoundary(b, bdrycond, bdrydata)
+        b = self.fem.vectorBoundary(b, bdrycond, bdrydata)
         # print(f"***{id(u)=} {type(u)=}")
-        return b,u
+        return b
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
         data = {'point':{}, 'cell':{}, 'global':{}}

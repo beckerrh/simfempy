@@ -20,8 +20,8 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitsquare
         colordir = [1000,1001,1003]
         colorneu = [1002]
-        # colordir = [1000,1002,1001,1003]
-        # colorneu = []
+        colordir = [1000,1002,1001,1003]
+        colorneu = []
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
@@ -40,4 +40,4 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=8, plotsolution=False, linearsolver='gmres')
     test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, plotsolution=False, linearsolver='gmres')
-    # test(dim=2, exactsolution=[["1","0"],"1"], niter=2, h1=2)
+    # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)

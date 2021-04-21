@@ -13,12 +13,12 @@ from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
 
 # ---------------------------------------------------------------- #
-def main(h=0.1):
+def main(h):
     #create mesh
     mesh, problemdata = ramp(h=h)
     #create application
-    # heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='lps', dirichletmethod='nitsche', masslumpedbdry=True)
-    heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='supg2', dirichletmethod='trad', masslumpedbdry=True)
+    heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='upw', dirichletmethod='trad', masslumpedbdry=True)
+    # heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='upw2', dirichletmethod='trad', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()
     # return
     result = heat.static()
@@ -56,4 +56,4 @@ def ramp(h=0.2):
 # ================================================================c#
 
 # main(mode='static', convection=True)
-main(h=1)
+main(h=0.7)

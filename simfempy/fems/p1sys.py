@@ -46,10 +46,8 @@ class P1sys(femsys.Femsys):
             help2[inddir] = 1
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-        return A, bdrydata
-    def vectorBoundary(self, b, u, bdryfct, bdrydata):
-        if u is None: u = np.zeros_like(b)
-        else: assert u.shape == b.shape
+        return A
+    def vectorBoundary(self, b, bdryfct, bdrydata):
         x, y, z = self.mesh.points.T
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
@@ -61,32 +59,44 @@ class P1sys(femsys.Femsys):
         for icomp in range(ncomp): indin[icomp::ncomp] += icomp
         inddir = np.repeat(ncomp * nodedirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        help = np.zeros_like(b)
+        for color, nodes in nodesdir.items():
+            if color in bdryfct:
+                dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+                for icomp in range(ncomp):
+                    help[icomp + ncomp * nodes] = dirichlets[icomp]
+        b[indin] -= bdrydata.A_inner_dir * help[inddir]
         if self.fem.dirichletmethod == 'trad':
-            for color, nodes in nodesdir.items():
-                if color in bdryfct:
-                    dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * nodes] = dirichlets[icomp]
-                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-                else:
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * nodes] = 0
-                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-            b[indin] -= bdrydata.A_inner_dir * b[inddir]
+            b[inddir] = help[inddir]
         else:
-            for color, nodes in nodesdir.items():
-                if color in bdryfct:
-                    dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
-                    for icomp in range(ncomp):
-                        u[icomp + ncomp * nodes] = dirichlets[icomp]
-                        b[icomp + ncomp * nodes] = 0
-                else:
-                    for icomp in range(ncomp):
-                        b[icomp + ncomp * nodes] = 0
-                        u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
-            b[indin] -= bdrydata.A_inner_dir * u[inddir]
-            b[inddir] = bdrydata.A_dir_dir * u[inddir]
-        return b, u, bdrydata
+            b[inddir] = bdrydata.A_dir_dir * help[inddir]
+        return b
+        # if self.fem.dirichletmethod == 'trad':
+        #     for color, nodes in nodesdir.items():
+        #         if color in bdryfct:
+        #             dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+        #             for icomp in range(ncomp):
+        #                 b[icomp + ncomp * nodes] = dirichlets[icomp]
+        #                 u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+        #         else:
+        #             for icomp in range(ncomp):
+        #                 b[icomp + ncomp * nodes] = 0
+        #                 u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+        #     b[indin] -= bdrydata.A_inner_dir * b[inddir]
+        # else:
+        #     for color, nodes in nodesdir.items():
+        #         if color in bdryfct:
+        #             dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+        #             for icomp in range(ncomp):
+        #                 u[icomp + ncomp * nodes] = dirichlets[icomp]
+        #                 b[icomp + ncomp * nodes] = 0
+        #         else:
+        #             for icomp in range(ncomp):
+        #                 b[icomp + ncomp * nodes] = 0
+        #                 u[icomp + ncomp * nodes] = b[icomp + ncomp * nodes]
+        #     b[indin] -= bdrydata.A_inner_dir * u[inddir]
+        #     b[inddir] = bdrydata.A_dir_dir * u[inddir]
+        # return b
     def computeRhsBoundary(self, b, colors, bdryfct):
         for color in colors:
             if not color in bdryfct or not bdryfct[color]: continue

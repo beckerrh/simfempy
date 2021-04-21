@@ -39,11 +39,21 @@ class Elasticity(Application):
             self.fem = fems.p1sys.P1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
         elif fem == 'cr1':
             self.fem = fems.cr1sys.CR1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
+            self.innersides=True
         else:
             raise ValueError("unknown fem '{}'".format(fem))
         # material = kwargs.pop('material', "Acier")
         # self.setParameters(*self.material2Lame(material))
         super().__init__(**kwargs)
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        self.fem.setMesh(self.mesh)
+        if hasattr(self,'innersides'): self.mesh.constructInnerFaces()
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        # print(f"{self.bdrydata=}")
+        self.setMaterialParameters(self.problemdata.params)
     def setMaterialParameters(self, params):
         name = 'material'
         if name in params.scal_cells:
@@ -60,23 +70,6 @@ class Elasticity(Application):
             self.mu, self.lam = mu, lam
             self.mucell = np.full(self.mesh.ncells, mu)
             self.lamcell = np.full(self.mesh.ncells, lam)
-
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
-        self.fem.setMesh(self.mesh)
-        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        # self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, colorsflux)
-        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
-        # print(f"{self.bdrydata=}")
-        self.setMaterialParameters(self.problemdata.params)
-        # self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        # self.lamcell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        # self.mucell = np.full(self.mesh.ncells, self.mu)
-        # self.lamcell = np.full(self.mesh.ncells, self.lam)
-        # xc, yc, zc = self.mesh.pointsc.T
-        # self.mucell = self.mufct(self.mesh.cell_labels, xc, yc, zc)
-        # self.lamcell = self.lamfct(self.mesh.cell_labels, xc, yc, zc)
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
@@ -102,18 +95,18 @@ class Elasticity(Application):
             return rhs
         return _fctneumann
     def solve(self, iter, dirname): return self.static(iter, dirname)
-    def computeRhs(self, b=None, u=None, coeffmass=None):
+    def computeRhs(self, b=None, coeffmass=None):
         b = np.zeros(self.fem.nunknowns() * self.ncomp)
         rhs = self.problemdata.params.fct_glob.get('rhs', None)
         if rhs: self.fem.computeRhsCells(b, rhs)
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         self.fem.computeRhsBoundary(b, colorsneu, bdrycond.fct)
-        b, u, self.bdrydata = self.fem.vectorBoundary(b, u, bdrycond.fct, bdrydata)
-        return b, u
+        b = self.fem.vectorBoundary(b, bdrycond.fct, bdrydata)
+        return b
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        A, self.bdrydata = self.fem.matrixBoundary(A, self.bdrydata)
+        A = self.fem.matrixBoundary(A, self.bdrydata)
         return A
     def postProcess(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}

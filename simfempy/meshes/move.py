@@ -1,14 +1,23 @@
 import numpy as np
 
 class MoveData():
-    def __init__(self, n, d, cells=True, deltas=True):
+    def __init__(self, n, d, cells=True, deltas=True, second=False):
         self.mus = np.empty(shape=(n, d + 1))
         if deltas: self.deltas = np.empty(n)
         if cells:
             self.imax = np.iinfo(np.uint).max
             self.cells = np.full(n, self.imax, dtype=np.uint)
+        if second:
+            assert deltas and cells
+            self.deltas2 = np.empty(n)
+            self.cells2 = np.full(n, self.imax, dtype=np.uint)
+            self.mus2 = np.empty(shape=(n, d + 1))
     def mask(self):
         return self.cells != self.imax
+    def mask2(self):
+        return self.cells2 != self.imax
+    def maskonly1(self):
+        return (self.cells != self.imax) & (self.cells2 == self.imax)
     def plot(self, mesh, beta, type='nodes'):
         assert mesh.dimension==2
         import matplotlib.pyplot as plt
@@ -16,16 +25,42 @@ class MoveData():
         celldata = {f"beta": [beta[:, i] for i in range(mesh.dimension)]}
         plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
         ax = plt.gca()
-        if type=='nodes':
-            mask = self.mask()
-            ax.plot(mesh.points[mask, 0], mesh.points[mask, 1], 'xr')
-            mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices[self.cells[mask]]], self.mus[mask])
-            ax.plot(mp[:, 0], mp[:, 1], 'xb')
+        if type in['nodes','sides']:
+            m = self.mask()
+            if type=='node':
+                ax.plot(mesh.points[m, 0], mesh.points[m, 1], 'or')
+            else:
+                ax.plot(mesh.pointsf[m, 0], mesh.pointsf[m, 1], 'or')
+            mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices[self.cells[m]]], self.mus[m])
+            ax.plot(mp[:, 0], mp[:, 1], '+b')
+            # mp = np.einsum('nik,ni->nk', mesh.pointsf[mesh.facesOfCells[self.cells[m]]], 1-2*self.mus[m])
+            # ax.plot(mp[:, 0], mp[:, 1], 'Dm')
+            if hasattr(self, 'cells2'):
+                m2 = self.mask2()
+                mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices[self.cells2[m2]]], self.mus2[m2])
+                ax.plot(mp[:, 0], mp[:, 1], 'xy')
         elif type=='midpoints':
             ax.plot(mesh.pointsc[:, 0], mesh.pointsc[:, 1], 'xr')
             mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices], self.mus)
-            ax.plot(mp[:, 0], mp[:, 1], 'xb')
+            ax.plot(mp[:, 0], mp[:, 1], 'b')
         plt.show()
+
+
+#=================================================================#
+def _coef_mu_in_neighbor(mesh, ic2, ic, mu):
+    d = mesh.dimension
+    s = mesh.simplices[ic]
+    p = mesh.points[s][:,:d]
+    s2 = mesh.simplices[ic2]
+    p2 = mesh.points[s2][:,:d]
+    a2 = p2[1:]-p2[0]
+    mu2 = np.empty_like(mu)
+    b = p.T@mu - p2[0]
+    mu2[1:] = np.linalg.solve(a2.T,b)
+    mu2[0] = 1 - np.sum(mu2[1:])
+    assert np.allclose(p.T@mu, p2.T@mu2, rtol=1e-12, atol=1e-14)
+    return mu2
+
 
 
 #=================================================================#
@@ -56,11 +91,29 @@ def _move_in_simplex(i, lamb, betacoef):
     return delta, mu
 
 #=================================================================#
-def move_points(mesh, beta):
+def move_sides(mesh, beta, second=False):
+    d, ns, nc = mesh.dimension, mesh.nfaces, mesh.ncells
+    assert beta.shape == (nc, d)
+    md = MoveData(ns, d, second=second)
+    for i in range(mesh.ncells):
+        betacoef = _coef_beta_in_simplex(i, mesh, beta[i])
+        for ipl in range(d+1):
+            lam = np.ones(d+1)/d
+            lam[ipl] = 0
+            delta, mu = _move_in_simplex(i, lam, betacoef)
+            if delta>0:
+                ip = mesh.facesOfCells[i, ipl]
+                md.cells[ip] = i
+                md.deltas[ip] = delta
+                md.mus[ip] = mu
+    return md
+
+#=================================================================#
+def move_nodes(mesh, beta, second=False):
     d, nn, nc = mesh.dimension, mesh.nnodes, mesh.ncells
     assert beta.shape == (nc, d)
     lambdas = np.eye(d+1)
-    md = MoveData(nn, d)
+    md = MoveData(nn, d, second=second)
     for i in range(mesh.ncells):
         betacoef = _coef_beta_in_simplex(i, mesh, beta[i])
         for ipl in range(d+1):
@@ -70,6 +123,26 @@ def move_points(mesh, beta):
                 md.cells[ip] = i
                 md.deltas[ip] = delta
                 md.mus[ip] = mu
+    ind = np.argmin(md.mus, axis=1)
+    # print(f"{md.mus.shape=} {ind.shape=}")
+    np.put_along_axis(md.mus,ind[:,np.newaxis],0,axis=1)
+    if second:
+        for ip in range(nn):
+            ic = md.cells[ip]
+            if ic == md.imax: continue
+            indf = mesh.facesOfCells[ic,md.mus[ip]==0]
+            ic2 = mesh.cellsOfFaces[indf,0][0]
+            if ic2==ic: ic2 = mesh.cellsOfFaces[indf,1][0]
+            if ic2<0: continue
+            # print(f"{ic2=}")
+            mu2 =_coef_mu_in_neighbor(mesh, ic2, ic, md.mus[ip])
+            betacoef = _coef_beta_in_simplex(ic2, mesh, beta[ic])
+            delta, mu = _move_in_simplex(ic2, mu2, betacoef)
+            # print(f"{delta=} {betacoef=} {md.mus[ip]} {mu=}")
+            if delta > 0.1*md.deltas[ip]/np.sqrt(2):
+                md.cells2[ip] = ic2
+                md.deltas2[ip] = delta
+                md.mus2[ip] = mu
     return md
 #=================================================================#
 def move_midpoints(mesh, beta, extreme=False):
@@ -85,6 +158,7 @@ def move_midpoints(mesh, beta, extreme=False):
         md.mus[i] = mu
     if extreme:
         ind = np.argmax(md.mus,axis=1)
-        md.mus.fill(0)
-        np.put_along_axis(md.mus, np.expand_dims(ind,axis=1), 1, axis=1)
+        m = (np.take_along_axis(md.mus, np.expand_dims(ind,axis=1), axis=1)>=0.7).ravel()
+        md.mus[m,:] = 0
+        md.mus[m,ind[m]] = 1
     return md

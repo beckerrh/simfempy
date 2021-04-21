@@ -12,7 +12,7 @@ def test(dim, **kwargs):
     data = simfempy.applications.problemdata.ProblemData()
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramargs = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    if 'dirichletmethod' in kwargs: paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod')
+    paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['trad','new'])
     if 'convection' in kwargs:
         data.params.fct_glob['convection'] = kwargs.pop('convection')
         paramargs['stab'] = kwargs.pop('stab', ['supg','lps'])
@@ -43,12 +43,13 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':'True'}
     return test_analytic(application=Heat, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 #================================================================#
 if __name__ == '__main__':
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     # test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['trad','nitsche'])
-    # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=7, convection=["1","1"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)
-    test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=7, convection=["y","-x"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)
+    # test(dim=2, exactsolution = 'Linear', niter=3, linearsolver='umf', dirichletmethod=['trad','new'],kheat=1.0001)
+    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["1","1.1"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg'],kheat=0.0001)
+    # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=2, convection=["y","-x"], linearsolver='umf', dirichletmethod=['trad'], stab=['supg','supg2'],kheat=0.0001)

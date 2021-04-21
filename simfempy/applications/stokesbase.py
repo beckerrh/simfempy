@@ -10,10 +10,12 @@ class StokesBase(Application):
     """
     """
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         dirichletmethod = kwargs.pop('dirichletmethod', 'none')
+        self.problemdata = kwargs.pop('problemdata')
+        self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp, dirichletmethod=dirichletmethod)
         self.femp = fems.d0.D0()
+        super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         assert self.ncomp==self.mesh.dimension

@@ -11,16 +11,10 @@ class Stokes(StokesBase):
     """
     """
     def __init__(self, **kwargs):
-        self.femv = fems.cr1sys.CR1sys(ncomp=kwargs['problemdata'].ncomp)
-        self.femp = fems.d0.D0()
+        # self.femv = fems.cr1sys.CR1sys(ncomp=kwargs['problemdata'].ncomp)
+        # self.femp = fems.d0.D0()
         self.dirichlet_nitsche = 4
         super().__init__(**kwargs)
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
-        self.femv.setMesh(self.mesh)
-        self.femp.setMesh(self.mesh)
-        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
     def computeRhs(self, b=None, u=None, coeffmass=None):
         bv = np.zeros(self.femv.nunknowns() * self.ncomp)
         bp = np.zeros(self.femp.nunknowns())
@@ -35,23 +29,17 @@ class Stokes(StokesBase):
         # print(f"{bv=}")
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        # print(f"{self.problemdata.bdrycond=}")
-        # bdryfctv = {k:v[0] if len(v)>1 else None for k,v in self.problemdata.bdrycond.fct.items()}
-        # bdryfctv = {c:self.problemdata.bdrycond.fct[c][0] for c in colorsneu if c in self.problemdata.bdrycond.fct}
-        # bdryfctp = {k:v[1] for k,v in self.problemdata.bdrycond.fct.items()}
-        # self.femv.computeRhsBoundary(bv, colorsneu, bdryfctv)
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
-        # self.femp.computeRhsBoundary(bp, colorsdir, bdryfctp)
         self.computeRhsNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
-        if not self.pmean: return (bv,bp), u
-        # if hasattr(self.problemdata,'solexact'):
+        if not self.pmean: return (bv,bp)
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
             pmean = self.femp.computeMean(p)
         else: pmean=0
         print(f"{pmean=}")
-        return (bv,bp,pmean), (u[0], u[1], 0)
+        return (bv,bp,pmean)
     def computeMatrix(self):
+        # raise ValueError(f"{self.femv.mesh=}")
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
