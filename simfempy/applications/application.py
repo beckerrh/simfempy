@@ -109,6 +109,10 @@ class Application(object):
             msg = f"{name} should be given in 'fct_glob' or 'scal_glob' or 'scal_cells' (problemdata.params)"
             raise ValueError(msg)
         return arr
+    def initsolution(self, b):
+        if isinstance(b,tuple):
+            return [np.copy(bi) for bi in b]
+        return np.copy(b)
     def static(self, iter=100, dirname='Run', mode='linear'):
         if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
         # self.timer.reset_all()
@@ -118,7 +122,7 @@ class Application(object):
         A = self.computeMatrix()
         self.timer.add('matrix')
         b = self.computeRhs()
-        u = np.copy(b)
+        u = self.initsolution(b)
         # if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
         # print(f"{np.linalg.norm(b)=}")
         # print(f"{np.linalg.norm(u)=}")

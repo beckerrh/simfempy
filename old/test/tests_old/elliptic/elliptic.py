@@ -53,7 +53,7 @@ def test_analytic(exactsolution="Quadratic", geomname="unitsquare", verbose=2):
     elliptic = Elliptic(geometry=geometry, ncomp=2, showmesh=False)
     problemdata = elliptic.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc)
     for fem in ['p1', 'cr1']:
-        for bdry in ['trad', 'new']:
+        for bdry in ['strong', 'new']:
             compares[fem + bdry] = Elliptic(problemdata=problemdata, fem=fem, method=bdry)
     comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     if exactsolution == "Linear": h = h[:-2]

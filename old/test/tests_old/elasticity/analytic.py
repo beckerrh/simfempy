@@ -37,7 +37,7 @@ def test_analytic(exactsolution="Sinus", geomname = "unitsquare", verbose=5):
     elasticity = Elasticity(geometry=geometry, showmesh=False)
     problemdata = elasticity.generatePoblemData(exactsolution=exactsolution, bdrycond=bdrycond, postproc=postproc, random=False)
     for fem in ['p1']:
-        for bdry in ['trad','new']:
+        for bdry in ['strong','new']:
             compares[fem+bdry] = Elasticity(problemdata=problemdata, fem=fem, method=bdry)
     comp = simfempy.tools.comparemethods.CompareMethods(compares, verbose=verbose)
     if exactsolution == "Linear":  h = [2, 1, 0.5]

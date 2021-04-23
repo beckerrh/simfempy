@@ -34,11 +34,11 @@ class Elasticity(Application):
     def __init__(self, **kwargs):
         fem = kwargs.pop('fem', 'p1')
         ncomp = kwargs['problemdata'].ncomp
-        dirichletmethod = kwargs.pop('dirichletmethod', "trad")
+        self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
         if fem == 'p1':
-            self.fem = fems.p1sys.P1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
+            self.fem = fems.p1sys.P1sys(ncomp=ncomp)
         elif fem == 'cr1':
-            self.fem = fems.cr1sys.CR1sys(ncomp=ncomp, dirichletmethod=dirichletmethod)
+            self.fem = fems.cr1sys.CR1sys(ncomp=ncomp)
             self.innersides=True
         else:
             raise ValueError("unknown fem '{}'".format(fem))
@@ -102,11 +102,11 @@ class Elasticity(Application):
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         self.fem.computeRhsBoundary(b, colorsneu, bdrycond.fct)
-        b = self.fem.vectorBoundary(b, bdrycond.fct, bdrydata)
+        b = self.fem.vectorBoundary(b, bdrycond.fct, bdrydata, self.dirichletmethod)
         return b
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        A = self.fem.matrixBoundary(A, self.bdrydata)
+        A = self.fem.matrixBoundary(A, self.bdrydata, self.dirichletmethod)
         return A
     def postProcess(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}

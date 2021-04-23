@@ -79,7 +79,7 @@ class Stokes(solvers.solver.Application):
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
-            self.method = "trad"
+            self.method = 'strong'
         if 'rhsmethod' in kwargs:
             self.problemdata.rhsmethod = kwargs.pop('rhsmethod')
             if self.problemdata.rhsmethod == "rt":
@@ -175,7 +175,7 @@ class Stokes(solvers.solver.Application):
             self.bdrydata.bsaved.append({})
             for key, faces in facesdirflux.items():
                 self.bdrydata.bsaved[icomp][key] = b[icomp*nfaces + faces]
-        if self.method == 'trad':
+        if self.method == 'strong':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = self.problemdata.bdrycond.fct[color]
@@ -223,7 +223,7 @@ class Stokes(solvers.solver.Application):
         for icomp in range(ncomp):
             inddir = icomp * nfaces + facesdirall
             self.bdrydata.B_inner_dir.append(B[:,:][:,inddir])
-        if self.method == 'trad':
+        if self.method == 'strong':
             help = np.ones((nfaces))
             help[facesdirall] = 0
             help = scipy.sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
@@ -280,7 +280,7 @@ class Stokes(solvers.solver.Application):
             self.bsaved.append({})
             for key, faces in facesdirflux.items():
                 self.bsaved[icomp][key] = b[icomp*nfaces + faces]
-        if self.method == 'trad':
+        if self.method == 'strong':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = self.problemdata.bdrycond.fct[color]

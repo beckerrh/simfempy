@@ -13,8 +13,8 @@ from simfempy.tools import barycentric, npext
 
 #=================================================================#
 class CR1sys(femsys.Femsys):
-    def __init__(self, ncomp, mesh=None, dirichletmethod='trad'):
-        super().__init__(cr1.CR1(mesh=mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
+    def __init__(self, ncomp, mesh=None):
+        super().__init__(cr1.CR1(mesh=mesh), ncomp, mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # raise ValueError(f"CR1sys setMesh {self.mesh=}")
@@ -25,7 +25,7 @@ class CR1sys(femsys.Femsys):
         for i in range(ncomp):
             unodes[i::ncomp] = self.fem.tonode(u[i::ncomp])
         return unodes
-    def matrixBoundary(self, A, bdrydata):
+    def matrixBoundary(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -42,7 +42,7 @@ class CR1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         bdrydata.A_inner_dir = A[indin, :][:, inddir]
-        if self.fem.dirichletmethod == 'trad':
+        if method == 'strong':
             help = np.ones((ncomp * nfaces))
             help[inddir] = 0
             help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
@@ -61,7 +61,7 @@ class CR1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A
-    def vectorBoundary(self, b, bdryfct, bdrydata):
+    def vectorBoundary(self, b, bdryfct, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -81,7 +81,7 @@ class CR1sys(femsys.Femsys):
                 for icomp in range(ncomp):
                     help[icomp + ncomp * faces] = dirichlets[icomp]
         b[indin] -= bdrydata.A_inner_dir * help[inddir]
-        if self.fem.dirichletmethod == 'trad':
+        if method == 'strong':
             b[inddir] = help[inddir]
             # print(f"{b[inddir]=}")
         else:
@@ -97,7 +97,7 @@ class CR1sys(femsys.Femsys):
         #         for icomp in range(ncomp):
         #             u[icomp + ncomp * faces] = 0
         # b[indin] -= bdrydata.A_inner_dir * u[inddir]
-        # if self.fem.dirichletmethod == 'trad':
+        # if self.fem.dirichletmethod == 'strong':
         #     b[inddir] = u[inddir]
         # else:
         #     b[inddir] = bdrydata.A_dir_dir * u[inddir]

@@ -189,7 +189,7 @@ class FemP1(object):
             for i in range(nb): help[i, nodes[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
-        if method == 'trad':
+        if method == 'strong':
             help = np.ones((nnodes))
             help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
@@ -216,7 +216,7 @@ class FemP1(object):
         x, y, z = self.mesh.points.T
         for color, nodes in nodesdirflux.items():
             bdrydata.bsaved[color] = b[nodes]
-        if method == 'trad':
+        if method == 'strong':
             for color, nodes in nodesdir.items():
                 if color in bdrycond.fct:
                     dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])

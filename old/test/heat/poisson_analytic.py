@@ -82,7 +82,7 @@ def test_flux(geomname = "unitcube"):
     result = comp.compare(geometry=geometry, h=h)
 
 # ----------------------------------------------------------------#
-def test_solvers(geomname='unitcube', fem = 'p1', method='trad'):
+def test_solvers(geomname='unitcube', fem = 'p1', method='strong'):
     exactsolution = 'Sinus'
     import simfempy
     geometry, data = getGeometryAndData(geomname)
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # test_analytic(exactsolution = 'Linear', geomname = "unitsquare")
     test_analytic(exactsolution = 'Linear', geomname = "unitcube")
 
-    # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['trad', 'new'])
+    # test_analytic(exactsolution = 'Quadratic', geomname = "unitsquare", fems= ['p1','cr1'], methods=['strong', 'new'])
     # test_analytic(exactsolution = 'Sinus', geomname = "unitsquare")
 
     # test_analytic(exactsolution = 'Quadratic', geomname = "unitcube")

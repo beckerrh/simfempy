@@ -12,9 +12,9 @@ from simfempy.fems import femsys, p1
 
 #=================================================================#
 class P1sys(femsys.Femsys):
-    def __init__(self, ncomp, mesh=None, dirichletmethod='trad'):
-        super().__init__(p1.P1(mesh=mesh, dirichletmethod=dirichletmethod), ncomp, mesh)
-    def matrixBoundary(self, A, bdrydata):
+    def __init__(self, ncomp, mesh=None):
+        super().__init__(p1.P1(mesh=mesh), ncomp, mesh)
+    def matrixBoundary(self, A, bdrydata, method):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         for key, nodes in nodesdirflux.items():
@@ -28,7 +28,7 @@ class P1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * nodedirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         bdrydata.A_inner_dir = A[indin, :][:, inddir]
-        if self.fem.dirichletmethod == 'trad':
+        if method == 'strong':
             help = np.ones((ncomp * nnodes))
             help[inddir] = 0
             help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
@@ -47,7 +47,7 @@ class P1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A
-    def vectorBoundary(self, b, bdryfct, bdrydata):
+    def vectorBoundary(self, b, bdryfct, bdrydata, method):
         x, y, z = self.mesh.points.T
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
@@ -66,12 +66,12 @@ class P1sys(femsys.Femsys):
                 for icomp in range(ncomp):
                     help[icomp + ncomp * nodes] = dirichlets[icomp]
         b[indin] -= bdrydata.A_inner_dir * help[inddir]
-        if self.fem.dirichletmethod == 'trad':
+        if method == 'strong':
             b[inddir] = help[inddir]
         else:
             b[inddir] = bdrydata.A_dir_dir * help[inddir]
         return b
-        # if self.fem.dirichletmethod == 'trad':
+        # if self.fem.dirichletmethod == 'strong':
         #     for color, nodes in nodesdir.items():
         #         if color in bdryfct:
         #             dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])

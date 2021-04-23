@@ -83,7 +83,7 @@ class FemCR1(femcr1.FemCR1):
                 bdrydata[icomp].bsaved[key] = b[icomp + ncomp * faces]
             indin = icomp + ncomp * facesinner
             inddir = icomp + ncomp * facesdirall
-            if method == 'trad':
+            if method == 'strong':
                 for color in colorsdir:
                     faces = self.mesh.bdrylabels[color]
                     dirichlet = bdrycond[icomp].fct[color]
@@ -112,7 +112,7 @@ class FemCR1(femcr1.FemCR1):
             indin = icomp + ncomp * facesinner
             inddir = icomp + ncomp * facesdirall
             bdrydata[icomp].A_inner_dir = A[indin, :][:, inddir]
-            if method == 'trad':
+            if method == 'strong':
                 help = np.ones((ncomp * nfaces))
                 help[inddir] = 0
                 help = sparse.dia_matrix((help, 0), shape=(ncomp * nfaces, ncomp * nfaces))
@@ -148,7 +148,7 @@ class FemCR1(femcr1.FemCR1):
                 help = sparse.dok_matrix((nb, ncomp * nfaces))
                 for i in range(nb): help[i, icomp + ncomp * faces[i]] = 1
                 self.Asaved[icomp][key] = help.dot(A)
-            if method == 'trad':
+            if method == 'strong':
                 for color in colorsdir:
                     faces = self.mesh.bdrylabels[color]
                     dirichlet = bdrycond[icomp].fct[color]

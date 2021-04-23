@@ -139,7 +139,7 @@ class FemCR1(object):
         #     bdrydata.bsaved[key] = b[faces]
         for color, faces in facesdirflux.items():
             bdrydata.bsaved[color] = b[faces]
-        if method == 'trad':
+        if method == 'strong':
             for color in colorsdir:
                 faces = self.mesh.bdrylabels[color]
                 dirichlet = bdrycond.fct[color]
@@ -170,7 +170,7 @@ class FemCR1(object):
             for i in range(nb): help[i, faces[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
-        if method == 'trad':
+        if method == 'strong':
             help = np.ones((nfaces))
             help[facesdirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))

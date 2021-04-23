@@ -37,7 +37,6 @@ class TableData(object):
             else:
                 for k in values.keys():
                     self.valformat[k] = "{{:{}}}".format(valformat[k])
-        self.rotatenames = False
     def computePercentage(self):
         self.values = dict((k+"(\%)", v) for k, v in self.values.items())
         self.values['sum'] = np.zeros(len(self.n))
@@ -103,7 +102,12 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-
+        self.rotatenames = True
+    def __del__(self):
+        try:
+            self.latexfile.close()
+        except:
+            pass
     def append(self, **kwargs):
         if 'name' in kwargs: name = kwargs.pop('name')
         else: name = 'table_{:d}'.format(self.countdata+1)
@@ -117,18 +121,18 @@ class LatexWriter(object):
         if 'percentage' in kwargs and kwargs.pop('percentage'):
             tabledata.computePercentage()
         self.data[name] = tabledata
-    def write(self):
+    def write(self, sort=False):
         self.latexfile = open(self.latexfilename, "w")
+        if len(self.data) < 4: self.rotatenames=False
         self.writePreamble()
-        for key,tabledata in sorted(self.data.items()):
-            self.writeTable(name=key, tabledata=tabledata)
+        if sorted:
+            for key,tabledata in sorted(self.data.items()):
+                self.writeTable(name=key, tabledata=tabledata)
+        else:
+            for key, tabledata in self.data.items():
+                self.writeTable(name=key, tabledata=tabledata)
         self.writePostamble()
         self.latexfile.close()
-    def __del__(self):
-        try:
-            self.latexfile.close()
-        except:
-            pass
     def writeTable(self, name, tabledata):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
         nname = nname.replace('_', '')
@@ -139,7 +143,7 @@ class LatexWriter(object):
         texta ='\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
         texta += 'r|' + size*'|r' + '}\n'
         self.latexfile.write(texta)
-        if tabledata.rotatenames:
+        if self.rotatenames:
             itemformated = "\sw{%s} &" %nname
             for i in range(size-1):
                 itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','')
@@ -162,11 +166,10 @@ class LatexWriter(object):
         texte += f"\n\\end{{center}}\n\\label{{tab:{name}}}\n\\end{{table}}\n"
         texte += f"%\n%{30*'-'}\n%\n"
         self.latexfile.write(texte)
-
-    def writePreamble(self, name="none", rotatenames=False):
+    def writePreamble(self, name="none"):
         texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n'
         texta += '\\usepackage{times,graphicx,rotating,subfig}\n'
-        if rotatenames:
+        if self.rotatenames:
             texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
         texta += f"\\author{{{self.author}}}\n"
         texta += f"\\title{{{self.title}}}\n"
@@ -174,12 +177,10 @@ class LatexWriter(object):
         texta += "\\maketitle\n"
         texta += f"%\n%{30*'-'}\n%\n"
         self.latexfile.write(texta)
-
     def writePostamble(self):
         texte = '\n' + self.sep + '\\end{document}\n' + self.sep
         self.latexfile.write(texte)
         self.latexfile.close()
-
     def compile(self):
         import subprocess
         os.chdir(self.dirname)

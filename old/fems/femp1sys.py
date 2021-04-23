@@ -84,7 +84,7 @@ class FemP1(femp1.FemP1):
             nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata[icomp].nodesdir, bdrydata[icomp].nodedirall, bdrydata[icomp].nodesinner, bdrydata[icomp].nodesdirflux
             for key, nodes in nodesdirflux.items():
                 bdrydata[icomp].bsaved[key] = b[icomp + ncomp * nodes]
-            if method == 'trad':
+            if method == 'strong':
                 for color, nodes in nodesdir.items():
                     dirichlet = bdrycond[icomp].fct[color]
                     b[icomp + ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])
@@ -115,7 +115,7 @@ class FemP1(femp1.FemP1):
                 help = sparse.dok_matrix((nb, ncomp * nnodes))
                 for i in range(nb): help[i, icomp + ncomp * nodes[i]] = 1
                 bdrydata[icomp].Asaved[key] = help.dot(A)
-            if method == 'trad':
+            if method == 'strong':
                 help = np.ones((ncomp * nnodes))
                 help[inddir] = 0
                 help = sparse.dia_matrix((help, 0), shape=(ncomp * nnodes, ncomp * nnodes))
@@ -151,7 +151,7 @@ class FemP1(femp1.FemP1):
                 help = sparse.dok_matrix((nb, ncomp * nnodes))
                 for i in range(nb): help[i, icomp + ncomp * nodes[i]] = 1
                 self.Asaved[icomp][key] = help.dot(A)
-            if method == 'trad':
+            if method == 'strong':
                 for color, nodes in nodesdir.items():
                     dirichlet = bdrycond[icomp].fct[color]
                     b[icomp + ncomp * nodes] = dirichlet(x[nodes], y[nodes], z[nodes])

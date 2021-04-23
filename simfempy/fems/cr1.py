@@ -16,9 +16,7 @@ from simfempy.meshes import move
 #=================================================================#
 class CR1(fems.fem.Fem):
     def __init__(self, **kwargs):
-    # def __init__(self, mesh=None, dirichletmethod='trad'):
         super().__init__(**kwargs)
-        # super().__init__(mesh=mesh, dirichletmethod=dirichletmethod)
         self.dirichlet_al = 1
         self.dirichlet_nitsche = 2
     def setMesh(self, mesh):
@@ -63,7 +61,6 @@ class CR1(fems.fem.Fem):
         self.computeStencilInnerSidesCell(self.mesh.facesOfCells)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
-        if self.dirichletmethod == 'nitsche': return
         bdrydata = simfempy.fems.bdrydata.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint32)
         bdrydata.colorsdir = colorsdir
@@ -77,7 +74,6 @@ class CR1(fems.fem.Fem):
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
     def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, bdrycond, coeff=1):
-        if self.dirichletmethod != 'nitsche': return
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         x, y, z = self.mesh.pointsf.T
         for color in colorsdir:
@@ -98,7 +94,6 @@ class CR1(fems.fem.Fem):
             b[faces] += self.dirichlet_nitsche * np.choose(ind,mat.T)
         return b
     def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
-        if self.dirichletmethod != 'nitsche': return A
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -131,12 +126,11 @@ class CR1(fems.fem.Fem):
             flux[i] -= self.dirichlet_nitsche*np.einsum('f,fi,fi->', uD * diffcoff[cells], normalsS, self.cellgrads[cells, ind, :dim])
         return flux
     def vectorBoundaryZero(self, du, bdrydata):
-        if self.dirichletmethod == 'nitsche': return du
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         du[facesdirall] = 0
         return du
-    def vectorBoundary(self, b, bdrycond, bdrydata):
-        if self.dirichletmethod == 'nitsche': return b
+    def vectorBoundary(self, b, bdrycond, bdrydata, method):
+        assert method != 'nitsche'
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         for color, faces in facesdirflux.items():
@@ -148,13 +142,13 @@ class CR1(fems.fem.Fem):
                 dirichlet = bdrycond.fct[color]
                 help[faces] = dirichlet(x[faces], y[faces], z[faces])
         b[facesinner] -= bdrydata.A_inner_dir * help[facesdirall]
-        if self.dirichletmethod == 'trad':
+        if method == 'strong':
             b[facesdirall] = help[facesdirall]
         else:
             b[facesdirall] += bdrydata.A_dir_dir * help[facesdirall]
         return b
-    def matrixBoundary(self, A, bdrydata):
-        if self.dirichletmethod == 'nitsche': return A
+    def matrixBoundary(self, A, bdrydata, method):
+        assert method != 'nitsche'
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():
@@ -163,24 +157,20 @@ class CR1(fems.fem.Fem):
             for i in range(nb): help[i, faces[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[facesinner, :][:, facesdirall]
-        if self.dirichletmethod == 'trad':
-            help = np.ones((nfaces))
-            help[facesdirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
-            A = help.dot(A.dot(help))
-            help = np.zeros((nfaces))
-            help[facesdirall] = 1.0
-            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
-            A += help
+        help = np.ones((nfaces))
+        help[facesdirall] = 0
+        help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
+        diag = np.zeros((nfaces))
+        if method == 'strong':
+            diag[facesdirall] = 1.0
+            diag = sparse.dia_matrix((diag, 0), shape=(nfaces, nfaces))
         else:
             bdrydata.A_dir_dir = self.dirichlet_al*A[facesdirall, :][:, facesdirall]
-            help = np.ones((nfaces))
-            help[facesdirall] = 0
-            help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
-            help2 = np.zeros((nfaces))
-            help2[facesdirall] = np.sqrt(self.dirichlet_al)
-            help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
-            A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
+            diag[facesdirall] = np.sqrt(self.dirichlet_al)
+            diag = sparse.dia_matrix((diag, 0), shape=(nfaces, nfaces))
+            diag = diag.dot(A.dot(diag))
+        A = help.dot(A.dot(help))
+        A += diag
         return A
     # interpolate
     def interpolate(self, f):
@@ -226,7 +216,7 @@ class CR1(fems.fem.Fem):
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
         mat = np.empty(shape=(0), dtype=float)
-        print(f"{lumped=}")
+        # print(f"{lumped=}")
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
@@ -275,10 +265,11 @@ class CR1(fems.fem.Fem):
                 scalemass = 1
                 dS *= coeff[faces]
             b[faces] += scalemass *dS*f[faces]
-            # print(f"{color=} {f[faces]=} {b[faces]=}")
             if not lumped:
                 ci = self.mesh.cellsOfFaces[faces][:, 0]
-                fi = self.mesh.facesOfCells[ci][:, :-1]
+                foc = self.mesh.facesOfCells[ci]
+                mask = foc!=faces[:,np.newaxis]
+                fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
                 d = self.mesh.dimension
                 massloc = barycentric.crbdryothers(d)
                 r = np.einsum('n,kl,nl->nk', scalemass*dS, massloc, f[fi])
@@ -432,8 +423,6 @@ class CR1(fems.fem.Fem):
         else: uRmean=0
         return cR*(uRmean-uhmean)
     def computeBdryNormalFlux(self, u, colors, bdrydata, bdrycond, diffcoff):
-        if self.dirichletmethod == 'nitsche':
-            return self.computeBdryNormalFluxNitsche(u, colors, bdrycond, diffcoff)
         flux, omega = np.zeros(len(colors)), np.zeros(len(colors))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
@@ -483,7 +472,7 @@ class CR1(fems.fem.Fem):
         colors = mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdir=colors)
         A = self.computeMatrixDiffusion(coeff=1)
-        A = self.matrixBoundary(A, bdrydata=bdrydata)
+        A = self.matrixBoundary(A, bdrydata=bdrydata, method='strong')
         b = np.zeros(self.nunknowns())
         rhs = np.vectorize(lambda x,y,z: 1)
         fp1 = self.interpolateCell(rhs)

@@ -3,6 +3,9 @@ from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test_analytic(application, createMesh, paramargs, applicationargs, **kwargs):
+    import warnings
+    import numpy as np
+    warnings.filterwarnings("error", category=np.VisibleDeprecationWarning)
     """
     Runs application on a sequence of meshes
     :param createMesh: function creating mesh

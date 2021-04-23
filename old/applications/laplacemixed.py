@@ -62,7 +62,7 @@ class LaplaceMixed(solvers.solver.Application):
         if 'method' in kwargs:
             self.method = kwargs.pop('method')
         else:
-            self.method="trad"
+            self.method='strong'
         if 'plotdiff' in kwargs:
             self.plotdiff = kwargs.pop('plotdiff')
         else:

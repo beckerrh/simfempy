@@ -62,7 +62,7 @@ class Elliptic(solvers.solver.Application):
             for i in range(self.ncomp):
                 self.diff.append(np.vectorize(lambda j: 0.123*(i+1)))
         if 'method' in kwargs: self.method = kwargs.pop('method')
-        else: self.method="trad"
+        else: self.method='strong'
         if 'show_diff' in kwargs: self.show_diff = kwargs.pop('show_diff')
         else: self.show_diff=False
 

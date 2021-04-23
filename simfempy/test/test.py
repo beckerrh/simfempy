@@ -23,10 +23,10 @@ class TestAnalytical(unittest.TestCase):
     # ---------------------------
     def test_elasticity2d(self):
         from simfempy.test.elasticity_analytic import test
-        self._check(test(dim=2, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf', verbose=0))
+        self._check(test(dim=2, exactsolution = 'Linear', linearsolver='umf', verbose=0))
     def test_elasticity3d(self):
         from simfempy.test.elasticity_analytic import test
-        self._check(test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], linearsolver='umf', verbose=0, niter=2))
+        self._check(test(dim=3, exactsolution = 'Linear', linearsolver='umf', verbose=0, niter=2))
     # ---------------------------
     def test_stokes2d(self):
         from simfempy.test.stokes_analytic import test
