@@ -17,7 +17,7 @@ def main(h):
     #create mesh
     mesh, problemdata = ramp(h=h)
     #create application
-    heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='upw', dirichletmethod='strong', masslumpedbdry=True)
+    heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='lps', dirichletmethod='nitsche', masslumpedbdry=True)
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='upw2', dirichletmethod='strong', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()
     # return
@@ -41,8 +41,8 @@ def ramp(h=0.2):
     mesh = SimplexMesh(mesh=mesh)
     data = ProblemData()
     #boundary conditions
-    data.bdrycond.set("Dirichlet", [1000, 1003])
-    data.bdrycond.set("Neumann", [1001, 1002])
+    data.bdrycond.set("Dirichlet", [1000, 1003,1001, 1002])
+    data.bdrycond.set("Neumann", [])
     data.bdrycond.fct[1000] = lambda x,y,z: x>0
     #postprocess
     data.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
@@ -56,4 +56,4 @@ def ramp(h=0.2):
 # ================================================================c#
 
 # main(mode='static', convection=True)
-main(h=0.7)
+main(h=0.25)

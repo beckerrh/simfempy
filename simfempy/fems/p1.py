@@ -37,7 +37,7 @@ class P1(fems.fem.Fem):
             # self.md.plot(self.mesh, self.beta)
         elif method == 'upw2':
             self.md = move.move_nodes(self.mesh, -self.beta, second=True)
-            self.md.plot(self.mesh, self.beta)
+            # self.md.plot(self.mesh, self.beta)
         elif method == 'lps':
             self.mesh.constructInnerFaces()
         else:

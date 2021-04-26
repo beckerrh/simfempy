@@ -51,4 +51,4 @@ if __name__ == '__main__':
     # test dirichletmethod
     # test(dim=3, exactsolution = 'Linear', fem=['cr1','p1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche','strong','new'], kheat=0.12, plotsolution=False)
     # test convection
-    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["0.8","1.1"], stab=['supg'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='umf')
+    test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=4, convection=["0.8","1.1"], stab=['supg','supg2'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='umf')

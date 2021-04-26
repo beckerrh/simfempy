@@ -41,9 +41,11 @@ class CR1(fems.fem.Fem):
         self.betart = scale*rt.interpolate(beta)
         self.beta = rt.toCell(self.betart)
         if method == 'supg':
+            self.mesh.constructInnerFaces()
             self.md = move.move_midpoints(self.mesh, self.beta, bound=0.5)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'supg2':
+            self.mesh.constructInnerFaces()
             self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
             # print(f"{self.md.mus=}")
             # self.md.plot(self.mesh, self.beta, type='midpoints')
@@ -322,7 +324,37 @@ class CR1(fems.fem.Fem):
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
         # if self.stab =='lps':
         #     A += self.computeMatrixLps(beta)
+        A += self.computeMatrixJump(self.betart)
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        return A
+    def computeMatrixJump(self, betart):
+        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
+        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
+        assert np.all(ci1>=0)
+        normalsS = self.mesh.normals[self.mesh.innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        faces = self.mesh.faces[self.mesh.innerfaces]
+        ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
+        ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
+        fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
+        d = self.mesh.dimension
+        massloc = barycentric.crbdryothers(d)
+        A = sparse.coo_matrix((ndofs, ndofs))
+        rows0 = fi0.repeat(nloc-1)
+        cols0 = np.tile(fi0,nloc-1).reshape(-1)
+        rows1 = fi1.repeat(nloc-1)
+        cols1 = np.tile(fi1,nloc-1).reshape(-1)
+        mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
+        # mat = np.einsum('n,kl->nkl', -np.minimum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
+        A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+        # mat = np.einsum('n,kl->nkl', np.maximum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
+        A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+        # mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
+        A -= sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+        A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
         return A
     def computeMatrixTransportLps(self, bdrylumped, colors):
         nfaces, ncells, nfaces, dim = self.mesh.nfaces, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
@@ -341,20 +373,6 @@ class CR1(fems.fem.Fem):
         r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*self.md.mus)
         np.add.at(b, facesOfCells, r)
         return b
-    # def computeMatrixTransport(self, lps):
-    #     beta, betaC, ld = self.supdata['convection'], self.supdata['convectionC'], self.supdata['lam']
-    #     ncells, nfaces, dim = self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
-    #     if beta.shape != (nfaces,): raise TypeError(f"beta has wrong dimension {beta.shape=} expected {nfaces=}")
-    #     if ld.shape != (ncells, dim+1): raise TypeError(f"ld has wrong dimension {ld.shape=}")
-    #     mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], betaC, -dim*ld+1)
-    #     A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-    #     if lps:
-    #         A += self.computeMatrixLps(betaC)
-    #     return A
-    #     # print(f"transport {A.toarray()=}")
-    #     # B = self.computeBdryMassMatrix(coeff=-np.minimum(beta,0), colors=colors)
-    #     # print(f"transport {B.toarray()=}")
-    #     # return A+B
     # dotmat
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells

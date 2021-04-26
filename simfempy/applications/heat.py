@@ -57,8 +57,9 @@ class Heat(Application):
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
+        self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
         super().__init__(**kwargs)
-        self.convection = 'convection' in self.problemdata.params.fct_glob.keys()
+        #fct_glob
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # if mesh is not None: self.mesh = mesh
@@ -198,7 +199,7 @@ class Heat(Application):
         colorsneu = bdrycond.colorsOfType("Neumann")
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            self.fem.massDot(b, fp1, self.masslumpedbdry)
+            self.fem.massDot(b, fp1, self.masslumpedvol)
             if self.convection and self.stab[:4] == 'supg':
                 self.fem.massDotSupg(b, fp1)
         if 'rhscell' in self.problemdata.params.fct_glob:
