@@ -17,6 +17,12 @@ from simfempy.tools.analyticalfunction import AnalyticalFunction
 
 #=================================================================#
 class Application(object):
+    def __format__(self, spec):
+        if spec=='-':
+            repr = f"fem={self.fem}"
+            repr += f"\tlinearsolver={self.linearsolver}"
+            return repr
+        return self.__repr__()
     def __repr__(self):
         repr = f"problemdata={self.problemdata}"
         repr += f"\nlinearsolver={self.linearsolver}"
@@ -34,8 +40,7 @@ class Application(object):
         self.linearsolver = kwargs.pop('linearsolver', 'umf')
         self.timer = simfempy.tools.timer.Timer(verbose=0)
         if 'problemdata' in kwargs:
-            # self.problemdata = copy.deepcopy(kwargs.pop('problemdata'))
-            self.problemdata = kwargs.pop('problemdata')
+            self.problemdata = kwargs.get('problemdata')
             self.ncomp = self.problemdata.ncomp
         if 'exactsolution' in kwargs:
             self.exactsolution = kwargs.pop('exactsolution')

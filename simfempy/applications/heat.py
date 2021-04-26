@@ -32,23 +32,33 @@ class Heat(Application):
         bdry_mean: computes mean temperature over boundary parts according to given color
         bdry_nflux: computes mean normal flux over boundary parts according to given color
     """
+    def __format__(self, spec):
+        if spec=='-':
+            repr = super(Heat, self).__format__(spec)
+            repr += f"\tstab={self.stab}"
+            repr += f"\tdirichletmethod={self.dirichletmethod}"
+            repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
+            return repr
+        return self.__repr__()
     def __repr__(self):
         repr = super(Heat, self).__repr__()
         repr += f"\nfem={self.fem}"
-        # repr += f"\nstab={self.stab}"
-        # repr += f"\ndirichletmethod={self.fem.dirichletmethod}"
-        repr += f"\nmasslumpedbdry={self.masslumpedbdry}"
+        repr += f"\tstab={self.stab}"
+        repr += f"\tdirichletmethod={self.dirichletmethod}"
+        repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
         return repr
     def __init__(self, **kwargs):
-        self.masslumpedbdry = kwargs.pop('masslumpedbdry', False)
         self.masslumpedvol = kwargs.pop('masslumpedvol', False)
+        self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
         fem = kwargs.pop('fem','p1')
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
-        femargs = {'dirichletmethod':self.dirichletmethod, 'stab':kwargs.pop('stab', "supg")}
+        self.stab = kwargs.pop('stab', 'supg')
+        femargs = {'dirichletmethod':self.dirichletmethod, 'stab': self.stab}
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
         super().__init__(**kwargs)
+        self.convection = 'convection' in self.problemdata.params.fct_glob.keys()
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # if mesh is not None: self.mesh = mesh
@@ -62,13 +72,24 @@ class Heat(Application):
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
         # TODO: non-constant rhocp
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
-        if 'convection' in self.problemdata.params.fct_glob.keys():
+        if self.convection:
             convectionfct = self.problemdata.params.fct_glob['convection']
-            self.fem.prepareAdvection(convectionfct, rhocp)
+            self.fem.prepareAdvection(convectionfct, rhocp, self.stab)
+            colorsinflow = self.findInflowColors()
+            colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+            if not set(colorsinflow).issubset(set(colorsdir)):
+                raise ValueError(f"Inflow boundaries nees to be subset of Dirichlet boundaries {colorsinflow=} {colorsdir=}")
+
+    def findInflowColors(self):
+        colors=[]
+        for color in self.mesh.bdrylabels.keys():
+            faces = self.mesh.bdrylabels[color]
+            if np.any(self.fem.betart[faces]<-1e-10): colors.append(color)
+        return colors
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
         self.problemdata.check(self.mesh)
-        if 'convection' in self.problemdata.params.fct_glob.keys():
+        if self.convection:
             convection_given = self.problemdata.params.fct_glob['convection']
             if not isinstance(convection_given, list):
                 p = "problemdata.params.fct_glob['convection']"
@@ -101,7 +122,7 @@ class Heat(Application):
             for i in range(self.mesh.dimension):
                 rhs -= kheat * solexact.dd(i, i, x, y, z)
             return rhs
-        if 'convection' in self.problemdata.params.fct_glob.keys(): return _fctu
+        if self.convection: return _fctu
         return _fctu2
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
@@ -141,21 +162,26 @@ class Heat(Application):
         bdrycond = self.problemdata.bdrycond
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
-        colorsneu = bdrycond.colorsOfType("Neumann")
         A = self.fem.computeMatrixDiffusion(self.kheatcell)
         if self.dirichletmethod=="new":
             A = self.fem.matrixBoundary(A, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
             A = self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir)
         if self.verbose: print(f"{A.diagonal()=}")
-        self.Arobin = self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
-        A += self.Arobin
+        A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
         # print(f"{A.todense()=}")
         # print(f"{A.todense()=}")
-        if 'convection' in self.problemdata.params.fct_glob.keys():
-            A += self.fem.computeMatrixTransport(bdrylumped=self.masslumpedbdry, colors=colorsdir)
-            # colors = colorsdir
-            # A += self.fem.computeBdryMassMatrix(coeff=-np.minimum(self.fem.supdata['convection'],0), colors=colors, lumped=self.masslumpedbdry)
+        if self.convection:
+            colors = self.mesh.bdrylabels.keys()
+            colors = colorsdir
+            if self.stab[:4] == 'supg':
+                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry, colors)
+            elif self.stab[:3] == 'upw':
+                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry, colors)
+            elif self.stab == 'lps':
+                A += self.fem.computeMatrixTransportLps(self.masslumpedbdry, colors)
+            else:
+                raise NotImplementedError(f"{self.stab=}")
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
         if self.dirichletmethod=="strong":
@@ -172,8 +198,8 @@ class Heat(Application):
         colorsneu = bdrycond.colorsOfType("Neumann")
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            self.fem.massDot(b, fp1)
-            if 'convection' in self.problemdata.params.fct_glob.keys():
+            self.fem.massDot(b, fp1, self.masslumpedbdry)
+            if self.convection and self.stab[:4] == 'supg':
                 self.fem.massDotSupg(b, fp1)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
@@ -186,14 +212,12 @@ class Heat(Application):
             b = self.fem.vectorBoundary(b, bdrycond, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
             self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond)
-        if 'convection' in self.problemdata.params.fct_glob.keys():
+        if self.convection:
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colorsrobin, lumped=self.masslumpedbdry, coeff={k:v for k,v in bdrycond.param.items()})
+        self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=self.masslumpedbdry, coeff=bdrycond.param)
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
-        # if self.dirichletmethod == "new":
-        #     self.fem.vectorBoundaryZero(fp1, self.bdrydata)
         if self.dirichletmethod == "new":
             b2 = np.zeros_like(b)
             self.fem.massDotBoundary(b2, fp1, colorsneu)
@@ -247,7 +271,7 @@ class Heat(Application):
         return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
         # B = pyamg.solver_configuration(A, verb=False)['B']
-        if 'convection' in self.problemdata.params.fct_glob.keys():
+        if self.convection:
             symmetry = 'nonsymmetric'
             smoother = 'gauss_seidel_nr'
             smooth = ('energy', {'krylov': 'fgmres'})

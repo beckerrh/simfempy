@@ -36,24 +36,26 @@ class CR1(fems.fem.Fem):
         np.add.at(countnodes, self.mesh.simplices.T, 1)
         unodes /= countnodes
         return unodes
-    def prepareAdvection(self, beta, scale):
+    def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
         self.betart = scale*rt.interpolate(beta)
         self.beta = rt.toCell(self.betart)
-        if self.stab == 'supg':
+        if method == 'supg':
             self.md = move.move_midpoints(self.mesh, self.beta)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
-        elif self.stab == 'supg2':
+        elif method == 'supg2':
             self.md = move.move_midpoints(self.mesh, self.beta, extreme=True)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
-        elif self.stab == 'upw':
+        elif method == 'upw':
             self.md = move.move_sides(self.mesh, -self.beta)
             self.md.plot(self.mesh, self.beta, type='sides')
-        elif self.stab == 'upw2':
+        elif method == 'upw2':
             self.md = move.move_sides(self.mesh, -self.beta, second=True)
             self.md.plot(self.mesh, self.beta, type='sides')
+        elif method == 'lps':
+            self.mesh.constructInnerFaces()
         else:
-            raise ValueError(f"don't know {self.stab=}")
+            raise ValueError(f"don't know {method=}")
     def computeCellGrads(self):
         normals, facesOfCells, dV = self.mesh.normals, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
@@ -221,58 +223,47 @@ class CR1(fems.fem.Fem):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             if isinstance(coeff, dict):
-                scalemass = coeff[color]
-                dS = linalg.norm(normalsS, axis=1)
+                dS = linalg.norm(normalsS, axis=1)*coeff[color]
             else:
-                scalemass = 1
                 dS = linalg.norm(normalsS, axis=1)*coeff[faces]
-            if lumped:
-                rows, cols, mat=self.computeBdryMassMatrixColorLumped(rows, cols, mat, faces, scalemass*dS)
-            else:
-                rows, cols, mat=self.computeBdryMassMatrixColor(rows, cols, mat, faces, scalemass*dS)
+            cols = np.append(cols, faces)
+            rows = np.append(rows, faces)
+            mat = np.append(mat, dS)
+            if not lumped:
+                rows, cols, mat=self.computeBdryMassMatrixColor(rows, cols, mat, faces, dS)
         # print(f"{mat=}")
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-    def computeBdryMassMatrixColorLumped(self, rows, cols, mat, faces, dS):
-        cols = np.append(cols, faces)
-        rows = np.append(rows, faces)
-        mat = np.append(mat, dS)
-        return rows, cols, mat
     def computeBdryMassMatrixColor(self, rows, cols, mat, faces, dS):
-        raise NotImplemented(f"is wrong")
-        self.computeBdryMassMatrixColorLumped(rows, cols, mat, faces, dS)
+        # raise NotImplemented(f"is wrong")
         ci = self.mesh.cellsOfFaces[faces][:,0]
-        assert np.all(faces == self.mesh.facesOfCells[ci][:,-1])
-        # print(f"{faces=}")
-        fi = self.mesh.facesOfCells[ci][:,:-1]
-        # print(f"{fi=}")
+        foc = self.mesh.facesOfCells[ci]
+        mask = foc != faces[:, np.newaxis]
+        fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
         d = self.mesh.dimension
         massloc = barycentric.crbdryothers(d)
-        # print(f"{massloc=}")
-        cols = np.append(cols, fi.repeat(d))
-        rows = np.append(rows, np.tile(fi,d).ravel())
+        cols = np.append(cols, np.tile(fi,d).ravel())
+        rows = np.append(rows, np.repeat(fi,d).ravel())
         mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         return rows, cols, mat
-    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
+    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=True):
         if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
-            if isinstance(coeff, (int,float)): scalemass = coeff
-            elif isinstance(coeff, dict): scalemass = coeff[color]
+            if isinstance(coeff, (int,float)): dS *= coeff
+            elif isinstance(coeff, dict): dS *= coeff[color]
             else:
                 assert coeff.shape[0]==self.mesh.nfaces
-                scalemass = 1
                 dS *= coeff[faces]
-            b[faces] += scalemass *dS*f[faces]
+            b[faces] += dS*f[faces]
             if not lumped:
                 ci = self.mesh.cellsOfFaces[faces][:, 0]
                 foc = self.mesh.facesOfCells[ci]
                 mask = foc!=faces[:,np.newaxis]
                 fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
-                d = self.mesh.dimension
-                massloc = barycentric.crbdryothers(d)
-                r = np.einsum('n,kl,nl->nk', scalemass*dS, massloc, f[fi])
+                massloc = barycentric.crbdryothers(self.mesh.dimension)
+                r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
                 np.add.at(b, fi, r)
         return b
     def computeMassMatrixSupg(self, xd, coeff=1):
@@ -321,37 +312,31 @@ class CR1(fems.fem.Fem):
     def computeMatrixTransportSupg(self, bdrylumped, colors):
         beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
         nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-        cellgrads = self.cellgrads[:,:,:dim]
-        betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
-        mat = np.einsum('n,nj,i -> nij', dV, betagrad, 1/(dim+1)*np.ones(dim+1))
+        # cellgrads = self.cellgrads[:,:,:dim]
+        # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
+        # mat = np.einsum('n,nj,i -> nij', dV, betagrad, 1/(dim+1)*np.ones(dim+1))
         # mat += np.einsum('n,nj,ni -> nij', dV*deltas, betagrad, betagrad)
-        # mat = np.einsum('n,njk,nk,ni -> nij', dV, self.cellgrads[:,:,:dim], beta, 1-dim*mus)
-        # mat -= np.einsum('n,njk,nk,i -> nij', dV, self.cellgrads[:,:,:dim], beta, 1/(dim+1)*np.ones(dim+1))
-        # mat = np.einsum('n,njk,nk,i -> nij', dV, self.cellgrads[:,:,:dim], beta, 1/(dim+1)*np.ones(dim+1))
+        mat = np.einsum('n,njk,nk,ni -> nij', dV, self.cellgrads[:,:,:dim], beta, 1-dim*mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-        if self.stab =='lps':
-            A += self.computeMatrixLps(beta)
+        # if self.stab =='lps':
+        #     A += self.computeMatrixLps(beta)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        return A
+    def computeMatrixTransportLps(self, bdrylumped, colors):
+        nfaces, ncells, nfaces, dim = self.mesh.nfaces, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
+        beta, mus = self.beta, np.full(dim+1,1.0/(dim+1))[np.newaxis,:]
+        mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
+        A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        A += self.computeMatrixLps(beta)
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
         return A
     def massDotSupg(self, b, f, coeff=1):
-        return b
-        if self.stab[:4] != 'supg': return b
-        dim, facesOfCells, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
-        cellgrads = self.cellgrads[:,:,:dim]
-        betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
-        r = np.einsum('n,ni,n->ni', deltas*dV, betagrad, f[facesOfCells].mean(axis=1))
-        # r = np.einsum('n,nk,n->nk', coeff*dV, 1-dim*self.md.mus-1/(dim+1), f[facesOfCells].mean(axis=1))
-        np.add.at(b, facesOfCells, r)
-        return b
-        if self.stab[:4] != 'supg': return b
-        xd = self.supdata['xd']
-        dim, facesOfCells, points, dV, xK = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.points, self.mesh.dV, self.mesh.pointsc
-        fm = f[facesOfCells].mean(axis=1)
-        # marche si xd = xK + delta*betaC
-        # r = np.einsum('n,nik,nk -> ni', delta*dV*fm, self.cellgrads[:,:,:dim], betaC)
-        r = np.einsum('n,nik,nk -> ni', coeff*dV*fm, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim])
-        # print(f"{r=}")
+        dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
+        # beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
+        # cellgrads = self.cellgrads[:,:,:dim]
+        # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
+        # r = np.einsum('n,ni->ni', deltas*dV*f[facesOfCells].mean(axis=1), betagrad)
+        r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*self.md.mus)
         np.add.at(b, facesOfCells, r)
         return b
     # def computeMatrixTransport(self, lps):

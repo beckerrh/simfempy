@@ -15,18 +15,14 @@ import scipy.sparse as sparse
 class Fem(object):
     def __repr__(self):
         repr = f"fem={self.__class__.__name__}"
-        repr += f"\tstab={self.stab}"
-        # repr += f"\nmasslumpedbdry={self.masslumpedbdry}"
         return repr
     def __init__(self, **kwargs):
-        self.stab = kwargs.pop('stab', 'supg')
-        self.innersides = self.stab=="lps"
         mesh = kwargs.get('mesh', None)
         if mesh is not None: self.setMesh(mesh)
-    def setMesh(self, mesh):
+    def setMesh(self, mesh, innersides=False):
         self.mesh = mesh
         self.nloc = self.nlocal()
-        if self.innersides: self.mesh.constructInnerFaces()
+        if innersides: self.mesh.constructInnerFaces()
     def computeStencilCell(self, dofspercell):
         self.cols = np.tile(dofspercell, self.nloc).ravel()
         self.rows = np.repeat(dofspercell, self.nloc).ravel()
@@ -74,13 +70,6 @@ class Fem(object):
         matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
         mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
         return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(ndofs, ndofs)).tocsr()
-    def computeMatrixTransport(self, bdrylumped, colors):
-        if self.stab[:4]=='supg':
-            return self.computeMatrixTransportSupg(bdrylumped, colors)
-        elif self.stab[:3] == 'upw':
-            return self.computeMatrixTransportUpwind(bdrylumped, colors)
-        else:
-            raise NotImplementedError(f"{self.stab=}")
     def computeMatrixLps(self, betaC):
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()

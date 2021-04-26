@@ -22,24 +22,26 @@ class P1(fems.fem.Fem):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
-    def prepareAdvection(self, beta, scale):
+    def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
         self.betart = scale*rt.interpolate(beta)
         self.beta = rt.toCell(self.betart)
-        if self.stab == 'supg':
+        if method == 'supg':
             self.md = move.move_midpoints(self.mesh, self.beta)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
-        elif self.stab == 'supg2':
+        elif method == 'supg2':
             self.md = move.move_midpoints(self.mesh, self.beta, extreme=True)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
-        elif self.stab == 'upw':
+        elif method == 'upw':
             self.md = move.move_nodes(self.mesh, -self.beta)
             # self.md.plot(self.mesh, self.beta)
-        elif self.stab == 'upw2':
+        elif method == 'upw2':
             self.md = move.move_nodes(self.mesh, -self.beta, second=True)
             self.md.plot(self.mesh, self.beta)
+        elif method == 'lps':
+            self.mesh.constructInnerFaces()
         else:
-            raise ValueError(f"don't know {self.stab=}")
+            raise ValueError(f"don't know {method=}")
     def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nnodes
     def dofspercell(self): return self.mesh.simplices
@@ -150,12 +152,12 @@ class P1(fems.fem.Fem):
         cellgrads = self.cellgrads[cells, :, :dim]
         simp = self.mesh.simplices[cells]
         facenodes = self.mesh.faces[faces]
-        ind = npext.positionin(facenodes, simp).astype(int)
-        fnind = np.take_along_axis(simp,ind,axis=1)
-        if not np.all(facenodes == fnind):
-            raise ValueError(f"***not found***\n{facenodes=}\n{fnind=} {ind=}")
+        # ind = npext.positionin(facenodes, simp).astype(int)
+        # fnind = np.take_along_axis(simp,ind,axis=1)
+        # if not np.all(facenodes == fnind):
+        #     raise ValueError(f"***not found***\n{facenodes=}\n{fnind=} {ind=}")
         cols = np.tile(simp,dim)
-        rows = fnind.repeat(dim+1)
+        rows = facenodes.repeat(dim+1)
         mat = np.einsum('f,fk,fjk,i->fij', coeff * diffcoff[cells]/dim, normalsS, cellgrads, np.ones(dim))
         # mat = np.repeat(mat,dim)
         # print(f"{cols.shape=} {rows.shape=} {mat.shape=}")
@@ -237,23 +239,21 @@ class P1(fems.fem.Fem):
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             if isinstance(coeff, dict):
-                scalemass = coeff[color]
-                dS = linalg.norm(normalsS, axis=1)
+                dS = linalg.norm(normalsS, axis=1)*coeff[color]
             else:
-                scalemass = 1
                 dS = linalg.norm(normalsS, axis=1)*coeff[faces]
             nodes = self.mesh.faces[faces]
             if lumped:
-                scalemass /= self.mesh.dimension
+                dS /= self.mesh.dimension
                 rows = np.append(rows, nodes)
                 cols = np.append(cols, nodes)
-                mass = np.repeat(scalemass * dS, self.mesh.dimension)
+                mass = np.repeat(dS, self.mesh.dimension)
                 mat = np.append(mat, mass)
             else:
                 nloc = self.mesh.dimension
                 rows = np.append(rows, np.repeat(nodes, nloc).ravel())
                 cols = np.append(cols, np.tile(nodes, nloc).ravel())
-                massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
+                massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
     def computeMatrixTransportUpwind(self, bdrylumped, colors):
@@ -298,8 +298,16 @@ class P1(fems.fem.Fem):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
-        if self.stab =='lps':
-            A += self.computeMatrixLps(beta)
+        # if self.stab =='lps':
+        #     A += self.computeMatrixLps(beta)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        return A
+    def computeMatrixTransportLps(self, bdrylumped, colors):
+        nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
+        beta, mus = self.beta, np.full(dim+1,1.0/(dim+1))[np.newaxis,:]
+        mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
+        A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
+        A += self.computeMatrixLps(beta)
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
         return A
     def computeMassMatrixSupg(self, xd, coeff=1):
@@ -331,28 +339,29 @@ class P1(fems.fem.Fem):
         np.add.at(b, simplices, r)
         return b
     def massDotSupg(self, b, f, coeff=1):
-        if self.stab[:4] != 'supg': return b
         dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
         r = np.einsum('n,nk,n->nk', coeff*dV, self.md.mus-1/(dim+1), f[simplices].mean(axis=1))
         np.add.at(b, simplices, r)
         return b
-    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=False):
+    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=True):
         if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
             nodes = self.mesh.faces[faces]
-            if isinstance(coeff, (int,float)): scalemass = coeff
-            elif isinstance(coeff, dict): scalemass = coeff[color]
+            if isinstance(coeff, (int,float)): dS *= coeff
+            elif isinstance(coeff, dict): dS *= coeff[color]
             else:
                 assert coeff.shape[0]==self.mesh.nfaces
-                scalemass = 1
                 dS *= coeff[faces]
             # print(f"{scalemass=}")
-            massloc = scalemass * simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
-            r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
-            np.add.at(b, nodes, r)
+            if lumped:
+                np.add.at(b, nodes, f[nodes]*dS[:,np.newaxis]/self.mesh.dimension)
+            else:
+                massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
+                r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
+                np.add.at(b, nodes, r)
         return b
     # rhs
     def computeRhsMass(self, b, rhs, mass):

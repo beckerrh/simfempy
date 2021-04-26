@@ -25,16 +25,13 @@ def test(dim, **kwargs):
     elif dim==2:
         createMesh = testmeshes.unitsquare
         colors = [1000, 1001, 1002, 1003]
-        colorsrob = []
-        # colorsneu = [1001, 1002]
-        #TODO P1 wrong if several neumann bdries meet
-        colorsneu = [1001]
+        colorsrob = [1001]
+        colorsneu = [1002]
     else:
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
-        colorsrob = []
-        colorsneu = [101]
-        # colorsneu = [102, 105]
+        colorsrob = [104]
+        colorsneu = [103]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
     data.bdrycond.set("Dirichlet", colorsdir)
     data.bdrycond.set("Neumann", colorsneu)
@@ -43,14 +40,15 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':'False'}
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':True}
     return test_analytic(application=Heat, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 #================================================================#
 if __name__ == '__main__':
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
-    # test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=4, linearsolver='pyamg', dirichletmethod=['strong','nitsche'])
-    # test(dim=2, exactsolution = 'Linear', niter=3, linearsolver='umf', dirichletmethod=['strong','new'],kheat=1.0001)
-    # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["1","1.1"], linearsolver='umf', dirichletmethod=['nitsche'], stab=['supg'],kheat=0.0001)
-    test(dim=3, exactsolution = 'Linear', fem=['p1','cr1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche','strong','new'], kheat=0.12, plotsolution=False)
-    # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=2, convection=["y","-x"], linearsolver='umf', dirichletmethod=['strong'], stab=['supg','supg2'],kheat=0.0001)
+    #TODO: p1-new-robin wrong
+
+    # test dirichletmethod
+    # test(dim=3, exactsolution = 'Linear', fem=['cr1','p1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche','strong','new'], kheat=0.12, plotsolution=False)
+    # test convection
+    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=3, convection=["0.8","1.1"], linearsolver='umf', dirichletmethod=['nitsche'], stab=['supg'],kheat=0.0001)
