@@ -41,13 +41,14 @@ class CR1(fems.fem.Fem):
         self.betart = scale*rt.interpolate(beta)
         self.beta = rt.toCell(self.betart)
         if method == 'supg':
-            self.md = move.move_midpoints(self.mesh, self.beta)
+            self.md = move.move_midpoints(self.mesh, self.beta, bound=0.5)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'supg2':
-            self.md = move.move_midpoints(self.mesh, self.beta, extreme=True)
+            self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
+            # print(f"{self.md.mus=}")
             # self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'upw':
-            self.md = move.move_sides(self.mesh, -self.beta)
+            self.md = move.move_sides(self.mesh, -self.beta, bound=0.5)
             self.md.plot(self.mesh, self.beta, type='sides')
         elif method == 'upw2':
             self.md = move.move_sides(self.mesh, -self.beta, second=True)
@@ -280,7 +281,8 @@ class CR1(fems.fem.Fem):
         ml = self.masslumped.diagonal()[m]/deltas[m]
         rows = np.arange(nfaces)[m]
         A = sparse.coo_matrix((ml,(rows,rows)), shape=(nfaces, nfaces))
-        mat = (d/(d-1)-d*mus[m])*ml[:,np.newaxis]
+        mat = (1-d*mus[m])*ml[:,np.newaxis]
+        # mat = (d/(d-1)-d*mus[m])*ml[:,np.newaxis]
         # mat = ((mus[m]-1)/d)*ml[:,np.newaxis]
         rows = rows.repeat(fOC.shape[1])
         cols = fOC[cells[m]]
@@ -305,9 +307,9 @@ class CR1(fems.fem.Fem):
             rows2 = rows.repeat(simp.shape[1])
             cols = simp[cells2[m2]]
             A += sparse.coo_matrix((mat.ravel(), (rows2.ravel(), cols.ravel())), shape=(nfaces, nfaces))
-        print(f"{A.diagonal()=}")
+        # print(f"{A.diagonal()=}")
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
-        print(f"{A.diagonal()=}")
+        # print(f"{A.diagonal()=}")
         return A.tocsr()
     def computeMatrixTransportSupg(self, bdrylumped, colors):
         beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
