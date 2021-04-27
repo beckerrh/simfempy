@@ -17,13 +17,13 @@ def main(h):
     #create mesh
     mesh, problemdata = ramp(h=h)
     #create application
-    heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='lps', dirichletmethod='nitsche', masslumpedbdry=True)
+    heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', stab='upw', dirichletmethod='nitsche', masslumpedbdry=True)
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='upw2', dirichletmethod='strong', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()
     # return
     result = heat.static()
-    print(f"{heat=}")
-    print(f"postproc:")
+    # print(f"{heat=}")
+    # print(f"postproc:")
     for p,v in result.data['global'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
@@ -56,4 +56,4 @@ def ramp(h=0.2):
 # ================================================================c#
 
 # main(mode='static', convection=True)
-main(h=0.25)
+main(h=0.5)

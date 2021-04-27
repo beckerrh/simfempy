@@ -35,9 +35,10 @@ class Heat(Application):
     def __format__(self, spec):
         if spec=='-':
             repr = super(Heat, self).__format__(spec)
-            repr += f"\tstab={self.stab}"
+            if self.convection: repr += f"\tstab={self.stab}"
             repr += f"\tdirichletmethod={self.dirichletmethod}"
             repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
+            repr += f"\tmasslumpedvol={self.masslumpedvol}"
             return repr
         return self.__repr__()
     def __repr__(self):
@@ -48,7 +49,7 @@ class Heat(Application):
         repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
         return repr
     def __init__(self, **kwargs):
-        self.masslumpedvol = kwargs.pop('masslumpedvol', False)
+        self.masslumpedvol = kwargs.pop('masslumpedvol', True)
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
         fem = kwargs.pop('fem','p1')
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
@@ -169,7 +170,7 @@ class Heat(Application):
         elif self.dirichletmethod=="nitsche":
             A = self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir)
         if self.verbose: print(f"{A.diagonal()=}")
-        A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=self.masslumpedbdry)
+        A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         # print(f"{A.todense()=}")
         # print(f"{A.todense()=}")
         if self.convection:
@@ -199,7 +200,7 @@ class Heat(Application):
         colorsneu = bdrycond.colorsOfType("Neumann")
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
-            self.fem.massDot(b, fp1, self.masslumpedvol)
+            self.fem.massDot(b, fp1)
             if self.convection and self.stab[:4] == 'supg':
                 self.fem.massDotSupg(b, fp1)
         if 'rhscell' in self.problemdata.params.fct_glob:
@@ -216,9 +217,9 @@ class Heat(Application):
         if self.convection:
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
-        fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct)
-        self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=self.masslumpedbdry, coeff=bdrycond.param)
-        fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
+        fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
+        self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
+        fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct, lumped=True)
         if self.dirichletmethod == "new":
             b2 = np.zeros_like(b)
             self.fem.massDotBoundary(b2, fp1, colorsneu)

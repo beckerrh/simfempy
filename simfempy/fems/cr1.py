@@ -27,6 +27,7 @@ class CR1(fems.fem.Fem):
     def nunknowns(self): return self.mesh.nfaces
     def dofspercell(self): return self.mesh.facesOfCells
     def tonode(self, u):
+        # print(f"{u=}")
         unodes = np.zeros(self.mesh.nnodes)
         if u.shape[0] != self.mesh.nfaces: raise ValueError(f"{u.shape=} {self.mesh.nfaces=}")
         scale = self.mesh.dimension
@@ -35,6 +36,7 @@ class CR1(fems.fem.Fem):
         countnodes = np.zeros(self.mesh.nnodes, dtype=int)
         np.add.at(countnodes, self.mesh.simplices.T, 1)
         unodes /= countnodes
+        # print(f"{unodes=}")
         return unodes
     def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
@@ -181,27 +183,42 @@ class CR1(fems.fem.Fem):
     def interpolate(self, f):
         x, y, z = self.mesh.pointsf.T
         return f(x, y, z)
-    def interpolateBoundary(self, colors, f):
+    def interpolateBoundary(self, colors, f, lumped=False):
         """
         :param colors: set of colors to interpolate
         :param f: ditct of functions
         :return:
         """
         b = np.zeros(self.mesh.nfaces)
+        if lumped:
+            for color in colors:
+                if not color in f or not f[color]: continue
+                faces = self.mesh.bdrylabels[color]
+                ci = self.mesh.cellsOfFaces[faces][:, 0]
+                foc = self.mesh.facesOfCells[ci]
+                mask = foc != faces[:, np.newaxis]
+                fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
+                normalsS = self.mesh.normals[faces]
+                dS = linalg.norm(normalsS,axis=1)
+                normalsS = normalsS/dS[:,np.newaxis]
+                nx, ny, nz = normalsS.T
+                x, y, z = self.mesh.pointsf[faces].T
+                try:
+                    b[faces] = f[color](x, y, z, nx, ny, nz)
+                except:
+                    b[faces] = f[color](x, y, z)
+            return b
+        massloc = barycentric.crbdryothers(self.mesh.dimension)
         for color in colors:
             if not color in f or not f[color]: continue
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
-            dS = linalg.norm(normalsS,axis=1)
-            normalsS = normalsS/dS[:,np.newaxis]
-            nx, ny, nz = normalsS.T
-            x, y, z = self.mesh.pointsf[faces].T
-            # constant normal on whole boundary part !!
-            # nx, ny, nz = np.mean(normalsS, axis=0)
-            try:
-                b[faces] = f[color](x, y, z, nx, ny, nz)
-            except:
-                b[faces] = f[color](x, y, z)
+            dS = linalg.norm(normalsS, axis=1)
+            ci = self.mesh.cellsOfFaces[faces][:, 0]
+            foc = self.mesh.facesOfCells[ci]
+            x, y, z = self.mesh.pointsf[foc].T
+            ff = f[color](x, y, z)
+            np.put(b, foc, ff.T)
         return b
     # matrices
     def computeMassMatrix(self, coeff=1, lumped=False):
@@ -217,11 +234,13 @@ class CR1(fems.fem.Fem):
         mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
-        nfaces = self.mesh.nfaces
+        nfaces, d = self.mesh.nfaces, self.mesh.dimension
+        massloc = barycentric.crbdryothers(d)
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)
         mat = np.empty(shape=(0), dtype=float)
-        # print(f"{lumped=}")
+        lumped = False
+        #! sinon très mauvais !!
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
@@ -233,23 +252,20 @@ class CR1(fems.fem.Fem):
             rows = np.append(rows, faces)
             mat = np.append(mat, dS)
             if not lumped:
-                rows, cols, mat=self.computeBdryMassMatrixColor(rows, cols, mat, faces, dS)
+                ci = self.mesh.cellsOfFaces[faces][:,0]
+                foc = self.mesh.facesOfCells[ci]
+                mask = foc != faces[:, np.newaxis]
+                fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
+                # print(f"{massloc=}")
+                cols = np.append(cols, np.tile(fi, d).ravel())
+                rows = np.append(rows, np.repeat(fi, d).ravel())
+                mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         # print(f"{mat=}")
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-    def computeBdryMassMatrixColor(self, rows, cols, mat, faces, dS):
-        # raise NotImplemented(f"is wrong")
-        ci = self.mesh.cellsOfFaces[faces][:,0]
-        foc = self.mesh.facesOfCells[ci]
-        mask = foc != faces[:, np.newaxis]
-        fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
-        d = self.mesh.dimension
-        massloc = barycentric.crbdryothers(d)
-        cols = np.append(cols, np.tile(fi,d).ravel())
-        rows = np.append(rows, np.repeat(fi,d).ravel())
-        mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
-        return rows, cols, mat
     def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=True):
         if colors is None: colors = self.mesh.bdrylabels.keys()
+        massloc = barycentric.crbdryothers(self.mesh.dimension)
+        lumped=False
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces]
@@ -265,8 +281,8 @@ class CR1(fems.fem.Fem):
                 foc = self.mesh.facesOfCells[ci]
                 mask = foc!=faces[:,np.newaxis]
                 fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
-                massloc = barycentric.crbdryothers(self.mesh.dimension)
                 r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
+                # print(f"{np.linalg.norm(f[fi])=}")
                 np.add.at(b, fi, r)
         return b
     def computeMassMatrixSupg(self, xd, coeff=1):
@@ -316,14 +332,12 @@ class CR1(fems.fem.Fem):
     def computeMatrixTransportSupg(self, bdrylumped, colors):
         beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
         nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-        # cellgrads = self.cellgrads[:,:,:dim]
+        cellgrads = self.cellgrads[:,:,:dim]
         # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
         # mat = np.einsum('n,nj,i -> nij', dV, betagrad, 1/(dim+1)*np.ones(dim+1))
         # mat += np.einsum('n,nj,ni -> nij', dV*deltas, betagrad, betagrad)
-        mat = np.einsum('n,njk,nk,ni -> nij', dV, self.cellgrads[:,:,:dim], beta, 1-dim*mus)
+        mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
-        # if self.stab =='lps':
-        #     A += self.computeMatrixLps(beta)
         A += self.computeMatrixJump(self.betart)
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
         return A
@@ -347,14 +361,13 @@ class CR1(fems.fem.Fem):
         cols0 = np.tile(fi0,nloc-1).reshape(-1)
         rows1 = fi1.repeat(nloc-1)
         cols1 = np.tile(fi1,nloc-1).reshape(-1)
-        mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
-        # mat = np.einsum('n,kl->nkl', -np.minimum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
-        A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-        # mat = np.einsum('n,kl->nkl', np.maximum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
-        A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
         # mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
+        mat = np.einsum('n,kl->nkl', -np.minimum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
+        A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
         A -= sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+        mat = np.einsum('n,kl->nkl', np.maximum(betart[self.mesh.innerfaces], 0)*dS, massloc).ravel()
         A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
+        A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
         return A
     def computeMatrixTransportLps(self, bdrylumped, colors):
         nfaces, ncells, nfaces, dim = self.mesh.nfaces, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
@@ -450,7 +463,6 @@ class CR1(fems.fem.Fem):
         raise NotImplemented(f"computeRhsPoint")
     def computeRhsBoundary(self, b, bdryfct, colors):
         normals =  self.mesh.normals
-        scale = 1
         for color in colors:
             faces = self.mesh.bdrylabels[color]
             if not color in bdryfct or bdryfct[color] is None: continue
@@ -459,7 +471,7 @@ class CR1(fems.fem.Fem):
             normalsS = normalsS/dS[:,np.newaxis]
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T
-            b[faces] += scale * bdryfct[color](xf, yf, zf, nx, ny, nz) * dS
+            b[faces] += bdryfct[color](xf, yf, zf, nx, ny, nz) * dS
         return b
     def computeRhsBoundaryMass(self, b, bdrycond, types, mass):
         raise NotImplemented(f"")

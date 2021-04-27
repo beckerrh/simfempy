@@ -196,7 +196,7 @@ class P1(fems.fem.Fem):
     def interpolate(self, f):
         x, y, z = self.mesh.points.T
         return f(x, y, z)
-    def interpolateBoundary(self, colors, f):
+    def interpolateBoundary(self, colors, f, lumped=False):
         """
         :param colors: set of colors to interpolate
         :param f: ditct of functions
