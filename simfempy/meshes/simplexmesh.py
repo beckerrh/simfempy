@@ -56,7 +56,8 @@ class SimplexMesh(object):
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
-    def bdryFaces(self, colors):
+    def bdryFaces(self, colors=None):
+        if colors is None: colors = self.bdrylabels.keys()
         pos = [0]
         for color in colors: pos.append(pos[-1]+len(self.bdrylabels[color]))
         faces = np.empty(pos[-1], dtype=np.uint32)

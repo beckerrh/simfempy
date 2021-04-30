@@ -42,21 +42,22 @@ class CR1(fems.fem.Fem):
         rt = fems.rt0.RT0(self.mesh)
         self.betart = scale*rt.interpolate(beta)
         self.beta = rt.toCell(self.betart)
+        d = self.mesh.dimension
         if method == 'supg':
             self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, self.beta, bound=0.5)
+            self.md = move.move_midpoints(self.mesh, self.beta, bound=1/d)
             # self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'supg2':
             self.mesh.constructInnerFaces()
             self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
             # print(f"{self.md.mus=}")
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+            self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'upw':
-            self.md = move.move_sides(self.mesh, -self.beta, bound=0.5)
-            self.md.plot(self.mesh, self.beta, type='sides')
+            self.mesh.constructInnerFaces()
+            self.md = move.move_midpoints(self.mesh, self.beta, bound=1/d)
+            self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'upw2':
-            self.md = move.move_sides(self.mesh, -self.beta, second=True)
-            self.md.plot(self.mesh, self.beta, type='sides')
+            assert 0
         elif method == 'lps':
             self.mesh.constructInnerFaces()
         else:
@@ -288,45 +289,85 @@ class CR1(fems.fem.Fem):
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
     def computeMatrixTransportUpwind(self, bdrylumped, colors):
-        self.masslumped = self.computeMassMatrix(coeff=1, lumped=True)
-        beta, mus, cells, deltas = self.beta, self.md.mus, self.md.cells, self.md.deltas
-        nfaces, fOC, d = self.mesh.nfaces, self.mesh.facesOfCells, self.mesh.dimension
-        m = self.md.mask()
-        if hasattr(self.md,'cells2'):
-            m2 =  self.md.mask2()
-            m = self.md.maskonly1()
-            print(f"{nfaces=} {np.sum(self.md.mask())=} {np.sum(m2)=} {np.sum(m)=}")
-        ml = self.masslumped.diagonal()[m]/deltas[m]
-        rows = np.arange(nfaces)[m]
-        A = sparse.coo_matrix((ml,(rows,rows)), shape=(nfaces, nfaces))
-        mat = (1-d*mus[m])*ml[:,np.newaxis]
-        # mat = (d/(d-1)-d*mus[m])*ml[:,np.newaxis]
-        # mat = ((mus[m]-1)/d)*ml[:,np.newaxis]
-        rows = rows.repeat(fOC.shape[1])
-        cols = fOC[cells[m]]
-        A -=  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nfaces, nfaces))
-        if hasattr(self.md,'cells2'):
-            raise NotImplemented()
-            cells2 = self.md.cells2
-            delta1 = self.md.deltas[m2]
-            delta2 = self.md.deltas2[m2]
-            mus2 = self.md.mus2
-            c0 = (1+delta1/(delta1+delta2))/delta1
-            c1 = -(1+delta1/delta2)/delta1
-            c2 = -c0-c1
-            ml = self.masslumped.diagonal()[m2]
-            rows = np.arange(nfaces)[m2]
-            A += sparse.coo_matrix((c0*ml,(rows,rows)), shape=(nfaces, nfaces))
-            mat = mus[m2]*ml[:,np.newaxis]*c1[:,np.newaxis]
-            rows1 = rows.repeat(simp.shape[1])
-            cols = simp[cells[m2]]
-            A +=  sparse.coo_matrix((mat.ravel(), (rows1.ravel(), cols.ravel())), shape=(nfaces, nfaces))
-            mat = mus2[m2] * ml[:, np.newaxis] * c2[:, np.newaxis]
-            rows2 = rows.repeat(simp.shape[1])
-            cols = simp[cells2[m2]]
-            A += sparse.coo_matrix((mat.ravel(), (rows2.ravel(), cols.ravel())), shape=(nfaces, nfaces))
-        # print(f"{A.diagonal()=}")
+        dim, dV, nfaces = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces
+        innerfaces, foc = self.mesh.innerfaces, self.mesh.facesOfCells
+        print(f"{innerfaces.shape=} {dim=} {self.mesh.nfaces=}")
+        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
+        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
+        normalsS = self.mesh.normals[innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        A = sparse.coo_matrix((nfaces, nfaces))
+        centered=True
+        if centered:
+            rows0 = foc[ci0].ravel()
+            rows1 = foc[ci1].ravel()
+            cols = np.repeat(np.arange(nfaces)[innerfaces],dim+1).ravel()
+            matloc = np.full(shape=(dim+1),fill_value=1/(dim+1))
+            mat = np.einsum('n,k->nk', self.betart[innerfaces]*dS, matloc).ravel()
+            # print(f"{rows0.shape=} {cols.shape=} {mat.shape=}")
+            A += sparse.coo_matrix((mat, (rows0, cols)), shape=(nfaces, nfaces))
+            A -= sparse.coo_matrix((mat, (rows1, cols)), shape=(nfaces, nfaces))
+        else:
+            rows0 = foc[ci0].ravel()
+            rows1 = foc[ci1].ravel()
+            cols = np.repeat(np.arange(nfaces)[innerfaces],dim+1).ravel()
+            matloc = np.full(shape=(dim+1),fill_value=1/(dim+1))
+            mat = np.einsum('n,nk->nk', self.betart[innerfaces]*dS, self.md.mus[ci0]).ravel()
+            # print(f"{rows0.shape=} {cols.shape=} {mat.shape=}")
+            A += sparse.coo_matrix((mat, (rows0, cols)), shape=(nfaces, nfaces))
+            mat = np.einsum('n,nk->nk', self.betart[innerfaces]*dS, self.md.mus[ci1]).ravel()
+            A -= sparse.coo_matrix((mat, (rows1, cols)), shape=(nfaces, nfaces))
+
+
+
+            # rows0 = foc[ci0].ravel()
+            # rows1 = foc[ci1].ravel()
+            # faceind = np.arange(nfaces)[innerfaces]
+            # cols = np.repeat(faceind, dim+1).ravel()
+            # matloc = np.full(shape=(dim+1),fill_value=1/(dim+1))
+            #
+            # betadS = np.maximum(self.betart[self.mesh.innerfaces], 0)*dS
+            # mat = np.einsum('n,k->nk', betadS, matloc).ravel()
+            # A += sparse.coo_matrix((betadS, (faceind, faceind)), shape=(nfaces, nfaces))
+            # A -= sparse.coo_matrix((mat, (rows1, cols)), shape=(nfaces, nfaces))
+            #
+            # betadS = np.minimum(self.betart[self.mesh.innerfaces], 0)*dS
+            # mat = np.einsum('n,k->nk', betadS, matloc).ravel()
+            # A += sparse.coo_matrix((mat, (rows0, cols)), shape=(nfaces, nfaces))
+            # A -= sparse.coo_matrix((betadS, (faceind, faceind)), shape=(nfaces, nfaces))
+
+
+
+
+            # rows0 = np.repeat(foc[ci0],dim+1).ravel()
+            # cols0 = np.tile(foc[ci0],dim+1).ravel()
+            # rows1 = np.repeat(foc[ci1],dim+1).ravel()
+            # cols1 = np.tile(foc[ci1],dim+1).ravel()
+            # matloc = np.full(shape=(dim+1,dim+1),fill_value=1/(dim+1))
+            # mat = np.einsum('n,kl->nkl', np.maximum(self.betart[self.mesh.innerfaces], 0)*dS, matloc).ravel()
+            # A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(nfaces, nfaces))
+            # A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(nfaces, nfaces))
+            # mat = np.einsum('n,kl->nkl', np.minimum(self.betart[self.mesh.innerfaces], 0)*dS, matloc).ravel()
+            # # print(f"{A.diagonal()=}")
+            # A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(nfaces, nfaces))
+            # A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(nfaces, nfaces))
+        #bdry
+        faces = self.mesh.bdryFaces()
+        normalsS = self.mesh.normals[faces]
+        dS = linalg.norm(normalsS, axis=1)
+        rows = foc[self.mesh.cellsOfFaces[faces,0]].ravel()
+        cols = np.repeat(faces,dim+1).ravel()
+        matloc = np.full(shape=(dim + 1), fill_value=1 / (dim + 1))
+        mat = np.einsum('n,k->nk', self.betart[faces]*dS, matloc).ravel()
+        A += sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces))
+        # A += self.computeMatrixJump(self.betart)
+
+        A += self.computeMatrixJump(self.betart)
         A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+
+        B = self.computeMatrixTransportSupg(bdrylumped, colors)
+        if not np.allclose(B.A, A.tocsr().A):
+            raise ValueError(f"{B.todense()=}\n{A.todense()=}")
         # print(f"{A.diagonal()=}")
         return A.tocsr()
     def computeMatrixTransportSupg(self, bdrylumped, colors):

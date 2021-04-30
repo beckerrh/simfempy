@@ -74,8 +74,9 @@ def _coef_beta_in_simplex(i, mesh, beta):
     return betacoef
 
 #=================================================================#
-def _move_in_simplex_opt(lamb, betacoef, bound=1):
+def _move_in_simplex_opt(lamb, betacoef, bound=1.0):
     # maximise delta under consraint 0\le \mu\le bound
+    assert np.all(lamb<=bound)
     coef = np.full_like(betacoef, np.inf)
     mn = betacoef<0
     mp = betacoef>0
@@ -85,6 +86,7 @@ def _move_in_simplex_opt(lamb, betacoef, bound=1):
     delta = np.min(coef)
     bs = np.sum(betacoef)
     if bs>0: delta = np.min((delta,lamb[0]/bs))
+    if bs<0: delta = np.min((delta,(lamb[0]-bound)/bs))
     mu = np.empty_like(lamb)
     mu[1:] = lam + delta*betacoef
     mu[0] = 1-np.sum(mu[1:])
@@ -112,7 +114,7 @@ def _move_in_simplex_candidates(i, mesh, beta, lamb, type):
     # if istar>dim: print(f"{coef=} {istar=}")
     return deltas[istar], candidates[istar]
 #=================================================================#
-def move_sides(mesh, beta, second=False, bound=1):
+def move_sides(mesh, beta, second=False):
     d, ns, nc = mesh.dimension, mesh.nfaces, mesh.ncells
     assert beta.shape == (nc, d)
     md = MoveData(ns, d, second=second)
@@ -121,7 +123,8 @@ def move_sides(mesh, beta, second=False, bound=1):
         for ipl in range(d+1):
             lam = np.ones(d+1)/d
             lam[ipl] = 0
-            delta, mu = _move_in_simplex_opt(lam, betacoef, bound)
+            delta, mu = _move_in_simplex_opt(lam, betacoef)
+            print(f"{delta=} {mu=}")
             if delta>0:
                 ip = mesh.facesOfCells[i, ipl]
                 md.cells[ip] = i
@@ -165,7 +168,7 @@ def move_nodes(mesh, beta, second=False):
                 md.mus2[ip] = mu
     return md
 #=================================================================#
-def move_midpoints(mesh, beta, extreme=False, bound=1, candidates=None):
+def move_midpoints(mesh, beta, extreme=False, candidates=None, bound=1):
     d, nn, nc = mesh.dimension, mesh.nnodes, mesh.ncells
     assert beta.shape == (nc, d)
     lambdas = np.ones(d+1)/(d+1)
@@ -177,8 +180,9 @@ def move_midpoints(mesh, beta, extreme=False, bound=1, candidates=None):
     else:
         for i in range(mesh.ncells):
             betacoef = _coef_beta_in_simplex(i, mesh, beta[i])
-            delta, mu = _move_in_simplex_opt(lambdas, betacoef, bound)
-            assert delta>0
+            delta, mu = _move_in_simplex_opt(lambdas, betacoef, bound=bound)
+            # print(f"{delta=} {mu=}")
+            # assert delta>0
             if not extreme: md.deltas[i] = delta
             md.mus[i] = mu
         if extreme:
