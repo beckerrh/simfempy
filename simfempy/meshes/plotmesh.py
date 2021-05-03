@@ -248,6 +248,17 @@ def meshTriSurf(mesh, data, fig, outer, **kwargs):
     x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
     ax.plot_trisurf(x, y, tris, Z=data, cmap='jet')
 
+# ----------------------------------------------------------------#
+def meshTriShading(mesh, data, fig, outer, **kwargs):
+    """
+    """
+    ax = fig.add_subplot(outer)
+    x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+    cm = plt.get_cmap('Greys')
+    cnt = ax.tripcolor(x, y, tris, data, edgecolors='k', cmap=cm)
+    clb = plt.colorbar(cnt, ax=ax, shrink=0.6)
+    ax.set_aspect(aspect='equal')
+
 #=================================================================#
 if __name__ == '__main__':
     import numpy as np

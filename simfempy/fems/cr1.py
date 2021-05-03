@@ -54,8 +54,8 @@ class CR1(fems.fem.Fem):
             # self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'upw':
             self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, self.beta, bound=1/d)
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+            self.md = move.move_midpoints(self.mesh, -self.beta, bound=1/d)
+            self.md.plot(self.mesh, self.beta, type='midpoints')
         elif method == 'upw2':
             assert 0
         elif method == 'lps':
@@ -308,29 +308,43 @@ class CR1(fems.fem.Fem):
     def computeMatrixTransportUpwind(self, bdrylumped):
         dim, dV, nfaces = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces
         innerfaces, foc = self.mesh.innerfaces, self.mesh.facesOfCells
+        mus, deltas = self.md.mus, self.md.deltas
         print(f"{innerfaces.shape=} {dim=} {self.mesh.nfaces=}")
         ci0 = self.mesh.cellsOfInteriorFaces[:,0]
         ci1 = self.mesh.cellsOfInteriorFaces[:,1]
         normalsS = self.mesh.normals[innerfaces]
         dS = linalg.norm(normalsS, axis=1)
-        B = self.computeMatrixTransport(type='centered')
-        B += self.computeMatrixJump(self.betart, mode='primal')
-        # return A
-        A = -self.computeMatrixTransport(type='centered').T
-        A += self.computeBdryMassMatrix(coeff=self.betart)
-        # A += self.computeMatrixJump(self.betart, mode='centered')
-        # A += self.computeMatrixJump(self.betart, mode='primal')
+
+        # A = -self.computeMatrixTransport(type='centered').T
+        cols0 = foc[ci0].ravel()
+        cols1 = foc[ci1].ravel()
+        rows = np.repeat(np.arange(nfaces)[innerfaces],dim+1).ravel()
+        # centered
+        # matloc = np.full(shape=(dim+1),fill_value=1/(dim+1))
+        # mat = np.einsum('n,k->nk', self.betart[innerfaces]*dS, matloc).ravel()
+        # A = sparse.coo_matrix((mat, (rows, cols1)), shape=(nfaces, nfaces))
+        # A -= sparse.coo_matrix((mat, (rows, cols0)), shape=(nfaces, nfaces))
+        mat0 = np.einsum('n,nk->nk', self.betart[innerfaces]*dS, mus[ci0]).ravel()
+        mat1 = np.einsum('n,nk->nk', self.betart[innerfaces]*dS, mus[ci1]).ravel()
+        A = sparse.coo_matrix((mat1, (rows, cols1)), shape=(nfaces, nfaces))
+        A -= sparse.coo_matrix((mat0, (rows, cols0)), shape=(nfaces, nfaces))
+        #bdry
+        faces = self.mesh.bdryFaces()
+        normalsS = self.mesh.normals[faces]
+        dS = linalg.norm(normalsS, axis=1)
+        cols = foc[self.mesh.cellsOfFaces[faces, 0]].ravel()
+        rows = np.repeat(faces, dim + 1).ravel()
+        matloc = np.full(shape=(dim + 1), fill_value=1 / (dim + 1))
+        mat = np.einsum('n,k->nk', self.betart[faces] * dS, matloc).ravel()
+        A -= sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces))
+
         A += self.computeMatrixJump(self.betart, mode='dual')
-
-        if not np.allclose(A.A,B.A):
-            s = f"{A.diagonal()=}\n{B.diagonal()=}"
-            s += f"\n{A.todense()=}\n{B.todense()=}"
-            raise ValueError(s)
-
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart,0))
+        A += self.computeBdryMassMatrix(coeff=np.maximum(self.betart,0))
 
 
         return A.tocsr()
+
+
         # centered=True
         # if centered:
         #     rows0 = foc[ci0].ravel()
@@ -435,38 +449,12 @@ class CR1(fems.fem.Fem):
         ifaces = np.arange(nfaces)[innerfaces]
         if not np.all(ifaces==np.where(innerfaces)):
             raise ValueError(f"{ifaces=} {np.where(innerfaces)}")
-        # ind0bis = npext.positionnotin(ifaces, self.mesh.facesOfCells[ci0])
-        # ind1bis = npext.positionnotin(ifaces, self.mesh.facesOfCells[ci1])
-        # fi0bis = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0bis, axis=1)
-        # fi1bis = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1bis, axis=1)
-        # fi0bis = npext.positionnotin(ifaces, self.mesh.facesOfCells[ci0])
-        # fi1bis = npext.positionnotin(ifaces, self.mesh.facesOfCells[ci1])
-        # for i in range(ind0.shape[0]):
-        #     if not np.all(fi0bis[i] == fi0[i]):
-        #         s = f"\n{i=}\n{fi0bis[i]=}\n{fi0[i]=}"
-        #         # s += f"\n{i=}\n{ind0bis[i]=}\n{ind0[i]=}"
-        #         s += f"\n{ifaces[i]=}"
-        #         s += f"\n{faces[i]=}"
-        #         s += f"\n{self.mesh.simplices[ci0][i]=}"
-        #         s += f"\n{self.mesh.facesOfCells[ci0][i]=}"
-        #         raise ValueError(s)
-        #     if not np.all(fi1bis[i] == fi1[i]):
-        #         s = f"\n{i=}\n{fi1bis[i]=}\n{fi1[i]=}"
-        #         # s += f"\n{i=}\n{ind1bis[i]=}\n{ind1[i]=}"
-        #         s += f"\n{ifaces[i]=}"
-        #         s += f"\n{faces[i]=}"
-        #         s += f"\n{self.mesh.simplices[ci1][i]=}"
-        #         s += f"\n{self.mesh.facesOfCells[ci1][i]=}"
-        #         raise ValueError(s)
-        # fi0, fi1 = fi0bis, fi1bis
-
         massloc = barycentric.crbdryothers(dim)
         A = sparse.coo_matrix((ndofs, ndofs))
         rows0 = np.repeat(fi0, nloc-1).ravel()
         cols0 = np.tile(fi0,nloc-1).ravel()
         rows1 = np.repeat(fi1, nloc-1).ravel()
         cols1 = np.tile(fi1,nloc-1).ravel()
-        # mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
         if mode == 'primal':
             mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
             A -= sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))

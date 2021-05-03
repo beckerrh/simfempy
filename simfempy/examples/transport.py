@@ -28,7 +28,8 @@ def main(h):
     fig = plt.figure(figsize=(10, 8))
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithData(mesh, point_data=result.data['point'], title="Ramp", alpha=1,fig=fig, outer=outer[0])
-    plotmesh.meshTriSurf(mesh, data=result.data['point']['U'], title="Ramp", alpha=1,fig=fig, outer=outer[1])
+    # plotmesh.meshTriSurf(mesh, data=result.data['point']['U'], title="Ramp", alpha=1,fig=fig, outer=outer[1])
+    plotmesh.meshTriShading(mesh, data=result.data['point']['U'], title="Ramp", alpha=1,fig=fig, outer=outer[1])
     plt.show()
 
 # ---------------------------------------------------------------- #
