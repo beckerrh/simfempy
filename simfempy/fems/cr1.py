@@ -318,8 +318,9 @@ class CR1(fems.fem.Fem):
         # return A
         A = -self.computeMatrixTransport(type='centered').T
         A += self.computeBdryMassMatrix(coeff=self.betart)
-        A += self.computeMatrixJump(self.betart, mode='centered')
-        A += self.computeMatrixJump(self.betart, mode='primal')
+        # A += self.computeMatrixJump(self.betart, mode='centered')
+        # A += self.computeMatrixJump(self.betart, mode='primal')
+        A += self.computeMatrixJump(self.betart, mode='dual')
 
         if not np.allclose(A.A,B.A):
             s = f"{A.diagonal()=}\n{B.diagonal()=}"
@@ -468,18 +469,18 @@ class CR1(fems.fem.Fem):
         # mat = np.einsum('n,kl->nkl', 0.5*np.absolute(betart[self.mesh.innerfaces])*dS, massloc).ravel()
         if mode == 'primal':
             mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A += sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
-            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
             mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0)*dS, massloc).ravel()
-            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-            A -= sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
         elif mode =='dual':
             mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A -= sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-            A += sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
             mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A -= sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
-            A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
         elif mode =='centered':
             mat = np.einsum('n,kl->nkl', betart[innerfaces] * dS, massloc).ravel()
             A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
@@ -531,13 +532,14 @@ class CR1(fems.fem.Fem):
         en = solexact(x, y, z) - uh
         Men = np.zeros_like(en)
         return np.sqrt( np.dot(en, self.massDot(Men,en)) ), en
-    def computeErrorFluxL2(self, solexact, diffcell, uh):
+    def computeErrorFluxL2(self, solexact, uh, diffcell=None):
         xc, yc, zc = self.mesh.pointsc.T
         graduh = np.einsum('nij,ni->nj', self.cellgrads, uh[self.mesh.facesOfCells])
         errv = 0
         for i in range(self.mesh.dimension):
             solxi = solexact.d(i, xc, yc, zc)
-            errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
+            if diffcell is None: errv += np.sum((solxi - graduh[:, i]) ** 2 * self.mesh.dV)
+            else: errv += np.sum(diffcell * (solxi - graduh[:, i]) ** 2 * self.mesh.dV)
         return np.sqrt(errv)
     def computeBdryMean(self, u, colors):
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))

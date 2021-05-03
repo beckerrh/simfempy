@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.8)  3 MAY 2021 16:42
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.2.24)  3 MAY 2021 17:00
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1700,33 +1700,33 @@ Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
 
 
 ]
-Overfull \hbox (12.04153pt too wide) detected at line 129
+Overfull \hbox (12.04153pt too wide) detected at line 123
 []
  []
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `math shift' on input line 151.
+(hyperref)                removing `math shift' on input line 145.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `superscript' on input line 151.
+(hyperref)                removing `superscript' on input line 145.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `subscript' on input line 151.
+(hyperref)                removing `subscript' on input line 145.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `\Omega' on input line 151.
+(hyperref)                removing `\Omega' on input line 145.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
-(hyperref)                removing `math shift' on input line 151.
+(hyperref)                removing `math shift' on input line 145.
 
 [15]
 
-LaTeX Warning: Empty bibliography on input line 192.
+LaTeX Warning: Empty bibliography on input line 186.
 
 ) [16]
 Package atveryend Info: Empty hook `BeforeClearDocument' on input line 51.
@@ -1756,7 +1756,7 @@ Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 51.
  ) 
 Here is how much of TeX's memory you used:
  34182 strings out of 480608
- 657310 string characters out of 5903631
+ 657310 string characters out of 5903630
  1348005 words of memory out of 5000000
  49293 multiletter control sequences out of 15000+600000
  581325 words of font info for 138 fonts, out of 8000000 for 9000
@@ -1790,7 +1790,7 @@ ocal/texlive/2020/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/tex
 live/2020/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/20
 20/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2020/texm
 f-dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (16 pages, 292038 bytes).
+Output written on simfempy.pdf (16 pages, 291904 bytes).
 PDF statistics:
  400 PDF objects out of 1000 (max. 8388607)
  352 compressed objects within 4 object streams

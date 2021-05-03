@@ -238,9 +238,10 @@ class Heat(Application):
         # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
         data['point']['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
-            data['global']['err_pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_pnL2'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['global']['err_vcL2'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, self.kheatcell, u)
+            data['global']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['global']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            data['global']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
+            data['global']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
             data['cell']['err'] = ec
         if self.problemdata.postproc:
             types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]

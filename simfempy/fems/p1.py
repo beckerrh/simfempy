@@ -433,13 +433,14 @@ class P1(fems.fem.Fem):
         en = solexact(x, y, z) - uh
         Men = np.zeros_like(en)
         return np.sqrt( np.dot(en, self.massDot(Men,en)) ), en
-    def computeErrorFluxL2(self, solexact, diffcell, uh):
+    def computeErrorFluxL2(self, solexact, uh, diffcell=None):
         xc, yc, zc = self.mesh.pointsc.T
         graduh = np.einsum('nij,ni->nj', self.cellgrads, uh[self.mesh.simplices])
         errv = 0
         for i in range(self.mesh.dimension):
             solxi = solexact.d(i, xc, yc, zc)
-            errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
+            if diffcell is None: errv += np.sum((solxi - graduh[:, i]) ** 2 * self.mesh.dV)
+            else: errv += np.sum( diffcell*(solxi-graduh[:,i])**2* self.mesh.dV)
         return np.sqrt(errv)
     def computeBdryMean(self, u, colors):
         mean, omega = np.zeros(len(colors)), np.zeros(len(colors))

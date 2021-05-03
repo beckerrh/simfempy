@@ -108,8 +108,8 @@ class Beam(Application):
         data['point']['U'] = self.fem.tonode(u)
         data['point']['W'] = self.fem.tonode(w)
         if self.problemdata.solexact:
-            data['global']['err_pcL2'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_pnL2'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            data['global']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['global']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
             data['cell']['err'] = ec
         return data
     def _to_single_matrix(self, Ain):

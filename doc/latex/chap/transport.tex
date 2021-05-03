@@ -73,8 +73,8 @@ such that the result follows with $v=u$.
 Let
 %
 \begin{equation}\label{eq:}
-a_h(u,v) := \int_{\Omega}\div_h(\beta u) v - \int_{\partial\Omega} \beta_n^- uv+ \int_{\Sides_h}\jump{u}\beta_S^{\flat}(v),
-\quad \beta_S^{\flat}(v) := \beta_{n_S}^{+}\In{v} + \beta_{n_S}^{-}\Ex{v}
+a_h(u,v) := \int_{\Omega}\div_h(\beta u) v - \int_{\partial\Omega} \beta_n^- uv - \int_{\Sides_h}\jump{u}\beta_S^{\sharp}(v)
+\quad \beta_S^{\sharp}(v) := \beta_{n_S}^{-}\In{v} + \beta_{n_S}^{+}\Ex{v}
 \end{equation}
 %
 %---------------------------------------
@@ -82,8 +82,9 @@ a_h(u,v) := \int_{\Omega}\div_h(\beta u) v - \int_{\partial\Omega} \beta_n^- uv+
 We have
 %
 \begin{equation}\label{eq:}
-a_h(u,v) = - \int_{\Omega}u (\beta\cdot\nabla_h v) + \int_{\partial\Omega} \beta_n^+ uv  - \int_{\Sides_h}\beta_S^{\sharp}(u) \jump{v},
-\quad \beta_S^{\sharp}(u) := \beta_{n_S}^{-}\In{u} + \beta_{n_S}^{+}\Ex{u}\end{equation}
+a_h(u,v) = - \int_{\Omega}u (\beta\cdot\nabla_h v) + \int_{\partial\Omega} \beta_n^+ uv  + \int_{\Sides_h}\beta_S^{\flat}(u) \jump{v},
+\quad \beta_S^{\flat}(u) := \beta_{n_S}^{+}\In{u} + \beta_{n_S}^{-}\Ex{u}
+\end{equation}
 %
 \end{lemma}
 %
@@ -96,16 +97,9 @@ a_h(u,v) = - \int_{\Omega}u (\beta\cdot\nabla_h v) + \int_{\partial\Omega} \beta
 %
 %
 \begin{align*}
-\beta_{n_S} \jump{uv} + \jump{u} \beta_S^{\flat}(v)
-=&  \left(\beta_{n_S}\In{u} \In{v}-\beta_{n_S}\Ex{u}\Ex{v} \right) + \left(\In{u} -\Ex{u}\right)\left(\beta_{n_S}^{+}\In{v} + \beta_{n_S}^{-}\Ex{v}\right)
-\end{align*}
-%
-%
-\begin{align*}
-\beta_{n_S} \jump{uv} - \beta_S^{\sharp}(u) \jump{v}
-=&  \In{u}\left(\beta_{n_S} \In{v}-\beta_{n_S}^{-}\jump{v} \right) + \Ex{u}\left(\beta_{n_S}^{+}\jump{v}-\beta_{n_S}\Ex{v}\right)\\
-=& \In{u}\left(\beta_{n_S}^+ \In{v}+\beta_{n_S}^{-}\Ex{v} \right) - \Ex{u}\left(\beta_{n_S}^+ \In{v}+\beta_{n_S}^{-}\Ex{v} \right)\\
-=& \jump{u} \beta_S^{\flat}(u)
+\beta_{n_S} \jump{uv} - \jump{u} \beta_S^{\sharp}(v)
+=&  \left(\beta_{n_S}\In{u} \In{v}-\beta_{n_S}\Ex{u}\Ex{v} \right) - \left(\In{u} -\Ex{u}\right)\left(\beta_{n_S}^{-}\In{v} + \beta_{n_S}^{+}\Ex{v}\right)\\
+=& \left(\beta_{n_S}^{+}\In{u} + \beta_{n_S}^{-}\Ex{u}\right) \In{v} - \left(\beta_{n_S}^{+}\In{u} + \beta_{n_S}^{-}\Ex{u} \right) \Ex{v} = \beta_S^{\flat}(u) \jump{v}
 \end{align*}
 %
 \end{proof}
