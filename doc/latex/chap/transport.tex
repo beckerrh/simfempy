@@ -40,9 +40,20 @@ a(u,v)=l(v)\quad \forall v\in V
 with
 %
 \begin{equation}\label{eq:}
-a(u,v) := \int_{\Omega}\div(\beta) u  v +\int_{\Omega} (\beta\cdot \nabla u)v - \int_{\partial\Omega} \beta_n^- uv,\quad l(v) := \int_{\Omega} fv -\int_{\partial\Omega} \beta_n^- \uD v.
+a(u,v) := \int_{\Omega}\div(\beta u)   v  - \int_{\partial\Omega} \beta_n^- uv,\quad l(v) := \int_{\Omega} fv -\int_{\partial\Omega} \beta_n^- \uD v.
 \end{equation}
 %
+%---------------------------------------
+\begin{lemma}\label{lemma:}
+%
+\begin{equation}\label{eq:}
+a(u,u) = \int_{\Omega}\frac{\div(\beta)}{2} u^2 +  \int_{\partial\Omega} \frac{\abs{\beta_n}}{2} u^2.
+\end{equation}
+%
+\end{lemma}
+%
+%---------------------------------------
+\begin{proof}
 We also have
 %
 \begin{align*}
@@ -51,6 +62,83 @@ a(u,v) =& \frac12\int_{\Omega}\div(\beta) u  v +\frac12\int_{\Omega} \div(\beta 
 =& \frac12\int_{\Omega}\div(\beta) u  v +\frac12\int_{\Omega} \left((\beta\cdot \nabla u)v-u(\beta\cdot \nabla v)\right)  + \int_{\partial\Omega} \frac{\abs{\beta_n}}{2} uv
 \end{align*}
 %
+such that the result follows with $v=u$.
+\end{proof}
+%
+%
+%-------------------------------------------------------------------------
+\subsection{$\Dspace^k_h(\Omega)$}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Let
+%
+\begin{equation}\label{eq:}
+a_h(u,v) := \int_{\Omega}\div_h(\beta u) v - \int_{\partial\Omega} \beta_n^- uv+ \int_{\Sides_h}\jump{u}\beta_S^{\flat}(v),
+\quad \beta_S^{\flat}(v) := \beta_{n_S}^{+}\In{v} + \beta_{n_S}^{-}\Ex{v}
+\end{equation}
+%
+%---------------------------------------
+\begin{lemma}\label{lemma:}
+We have
+%
+\begin{equation}\label{eq:}
+a_h(u,v) = - \int_{\Omega}u (\beta\cdot\nabla_h v) + \int_{\partial\Omega} \beta_n^+ uv  - \int_{\Sides_h}\beta_S^{\sharp}(u) \jump{v},
+\quad \beta_S^{\sharp}(u) := \beta_{n_S}^{-}\In{u} + \beta_{n_S}^{+}\Ex{u}\end{equation}
+%
+\end{lemma}
+%
+%---------------------------------------
+\begin{proof}
+%
+\begin{align*}
+\int_{\Omega}\div_h(\beta u) v = - \int_{\Omega}u (\beta\cdot\nabla_h v) + \int_{\partial\Omega} \beta_n uv + \int_{\Sides_h}\beta_{n_S} \jump{uv}
+\end{align*}
+%
+%
+\begin{align*}
+\beta_{n_S} \jump{uv} - \beta_S^{\sharp}(u) \jump{v}
+=&  \In{u}\left(\beta_{n_S} \In{v}-\beta_{n_S}^{-}\jump{v} \right) + \Ex{u}\left(\beta_{n_S}^{+}\jump{v}-\beta_{n_S}\Ex{v}\right)\\
+=& \In{u}\left(\beta_{n_S}^+ \In{v}+\beta_{n_S}^{-}\Ex{v} \right) - \Ex{u}\left(\beta_{n_S}^+ \In{v}+\beta_{n_S}^{-}\Ex{v} \right)\\
+=& \jump{u} \beta_S^{\flat}(u
+\end{align*}
+%
+\end{proof}
+%
+%---------------------------------------
+\begin{corollary}\label{cor:}
+%
+\begin{equation}\label{eq:}
+a_h(u,u) = \int_{\Omega}\frac{\div_h(\beta)}{2} u^2 + \int_{\partial\Omega} \frac{\abs{\beta_n}}{2} u^2+ \int_{\Sides_h}\frac{\abs{\beta_{n_S}}}{2}\jump{u}^2
+\end{equation}
+%
+\end{corollary}
+%
+%---------------------------------------
+\begin{proof}
+%
+\begin{align*}
+2a_h(u,u) =& \int_{\Omega}\div_h(\beta u) u - \int_{\partial\Omega} \beta_n^- uu - \int_{\Sides_h}\beta_S^{\sharp}(u) \jump{u}
+- \int_{\Omega}u (\beta\cdot\nabla_h u) + \int_{\partial\Omega} \beta_n^+ uu + \int_{\Sides_h}\jump{u}\beta_S^{\flat}(u)\\
+=&\int_{\Omega}\div_h(\beta) u^2 + \int_{\partial\Omega} \abs{\beta_n} u^2+ \int_{\Sides_h}\jump{u}\left(\beta_S^{\flat}(u)-\beta_S^{\sharp}(u)\right)
+\end{align*}
+%
+%
+\begin{align*}
+\beta_S^{\flat}(u)-\beta_S^{\sharp}(u) =&  \beta_{n_S}^{+}\In{u} + \beta_{n_S}^{-}\Ex{u} - \beta_{n_S}^{-}\In{u} - \beta_{n_S}^{+}\Ex{u}= \abs{\beta_{n_S}}\In{u} - \abs{\beta_{n_S}}\Ex{u}
+\end{align*}
+%
+\end{proof}
+%
+
+
+We suppose $\beta\in \RT^1_h$ with $\div\beta=0$. Then $\beta\in D^0_h$ and we have
+%
+\begin{align*}
+\int_{\Omega}u (\beta\cdot\nabla_h v) = \int_{\Omega}\pi_h u (\beta\cdot\nabla_h v) = 
+\int_{\partial\Omega}\beta_n (\pi_h u) v +  \int_{\Sides_h}\beta_n \jump{\pi_h u} v
+\end{align*}
+%
+
 
 %
 %-------------------------------------------------------------------------

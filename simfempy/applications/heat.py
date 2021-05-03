@@ -81,7 +81,6 @@ class Heat(Application):
             colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             if not set(colorsinflow).issubset(set(colorsdir)):
                 raise ValueError(f"Inflow boundaries nees to be subset of Dirichlet boundaries {colorsinflow=} {colorsdir=}")
-
     def findInflowColors(self):
         colors=[]
         for color in self.mesh.bdrylabels.keys():
@@ -177,11 +176,11 @@ class Heat(Application):
             colors = self.mesh.bdrylabels.keys()
             colors = colorsdir
             if self.stab[:4] == 'supg':
-                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry, colors)
+                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry)
             elif self.stab[:3] == 'upw':
-                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry, colors)
+                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry)
             elif self.stab == 'lps':
-                A += self.fem.computeMatrixTransportLps(self.masslumpedbdry, colors)
+                A += self.fem.computeMatrixTransportLps(self.masslumpedbdry)
             else:
                 raise NotImplementedError(f"{self.stab=}")
         if coeffmass is not None:

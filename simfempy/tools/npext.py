@@ -2,10 +2,12 @@ import numpy as np
 
 # ------------------------------------- #
 def positionin(x,y):
+    # assert len(x.shape) ==2
     assert len(y.shape) ==2
     assert x.shape[0]==y.shape[0]
     pos = np.empty_like(x)
     if len(x.shape) == 1:
+        # ne respecte pas l'ordre !!
         for i in range(x.shape[0]):
             pos[i]= np.nonzero(y[i]==x[i])[0]
             # print(f"{x[i]=} {y[i]=} {pos[i]=}")
@@ -20,6 +22,18 @@ def positionin(x,y):
         # print(f"{pos[i]=}")
     return pos
 
+# ------------------------------------- #
+def positionnotin(x,y):
+    assert len(y.shape) ==2
+    assert len(x.shape) == 1
+    assert x.shape[0]==y.shape[0]
+    pos = np.empty(shape=(x.shape[0],y.shape[1]-1), dtype=y.dtype)
+    for i in range(x.shape[0]):
+        ind = np.where(y[i]!=x[i])
+        pos[i] = y[i,ind]
+        # pos[i] = np.nonzero(y[i]!=x[i])[0]
+        # print(f"{x[i]=} {y[i]=} {pos[i]=}")
+    return pos
 
 # ------------------------------------- #
 def unique_all(a):

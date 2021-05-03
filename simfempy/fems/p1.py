@@ -256,7 +256,7 @@ class P1(fems.fem.Fem):
                 massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeMatrixTransportUpwind(self, bdrylumped, colors):
+    def computeMatrixTransportUpwind(self, bdrylumped):
         self.masslumped = self.computeMassMatrix(coeff=1, lumped=True)
         beta, mus, cells, deltas = self.beta, self.md.mus, self.md.cells, self.md.deltas
         nnodes, simp= self.mesh.nnodes, self.mesh.simplices
@@ -291,24 +291,24 @@ class P1(fems.fem.Fem):
             rows2 = rows.repeat(simp.shape[1])
             cols = simp[cells2[m2]]
             A += sparse.coo_matrix((mat.ravel(), (rows2.ravel(), cols.ravel())), shape=(nnodes, nnodes))
-        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), lumped=bdrylumped)
         return A.tocsr()
-    def computeMatrixTransportSupg(self, bdrylumped, colors):
+    def computeMatrixTransportSupg(self, bdrylumped):
         beta, mus = self.beta, self.md.mus
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         # if self.stab =='lps':
         #     A += self.computeMatrixLps(beta)
-        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), lumped=bdrylumped)
         return A
-    def computeMatrixTransportLps(self, bdrylumped, colors):
+    def computeMatrixTransportLps(self, bdrylumped):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         beta, mus = self.beta, np.full(dim+1,1.0/(dim+1))[np.newaxis,:]
         mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
         A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         A += self.computeMatrixLps(beta)
-        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), colors=colors, lumped=bdrylumped)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), lumped=bdrylumped)
         return A
     def computeMassMatrixSupg(self, xd, coeff=1):
         dim, dV, nnodes, xK = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes, self.mesh.pointsc

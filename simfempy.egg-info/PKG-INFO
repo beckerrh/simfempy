@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: simfempy
-Version: 2.0.4
+Version: 2.0.5
 Summary: A small package for fem
 Home-page: https://github.com/beckerrh/simfempy
 Author: Roland Becker
@@ -68,5 +68,5 @@ Classifier: Intended Audience :: Science/Research
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python :: 3
 Classifier: Topic :: Scientific/Engineering :: Mathematics
-Requires-Python: >=3.6
+Requires-Python: >=3.8
 Description-Content-Type: text/markdown
