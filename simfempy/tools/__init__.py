@@ -1,2 +1,1 @@
-from . import timer
-from . import latexwriter
+from . import timer, latexwriter

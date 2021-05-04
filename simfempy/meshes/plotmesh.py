@@ -40,7 +40,6 @@ def plotmeshWithNumbering(meshdata, **kwargs):
             kwargs['meshsides'] = faces
         else:
             x, y, tris = meshdata[0], meshdata[1], meshdata[2]
-
     if 'localnumbering' in kwargs and kwargs.pop('localnumbering'):
         fig, axs = plt.subplots(2, 3, figsize=(13.5, 8), squeeze=False)
 
@@ -81,11 +80,9 @@ def plotmeshWithNumbering(meshdata, **kwargs):
         newkwargs['normals']= True
         newkwargs['sidecelllocal']= False
         plotmesh2d.mesh(x, y, tris, **newkwargs)
-
     else:
         kwargs['ax']= plt
         plotmesh2d.mesh(x, y, tris, **kwargs)
-    plt.show()
 #----------------------------------------------------------------#
 def meshWithBoundaries(meshdata, **kwargs):
     dim, meshdataismesh = _getDim(meshdata)
@@ -255,7 +252,7 @@ def meshTriShading(mesh, data, fig, outer, **kwargs):
     ax = fig.add_subplot(outer)
     x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
     cm = plt.get_cmap('Greys')
-    cnt = ax.tripcolor(x, y, tris, data, edgecolors='k', cmap=cm)
+    cnt = ax.tripcolor(x, y, tris, data, cmap=cm)
     clb = plt.colorbar(cnt, ax=ax, shrink=0.6)
     ax.set_aspect(aspect='equal')
 

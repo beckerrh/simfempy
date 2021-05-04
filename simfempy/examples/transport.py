@@ -4,6 +4,7 @@ import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
@@ -29,7 +30,9 @@ def main(h):
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithData(mesh, point_data=result.data['point'], title="Ramp", alpha=1,fig=fig, outer=outer[0])
     # plotmesh.meshTriSurf(mesh, data=result.data['point']['U'], title="Ramp", alpha=1,fig=fig, outer=outer[1])
-    plotmesh.meshTriShading(mesh, data=result.data['point']['U'], title="Ramp", alpha=1,fig=fig, outer=outer[1])
+    uh = result.data['point']['U']
+    print(f"{np.min(uh)=} {np.max(uh)=}")
+    plotmesh.meshTriShading(mesh, data=uh, title="Ramp", alpha=1,fig=fig, outer=outer[1])
     plt.show()
 
 # ---------------------------------------------------------------- #
@@ -57,4 +60,4 @@ def ramp(h=0.2):
 # ================================================================c#
 
 # main(mode='static', convection=True)
-main(h=0.5)
+main(h=0.05)

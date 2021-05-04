@@ -214,7 +214,7 @@ class Heat(Application):
         elif self.dirichletmethod=="nitsche":
             self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond)
         if self.convection:
-            fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
+            fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
         self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)

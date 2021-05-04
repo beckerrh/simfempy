@@ -105,7 +105,6 @@ def mesh(x, y, tris, **kwargs):
     cellsidelocal = kwargs.pop('cellsidelocal', False)
     sidecelllocal = kwargs.pop('sidecelllocal', False)
     normals = kwargs.pop('normals', False)
-
     if cells or cellsidelocal or sidecelllocal or normals:
         xc, yc = x[tris].mean(axis=1), y[tris].mean(axis=1)
     if sides or cellsidelocal or sidecelllocal or normals:
@@ -119,7 +118,6 @@ def mesh(x, y, tris, **kwargs):
     if normals:
         meshnormals = kwargs.pop('meshnormals')
         meshsigma = kwargs.pop('meshsigma')
-
     if nodes:
         title += " and Nodes"
         _plotVertices(x, y, ax=ax)
@@ -149,6 +147,7 @@ def mesh(x, y, tris, **kwargs):
         _plotFaces(x, y, xf, yf, meshsides, ax=ax)
         _plotNormalsAndSigma(xc, yc, xf, yf, meshnormals, sidesofcells, meshsigma, ax=ax)
     _settitle(ax, title)
+    return ax
 #=================================================================#
 def plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha):
     if not isinstance(pd, np.ndarray):

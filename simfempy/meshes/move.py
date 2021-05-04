@@ -18,13 +18,13 @@ class MoveData():
         return self.cells2 != self.imax
     def maskonly1(self):
         return (self.cells != self.imax) & (self.cells2 == self.imax)
-    def plot(self, mesh, beta, type='nodes'):
-        assert mesh.dimension==2
+    def plot(self, mesh, beta, type='nodes', ax=None):
         import matplotlib.pyplot as plt
+        if ax is None: ax = plt.gca()
+        assert mesh.dimension==2
         from simfempy.meshes import plotmesh
         celldata = {f"beta": [beta[:, i] for i in range(mesh.dimension)]}
-        plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True)
-        ax = plt.gca()
+        plotmesh.meshWithData(mesh, quiver_data=celldata, plotmesh=True, ax=ax)
         if type in['nodes','sides']:
             m = self.mask()
             if type=='node':
@@ -43,7 +43,6 @@ class MoveData():
             ax.plot(mesh.pointsc[:, 0], mesh.pointsc[:, 1], '+r')
             mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices], self.mus)
             ax.plot(mp[:, 0], mp[:, 1], 'xb')
-        plt.show()
 
 
 #=================================================================#
@@ -104,6 +103,7 @@ def _move_in_simplex_candidates(i, mesh, beta, lamb, type):
     if type=='all':
         candidates[dim + 1:, :] = 1/dim**2
         for d in range(dim + 1): candidates[dim + 1+d, d] = (dim-1)/dim
+    # print(f"{candidates=}")
 
     deltas = np.empty(ncand)
     for d in range(ncand): deltas[d] = np.linalg.norm(points.T@(candidates[d]-lamb))
