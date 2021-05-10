@@ -57,6 +57,7 @@ class CR1(fems.fem.Fem):
             pass
         elif method == 'upw':
             self.mesh.constructInnerFaces()
+            self.md = move.move_midpoint_to_neighbour(self.mesh, self.betart)
             # self.md = move.move_midpoints(self.mesh, -self.beta, bound=1/d)
             # self.md = move.move_midpoints(self.mesh, -self.beta, candidates='all')
             # self.md.plot(self.mesh, self.beta, type='midpoints')

@@ -191,8 +191,29 @@ def move_midpoints(mesh, beta, extreme=False, candidates=None, bound=1):
             md.mus[m,ind[m]] = 1
     return md
 #=================================================================#
-def move_midpoint_to_neihjbour(mesh, betart):
+def move_midpoint_to_neighbour(mesh, betart):
+    import matplotlib.pyplot as plt
+    from simfempy.meshes import plotmesh
     d, nn, ns, nc = mesh.dimension, mesh.nnodes, mesh.nfaces, mesh.ncells
-    assert betart.shape == ns
-    cof = mesh.cellsOfFaces
+    assert betart.shape[0] == ns
+    cof, foc = mesh.cellsOfFaces, mesh.facesOfCells
+    ind = np.argmax(betart[foc]*mesh.sigma,axis=1)
+    print(f"{ind=} {nn=} {ns=} {nc=}")
+    print(f"{ind.shape=} {cof.shape=} {foc.shape=}")
+    fi = np.take_along_axis(foc, ind[:,np.newaxis], axis=1).ravel()
+    ci = cof[fi]
+    print(f"{fi=}")
+    print(f"{cof[fi]=}")
+    mb = cof[fi,1]==-1
+    print(f"{mb.shape=}\n{mb=}")
+    print(f"{ci[mb,0]=}")
+    npa = np.arange(nc)
+    m2 = ci!=npa[:,np.newaxis]
+    cim = ci[m2]
+    print(f"{ci[m2]=}")
+    m = cim == -1
+    cim[m] = npa[m]
+    print(f"{cim=}")
 
+    plotmesh.plotmeshWithNumbering(mesh, sides=True)
+    plt.show()
