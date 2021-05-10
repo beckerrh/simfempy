@@ -173,7 +173,6 @@ def move_midpoints(mesh, beta, extreme=False, candidates=None, bound=1):
     assert beta.shape == (nc, d)
     lambdas = np.ones(d+1)/(d+1)
     md = MoveData(nc, d, cells=False, deltas=not extreme)
-
     if candidates:
         for i in range(mesh.ncells):
             md.deltas[i], md.mus[i] = _move_in_simplex_candidates(i, mesh, beta[i], lambdas, candidates)
@@ -191,3 +190,9 @@ def move_midpoints(mesh, beta, extreme=False, candidates=None, bound=1):
             md.mus[m,:] = 0
             md.mus[m,ind[m]] = 1
     return md
+#=================================================================#
+def move_midpoint_to_neihjbour(mesh, betart):
+    d, nn, ns, nc = mesh.dimension, mesh.nnodes, mesh.nfaces, mesh.ncells
+    assert betart.shape == ns
+    cof = mesh.cellsOfFaces
+

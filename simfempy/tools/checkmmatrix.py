@@ -1,3 +1,16 @@
+import scipy.sparse as sparse
+
+def makeMMatrix(A):
+    A = A.tocsr()
+    Am = A.maximum(0)
+    Am -= sparse.dia_matrix((Am.diagonal(),0),A.shape)
+    Am = Am.maximum(Am.T)
+    diagp = Am.sum(axis=1).ravel()
+    D = sparse.dia_matrix((diagp,0),A.shape)
+    # print(f"{D.diagonal()=}\n {A.minimum(0).todense()=}")
+    return A - Am + D
+
+
 def checkMmatrix(Ain, tol =1e-14):
     # test !!
     # A = (AI + AB + AR).tocoo()

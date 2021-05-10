@@ -112,14 +112,14 @@ class Heat(Application):
         def _fctu(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
             beta = self.problemdata.params.fct_glob['convection']
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             for i in range(self.mesh.dimension):
                 rhs += beta[i](x,y,z) * solexact.d(i, x, y, z)
                 rhs -= kheat * solexact.dd(i, i, x, y, z)
             return rhs
         def _fctu2(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             for i in range(self.mesh.dimension):
                 rhs -= kheat * solexact.dd(i, i, x, y, z)
             return rhs
@@ -129,7 +129,7 @@ class Heat(Application):
         solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
                 rhs += kheat * solexact.d(i, x, y, z) * normals[i]
@@ -141,7 +141,7 @@ class Heat(Application):
         # alpha = 1
         def _fctrobin(x, y, z, nx, ny, nz):
             kheat = self.problemdata.params.scal_glob['kheat']
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             normals = nx, ny, nz
             # print(f"{alpha=}")
             # rhs += alpha*solexact(x, y, z)
@@ -177,8 +177,10 @@ class Heat(Application):
             colors = colorsdir
             if self.stab[:4] == 'supg':
                 A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry)
+            elif self.stab == 'upwalg':
+                A += self.fem.computeMatrixTransportUpwindAlg(self.masslumpedbdry)
             elif self.stab[:3] == 'upw':
-                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry)
+                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry, self.stab)
             elif self.stab == 'lps':
                 A += self.fem.computeMatrixTransportLps(self.masslumpedbdry)
             else:
