@@ -59,9 +59,6 @@ def _coef_mu_in_neighbor(mesh, ic2, ic, mu):
     mu2[0] = 1 - np.sum(mu2[1:])
     assert np.allclose(p.T@mu, p2.T@mu2, rtol=1e-12, atol=1e-14)
     return mu2
-
-
-
 #=================================================================#
 def _coef_beta_in_simplex(i, mesh, beta):
     d = mesh.dimension
@@ -71,7 +68,6 @@ def _coef_beta_in_simplex(i, mesh, beta):
     betacoef = np.linalg.solve(a.T,beta)
     # print(f"{p=} {a=} {betacoef=}")
     return betacoef
-
 #=================================================================#
 def _move_in_simplex_opt(lamb, betacoef, bound=1.0):
     # maximise delta under consraint 0\le \mu\le bound
@@ -196,24 +192,31 @@ def move_midpoint_to_neighbour(mesh, betart):
     from simfempy.meshes import plotmesh
     d, nn, ns, nc = mesh.dimension, mesh.nnodes, mesh.nfaces, mesh.ncells
     assert betart.shape[0] == ns
+    md = MoveData(nc, d, cells=True)
     cof, foc = mesh.cellsOfFaces, mesh.facesOfCells
     ind = np.argmax(betart[foc]*mesh.sigma,axis=1)
     print(f"{ind=} {nn=} {ns=} {nc=}")
     print(f"{ind.shape=} {cof.shape=} {foc.shape=}")
     fi = np.take_along_axis(foc, ind[:,np.newaxis], axis=1).ravel()
     ci = cof[fi]
-    print(f"{fi=}")
-    print(f"{cof[fi]=}")
-    mb = cof[fi,1]==-1
-    print(f"{mb.shape=}\n{mb=}")
-    print(f"{ci[mb,0]=}")
+    # print(f"{fi=}")
+    # print(f"{cof[fi]=}")
+    # mb = cof[fi,1]==-1
+    # print(f"{mb.shape=}\n{mb=}")
+    # print(f"{ci[mb,0]=}")
     npa = np.arange(nc)
     m2 = ci!=npa[:,np.newaxis]
-    cim = ci[m2]
-    print(f"{ci[m2]=}")
-    m = cim == -1
-    cim[m] = npa[m]
-    print(f"{cim=}")
-
-    plotmesh.plotmeshWithNumbering(mesh, sides=True)
-    plt.show()
+    md.cells = ci[m2]
+    m = md.cells == -1
+    md.cells[m] = npa[m]
+    # print(f"{md.cells=}")
+    mp = np.full(d+1,fill_value=1/(d+1))
+    for i in range(mesh.ncells):
+        md.mus[i] = _coef_mu_in_neighbor(mesh, md.cells[i], i, mp)
+    # print(f"{md.mus=}")
+    # plotmesh.plotmeshWithNumbering(mesh, sides=True)
+    # plt.plot(mesh.pointsc[:, 0], mesh.pointsc[:, 1], 'or')
+    # mp = np.einsum('nik,ni->nk', mesh.points[mesh.simplices[md.cells]], md.mus)
+    # plt.plot(mp[:, 0], mp[:, 1], 'xb',alpha=0.9)
+    # plt.show()
+    return md

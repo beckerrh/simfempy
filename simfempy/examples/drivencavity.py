@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
 from simfempy.applications.stokes import Stokes
+from simfempy.applications.navierstokes import NavierStokes
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
@@ -20,8 +21,9 @@ def main():
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
-    stokes = Stokes(mesh=mesh, problemdata=data)
-    result = stokes.static()
+    # stokes = Stokes(mesh=mesh, problemdata=data)
+    stokes = NavierStokes(mesh=mesh, problemdata=data)
+    result = stokes.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
     for p, v in result.data['global'].items(): print(f"{p}: {v}")

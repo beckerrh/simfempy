@@ -22,6 +22,7 @@ def main(h):
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', stab='upw2', dirichletmethod='strong', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()
     # return
+    # result = heat.static(mode='nonlinear')
     result = heat.static()
     # print(f"{heat=}")
     # print(f"postproc:")

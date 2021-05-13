@@ -20,7 +20,7 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
     step = firststep
     x = x0 - step*dx
     res = f(x)
-    resnorm = linalg.norm(res)
+    resnorm = np.linalg.norm(res)
     it = 0
     if verbose:
         print("{} {:>3} {:^10} {:^10}  {:^9}".format("bt", "it", "resnorm", "resfirst", "step"))
@@ -30,7 +30,7 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
         step *= omega
         x = x0 - step * dx
         res = f(x)
-        resnorm = linalg.norm(res)
+        resnorm = np.linalg.norm(res)
         if verbose:
             print("{} {:3} {:10.3e}  {:9.2e}".format("bt", it, resnorm, step))
     return x, res, resnorm, step, it
@@ -38,20 +38,22 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
 #----------------------------------------------------------------------
 def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None):
     """
-    Aims to solve f(x) = 0
+    Aims to solve f(x) = 0, starting at x0
     computedx: gets dx from f'(x) dx =  -f(x)
+    if not given, jac is called and linalg.solve is used
     """
     if sdata is None: sdata = stoppingdata.StoppingData()
     atol, rtol, atoldx, rtoldx = sdata.atol, sdata.rtol, sdata.atoldx, sdata.rtoldx
     maxiter, divx, firststep = sdata.maxiter, sdata.divx, sdata.firststep
     x = np.asarray(x0)
     assert x.ndim == 1
-    n = x.shape[0]
+    # n = x.shape[0]
+    print(f"{x0=}")
     if not computedx:  assert jac
-    xnorm = linalg.norm(x)
+    xnorm = np.linalg.norm(x)
     dxnorm = xnorm
     res = f(x)
-    resnorm = linalg.norm(res)
+    resnorm = np.linalg.norm(res)
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     it = 0

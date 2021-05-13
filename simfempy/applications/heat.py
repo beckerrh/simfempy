@@ -176,7 +176,7 @@ class Heat(Application):
             colors = self.mesh.bdrylabels.keys()
             colors = colorsdir
             if self.stab[:4] == 'supg':
-                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry)
+                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry, self.stab)
             elif self.stab == 'upwalg':
                 A += self.fem.computeMatrixTransportUpwindAlg(self.masslumpedbdry)
             elif self.stab[:3] == 'upw':

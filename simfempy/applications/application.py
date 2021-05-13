@@ -14,6 +14,10 @@ import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 import simfempy.applications.problemdata
 from simfempy.tools.analyticalfunction import AnalyticalFunction
+import simfempy.solvers
+
+# import warnings
+# warnings.filterwarnings("error")
 
 #=================================================================#
 class Application(object):
@@ -119,30 +123,39 @@ class Application(object):
             return [np.copy(bi) for bi in b]
         return np.copy(b)
     def static(self, iter=100, dirname='Run', mode='linear'):
-        if mode != 'linear': raise NotImplementedError(f"Can only solve linear problems")
         # self.timer.reset_all()
         result = simfempy.applications.problemdata.Results()
         if not self._setMeshCalled: self.setMesh(self.mesh)
         self.timer.add('setMesh')
-        A = self.computeMatrix()
+        self.A = self.computeMatrix()
         self.timer.add('matrix')
-        b = self.computeRhs()
-        u = self.initsolution(b)
-        # if np.linalg.norm(b)<1e-10: raise ValueError(f"rhs is zero {np.linalg.norm(b)=} {np.linalg.norm(u)=}")
-        # print(f"{np.linalg.norm(b)=}")
-        # print(f"{np.linalg.norm(u)=}")
+        self.b = self.computeRhs()
+        u = self.initsolution(self.b)
         self.timer.add('rhs')
-        import warnings
-        # warnings.filterwarnings("error")
-        try:
-            u, niter = self.linearSolver(A, b, u, solver=self.linearsolver)
-        except Warning:
-            raise ValueError(f"matrix is singular {A.shape=} {A.diagonal()=}")
-        self.timer.add('solve')
+        if mode == 'linear':
+            try:
+                u, niter = self.linearSolver(self.A, self.b, u, solver=self.linearsolver)
+            except Warning:
+                raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
+            self.timer.add('solve')
+        else:
+            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True)
+            # print(f"{info=}")
+            u,niter = info
         pp = self.postProcess(u)
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter={'lin':niter})
         return result
+    def computeDefect(self, u):
+        return self.A@u-self.b
+    def computeDx(self, b, u):
+        try:
+            u, niter = self.linearSolver(self.A, b, u, solver=self.linearsolver)
+        except Warning:
+            raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
+        self.timer.add('solve')
+        return u
+
     def initialCondition(self, interpolate=True):
         #TODO: higher order interpolation
         if not 'initial_condition' in self.problemdata.params.fct_glob:

@@ -82,7 +82,7 @@ class Stokes(Application):
                 rhsp -= v[i](x, y, z) * normals[i]
             return rhsp
         return _fctneumannv
-    def solve(self, iter, dirname):
+    def solve(self, iter=100, dirname='Run'):
         return self.static(iter, dirname)
     def postProcess(self, u):
         if self.pmean:
