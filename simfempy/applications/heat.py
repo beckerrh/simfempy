@@ -270,30 +270,38 @@ class Heat(Application):
         return data
     def pyamg_solver_args(self, maxiter):
         return {'cycle': 'W', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
+    def own_gs(A, b):
+        x = np.zeros_like(b)
+        return x
+    def pyamg_solver_args(self, maxiter):
+        if self.convection:
+            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'cg'}
     def build_pyamg(self, A):
         import pyamg
-        return pyamg.smoothed_aggregation_solver(A)
+        # return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
-        # B = pyamg.solver_configuration(A, verb=False)['B']
+        B = pyamg.solver_configuration(A, verb=False)['B']
         if self.convection:
             symmetry = 'nonsymmetric'
-            smoother = 'gauss_seidel_nr'
-            smooth = ('energy', {'krylov': 'fgmres'})
-            improve_candidates =[ ('gauss_seidel_nr', {'sweep': 'symmetric', 'iterations': 4}), None]
-            strength = [('evolution', {'k': 2, 'epsilon': 100.0})]
-            presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 4})
-            postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 4})
+            # smoother = 'gauss_seidel_nr'
+            smoother = 'gauss_seidel'
+            smoother = 'own_gs'
+            # smooth = ('energy', {'krylov': 'fgmres'})
+            smooth = ('energy', {'krylov': 'bicgstab'})
+            # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1}), None]
+            improve_candidates = None
         else:
             symmetry = 'hermitian'
             smooth = ('energy', {'krylov': 'cg'})
             smoother = 'gauss_seidel'
             # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 4}), None]
             improve_candidates = None
-            strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
-            presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
-            postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
+        strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
+        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
+        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
         SA_build_args = {
-            'max_levels': 20,
+            'max_levels': 10,
             'max_coarse': 25,
             'coarse_solver': 'pinv2',
             'symmetry': symmetry
