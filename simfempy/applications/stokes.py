@@ -10,6 +10,12 @@ from simfempy.tools import npext
 class Stokes(Application):
     """
     """
+    def __format__(self, spec):
+        if spec=='-':
+            repr = f"{self.femv=} {self.femp=}"
+            repr += f"\tlinearsolver={self.linearsolver}"
+            return repr
+        return self.__repr__()
     def __init__(self, **kwargs):
         self.dirichlet_nitsche = 4
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
@@ -18,6 +24,18 @@ class Stokes(Application):
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
         super().__init__(**kwargs)
+    def _zeros(self):
+        nv = self.mesh.dimension*self.mesh.nfaces
+        n = nv+self.mesh.ncells
+        if self.pmean: n += 1
+        return np.zeros(n)
+    def _split(self, x):
+        nv = self.mesh.dimension*self.mesh.nfaces
+        ind = [nv]
+        if self.pmean: ind.append(nv+self.mesh.ncells)
+        # print(f"{ind=} {np.split(x, ind)=}")
+        return np.split(x, ind)
+
     def setMesh(self, mesh):
         super().setMesh(mesh)
         assert self.ncomp==self.mesh.dimension
@@ -85,10 +103,12 @@ class Stokes(Application):
     def solve(self, iter=100, dirname='Run'):
         return self.static(iter, dirname)
     def postProcess(self, u):
-        if self.pmean:
-            v,p,lam =  u
-            print(f"{lam=}")
-        else: v,p =  u
+        if self.pmean: v, p, lam = self._split(u)
+        else: v, p = self._split(u)
+        # if self.pmean:
+        #     v,p,lam =  u
+        #     print(f"{lam=}")
+        # else: v,p =  u
         data = {'point':{}, 'cell':{}, 'global':{}}
         for icomp in range(self.ncomp):
             data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
@@ -135,80 +155,80 @@ class Stokes(Application):
         Cbig = sparse.hstack([CL,nullL])
         Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
+    def matrixVector(self, x):
+        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+        if self.pmean:
+            A, B, C = self.A
+            v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+            w = A.dot(v) - B.T.dot(p)
+            q = B.dot(v)+C.T.dot(lam)
+            return np.hstack([w, q, C.dot(p)])
+        else:
+            A, B = self.A
+            v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
+            w = A.dot(v) - B.T.dot(p)
+            q = B.dot(v)
+            return np.hstack([w, q])
+    def getPmult(self, Ain):
+        import pyamg
+        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+        BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+        if self.pmean: 
+            A, B, C = Ain
+            CP = splinalg.inv(C*BP*C.T)
+        else: 
+            A, B = Ain
+        config = pyamg.solver_configuration(A, verb=False)
+        API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+        if self.pmean: 
+            def pmult(x):
+                v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+                w = API.solve(v, maxiter=1, tol=1e-16)
+                q = BP.dot(p-B.dot(w))
+                mu = CP.dot(lam-C.dot(q)).ravel()
+                q += BP.dot(C.T.dot(mu).ravel())
+                h = B.T.dot(q)
+                w += API.solve(h, maxiter=1, tol=1e-16)
+                return np.hstack([w, q, mu])
+        else:
+            def pmult(x):
+                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
+                w = API.solve(v, maxiter=1, tol=1e-16)
+                q = BP.dot(p-B.dot(w))
+                h = B.T.dot(q)
+                w += API.solve(h, maxiter=1, tol=1e-16)
+                return np.hstack([w, q])
+        return pmult    
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
-            if self.pmean:
-                ball = np.hstack((bin[0],bin[1],bin[2]))
-            else: ball = np.hstack((bin[0],bin[1]))
+            # if self.pmean:
+            #     ball = np.hstack((bin[0],bin[1],bin[2]))
+            # else: ball = np.hstack((bin[0],bin[1]))
+            ball = bin
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
-            if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
-            else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:]), 1
+            return uall, 1
+            # if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
+            # else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:]), 1
         elif solver == 'gmres':
             from simfempy import tools
-            nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
             counter = tools.iterationcounter.IterationCounter(name=solver)
-            if self.pmean:
-                A, B, C = Ain
-                nall = ncomp*nfaces + ncells + 1
-                BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
-                CP = splinalg.inv(C*BP*C.T)
-                import pyamg
-                config = pyamg.solver_configuration(A, verb=False)
-                API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-                def amult(x):
-                    v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-                    w = -B.T.dot(p)
-                    w += A.dot(v)
-                    q = B.dot(v)+C.T.dot(lam)
-                    return np.hstack([w, q, C.dot(p)])
-                Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
-                def pmult(x):
-                    v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-                    w = API.solve(v, maxiter=1, tol=1e-16)
-                    q = BP.dot(p-B.dot(w))
-                    mu = CP.dot(lam-C.dot(q)).ravel()
-                    q += BP.dot(C.T.dot(mu).ravel())
-                    h = B.T.dot(q)
-                    w += API.solve(h, maxiter=1, tol=1e-16)
-                    return np.hstack([w, q, mu])
-                P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
-                b = np.hstack([bin[0], bin[1], bin[2]])
-                u, info = splinalg.lgmres(Amult, b, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
-                if info: raise ValueError("no convergence info={}".format(info))
-                return (u[:ncomp*nfaces], u[ncomp*nfaces:ncomp*nfaces+ncells], u[-1]*np.ones(1)), counter.niter
-            else:
-                A, B = Ain
-                nall = ncomp*nfaces + ncells
-                BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
-                import pyamg
-                config = pyamg.solver_configuration(A, verb=False)
-                API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
-                def amult(x):
-                    v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
-                    w = -B.T.dot(p)
-                    w += A.dot(v)
-                    q = B.dot(v)
-                    return np.hstack([w, q])
-                Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=amult)
-                def pmult(x):
-                    v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
-                    w = API.solve(v, maxiter=1, tol=1e-16)
-                    q = BP.dot(p-B.dot(w))
-                    h = B.T.dot(q)
-                    w += API.solve(h, maxiter=1, tol=1e-16)
-                    return np.hstack([w, q])
-                P = splinalg.LinearOperator(shape=(nall, nall), matvec=pmult)
-                b = np.hstack([bin[0], bin[1]])
-                u, info = splinalg.lgmres(Amult, b, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
-                if info: raise ValueError("no convergence info={}".format(info))
-                return (u[:ncomp*nfaces], u[ncomp*nfaces:ncomp*nfaces+ncells]), counter.niter
+            nall = ncomp*nfaces + ncells
+            if self.pmean: nall += 1
+            Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
+            P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPmult(Ain))
+            u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
+            if info: raise ValueError("no convergence info={}".format(info))
+            return u, counter.niter
         else:
             raise ValueError(f"unknown solve '{solver=}'")
     def computeRhs(self, b=None, u=None, coeffmass=None):
-        bv = np.zeros(self.femv.nunknowns() * self.ncomp)
-        bp = np.zeros(self.femp.nunknowns())
+        b = self._zeros()
+        if self.pmean: bv, bp, bmean = self._split(b)
+        else: bv, bp = self._split(b)
+        # bv = np.zeros(self.femv.nunknowns() * self.ncomp)
+        # bp = np.zeros(self.femp.nunknowns())
         if 'rhs' in self.problemdata.params.fct_glob:
             rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
             if rhsv: self.femv.computeRhsCells(bv, rhsv)
@@ -220,13 +240,16 @@ class Stokes(Application):
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             self.computeRhsBdryNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
-        if not self.pmean: return (bv,bp)
+        if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
             pmean = self.femp.computeMean(p)
         else: pmean=0
         print(f"{pmean=}")
-        return (bv,bp,pmean)
+        return b
+    def computeDefect(self, u):
+        d = self.matrixVector(u)
+        return d-self.b
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()

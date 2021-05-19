@@ -36,13 +36,15 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
     return x, res, resnorm, step, it
 
 #----------------------------------------------------------------------
-def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None):
+def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None):
     """
     Aims to solve f(x) = 0, starting at x0
     computedx: gets dx from f'(x) dx =  -f(x)
     if not given, jac is called and linalg.solve is used
     """
-    if sdata is None: sdata = stoppingdata.StoppingData()
+    if sdata is None:
+        if maxiter is None: raise ValueError(f"if sdata is None please give 'maxiter'") 
+        sdata = stoppingdata.StoppingData(maxiter=maxiter)
     atol, rtol, atoldx, rtoldx = sdata.atol, sdata.rtol, sdata.atoldx, sdata.rtoldx
     maxiter, divx, firststep = sdata.maxiter, sdata.divx, sdata.firststep
     x = np.asarray(x0)

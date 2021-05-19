@@ -63,6 +63,7 @@ class Application(object):
         else:
             self._setMeshCalled = False
     def setMesh(self, mesh):
+        self.problemdata.check(mesh)
         self.mesh = mesh
         if self.verbose: print(f"{self.mesh=}")
         self._setMeshCalled = True
@@ -139,7 +140,7 @@ class Application(object):
                 raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
             self.timer.add('solve')
         else:
-            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True)
+            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, maxiter=3)
             # print(f"{info=}")
             u,niter = info
         pp = self.postProcess(u)

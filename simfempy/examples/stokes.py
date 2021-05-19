@@ -18,6 +18,7 @@ from simfempy.meshes import plotmesh
 def main():
     # create mesh and data
     mesh, data = drivenCavity()
+    # mesh, data = backwardFacingStep()
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
@@ -48,6 +49,32 @@ def drivenCavity(h=0.2):
     # boundary conditions
     data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
     data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
+    # parameters
+    data.params.scal_glob["mu"] = 1
+    #TODO pass ncomp with mesh ?!
+    data.ncomp = 2
+    return SimplexMesh(mesh=mesh), data
+
+
+# ================================================================c#
+def backwardFacingStep(h=0.2):
+    with pygmsh.geo.Geometry() as geom:
+        X = []
+        X.append([-1.0, 1.0])
+        X.append([-1.0, 0.0])
+        X.append([0.0, 0.0])
+        X.append([0.0, -1.0])
+        X.append([3.0, -1.0])
+        X.append([3.0, 1.0])
+        p = geom.add_polygon(points=np.insert(np.array(X), 2, 0, axis=1), mesh_size=h)
+        geom.add_physical(p.surface, label="100")
+        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        mesh = geom.generate_mesh()
+    data = ProblemData()
+    # boundary conditions
+    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
+    data.bdrycond.set("Neumann", [1004])
+    data.bdrycond.fct[1000] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     # parameters
     data.params.scal_glob["mu"] = 1
     #TODO pass ncomp with mesh ?!

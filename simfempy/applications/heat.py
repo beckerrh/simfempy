@@ -3,6 +3,8 @@ from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 
+
+
 # ================================================================= #
 class Heat(Application):
     """
@@ -273,6 +275,7 @@ class Heat(Application):
     def own_gs(A, b):
         x = np.zeros_like(b)
         return x
+
     def pyamg_solver_args(self, maxiter):
         if self.convection:
             return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
@@ -286,7 +289,18 @@ class Heat(Application):
             symmetry = 'nonsymmetric'
             # smoother = 'gauss_seidel_nr'
             smoother = 'gauss_seidel'
-            smoother = 'own_gs'
+            smoother = 'block_gauss_seidel'
+            # smoother = 'strength_based_schwarz'
+            smoother = 'schwarz'
+
+            # global setup_own_gs
+            # def setup_own_gs(lvl, iterations=2, sweep='forward'):
+            #     def smoother(A, x, b):
+            #         pyamg.relaxation.gauss_seidel(A, x, b, iterations=iterations, sweep=sweep)
+            #
+            #     return smoother
+
+            # smoother = 'own_gs'
             # smooth = ('energy', {'krylov': 'fgmres'})
             smooth = ('energy', {'krylov': 'bicgstab'})
             # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1}), None]
