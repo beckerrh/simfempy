@@ -119,20 +119,34 @@ class CR1sys(femsys.Femsys):
         return b
     def computeMatrixDivergence(self):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
-        nloc, cellgrads, facesOfCells = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
+        nloc, cellgrads, foc = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
         rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(-1)
-        colsB = ncomp*np.repeat(facesOfCells, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
+        colsB = ncomp*np.repeat(foc, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
         mat = np.einsum('nkl,n->nkl', cellgrads[:, :, :ncomp], dV)
         B = sparse.coo_matrix((mat.reshape(-1), (rowsB, colsB.ravel())),shape=(ncells, nfaces * ncomp)).tocsr()
         return B
+    def computeFormDivGrad(self, dv, dp, v, p):
+        ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells
+        for icomp in range(ncomp):
+            r = np.einsum('n,ni->ni', -dV*p, cellgrads[:,:,icomp])
+            np.add.at(dv[icomp::ncomp], foc, r)
+            dp += np.einsum('n,ni,ni->n', dV, cellgrads[:,:,icomp], v[icomp::ncomp][foc])
+
     def computeMatrixLaplace(self, mucell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
         mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
-        for i in range(ncomp):
-            mat[:, i::ncomp, i::ncomp] += (np.einsum('nkj,nlj->nkl', cellgrads, cellgrads).T * dV * mucell).T
+        for icomp in range(ncomp):
+            mat[:, icomp::ncomp, icomp::ncomp] += (np.einsum('nkj,nlj->nkl', cellgrads, cellgrads).T * dV * mucell).T
         A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
         return A
+    def computeFormLaplace(self, mu, dv, v):
+        ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells
+        for icomp in range(ncomp):
+            r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
+            np.add.at(dv[icomp::ncomp], foc, r)
+           
+
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads

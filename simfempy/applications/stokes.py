@@ -248,7 +248,6 @@ class Stokes(Application):
         print(f"{pmean=}")
         return b
     def computeForm(self, u):
-        return self.matrixVector(u)
         d = np.zeros_like(u)
         if self.pmean: 
             v, p, lam = self._split(u)
@@ -256,15 +255,18 @@ class Stokes(Application):
         else: 
             v, p = self._split(u)
             dv, dp = self._split(d)
+        d2 = self.matrixVector(u)
         self.femv.computeFormLaplace(self.mucell, dv, v)
-        self.femv.computeFormDivGrad(self.mucell, dv, dp, v, p)
+        self.femv.computeFormDivGrad(dv, dp, v, p)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         if self.dirichletmethod == 'strong':
             self.formBoundary(dv, dp, self.bdrydata, self.dirichletmethod)
         else:
             self.computeFormBdryNitsche(dv, dp, v, p, colorsdir, self.mucell)
         if self.pmean:
-            self.computeFormMeanPressure(dp, dlambda, p, lam)
+            self.computeFormMeanPressure(dp, dlam, p, lam)
+        if not np.allclose(d,d2):
+            raise ValueError(f"{d=}\n{d2=}")
         return d
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
@@ -281,6 +283,9 @@ class Stokes(Application):
         cols = np.arange(0, ncells)
         C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
         return A,B,C
+    def computeFormMeanPressure(self,dp, dlam, p, lam):
+        dlam += self.mesh.dV.dot(p)
+        dp += lam*self.mesh.dV
     def computeBdryNormalFluxNitsche(self, v, p, colors):
         nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
         bdryfct = self.problemdata.bdrycond.fct
@@ -339,6 +344,26 @@ class Stokes(Application):
             for icomp in range(ncomp):
                 bv[icomp+ncomp*faces] += self.dirichlet_nitsche * np.choose(ind, mat.T)*dirichv[icomp]
         # print(f"{bv.shape=} {bp.shape=}")
+    def computeFormBdryNitsche(self, dv, dp, v, p, colorsdir, mu):
+        ncomp, dim  = self.femv.ncomp, self.mesh.dimension
+        cellgrads = self.femv.fem.cellgrads
+        faces = self.mesh.bdryFaces(colorsdir)
+        cells = self.mesh.cellsOfFaces[faces, 0]
+        foc = self.mesh.facesOfCells[cells]
+        assert np.all(faces == foc[:,-1])
+        normalsS = self.mesh.normals[faces][:, :self.ncomp]
+        for icomp in range(ncomp):
+            r = -np.einsum('f,fl,fjl,fj->f', mu[cells], normalsS, cellgrads[cells, :, :dim], v[icomp::ncomp][foc])
+            np.add.at(dv[icomp::ncomp], faces, r)
+            r = -np.einsum('f,fl,fjl,f->fj', mu[cells], normalsS, cellgrads[cells, :, :dim], v[icomp::ncomp][faces])
+            np.add.at(dv[icomp::ncomp], foc, r)
+            r = self.dirichlet_nitsche*np.einsum('f,fl,fl,f->f', mu[cells], normalsS, cellgrads[cells, -1, :dim], v[icomp::ncomp][faces])
+            np.add.at(dv[icomp::ncomp], faces, r)
+            r = np.einsum('f,f->f', p[cells], normalsS[:,icomp])
+            np.add.at(dv[icomp::ncomp], faces, r)
+            r = np.einsum('f,f->f', normalsS[:,icomp], v[icomp::ncomp][faces])
+            dp[cells] -= r
+
     def computeMatrixBdryNitsche(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
         nloc = dim+1
