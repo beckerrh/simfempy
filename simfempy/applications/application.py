@@ -148,7 +148,9 @@ class Application(object):
         result.setData(pp, timer=self.timer, iter={'lin':niter})
         return result
     def computeDefect(self, u):
-        return self.A@u-self.b
+        return self.computeForm(u)-self.b
+    def computeForm(self, u):
+        return self.A@u
     def computeDx(self, b, u):
         try:
             u, niter = self.linearSolver(self.A, b, u, solver=self.linearsolver)

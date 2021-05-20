@@ -35,9 +35,9 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{11}{subsubsection.B.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\!R}^1_h(\Omega )$}{12}{subsubsection.B.3.2}%
+\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\tmspace -\thinmuskip {.1667em}R}^1_h(\Omega )$}{12}{subsubsection.B.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\!T}^0_h(\Omega )$}{12}{subsubsection.B.3.3}%
+\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\tmspace -\thinmuskip {.1667em}T}^0_h(\Omega )$}{12}{subsubsection.B.3.3}%
 \defcounter {refsection}{0}\relax 
 \contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{12}{subsubsection.B.3.4}%
 \defcounter {refsection}{0}\relax 

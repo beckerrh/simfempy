@@ -169,7 +169,7 @@ class Stokes(Application):
             w = A.dot(v) - B.T.dot(p)
             q = B.dot(v)
             return np.hstack([w, q])
-    def getPmult(self, Ain):
+    def getPrecMult(self, Ain):
         import pyamg
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
@@ -217,7 +217,7 @@ class Stokes(Application):
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
             Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
-            P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPmult(Ain))
+            P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPrecMult(Ain))
             u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
             if info: raise ValueError("no convergence info={}".format(info))
             return u, counter.niter
@@ -247,9 +247,9 @@ class Stokes(Application):
         else: pmean=0
         print(f"{pmean=}")
         return b
-    def computeDefect(self, u):
+    def computeForm(self, u):
         d = self.matrixVector(u)
-        return d-self.b
+        return d
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
