@@ -248,7 +248,23 @@ class Stokes(Application):
         print(f"{pmean=}")
         return b
     def computeForm(self, u):
-        d = self.matrixVector(u)
+        return self.matrixVector(u)
+        d = np.zeros_like(u)
+        if self.pmean: 
+            v, p, lam = self._split(u)
+            dv, dp, dlam = self._split(d)
+        else: 
+            v, p = self._split(u)
+            dv, dp = self._split(d)
+        self.femv.computeFormLaplace(self.mucell, dv, v)
+        self.femv.computeFormDivGrad(self.mucell, dv, dp, v, p)
+        colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        if self.dirichletmethod == 'strong':
+            self.formBoundary(dv, dp, self.bdrydata, self.dirichletmethod)
+        else:
+            self.computeFormBdryNitsche(dv, dp, v, p, colorsdir, self.mucell)
+        if self.pmean:
+            self.computeFormMeanPressure(dp, dlambda, p, lam)
         return d
     def computeMatrix(self):
         A = self.femv.computeMatrixLaplace(self.mucell)
