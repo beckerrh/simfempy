@@ -3,8 +3,6 @@ from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 
-
-
 # ================================================================= #
 class Heat(Application):
     """
@@ -160,8 +158,41 @@ class Heat(Application):
                 raise NotImplementedError("{} has no paramater '{}'".format(self, self.paramname))
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
-    def solve(self, iter, dirname): return self.static(iter, dirname)
-    def computeMatrix(self, coeffmass=None):
+    def computeForm(self, u, coeffmass=None):
+        du2 = self.A@u
+        du = np.zeros_like(u)
+        bdrycond = self.problemdata.bdrycond
+        colorsrobin = bdrycond.colorsOfType("Robin")
+        colorsdir = bdrycond.colorsOfType("Dirichlet")
+        self.fem.computeFormDiffusion(du, u, self.kheatcell)
+        if self.dirichletmethod=="new":
+            self.fem.formBoundary(du, u, self.bdrydata, self.dirichletmethod)
+        elif self.dirichletmethod=="nitsche":
+            self.fem.computeFormNitscheDiffusion(du, u, self.kheatcell, colorsdir)
+        # elif self.dirichletmethod=="strong":
+        #     self.fem.vectorBoundaryEqual(u, self.b, self.bdrydata, self.dirichletmethod)
+        if self.convection:
+            colors = self.mesh.bdrylabels.keys()
+            colors = colorsdir
+            if self.stab[:4] == 'supg':
+                self.fem.computeFormTransportSupg(du, u, self.masslumpedbdry, self.stab)
+            elif self.stab == 'upwalg':
+                self.fem.computeFormTransportUpwindAlg(du, u, self.masslumpedbdry)
+            elif self.stab[:3] == 'upw':
+                self.fem.computeFormTransportUpwind(du, u, self.masslumpedbdry, self.stab)
+            elif self.stab == 'lps':
+                self.fem.computeFormTransportLps(du, u, self.masslumpedbdry)
+            else:
+                raise NotImplementedError(f"{self.stab=}")
+        if coeffmass is not None:
+            self.fem.massDot(du, u, coeff=coeffmass)
+        if self.dirichletmethod=="strong":
+            self.fem.vectorBoundaryEqual(du, u, self.bdrydata)
+        if not np.allclose(du,du2):
+            # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
+            raise ValueError(f"\n{du=}\n{du2=}")
+        return du
+    def computeMatrix(self, u=None, coeffmass=None):
         bdrycond = self.problemdata.bdrycond
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
@@ -214,14 +245,17 @@ class Heat(Application):
         if self.dirichletmethod in ['strong','new'] and not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
         if self.dirichletmethod=="new":
-            b = self.fem.vectorBoundary(b, bdrycond, self.bdrydata, self.dirichletmethod)
+            self.fem.vectorBoundary(b, bdrycond, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
-            self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, bdrycond)
+            fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
+            self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, fp1)
         if self.convection:
             fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
+        #Fourier-Robin
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
         self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
+        #Neumann
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct, lumped=True)
         if self.dirichletmethod == "new":
             b2 = np.zeros_like(b)
@@ -233,8 +267,8 @@ class Heat(Application):
         if coeffmass is not None:
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)
-        if self.dirichletmethod == "strong":
-            b = self.fem.vectorBoundary(b, bdrycond, self.bdrydata, self.dirichletmethod)
+        if self.dirichletmethod == "strong" or self.dirichletmethod == "new":
+            self.fem.vectorBoundary(b, bdrycond, self.bdrydata, self.dirichletmethod)
         return b
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
@@ -257,7 +291,8 @@ class Heat(Application):
                     data['global'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
                     if self.dirichletmethod == 'nitsche':
-                        data['global'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, self.problemdata.bdrycond, self.kheatcell)
+                        udir = self.fem.interpolateBoundary(colors, self.problemdata.bdrycond.fct)
+                        data['global'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
                     else:
                         data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
                 elif type == types[3]:

@@ -18,8 +18,8 @@ class IterationCounter(object):
         self.verbose = verbose
         self.niter = 0
     def __call__(self, rk=None):
-        # if self.disp and self.niter%self.disp==0:
-        #     print('iter({}) {:4d}\trk = {}'.format(self.name, self.niter, str(rk)))
+        if self.disp and self.niter%self.disp==0:
+            print(f"iter({self.name}) {self.niter:4d}\trk = {np.linalg.norm(rk)}")
         self.niter += 1
     def __del__(self):
         if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))

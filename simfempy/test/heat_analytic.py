@@ -26,7 +26,7 @@ def test(dim, **kwargs):
         createMesh = testmeshes.unitsquare
         colors = [1000, 1001, 1002, 1003]
         colorsrob = []
-        colorsneu = []
+        colorsneu = [1003]
     else:
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
@@ -41,6 +41,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':False}
+    # applicationargs['mode'] = 'newton'
     return test_analytic(application=Heat, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 #================================================================#
@@ -50,8 +51,9 @@ if __name__ == '__main__':
 
     # test dirichletmethod
     # test(dim=3, exactsolution = 'Linear', fem=['cr1','p1'], niter=3, linearsolver='umf', dirichletmethod=['nitsche','strong','new'], kheat=0.12, plotsolution=False)
+    test(dim=3, exactsolution = 'Linear', fem=['p1'], niter=3 , linearsolver='pyamg', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=False)
     # test convection
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=6, h1=2, convection=["0.8","1.1"], stab=['upwalg','upw','upwsides'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='umf', plotsolution=True)
-    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=4, h1=0.2, convection=["0.8","1.1"], stab=['upwalg','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='pyamg', plotsolution=True)
+    # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=4, h1=0.2, convection=["0.8","1.1"], stab=['upwalg','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='pyamg', plotsolution=True)
     # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=5, h1=2, convection=["1-x","1+y"], stab=['upw','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='umf', plotsolution=True)
     # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=6, convection=["0.8","1.1"], stab=['upw'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='pyamg')

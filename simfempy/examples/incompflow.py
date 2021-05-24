@@ -18,12 +18,12 @@ from simfempy.meshes import plotmesh
 def main():
     # create mesh and data
     mesh, data = drivenCavity()
-    # mesh, data = backwardFacingStep()
+    # mesh, data = backwardFacingStep(0.2)
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
     # stokes = Stokes(mesh=mesh, problemdata=data)
-    stokes = NavierStokes(mesh=mesh, problemdata=data)
+    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='gmres')
     result = stokes.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
@@ -38,9 +38,9 @@ def main():
 
 
 # ================================================================c#
-def drivenCavity(h=0.2):
+def drivenCavity(h=0.1, mu=0.001):
     with pygmsh.geo.Geometry() as geom:
-        ms = [h*v for v in [1.,1.,0.1,0.1]]
+        ms = [h*v for v in [1.,1.,0.2,0.2]]
         p = geom.add_rectangle(xmin=0, xmax=1, ymin=0, ymax=1, z=0, mesh_size=ms)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
@@ -50,14 +50,14 @@ def drivenCavity(h=0.2):
     data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
     data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     # parameters
-    data.params.scal_glob["mu"] = 1
+    data.params.scal_glob["mu"] = mu
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 
 
 # ================================================================c#
-def backwardFacingStep(h=0.2):
+def backwardFacingStep(h=0.2, mu=0.02):
     with pygmsh.geo.Geometry() as geom:
         X = []
         X.append([-1.0, 1.0])
@@ -76,7 +76,7 @@ def backwardFacingStep(h=0.2):
     data.bdrycond.set("Neumann", [1004])
     data.bdrycond.fct[1000] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     # parameters
-    data.params.scal_glob["mu"] = 1
+    data.params.scal_glob["mu"] = mu
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data

@@ -83,7 +83,7 @@ class CompareMethods(object):
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": method.setParameter(self.paramname, param)
-                result = method.solve(iter, self.dirname)
+                result = method.solve(self.dirname)
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, self.parameters[-1])

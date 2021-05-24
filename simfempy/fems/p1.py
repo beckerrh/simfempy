@@ -17,7 +17,7 @@ class P1(fems.fem.Fem):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.dirichlet_al = 1
-        self.dirichlet_nitsche = 2
+        self.dirichlet_nitsche = 4
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
@@ -86,6 +86,7 @@ class P1(fems.fem.Fem):
         help = np.ones((nnodes))
         help[nodedirall] = 0
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
+        # A = help.dot(A.dot(help))
         diag = np.zeros((nnodes))
         if method == 'strong':
             diag[nodedirall] = 1.0
@@ -95,8 +96,7 @@ class P1(fems.fem.Fem):
             diag[nodedirall] = np.sqrt(self.dirichlet_al)
             diag = sparse.dia_matrix((diag, 0), shape=(nnodes, nnodes))
             diag = diag.dot(A.dot(diag))
-            # A = help.dot(A.dot(help)) + diag.dot(A.dot(diag))
-        A = help.dot(A.dot(help))
+        A = help.dot(A)
         A += diag
         return A
     def vectorBoundary(self, b, bdrycond, bdrydata, method):
@@ -112,41 +112,60 @@ class P1(fems.fem.Fem):
                     b[nodes] = dirichlet
                 else:
                     b[nodes] = 0
-            b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
+            # b[nodesinner] -= bdrydata.A_inner_dir * b[nodedirall]
         else:
             help = np.zeros_like(b)
             for color, nodes in nodesdir.items():
                 if color in bdrycond.fct:
                     dirichlet = bdrycond.fct[color](x[nodes], y[nodes], z[nodes])
                     help[nodes] = dirichlet
-            b[nodesinner] -= bdrydata.A_inner_dir * help[nodedirall]
+            # b[nodesinner] -= bdrydata.A_inner_dir * help[nodedirall]
             b[nodedirall] = bdrydata.A_dir_dir * help[nodedirall]
         return b
+    def vectorBoundaryEqual(self, du, u, bdrydata):
+        nodedirall = bdrydata.nodedirall
+        du[nodedirall] = u[nodedirall]
     def vectorBoundaryZero(self, du, bdrydata):
         du[bdrydata.nodedirall] = 0
-        return du
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, bdrycond, coeff=1):
-        fp1 = self.interpolateBoundary(colorsdir, bdrycond.fct)
-        nnodes, dim  = self.mesh.nnodes, self.mesh.dimension
-        x, y, z = self.mesh.pointsf.T
+    def formBoundary(self, du, u, bdrydata, dirichletmethod):
+        assert(dirichletmethod=='new')
+        nodedirall = bdrydata.nodedirall
+        # du[nodedirall] += bdrydata.A_dir_dir.dot(u[nodedirall])
+        du[nodedirall] += bdrydata.A_dir_dir*u[nodedirall]
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, fp1, coeff=1):
+        assert fp1.shape[0]==self.mesh.nnodes
+        dim  = self.mesh.dimension
         massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
-        for color in colorsdir:
-            if not color in bdrycond.fct: continue
-            faces = self.mesh.bdrylabels[color]
-            normalsS = self.mesh.normals[faces,:dim]
-            dS = linalg.norm(normalsS, axis=1)
-            nodes = self.mesh.faces[faces]
-            cells = self.mesh.cellsOfFaces[faces,0]
-            simp = self.mesh.simplices[cells]
-            dV = self.mesh.dV[cells]
-            dS *= self.dirichlet_nitsche * coeff * diffcoff[cells] * dS / dV
-            r = np.einsum('n,kl,nl->nk', dS, massloc, fp1[nodes])
-            np.add.at(b, nodes, r)
-            cellgrads = self.cellgrads[cells, :, :dim]
-            u = fp1[nodes].mean(axis=1)
-            mat = np.einsum('f,fk,fik->fi', coeff*u*diffcoff[cells], normalsS, cellgrads)
-            np.add.at(b, simp, -mat)
-        return b
+        massloc = np.diag(np.sum(massloc,axis=1))
+        faces = self.mesh.bdryFaces(colorsdir)
+        nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
+        dS = linalg.norm(normalsS, axis=1)
+        simp, dV = self.mesh.simplices[cells], self.mesh.dV[cells]
+        dS *= self.dirichlet_nitsche * coeff * diffcoff[cells] * dS / dV
+        r = np.einsum('n,kl,nl->nk', dS, massloc, fp1[nodes])
+        np.add.at(b, nodes, r)
+        cellgrads = self.cellgrads[cells, :, :dim]
+        u = fp1[nodes].mean(axis=1)
+        mat = np.einsum('f,fk,fik->fi', coeff*u*diffcoff[cells], normalsS, cellgrads)
+        np.add.at(b, simp, -mat)
+    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
+        assert u.shape[0]==self.mesh.nnodes
+        dim  = self.mesh.dimension
+        massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
+        massloc = np.diag(np.sum(massloc,axis=1))
+        faces = self.mesh.bdryFaces(colorsdir)
+        nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
+        dS = linalg.norm(normalsS, axis=1)
+        simp, dV = self.mesh.simplices[cells], self.mesh.dV[cells]
+        dS *= self.dirichlet_nitsche * diffcoff[cells] * dS / dV
+        r = np.einsum('n,kl,nl->nk', dS, massloc, u[nodes])
+        np.add.at(du, nodes, r)
+        cellgrads = self.cellgrads[cells, :, :dim]
+        um = u[nodes].mean(axis=1)
+        mat = np.einsum('f,fk,fik->fi', um*diffcoff[cells], normalsS, cellgrads)
+        np.add.at(du, simp, -mat)
+        mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells]/dim, normalsS, cellgrads,u[simp]).repeat(dim).reshape(faces.shape[0],dim)
+        np.add.at(du, nodes, -mat)
     def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
         nnodes, ncells, dim, nlocal  = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
@@ -168,6 +187,7 @@ class P1(fems.fem.Fem):
         # print(f"{cols.shape=} {rows.shape=} {mat.shape=}")
         AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
         massloc = barycentric.tensor(d=dim-1, k=2)
+        massloc = np.diag(np.sum(massloc,axis=1))
         # print(f"{massloc=}")
         mat = np.einsum('f,ij->fij', coeff * dS**2/dV*diffcoff[cells], massloc)
         # mat = np.repeat(coeff * diffcoff[cells]/dS, dim)
@@ -175,14 +195,12 @@ class P1(fems.fem.Fem):
         cols = np.tile(facenodes,dim)
         AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
         return A - AN - AN.T + self.dirichlet_nitsche * AD
-    def computeBdryNormalFluxNitsche(self, u, colors, bdrycond, diffcoff):
+    def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
         flux= np.zeros(len(colors))
-        fp1 = self.interpolateBoundary(colors, bdrycond.fct)
         nnodes, dim  = self.mesh.nnodes, self.mesh.dimension
-        x, y, z = self.mesh.pointsf.T
         massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
+        massloc = np.diag(np.sum(massloc,axis=1))
         for i,color in enumerate(colors):
-            if not color in bdrycond.fct: continue
             faces = self.mesh.bdrylabels[color]
             normalsS = self.mesh.normals[faces,:dim]
             dS = linalg.norm(normalsS, axis=1)
@@ -192,7 +210,7 @@ class P1(fems.fem.Fem):
             cellgrads = self.cellgrads[cells, :, :dim]
             dV = self.mesh.dV[cells]
             flux[i] = np.einsum('nj,n,ni,nji->', u[simp], diffcoff[cells], normalsS, cellgrads)
-            uD = u[nodes]-fp1[nodes]
+            uD = u[nodes]-udir[nodes]
             dV = self.mesh.dV[cells]
             dS *= self.dirichlet_nitsche * diffcoff[cells] * dS / dV
             flux[i] -= np.einsum('n,kl,nl->', dS, massloc, uD)

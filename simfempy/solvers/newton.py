@@ -36,7 +36,7 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
     return x, res, resnorm, step, it
 
 #----------------------------------------------------------------------
-def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None):
+def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1):
     """
     Aims to solve f(x) = 0, starting at x0
     computedx: gets dx from f'(x) dx =  -f(x)
@@ -50,30 +50,35 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     x = np.asarray(x0)
     assert x.ndim == 1
     # n = x.shape[0]
-    print(f"{x0=}")
+    # print(f"{x0=}")
     if not computedx:  assert jac
     xnorm = np.linalg.norm(x)
     dxnorm = xnorm
     res = f(x)
     resnorm = np.linalg.norm(res)
     tol = max(atol, rtol*resnorm)
+    print(f"{tol=}")
     toldx = max(atoldx, rtoldx*xnorm)
     it = 0
+    rhor = 1
     if verbose:
-        print("{} {:>3} {:^10} {:^10} {:^10} {:^9}".format("newton", "it", "|x|", "|dx|", '|r|', 'step'))
-        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9}".format("newton", it, xnorm, 3*'-', resnorm, 3*'-'))
+        print("{} {:>3} {:^10} {:^10} {:^10} {:^9} {:^5} {:^5} {:^3}".format("newton", "it", "|x|", "|dx|", '|r|', 'step','rhor','rhodx','lin'))
+        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", it, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
         it += 1
         if not computedx:
             J = jac(x)
-            dx = linalg.solve(J, res)
+            dx, liniter = linalg.solve(J, res), 1
         else:
-            dx = computedx(res, x)
+            dx, liniter = computedx(res, x, (it,rhor))
+        dxnormold = dxnorm
         dxnorm = linalg.norm(dx)
+        resnormold = resnorm
         x, res, resnorm, step, itbt = backtracking(f, x, dx, resnorm, sdata, firststep=firststep)
+        rhor, rhodx = resnorm/resnormold, dxnorm/dxnormold
         xnorm = linalg.norm(x)
         if verbose:
-            print("{} {:3} {:10.3e} {:10.3e} {:10.3e} {:9.2e}".format("newton", it, xnorm, dxnorm, resnorm, step))
+            print(f"newton {it:3} {xnorm:10.3e} {dxnorm:10.3e} {resnorm:10.3e} {step:9.2e} {rhor:5.2f} {rhodx:5.2f} {liniter:3d}")
         if xnorm >= divx:
             return (x, maxiter)
     return (x,it)
@@ -86,11 +91,11 @@ if __name__ == '__main__':
     df = lambda x: 20.0 * np.cos(2.0 * x) - 2.0 * x
     f = lambda x: x**2 -11
     df = lambda x: 2.0 * x
-    def computedx(r, x):
-        return r/df(x)
+    def computedx(r, x, info):
+        return r/df(x),1
     x0 = [3.]
-    info = newton(x0, f, jac=df, verbose=True)
-    info2 = newton(x0, f, computedx=computedx, verbose=True)
+    info = newton(x0, f, jac=df, verbose=True, maxiter=10)
+    info2 = newton(x0, f, computedx=computedx, verbose=True, maxiter=10)
     print(('info=', info))
     assert info==info2
     x = np.linspace(-1., 4.0)

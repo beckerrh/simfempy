@@ -94,7 +94,6 @@ class Elasticity(Application):
                     rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
             return rhs
         return _fctneumann
-    def solve(self, iter, dirname): return self.static(iter, dirname)
     def computeRhs(self, b=None, coeffmass=None):
         b = np.zeros(self.fem.nunknowns() * self.ncomp)
         rhs = self.problemdata.params.fct_glob.get('rhs', None)

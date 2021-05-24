@@ -72,7 +72,7 @@ def _coef_beta_in_simplex(i, mesh, beta):
 def _move_in_simplex_opt(lamb, betacoef, bound=1.0):
     # maximise delta under consraint 0\le \mu\le bound
     assert np.all(lamb<=bound)
-    coef = np.full_like(betacoef, np.inf)
+    coef = np.full_like(betacoef, 0)
     mn = betacoef<0
     mp = betacoef>0
     lam = lamb[1:]
@@ -83,6 +83,7 @@ def _move_in_simplex_opt(lamb, betacoef, bound=1.0):
     if bs>0: delta = np.min((delta,lamb[0]/bs))
     if bs<0: delta = np.min((delta,(lamb[0]-bound)/bs))
     mu = np.empty_like(lamb)
+    # print(f"{delta=}")
     mu[1:] = lam + delta*betacoef
     mu[0] = 1-np.sum(mu[1:])
     # if delta>0: print(f"{betacoef=}  {lam=} {coef=} {delta=} {mu=}")

@@ -31,6 +31,14 @@ class RT0(fem.Fem):
         xf, yf, zf = self.mesh.pointsf.T
         fa = np.array([f[i](xf,yf,zf) for i in range(dim)])
         return np.einsum('ni, in -> n', nnormals, fa)
+    def interpolateCR1(self, v):
+        dim = self.mesh.dimension
+        nfaces, normals = self.mesh.nfaces, self.mesh.normals[:,:dim]
+        assert v.shape[0] == dim*nfaces
+        nnormals = normals/linalg.norm(normals, axis=1)[:,np.newaxis]
+        fa = np.array([v[i::dim] for i in range(dim)])
+        # print(f"{fa=}")
+        return np.einsum('ni, in -> n', nnormals, fa)
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices

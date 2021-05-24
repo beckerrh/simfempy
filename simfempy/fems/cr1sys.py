@@ -17,8 +17,6 @@ class CR1sys(femsys.Femsys):
         super().__init__(cr1.CR1(mesh=mesh), ncomp, mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
-        # raise ValueError(f"CR1sys setMesh {self.mesh=}")
-        # self.mesh.constructInnerFaces()
     def tonode(self, u):
         ncomp, nnodes = self.ncomp, self.mesh.nnodes
         unodes = np.zeros(ncomp*nnodes)
@@ -61,6 +59,11 @@ class CR1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nfaces, ncomp * nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A
+    def formBoundary(self, b, bdrydata, method):
+        facesdirall, ncomp = bdrydata.facesdirall, self.ncomp
+        inddir = np.repeat(ncomp * facesdirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        b[inddir] = 0
     def vectorBoundary(self, b, bdryfct, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -120,7 +123,7 @@ class CR1sys(femsys.Femsys):
     def computeMatrixDivergence(self):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, cellgrads, foc = self.fem.nloc, self.fem.cellgrads, self.mesh.facesOfCells
-        rowsB = np.repeat(np.arange(ncells), ncomp * nloc).reshape(-1)
+        rowsB = np.repeat(np.arange(ncells), ncomp * nloc).ravel()
         colsB = ncomp*np.repeat(foc, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
         mat = np.einsum('nkl,n->nkl', cellgrads[:, :, :ncomp], dV)
         B = sparse.coo_matrix((mat.reshape(-1), (rowsB, colsB.ravel())),shape=(ncells, nfaces * ncomp)).tocsr()
@@ -131,15 +134,26 @@ class CR1sys(femsys.Femsys):
             r = np.einsum('n,ni->ni', -dV*p, cellgrads[:,:,icomp])
             np.add.at(dv[icomp::ncomp], foc, r)
             dp += np.einsum('n,ni,ni->n', dV, cellgrads[:,:,icomp], v[icomp::ncomp][foc])
-
     def computeMatrixLaplace(self, mucell):
-        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
-        nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
-        mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
-        for icomp in range(ncomp):
-            mat[:, icomp::ncomp, icomp::ncomp] += (np.einsum('nkj,nlj->nkl', cellgrads, cellgrads).T * dV * mucell).T
-        A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
-        return A
+        return self.matrix2systemdiagonal(self.fem.computeMatrixDiffusion(mucell), self.ncomp).tocsr()
+        # OLD VERSION: twice slower
+        # import time
+        # t0 = time.time()
+        # nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
+        # nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
+        # mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
+        # for icomp in range(ncomp):
+        #     mat[:, icomp::ncomp, icomp::ncomp] += (np.einsum('nkj,nlj->nkl', cellgrads, cellgrads).T * dV * mucell).T
+        # A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        # t1 = time.time()
+
+        # B = self.fem.computeMatrixDiffusion(mucell)
+        # B = self.matrix2systemdiagonal(B, self.ncomp).tocsr()
+        # t2 = time.time()
+        # print(f"{(t2-t1)/(t1-t0)=}")
+        # if not np.allclose(A.A,B.A):
+        #     raise ValueError(f"{A.diagonal()=} {B.diagonal()=}")
+        # return A
     def computeFormLaplace(self, mu, dv, v):
         ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells
         for icomp in range(ncomp):

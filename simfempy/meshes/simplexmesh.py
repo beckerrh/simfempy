@@ -183,6 +183,7 @@ class SimplexMesh(object):
             self.facesOfCells[cell, loc] = f
             if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
             else: self.cellsOfFaces[f,1] = cell
+
     def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
         # bdryfacesgmsh may contains interior edges for len(celllabels)>1

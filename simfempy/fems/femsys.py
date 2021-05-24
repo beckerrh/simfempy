@@ -90,6 +90,16 @@ class Femsys():
         return A
     def getPointData(self, u):
         return {f"u_{i}":self.fem.tonode(u[i::self.ncomp]) for i in range(self.ncomp)}
+    def matrix2systemdiagonal(self, A, ncomp):
+        A = A.tocoo()
+        data, row, col, shape = A.data, A.row, A.col, A.shape
+        n = shape[0]
+        assert n==shape[1]
+        data2 = np.repeat(data, ncomp)
+        nr = row.shape[0]
+        row2 = np.repeat(ncomp*row, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
+        col2 = np.repeat(ncomp*col, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
+        return sparse.coo_matrix((data2, (row2, col2)), shape=(ncomp*n, ncomp*n))
 
 
 # ------------------------------

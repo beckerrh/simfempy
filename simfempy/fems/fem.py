@@ -65,11 +65,19 @@ class Fem(object):
             return f(xc, yc, zc)
     def computeMatrixDiffusion(self, coeff):
         ndofs = self.nunknowns()
-        matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
-        matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
-        matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
-        mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
+        # matxx = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 0], self.cellgrads[:, :, 0])
+        # matyy = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 1], self.cellgrads[:, :, 1])
+        # matzz = np.einsum('nk,nl->nkl', self.cellgrads[:, :, 2], self.cellgrads[:, :, 2])
+        # mat = ( (matxx+matyy+matzz).T*self.mesh.dV*coeff).T.ravel()
+        cellgrads = self.cellgrads[:,:,:self.mesh.dimension]
+        mat = np.einsum('n,nil,njl->nij', self.mesh.dV*coeff, cellgrads, cellgrads).ravel()
         return sparse.coo_matrix((mat, (self.rows, self.cols)), shape=(ndofs, ndofs)).tocsr()
+    def computeFormDiffusion(self, du, u, coeff):
+        doc = self.dofspercell()
+        cellgrads = self.cellgrads[:,:,:self.mesh.dimension]
+        r = np.einsum('n,nil,njl,nj->ni', self.mesh.dV*coeff, cellgrads, cellgrads, u[doc])
+        np.add.at(du, doc, r)
+
     def computeMatrixLps(self, betaC):
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()

@@ -40,6 +40,7 @@ class Application(object):
         except:
             import warnings
             warnings.warn("*** pyamg not found (umf used instead)***")
+        self.mode = kwargs.pop('mode', 'linear')
         self.verbose = kwargs.pop('verbose', 0)
         self.linearsolver = kwargs.pop('linearsolver', 'umf')
         self.timer = simfempy.tools.timer.Timer(verbose=0)
@@ -70,6 +71,7 @@ class Application(object):
         if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
+    def solve(self, dirname): return self.static(dirname=dirname, mode=self.mode)
     def setParameter(self, paramname, param):
         assert 0
     def dirichletfct(self):
@@ -123,7 +125,10 @@ class Application(object):
         if isinstance(b,tuple):
             return [np.copy(bi) for bi in b]
         return np.copy(b)
-    def static(self, iter=100, dirname='Run', mode='linear'):
+    def static(self, **kwargs):
+        dirname = kwargs.pop('dirname','Run')
+        maxiter = kwargs.pop('maxiter',100)
+        mode = kwargs.pop('mode','linear')
         # self.timer.reset_all()
         result = simfempy.applications.problemdata.Results()
         if not self._setMeshCalled: self.setMesh(self.mesh)
@@ -140,9 +145,10 @@ class Application(object):
                 raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
             self.timer.add('solve')
         else:
-            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, maxiter=3)
+            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, maxiter=maxiter)
             # print(f"{info=}")
             u,niter = info
+            if niter==maxiter: raise ValueError(f"*** Attained maxiter {maxiter=}")
         pp = self.postProcess(u)
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter={'lin':niter})
@@ -151,14 +157,15 @@ class Application(object):
         return self.computeForm(u)-self.b
     def computeForm(self, u):
         return self.A@u
-    def computeDx(self, b, u):
+    def computeDx(self, b, u, info):
+        # if it>1:
+        self.A = self.computeMatrix(u=u)           
         try:
             u, niter = self.linearSolver(self.A, b, u, solver=self.linearsolver)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
-        return u
-
+        return u, niter
     def initialCondition(self, interpolate=True):
         #TODO: higher order interpolation
         if not 'initial_condition' in self.problemdata.params.fct_glob:

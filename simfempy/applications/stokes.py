@@ -35,7 +35,6 @@ class Stokes(Application):
         if self.pmean: ind.append(nv+self.mesh.ncells)
         # print(f"{ind=} {np.split(x, ind)=}")
         return np.split(x, ind)
-
     def setMesh(self, mesh):
         super().setMesh(mesh)
         assert self.ncomp==self.mesh.dimension
@@ -100,8 +99,6 @@ class Stokes(Application):
                 rhsp -= v[i](x, y, z) * normals[i]
             return rhsp
         return _fctneumannv
-    def solve(self, iter=100, dirname='Run'):
-        return self.static(iter, dirname)
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
@@ -146,40 +143,47 @@ class Stokes(Application):
         if not self.pmean:
             return Aall.tocsr()
         ncomp = self.ncomp
-        rows = np.zeros(ncomp*nfaces, dtype=int)
-        cols = np.arange(0, ncomp*nfaces)
-        nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
+        nullV = sparse.coo_matrix((1, ncomp*nfaces)).tocsr()
+        # rows = np.zeros(ncomp*nfaces, dtype=int)
+        # cols = np.arange(0, ncomp*nfaces)
+        # nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
         CL = sparse.hstack([nullV, C])
         Abig = sparse.hstack([Aall,CL.T])
         nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
         Cbig = sparse.hstack([CL,nullL])
         Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
-    def matrixVector(self, x):
+    def matrixVector(self, Ain, x):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if self.pmean:
-            A, B, C = self.A
+            A, B, C = Ain
             v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
             w = A.dot(v) - B.T.dot(p)
             q = B.dot(v)+C.T.dot(lam)
             return np.hstack([w, q, C.dot(p)])
         else:
-            A, B = self.A
+            A, B = Ain
             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
             w = A.dot(v) - B.T.dot(p)
             q = B.dot(v)
             return np.hstack([w, q])
+    def getVelocityPreconditioner(self, A):
+        import pyamg
+        config = pyamg.solver_configuration(A, verb=False)
+        return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
     def getPrecMult(self, Ain):
         import pyamg
+        A, B = Ain[0], Ain[1]
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        BP = sparse.diags(1/self.mesh.dV, offsets=(0), shape=(ncells, ncells))
+        mu = self.problemdata.params.scal_glob['mu']
+        BP = sparse.diags(1/self.mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
+        # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
+        # BP = splinalg.inv(B*Ainv*B.T)
+        # BP = sparse.diags((B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells))
         if self.pmean: 
-            A, B, C = Ain
+            C = Ain[2]
             CP = splinalg.inv(C*BP*C.T)
-        else: 
-            A, B = Ain
-        config = pyamg.solver_configuration(A, verb=False)
-        API = pyamg.rootnode_solver(A, B=config['B'], smooth='energy')
+        API = self.getVelocityPreconditioner(A)
         if self.pmean: 
             def pmult(x):
                 v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
@@ -203,20 +207,18 @@ class Stokes(Application):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
-            # if self.pmean:
-            #     ball = np.hstack((bin[0],bin[1],bin[2]))
-            # else: ball = np.hstack((bin[0],bin[1]))
-            ball = bin
-            uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
+            uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             return uall, 1
-            # if self.pmean: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:nfaces*ncomp+ncells],uall[-1]), 1
-            # else: return (uall[:nfaces*ncomp],uall[nfaces*ncomp:]), 1
         elif solver == 'gmres':
             from simfempy import tools
-            counter = tools.iterationcounter.IterationCounter(name=solver)
+            if verbose==0: disp=0
+            else: disp=20
+            counter = tools.iterationcounter.IterationCounter(name=solver, disp=disp)
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
-            Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
+            from functools import partial
+            Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=partial(self.matrixVector, Ain))
+            # Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
             P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPrecMult(Ain))
             u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
             if info: raise ValueError("no convergence info={}".format(info))
@@ -225,8 +227,10 @@ class Stokes(Application):
             raise ValueError(f"unknown solve '{solver=}'")
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()
-        if self.pmean: bv, bp, bmean = self._split(b)
-        else: bv, bp = self._split(b)
+        bs  = self._split(b)
+        bv,bp = bs[0], bs[1]
+        # if self.pmean: bv, bp, bmean = self._split(b)
+        # else: bv, bp = self._split(b)
         # bv = np.zeros(self.femv.nunknowns() * self.ncomp)
         # bp = np.zeros(self.femp.nunknowns())
         if 'rhs' in self.problemdata.params.fct_glob:
@@ -243,9 +247,9 @@ class Stokes(Application):
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
-            pmean = self.femp.computeMean(p)
-        else: pmean=0
-        print(f"{pmean=}")
+            bmean = self.femp.computeMean(p)
+        else: bmean=0
+        b[-1] = bmean
         return b
     def computeForm(self, u):
         d = np.zeros_like(u)
@@ -255,20 +259,20 @@ class Stokes(Application):
         else: 
             v, p = self._split(u)
             dv, dp = self._split(d)
-        d2 = self.matrixVector(u)
+        # d2 = self.matrixVector(self.A, u)
         self.femv.computeFormLaplace(self.mucell, dv, v)
         self.femv.computeFormDivGrad(dv, dp, v, p)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         if self.dirichletmethod == 'strong':
-            self.formBoundary(dv, dp, self.bdrydata, self.dirichletmethod)
+            self.femv.formBoundary(dv, self.bdrydata, self.dirichletmethod)
         else:
             self.computeFormBdryNitsche(dv, dp, v, p, colorsdir, self.mucell)
         if self.pmean:
             self.computeFormMeanPressure(dp, dlam, p, lam)
-        if not np.allclose(d,d2):
-            raise ValueError(f"{d=}\n{d2=}")
+        # if not np.allclose(d,d2):
+        #     raise ValueError(f"{d=}\n{d2=}")
         return d
-    def computeMatrix(self):
+    def computeMatrix(self, u=None):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
@@ -350,7 +354,7 @@ class Stokes(Application):
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
         foc = self.mesh.facesOfCells[cells]
-        assert np.all(faces == foc[:,-1])
+        # if not np.all(faces == foc[:,-1]): raise ValueError(f"{faces=} {foc=}")
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
         for icomp in range(ncomp):
             r = -np.einsum('f,fl,fjl,fj->f', mu[cells], normalsS, cellgrads[cells, :, :dim], v[icomp::ncomp][foc])
@@ -363,7 +367,6 @@ class Stokes(Application):
             np.add.at(dv[icomp::ncomp], faces, r)
             r = np.einsum('f,f->f', normalsS[:,icomp], v[icomp::ncomp][faces])
             dp[cells] -= r
-
     def computeMatrixBdryNitsche(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
         nloc = dim+1
