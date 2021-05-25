@@ -76,9 +76,14 @@ class Application(object):
         assert 0
     def dirichletfct(self):
         if self.ncomp > 1:
-            def _solexactdir(x, y, z):
-                return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
-            return _solexactdir
+            # def _solexactdir(x, y, z):
+            #     return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+            # return _solexactdir
+            from functools import partial
+            solexact = self.problemdata.solexact
+            def _solexactdir(x, y, z, icomp):
+                return solexact[icomp](x, y, z)
+            return [partial(_solexactdir, icomp=icomp) for icomp in range(self.ncomp)]
         else:
             return self.problemdata.solexact
             def _solexactdir(x, y, z):

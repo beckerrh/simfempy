@@ -62,7 +62,8 @@ class P1sys(femsys.Femsys):
         help = np.zeros_like(b)
         for color, nodes in nodesdir.items():
             if color in bdryfct:
-                dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+                # dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+                dirichlets = np.vstack([f(x[nodes], y[nodes], z[nodes]) for f in bdryfct[color]])
                 for icomp in range(ncomp):
                     help[icomp + ncomp * nodes] = dirichlets[icomp]
         b[indin] -= bdrydata.A_inner_dir * help[inddir]

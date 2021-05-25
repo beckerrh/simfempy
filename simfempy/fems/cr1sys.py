@@ -80,7 +80,8 @@ class CR1sys(femsys.Femsys):
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
             if color in bdryfct:
-                dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
+                # dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
+                dirichlets = np.vstack([f(x[faces], y[faces], z[faces]) for f in bdryfct[color]])
                 for icomp in range(ncomp):
                     help[icomp + ncomp * faces] = dirichlets[icomp]
         b[indin] -= bdrydata.A_inner_dir * help[inddir]

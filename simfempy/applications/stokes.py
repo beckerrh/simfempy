@@ -57,11 +57,16 @@ class Stokes(Application):
     def dirichletfct(self):
         solexact = self.problemdata.solexact
         v,p = solexact
-        def _solexactdirv(x, y, z):
-            return [v[icomp](x, y, z) for icomp in range(self.ncomp)]
+        # def _solexactdirv(x, y, z):
+        #     return [v[icomp](x, y, z) for icomp in range(self.ncomp)]
         def _solexactdirp(x, y, z, nx, ny, nz):
             return p(x, y, z)
-        return _solexactdirv
+        from functools import partial
+        def _solexactdirv(x, y, z, icomp):
+            # print(f"{icomp=}")
+            return v[icomp](x, y, z)
+        return [partial(_solexactdirv, icomp=icomp) for icomp in range(self.ncomp)]
+        # return _solexactdirv
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
         mu = self.problemdata.params.scal_glob['mu']
@@ -243,6 +248,7 @@ class Stokes(Application):
         if self.dirichletmethod=='strong':
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
+            # vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
@@ -306,7 +312,8 @@ class Stokes(Application):
             if color in bdryfct:
                 # bfctv, bfctp = bdryfct[color]
                 bfctv = bdryfct[color]
-                dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+                # dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+                dirichv = np.vstack([f(xf[faces], yf[faces], zf[faces]) for f in bfctv])
             flux[i] -= np.einsum('f,fk->k', p[cells], normalsS)
             indfaces = self.mesh.facesOfCells[cells]
             ind = npext.positionin(faces, indfaces).astype(int)
@@ -337,7 +344,9 @@ class Stokes(Application):
             # normalsS = normalsS/dS[:,np.newaxis]
             if not color in bdryfct.keys(): continue
             bfctv = bdryfct[color]
-            dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+            # dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
+            dirichv = np.vstack([f(xf[faces], yf[faces], zf[faces]) for f in bfctv])
+            # print(f"{dirichv.shape=} {normalsS.shape=}")
             bp[cells] -= np.einsum('kn,nk->n', coeff*dirichv, normalsS)
             mat = np.einsum('f,fi,fji->fj', coeff*mucell[cells], normalsS, cellgrads[cells, :, :dim])
             indfaces = self.mesh.facesOfCells[cells]
