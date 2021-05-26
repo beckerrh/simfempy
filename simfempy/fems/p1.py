@@ -7,10 +7,7 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-import simfempy.fems.bdrydata
-from simfempy import fems
-from simfempy.tools import barycentric, checkmmatrix
-from simfempy.meshes import move
+from simfempy import fems, tools, meshes
 
 #=================================================================#
 class P1(fems.fem.Fem):
@@ -24,29 +21,35 @@ class P1(fems.fem.Fem):
         self.cellgrads = self.computeCellGrads()
     def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
-        self.betart = scale*rt.interpolate(beta)
-        self.beta = rt.toCell(self.betart)
-        if method == 'supg':
-            self.md = move.move_midpoints(self.mesh, self.beta)
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+        betart = scale*rt.interpolate(beta)
+        beta = rt.toCell(betart)
+        convdata = fems.data.ConvectionData(beta=beta, betart=betart)
+        if method == 'upwalg':
+             return convdata 
+        elif method == 'lps':
+            self.mesh.constructInnerFaces()
+            return convdata 
+        elif method == 'supg':
+            md = meshes.move.move_midpoints(self.mesh, beta)
+            # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'supg2':
-            self.md = move.move_midpoints(self.mesh, self.beta, extreme=True)
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+            md = meshes.move.move_midpoints(self.mesh, beta, extreme=True)
+            # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upwalg':
             pass
         elif method == 'upw':
-            self.md = move.move_nodes(self.mesh, -self.beta)
-            # self.md.plot(self.mesh, self.beta)
+            md = meshes.move.move_nodes(self.mesh, -beta)
+            # self.md.plot(self.mesh, beta)
         elif method == 'upw2':
-            self.md = move.move_nodes(self.mesh, -self.beta, second=True)
-            # self.md.plot(self.mesh, self.beta)
+            md = meshes.move.move_nodes(self.mesh, -beta, second=True)
+            # self.md.plot(self.mesh, beta)
         elif method == 'upwsides':
             self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, -self.beta)
-        elif method == 'lps':
-            self.mesh.constructInnerFaces()
+            md = meshes.move.move_midpoints(self.mesh, -beta)
         else:
             raise ValueError(f"don't know {method=}")
+        convdata.md = md
+        return convdata
     def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nnodes
     def dofspercell(self): return self.mesh.simplices
@@ -57,7 +60,7 @@ class P1(fems.fem.Fem):
     def tonode(self, u): return u
     #  bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
-        bdrydata = simfempy.fems.bdrydata.BdryData()
+        bdrydata = fems.data.BdryData()
         bdrydata.nodesdir={}
         # bdrydata.nodedirall = np.empty(shape=(0), dtype=np.int)
         bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
@@ -135,7 +138,7 @@ class P1(fems.fem.Fem):
     def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, fp1, coeff=1):
         assert fp1.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
-        massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
+        massloc = tools.barycentric.tensor(d=dim - 1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
         faces = self.mesh.bdryFaces(colorsdir)
         nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
@@ -166,7 +169,7 @@ class P1(fems.fem.Fem):
         np.add.at(du, simp, -mat)
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells]/dim, normalsS, cellgrads,u[simp]).repeat(dim).reshape(faces.shape[0],dim)
         np.add.at(du, nodes, -mat)
-    def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
+    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, coeff=1):
         nnodes, ncells, dim, nlocal  = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -186,7 +189,7 @@ class P1(fems.fem.Fem):
         # mat = np.repeat(mat,dim)
         # print(f"{cols.shape=} {rows.shape=} {mat.shape=}")
         AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
-        massloc = barycentric.tensor(d=dim-1, k=2)
+        massloc = tools.barycentric.tensor(d=dim-1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
         # print(f"{massloc=}")
         mat = np.einsum('f,ij->fij', coeff * dS**2/dV*diffcoff[cells], massloc)
@@ -194,11 +197,11 @@ class P1(fems.fem.Fem):
         rows = np.repeat(facenodes,dim)
         cols = np.tile(facenodes,dim)
         AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
-        return A - AN - AN.T + self.dirichlet_nitsche * AD
+        return  - AN - AN.T + self.dirichlet_nitsche * AD
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
         flux= np.zeros(len(colors))
         nnodes, dim  = self.mesh.nnodes, self.mesh.dimension
-        massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
+        massloc = tools.barycentric.tensor(d=dim - 1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
         for i,color in enumerate(colors):
             faces = self.mesh.bdrylabels[color]
@@ -279,13 +282,13 @@ class P1(fems.fem.Fem):
                 massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
-    def computeMatrixTransportUpwindAlg(self, bdrylumped):
-        A =  self.computeMatrixTransportCellWise(type='centered')
-        return checkmmatrix.makeMMatrix(A)
-    def computeMatrixTransportUpwindSides(self):
+    def computeMatrixTransportUpwindAlg(self, data):
+        A =  self.computeMatrixTransportCellWise(data, type='centered')
+        return tools.checkmmatrix.makeMMatrix(A)
+    def computeMatrixTransportUpwindSides(self, betart):
         nnodes, nfaces, ncells, dim, dV = self.mesh.nnodes, self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.mesh.dV
         normalsS, cof, simp = self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.simplices
-        dbS = linalg.norm(normalsS, axis=1)*self.betart/dim/(dim+1)
+        dbS = linalg.norm(normalsS, axis=1)*betart/dim/(dim+1)
 
         innerfaces = self.mesh.innerfaces
         infaces = np.arange(nfaces)[innerfaces]
@@ -306,7 +309,7 @@ class P1(fems.fem.Fem):
         mat = np.einsum('n,kl->nkl', dbS[faces], matloc).ravel()
         A -= sparse.coo_matrix((mat, (rows0,cols)), shape=(nnodes, nnodes))
 
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0), lumped=True)
+        A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=True)
 
         B = self.computeMatrixTransportCellWise(type='centered')
 
@@ -316,16 +319,16 @@ class P1(fems.fem.Fem):
             raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}\n{A.todense()=}\n{B.todense()=}")
 
         return A.tocsr()
-    def computeMatrixTransportUpwind(self, bdrylumped, method):
+    def computeMatrixTransportUpwind(self, data, method):
         if method=='upwsides': return self.computeMatrixTransportUpwindSides()
         self.masslumped = self.computeMassMatrix(coeff=1, lumped=True)
-        beta, mus, cells, deltas = self.beta, self.md.mus, self.md.cells, self.md.deltas
+        beta, mus, cells, deltas = data.beta, data.md.mus, data.md.cells, data.md.deltas
         nnodes, simp= self.mesh.nnodes, self.mesh.simplices
-        m = self.md.mask()
-        if hasattr(self.md,'cells2'):
-            m2 =  self.md.mask2()
-            m = self.md.maskonly1()
-            print(f"{nnodes=} {np.sum(self.md.mask())=} {np.sum(m2)=} {np.sum(m)=}")
+        m = data.md.mask()
+        if hasattr(data.md,'cells2'):
+            m2 =  data.md.mask2()
+            m = data.md.maskonly1()
+            print(f"{nnodes=} {np.sum(data.md.mask())=} {np.sum(m2)=} {np.sum(m)=}")
         ml = self.masslumped.diagonal()[m]/deltas[m]
         rows = np.arange(nnodes)[m]
         A = sparse.coo_matrix((ml,(rows,rows)), shape=(nnodes, nnodes))
@@ -333,11 +336,11 @@ class P1(fems.fem.Fem):
         rows = rows.repeat(simp.shape[1])
         cols = simp[cells[m]]
         A -=  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes))
-        if hasattr(self.md,'cells2'):
-            cells2 = self.md.cells2
-            delta1 = self.md.deltas[m2]
-            delta2 = self.md.deltas2[m2]
-            mus2 = self.md.mus2
+        if hasattr(data.md,'cells2'):
+            cells2 = data.md.cells2
+            delta1 = data.md.deltas[m2]
+            delta2 = data.md.deltas2[m2]
+            mus2 = data.md.mus2
             c0 = (1+delta1/(delta1+delta2))/delta1
             c1 = -(1+delta1/delta2)/delta1
             c2 = -c0-c1
@@ -352,35 +355,35 @@ class P1(fems.fem.Fem):
             rows2 = rows.repeat(simp.shape[1])
             cols = simp[cells2[m2]]
             A += sparse.coo_matrix((mat.ravel(), (rows2.ravel(), cols.ravel())), shape=(nnodes, nnodes))
-        A += self.computeBdryMassMatrix(coeff=-np.minimum(self.betart, 0), lumped=True)
+        A += self.computeBdryMassMatrix(coeff=-np.minimum(data.betart, 0), lumped=True)
         # A = checkmmatrix.makeMMatrix(A)
-        w1, w2 = simfempy.tools.checkmmatrix.checkMmatrix(A)
+        w1, w2 = tools.checkmmatrix.checkMmatrix(A)
         print(f"A {w1=}\n{w2=}")
         return A.tocsr()
-    def computeMatrixTransportSupg(self, bdrylumped):
-        return self.computeMatrixTransportCellWise(type='supg', bdrylumped=False)
-    def computeMatrixTransportLps(self, bdrylumped):
-        A = self.computeMatrixTransportCellWise(type='centered', bdrylumped=False)
-        A += self.computeMatrixLps(self.beta)
+    def computeMatrixTransportSupg(self, data, method):
+        return self.computeMatrixTransportCellWise(data, type='supg')
+    def computeMatrixTransportLps(self, data):
+        A = self.computeMatrixTransportCellWise(data, type='centered')
+        A += self.computeMatrixLps(data.beta)
         return A
-    def computeMatrixTransportCellWise(self, type, bdrylumped=True):
+    def computeMatrixTransportCellWise(self, data, type):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if type=='centered':
-            beta, mus = self.beta, np.full(dim+1,1.0/(dim+1))
+            beta, mus = data.beta, np.full(dim+1,1.0/(dim+1))
             mat = np.einsum('n,njk,nk,i -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         elif type=='supg':
-            beta, mus = self.beta, self.md.mus
+            beta, mus = data.beta, data.md.mus
             mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         else: raise ValueError(f"unknown type {type=}")
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0), lumped=bdrylumped)
+        A -= self.computeBdryMassMatrix(coeff=np.minimum(data.betart, 0), lumped=True)
         return A
-    def computeMassMatrixSupg(self, xd, coeff=1):
+    def computeMassMatrixSupg(self, xd, data, coeff=1):
         dim, dV, nnodes, xK = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes, self.mesh.pointsc
-        massloc = simfempy.tools.barycentric.tensor(d=dim, k=2)
+        massloc = tools.barycentric.tensor(d=dim, k=2)
         mass = np.einsum('n,ij->nij', coeff*dV, massloc)
-        massloc = simfempy.tools.barycentric.tensor(d=dim, k=1)
+        massloc = tools.barycentric.tensor(d=dim, k=1)
         # marche si xd = xK + delta*betaC
         # mass += np.einsum('n,nik,nk,j -> nij', coeff*delta*dV, self.cellgrads[:,:,:dim], betaC, massloc)
         mass += np.einsum('n,nik,nk,j -> nij', coeff*dV, self.cellgrads[:,:,:dim], xd[:,:dim]-xK[:,:dim], massloc)
@@ -400,13 +403,13 @@ class P1(fems.fem.Fem):
         return b
     def massDot(self, b, f, coeff=1):
         dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        massloc = simfempy.tools.barycentric.tensor(d=dim, k=2)
+        massloc = tools.barycentric.tensor(d=dim, k=2)
         r = np.einsum('n,kl,nl->nk', coeff * dV, massloc, f[simplices])
         np.add.at(b, simplices, r)
         return b
-    def massDotSupg(self, b, f, coeff=1):
+    def massDotSupg(self, b, f, data, coeff=1):
         dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
-        r = np.einsum('n,nk,n->nk', coeff*dV, self.md.mus-1/(dim+1), f[simplices].mean(axis=1))
+        r = np.einsum('n,nk,n->nk', coeff*dV, data.md.mus-1/(dim+1), f[simplices].mean(axis=1))
         np.add.at(b, simplices, r)
         return b
     def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=True):
@@ -425,7 +428,7 @@ class P1(fems.fem.Fem):
             if lumped:
                 np.add.at(b, nodes, f[nodes]*dS[:,np.newaxis]/self.mesh.dimension)
             else:
-                massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
+                massloc = tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 r = np.einsum('n,kl,nl->nk', dS, massloc, f[nodes])
                 np.add.at(b, nodes, r)
         return b

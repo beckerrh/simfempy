@@ -35,7 +35,7 @@ class Heat(Application):
     def __format__(self, spec):
         if spec=='-':
             repr = super(Heat, self).__format__(spec)
-            if self.convection: repr += f"\tstab={self.stab}"
+            if self.convection: repr += f"\tstab={self.convmethod}"
             repr += f"\tdirichletmethod={self.dirichletmethod}"
             repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
             repr += f"\tmasslumpedvol={self.masslumpedvol}"
@@ -44,7 +44,7 @@ class Heat(Application):
     def __repr__(self):
         repr = super(Heat, self).__repr__()
         repr += f"\nfem={self.fem}"
-        repr += f"\tstab={self.stab}"
+        repr += f"\tstab={self.convmethod}"
         repr += f"\tdirichletmethod={self.dirichletmethod}"
         repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
         return repr
@@ -53,8 +53,8 @@ class Heat(Application):
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
         fem = kwargs.pop('fem','p1')
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
-        self.stab = kwargs.pop('stab', 'supg')
-        femargs = {'dirichletmethod':self.dirichletmethod, 'stab': self.stab}
+        self.convmethod = kwargs.pop('convmethod', 'supg')
+        femargs = {'dirichletmethod':self.dirichletmethod, 'stab': self.convmethod}
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
@@ -76,7 +76,7 @@ class Heat(Application):
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
         if self.convection:
             convectionfct = self.problemdata.params.fct_glob['convection']
-            self.fem.prepareAdvection(convectionfct, rhocp, self.stab)
+            self.convdata = self.fem.prepareAdvection(convectionfct, rhocp, self.convmethod)
             colorsinflow = self.findInflowColors()
             colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             if not set(colorsinflow).issubset(set(colorsdir)):
@@ -85,7 +85,7 @@ class Heat(Application):
         colors=[]
         for color in self.mesh.bdrylabels.keys():
             faces = self.mesh.bdrylabels[color]
-            if np.any(self.fem.betart[faces]<-1e-10): colors.append(color)
+            if np.any(self.convdata.betart[faces]<-1e-10): colors.append(color)
         return colors
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
@@ -172,18 +172,7 @@ class Heat(Application):
         # elif self.dirichletmethod=="strong":
         #     self.fem.vectorBoundaryEqual(u, self.b, self.bdrydata, self.dirichletmethod)
         if self.convection:
-            colors = self.mesh.bdrylabels.keys()
-            colors = colorsdir
-            if self.stab[:4] == 'supg':
-                self.fem.computeFormTransportSupg(du, u, self.masslumpedbdry, self.stab)
-            elif self.stab == 'upwalg':
-                self.fem.computeFormTransportUpwindAlg(du, u, self.masslumpedbdry)
-            elif self.stab[:3] == 'upw':
-                self.fem.computeFormTransportUpwind(du, u, self.masslumpedbdry, self.stab)
-            elif self.stab == 'lps':
-                self.fem.computeFormTransportLps(du, u, self.masslumpedbdry)
-            else:
-                raise NotImplementedError(f"{self.stab=}")
+            self.fem.computeFormConvection(du, u, self.convdata, self.convmethod)
         if coeffmass is not None:
             self.fem.massDot(du, u, coeff=coeffmass)
         if self.dirichletmethod=="strong":
@@ -200,24 +189,11 @@ class Heat(Application):
         if self.dirichletmethod=="new":
             A = self.fem.matrixBoundary(A, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
-            A = self.fem.computeMatrixNitscheDiffusion(A, self.kheatcell, colorsdir)
+            A = self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colorsdir=colorsdir)
         if self.verbose: print(f"{A.diagonal()=}")
         A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
-        # print(f"{A.todense()=}")
-        # print(f"{A.todense()=}")
         if self.convection:
-            colors = self.mesh.bdrylabels.keys()
-            colors = colorsdir
-            if self.stab[:4] == 'supg':
-                A += self.fem.computeMatrixTransportSupg(self.masslumpedbdry, self.stab)
-            elif self.stab == 'upwalg':
-                A += self.fem.computeMatrixTransportUpwindAlg(self.masslumpedbdry)
-            elif self.stab[:3] == 'upw':
-                A += self.fem.computeMatrixTransportUpwind(self.masslumpedbdry, self.stab)
-            elif self.stab == 'lps':
-                A += self.fem.computeMatrixTransportLps(self.masslumpedbdry)
-            else:
-                raise NotImplementedError(f"{self.stab=}")
+            A += self.fem.computeMatrixConvection(self.convdata, self.convmethod)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
         if self.dirichletmethod=="strong":
@@ -235,8 +211,8 @@ class Heat(Application):
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.fem.massDot(b, fp1)
-            if self.convection and self.stab[:4] == 'supg':
-                self.fem.massDotSupg(b, fp1)
+            if self.convection and self.convmethod[:4] == 'supg':
+                self.fem.massDotSupg(b, fp1, self.convdata)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
             self.fem.massDotCell(b, fp1)
@@ -251,7 +227,7 @@ class Heat(Application):
             self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, fp1)
         if self.convection:
             fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.fem.betart, 0), lumped=self.masslumpedbdry)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0), lumped=self.masslumpedbdry)
         #Fourier-Robin
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
         self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)

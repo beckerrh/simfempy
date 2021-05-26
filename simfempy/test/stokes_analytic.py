@@ -32,7 +32,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'gmres')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    # applicationargs['mode'] = 'newton'
+    applicationargs['mode'] = 'newton'
     paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
@@ -42,5 +42,5 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=8, plotsolution=False, linearsolver='gmres')
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='gmres')
-    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['strong','nitsche'], plotsolution=False, linearsolver='gmres')
+    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='gmres')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)

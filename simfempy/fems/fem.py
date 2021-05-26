@@ -103,6 +103,29 @@ class Fem(object):
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
 
+    def computeFormConvection(self, du, u, convdata, convmethod):
+        if convmethod[:4] == 'supg':
+            self.computeFormTransportSupg(du, u, convdata, convmethod)
+        elif convmethod == 'upwalg':
+            self.computeFormTransportUpwindAlg(du, u, convdata)
+        elif convmethod[:3] == 'upw':
+            self.computeFormTransportUpwind(du, u, convdata, convmethod)
+        elif convmethod == 'lps':
+            self.computeFormTransportLps(du, u, convdata)
+        else:
+            raise NotImplementedError(f"{convmethod=}")
+    def computeMatrixConvection(self, convdata, convmethod):
+        if convmethod[:4] == 'supg':
+            return self.computeMatrixTransportSupg(convdata, convmethod)
+        elif convmethod == 'upwalg':
+            return self.computeMatrixTransportUpwindAlg(convdata)
+        elif convmethod[:3] == 'upw':
+            return self.computeMatrixTransportUpwind(convdata, convmethod)
+        elif convmethod == 'lps':
+            return self.computeMatrixTransportLps(convdata)
+        else:
+            raise NotImplementedError(f"{convmethod=}")
+
 # ------------------------------------- #
 
 if __name__ == '__main__':

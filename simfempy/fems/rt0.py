@@ -8,11 +8,10 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-import simfempy.fems.bdrydata
-from . import fem
+from simfempy import fems
 
 #=================================================================#
-class RT0(fem.Fem):
+class RT0(fems.fem.Fem):
     """
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """

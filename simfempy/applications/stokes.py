@@ -248,8 +248,9 @@ class Stokes(Application):
         if self.dirichletmethod=='strong':
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
-            # vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
-            self.computeRhsBdryNitsche((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
+            vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
+            # self.computeRhsBdryNitscheOld((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
+            self.computeRhsBdryNitsche((bv,bp), colorsdir, vdir, self.mucell)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
@@ -331,7 +332,15 @@ class Stokes(Application):
             # for icomp in range(ncomp):
             #     bv[icomp + ncomp * faces] += self.dirichlet_nitsche * np.choose(ind, mat.T) * dirichv[icomp]
         return flux.T
-    def computeRhsBdryNitsche(self, b, colorsdir, bdryfct, mucell, coeff=1):
+    def computeRhsBdryNitsche(self, b, colorsdir, vdir, mucell, coeff=1):
+        bv, bp = b
+        ncomp  = self.ncomp
+        faces = self.mesh.bdryFaces(colorsdir)
+        cells = self.mesh.cellsOfFaces[faces,0]
+        normalsS = self.mesh.normals[faces][:,:ncomp]
+        np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colorsdir, vdir, ncomp)
+    def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
         xf, yf, zf = self.mesh.pointsf.T
         nfaces, ncells, dim, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.ncomp
@@ -359,28 +368,35 @@ class Stokes(Application):
         # print(f"{bv.shape=} {bp.shape=}")
     def computeFormBdryNitsche(self, dv, dp, v, p, colorsdir, mu):
         ncomp, dim  = self.femv.ncomp, self.mesh.dimension
-        cellgrads = self.femv.fem.cellgrads
+        self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp)
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
-        foc = self.mesh.facesOfCells[cells]
-        # if not np.all(faces == foc[:,-1]): raise ValueError(f"{faces=} {foc=}")
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
         for icomp in range(ncomp):
-            r = -np.einsum('f,fl,fjl,fj->f', mu[cells], normalsS, cellgrads[cells, :, :dim], v[icomp::ncomp][foc])
-            np.add.at(dv[icomp::ncomp], faces, r)
-            r = -np.einsum('f,fl,fjl,f->fj', mu[cells], normalsS, cellgrads[cells, :, :dim], v[icomp::ncomp][faces])
-            np.add.at(dv[icomp::ncomp], foc, r)
-            r = self.dirichlet_nitsche*np.einsum('f,fl,fl,f->f', mu[cells], normalsS, cellgrads[cells, -1, :dim], v[icomp::ncomp][faces])
-            np.add.at(dv[icomp::ncomp], faces, r)
             r = np.einsum('f,f->f', p[cells], normalsS[:,icomp])
             np.add.at(dv[icomp::ncomp], faces, r)
             r = np.einsum('f,f->f', normalsS[:,icomp], v[icomp::ncomp][faces])
-            dp[cells] -= r
+            np.add.at(dp, cells, -r)
     def computeMatrixBdryNitsche(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
-        nloc = dim+1
-        nlocncomp = ncomp * nloc
-        cellgrads = self.femv.fem.cellgrads
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
+        faces = self.mesh.bdryFaces(colorsdir)
+        cells = self.mesh.cellsOfFaces[faces, 0]
+        normalsS = self.mesh.normals[faces][:, :self.ncomp]
+        indfaces = np.repeat(ncomp * faces, ncomp)
+        for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
+        cols = indfaces.ravel()
+        rows = cells.repeat(ncomp).ravel()
+        mat = normalsS.ravel()
+        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
+        B -= BN
+        return A,B
+    def computeMatrixBdryNitscheOld(self, A, B, colorsdir, mucell):
+        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
+        # nloc = dim+1
+        # nlocncomp = ncomp * nloc
+        # cellgrads = self.femv.fem.cellgrads
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
@@ -391,18 +407,18 @@ class Stokes(Application):
         mat = normalsS.ravel()
         BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
 
-        mat = np.einsum('f,fi,fji->fj', mucell[cells], normalsS, cellgrads[cells, :, :dim])
-        mats = mat.repeat(ncomp)
-        dofs = self.mesh.facesOfCells[cells, :]
-        cols = np.repeat(ncomp * dofs, ncomp).reshape(dofs.shape[0], nloc, ncomp)
-        for icomp in range(ncomp): cols[:,:,icomp::ncomp] += icomp
-        indfaces = np.repeat(ncomp * faces, ncomp*nloc).reshape(dofs.shape[0],nloc,ncomp)
-        for icomp in range(ncomp): indfaces[:,:,icomp::ncomp] += icomp
-        cols = cols.reshape(dofs.shape[0],nloc*ncomp)
-        rows = indfaces.reshape(dofs.shape[0],nloc*ncomp)
-        AN = sparse.coo_matrix((mats, (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
-        AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
-        A = A- AN -AN.T + self.dirichlet_nitsche*AD
+        # mat = np.einsum('f,fi,fji->fj', mucell[cells], normalsS, cellgrads[cells, :, :dim])
+        # mats = mat.repeat(ncomp)
+        # dofs = self.mesh.facesOfCells[cells, :]
+        # cols = np.repeat(ncomp * dofs, ncomp).reshape(dofs.shape[0], nloc, ncomp)
+        # for icomp in range(ncomp): cols[:,:,icomp::ncomp] += icomp
+        # indfaces = np.repeat(ncomp * faces, ncomp*nloc).reshape(dofs.shape[0],nloc,ncomp)
+        # for icomp in range(ncomp): indfaces[:,:,icomp::ncomp] += icomp
+        # cols = cols.reshape(dofs.shape[0],nloc*ncomp)
+        # rows = indfaces.reshape(dofs.shape[0],nloc*ncomp)
+        # AN = sparse.coo_matrix((mats, (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
+        # AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
+        # A = A- AN -AN.T + self.dirichlet_nitsche*AD
         # print(f"{AN.todense()=}")
         # print(f"{AD.toarray()=}")
         # print(f"{A.toarray()=}")

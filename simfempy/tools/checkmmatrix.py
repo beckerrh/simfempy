@@ -1,14 +1,15 @@
 import scipy.sparse as sparse
 
-def makeMMatrix(A):
+def diffudsionForMMatrix(A):
     A = A.tocsr()
     Am = A.maximum(0)
     Am -= sparse.dia_matrix((Am.diagonal(),0),A.shape)
     Am = Am.maximum(Am.T)
+    Am = Am + Am.T
     diagp = Am.sum(axis=1).ravel()
     D = sparse.dia_matrix((diagp,0),A.shape)
     # print(f"{D.diagonal()=}\n {A.minimum(0).todense()=}")
-    return A - Am + D
+    return D - Am
 
 
 def checkMmatrix(Ain, tol =1e-14):

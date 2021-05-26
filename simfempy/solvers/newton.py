@@ -64,7 +64,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     if verbose:
         print("{} {:>3} {:^10} {:^10} {:^10} {:^9} {:^5} {:^5} {:^3}".format("newton", "it", "|x|", "|dx|", '|r|', 'step','rhor','rhodx','lin'))
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", it, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
-    while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
+    # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
+    while(resnorm>tol  and it < maxiter):
         it += 1
         if not computedx:
             J = jac(x)

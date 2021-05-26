@@ -9,7 +9,6 @@ from matplotlib import colors
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-import simfempy.fems.bdrydata
 from simfempy.tools import barycentric, npext, checkmmatrix
 from simfempy import fems
 from simfempy.meshes import move, plotmesh
@@ -41,45 +40,41 @@ class CR1(fems.fem.Fem):
         return unodes
     def prepareAdvection(self, beta, scale, method):
         rt = fems.rt0.RT0(self.mesh)
-        self.betart = scale*rt.interpolate(beta)
-        self.beta = rt.toCell(self.betart)
-        d = self.mesh.dimension
-        if method == 'supg':
-            self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, self.beta, bound=1/d)
-            # self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+        betart = scale*rt.interpolate(beta)
+        beta = rt.toCell(betart)
+        convdata = fems.data.ConvectionData(beta=beta, betart=betart)
+        dim = self.mesh.dimension
+        self.mesh.constructInnerFaces()
+        if method == 'upwalg' or method == 'lps':
+             return convdata 
+        elif method == 'supg':
+            md = move.move_midpoints(self.mesh, beta, bound=1/dim)
+            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
+            # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'supg2':
-            self.mesh.constructInnerFaces()
-            self.md = move.move_midpoint_to_neighbour(self.mesh, self.betart)
-            # self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
-            # self.md = move.move_midpoints(self.mesh, self.beta, candidates='all')
+            md = move.move_midpoint_to_neighbour(self.mesh, betart)
+            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
+            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
             # print(f"{self.md.mus=}")
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
-        elif method == 'upwalg':
-            pass
+            # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upw':
-            self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, self.beta, bound=1/d)
-            # self.md = move.move_midpoint_to_neighbour(self.mesh, self.betart)
-            # self.md = move.move_midpoints(self.mesh, -self.beta, bound=1/d)
-            # self.md = move.move_midpoints(self.mesh, -self.beta, candidates='all')
-            # self.md.plot(self.mesh, self.beta, type='midpoints')
+            md = move.move_midpoints(self.mesh, beta, bound=1/d)
+            # self.md = move.move_midpoint_to_neighbour(self.mesh, betart)
+            # self.md = move.move_midpoints(self.mesh, -beta, bound=1/d)
+            # self.md = move.move_midpoints(self.mesh, -beta, candidates='all')
+            # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upw2':
-            self.mesh.constructInnerFaces()
-            self.md = move.move_midpoints(self.mesh, -self.beta, bound=1/d)
-        elif method == 'lps':
-            self.mesh.constructInnerFaces()
+            md = move.move_midpoints(self.mesh, -beta, bound=1/d)
         else:
             raise ValueError(f"don't know {method=}")
+        convdata.md = md
+        return convdata
     def computeCellGrads(self):
         normals, facesOfCells, dV = self.mesh.normals, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
-    def prepareStab(self):
-        self.computeStencilInnerSidesCell(self.mesh.facesOfCells)
     # strong bc
     def prepareBoundary(self, colorsdir, colorsflux=[]):
-        bdrydata = simfempy.fems.bdrydata.BdryData()
+        bdrydata = fems.data.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint32)
         bdrydata.colorsdir = colorsdir
         for color in colorsdir:
@@ -120,10 +115,6 @@ class CR1(fems.fem.Fem):
         dS, dV = np.linalg.norm(normalsS,axis=1), self.mesh.dV[cells]
         mat = np.einsum('f,fi,fji->fj', coeff*udir[faces]*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
         np.add.at(b, self.mesh.facesOfCells[cells], -mat)
-        # ind = npext.positionin(faces, self.mesh.facesOfCells[cells]).astype(int)
-        # print(f"{np.choose(ind,mat.T)=}\n{dS**2/dV=}")
-        # b[faces] += self.dirichlet_nitsche * np.choose(ind,mat.T)
-        # b[faces] += self.dirichlet_nitsche * dS**2/dV*udir[faces]
         self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=self.dirichlet_nitsche * dS/dV)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
         assert u.shape[0] == self.mesh.nfaces
@@ -136,7 +127,7 @@ class CR1(fems.fem.Fem):
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells], normalsS, cellgrads, u[foc])
         np.add.at(du, faces, -mat)
         self.massDotBoundary(du, f=u, colors=colorsdir, coeff=self.dirichlet_nitsche * dS/dV)
-    def computeMatrixNitscheDiffusion(self, A, diffcoff, colorsdir, coeff=1):
+    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, coeff=1):
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -150,7 +141,7 @@ class CR1(fems.fem.Fem):
         dV = self.mesh.dV[cells]
         # AD = sparse.coo_matrix((dS**2/dV,(faces,faces)), shape=(nfaces, nfaces))
         AD = self.computeBdryMassMatrix(colors=colorsdir, coeff=dS/dV)
-        return A- AN -AN.T + self.dirichlet_nitsche*AD
+        return - AN -AN.T + self.dirichlet_nitsche*AD
     def computeBdryNormalFluxNitscheOld(self, u, colors, bdrycond, diffcoff):
         flux= np.zeros(len(colors))
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
@@ -383,16 +374,17 @@ class CR1(fems.fem.Fem):
         return b
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
-    def computeMatrixTransportUpwindAlg(self, bdrylumped):
-        A = self.computeMatrixTransportCellWise(type='centered')
+    def computeMatrixTransportUpwindAlg(self, data):
+        A = self.computeMatrixTransportCellWise(data, type='centered')
         # moins bon en L2, mais meilleur en H1
-        # A += self.computeMatrixJump(self.betart)
-        return checkmmatrix.makeMMatrix(A)
-    def computeMatrixTransportUpwind(self, bdrylumped, method):
-
+        # A += self.computeMatrixJump(betart)
+        self.diffalg = checkmmatrix.diffudsionForMMatrix(A)
+        return A + self.diffalg
+    def computeMatrixTransportUpwind(self, data, method):
+        beta, betart, mus = data.beta, data.betart, data.md.mus
         nfaces, ncells, dim, dV = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.mesh.dV
         normalsS, foc, cof = self.mesh.normals, self.mesh.facesOfCells, self.mesh.cellsOfFaces
-        dbS = linalg.norm(normalsS, axis=1)*self.betart
+        dbS = linalg.norm(normalsS, axis=1)*betart
 
         innerfaces = self.mesh.innerfaces
         infaces = np.arange(nfaces)[innerfaces]
@@ -408,7 +400,6 @@ class CR1(fems.fem.Fem):
         # A -= sparse.coo_matrix((mat, (rows1, cols)), shape=(nfaces, nfaces))
 
         if method=='upw2':
-            mus = self.md.mus
             rows0 = foc[ci0].ravel()
             rows1 = foc[ci1].ravel()
             mat = np.einsum('n,ni->ni', dbS[infaces], 1-dim*mus[ci0]).ravel()
@@ -422,15 +413,14 @@ class CR1(fems.fem.Fem):
             # mat = np.einsum('n,ni->ni', dbS[faces], 1-dim*mus[ci0]).ravel()
             mat = np.einsum('n,i->ni', dbS[faces], matloc).ravel()
             A -= sparse.coo_matrix((mat, (cols,rows0)), shape=(nfaces, nfaces))
-            A += self.computeMatrixJump(self.betart, mode='dual')
-            A += self.computeBdryMassMatrix(coeff=np.maximum(self.betart, 0), lumped=False)
+            A += self.computeMatrixJump(betart, mode='dual')
+            A += self.computeBdryMassMatrix(coeff=np.maximum(betart, 0), lumped=False)
             # B = self.computeMatrixTransportCellWise(type='centered')
             # if not np.allclose(A.tocsr().A,B.tocsr().A):
             #     raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
             return A
 
         #supg
-        mus = self.md.mus
         rows0 = foc[ci0].ravel()
         rows1 = foc[ci1].ravel()
         mat = np.einsum('n,ni->ni', dbS[infaces], 1-dim*mus[ci0]).ravel()
@@ -443,13 +433,13 @@ class CR1(fems.fem.Fem):
         cols = np.repeat(faces, dim + 1).ravel()
         mat = np.einsum('n,ni->ni', dbS[faces], 1-dim*mus[ci0]).ravel()
         A += sparse.coo_matrix((mat, (rows0,cols)), shape=(nfaces, nfaces))
-        A += self.computeMatrixJump(self.betart, mode='primal')
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0), lumped=False)
+        A += self.computeMatrixJump(betart, mode='primal')
+        A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
         B = self.computeMatrixTransportSupg(bdrylumped=False, method='supg')
         if not np.allclose(A.tocsr().A,B.tocsr().A):
             raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
 
-        # A += self.computeMatrixJump(self.betart, mode='primal')
+        # A += self.computeMatrixJump(betart, mode='primal')
         #upwind
 
         # mat0 = np.einsum('n,ni->ni', np.minimum(dbS[infaces],0), 1-dim*self.md.mus[self.md.cells[ci0]]).ravel()
@@ -474,8 +464,8 @@ class CR1(fems.fem.Fem):
         # mat = np.einsum('n,i->ni', dbS[faces], matloc).ravel()
         # A += sparse.coo_matrix((mat, (rows0,cols)), shape=(nfaces, nfaces))
         #
-        # A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0), lumped=False)
-        # A += self.computeMatrixJump(self.betart, mode='primal')
+        # A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
+        # A += self.computeMatrixJump(betart, mode='primal')
 
         # B = self.computeMatrixTransportCellWise(type='centered')
         #
@@ -514,52 +504,42 @@ class CR1(fems.fem.Fem):
         # m = np.where(mat > 0)
         # cols[m] = self.rows[m]
         # A = sparse.coo_matrix((mat, (self.rows, cols)), shape=(nfaces, nfaces))
-        # # A += self.computeMatrixJump(self.betart, mode='primal')
-        # A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0))
-
-    def computeMatrixTransportSupg(self, bdrylumped, method):
+        # # A += self.computeMatrixJump(betart, mode='primal')
+        # A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0))
+    def computeMatrixTransportSupg(self, data, method):
+        beta, betart, mus = data.beta, data.betart, data.md.mus
         if method=='supg2':
-            beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
+            beta, mus, deltas = beta, self.md.mus, self.md.deltas
             nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
             cellgrads = self.cellgrads[:,:,:dim]
             mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
             print(f"{self.mesh.facesOfCells[self.md.cells]=}")
             rows = np.repeat(self.mesh.facesOfCells[self.md.cells], self.nloc).ravel()
             A = sparse.coo_matrix((mat.ravel(), (rows, self.cols)), shape=(nfaces, nfaces))
-            A -= self.computeBdryMassMatrix(coeff=np.minimum(self.betart, 0), lumped=False)
+            A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
             print(f"{A.diagonal()=}")
             return A
-        A = self.computeMatrixTransportCellWise(type='supg')
-        A += self.computeMatrixJump(self.betart)
+        A = self.computeMatrixTransportCellWise(data, type='supg')
+        A += self.computeMatrixJump(betart)
         return A
-    def computeMatrixTransportLps(self, bdrylumped=False):
-        A = self.computeMatrixTransportCellWise(type='centered')
-        A += self.computeMatrixLps(self.beta)
+    def computeMatrixTransportLps(self, data):
+        A = self.computeMatrixTransportCellWise(data, type='centered')
+        A += self.computeMatrixLps(data.beta)
         return A
-    def computeMatrixTransportCellWise(self, type, data=None):
+    def computeMatrixTransportCellWise(self, data, type):
+        beta, betart = data.beta, data.betart
+        nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
+        cellgrads = self.cellgrads[:,:,:dim]
         if type=='centered':
-            if data is None:
-                beta, betart = self.beta, self.betart
-            else:
-                beta, betart = data[0], data[1]
-            nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-            cellgrads = self.cellgrads[:,:,:dim]
-            betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
-            mat = np.einsum('n,nj,i -> nij', dV, betagrad, 1/(dim+1)*np.ones(dim+1))
+            # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
+            mat = np.einsum('n,njk,nk,i -> nij', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1))
             # mat += np.einsum('n,nj,ni -> nij', dV*deltas, betagrad, betagrad)
-            A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces))
         elif type=='supg':
-            if data is None:
-                beta, betart, mus = self.beta, self.betart, self.md.mus
-            else:
-                 beta, betart, mus = data
-            nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-            cellgrads = self.cellgrads[:,:,:dim]
+            mus = data.md.mus
             mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
-            A = sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces))
         else: raise ValueError(f"unknown type {type=}")
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
-        return A
+        A = sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces))
+        return A - self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
     def computeMatrixJump(self, betart, mode='primal', monotone=False):
         dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
@@ -601,13 +581,62 @@ class CR1(fems.fem.Fem):
         else:
             raise ValueError(f"unknown {mode=}")
         return A
-    def massDotSupg(self, b, f, coeff=1):
+    def computeFormJump(self, du, u, betart, mode='primal'):
+        dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        innerfaces = self.mesh.innerfaces
+        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
+        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
+        normalsS = self.mesh.normals[innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        faces = self.mesh.faces[self.mesh.innerfaces]
+        ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
+        ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
+        fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
+        # ifaces = np.arange(nfaces)[innerfaces]
+        # A = sparse.coo_matrix((ndofs, ndofs))
+        # rows0 = np.repeat(fi0, nloc-1).ravel()
+        # cols0 = np.tile(fi0,nloc-1).ravel()
+        # rows1 = np.repeat(fi1, nloc-1).ravel()
+        # cols1 = np.tile(fi1,nloc-1).ravel()
+        massloc = barycentric.crbdryothers(self.mesh.dimension)
+        if mode == 'primal':
+            mat = np.einsum('n,kl,nl->nk', np.minimum(betart[innerfaces], 0) * dS, massloc, u[fi1]-u[fi0])
+            np.add.at(du, fi0, mat)
+            mat = np.einsum('n,kl,nl->nk', np.maximum(betart[innerfaces], 0)*dS, massloc, u[fi1]-u[fi0])
+            np.add.at(du, fi1, mat)
+        elif mode =='dual':
+            assert 0
+        elif mode =='centered':
+            assert 0
+        else:
+            raise ValueError(f"unknown {mode=}")
+    def computeFormTransportCellWise(self, du, u, data, type):
+        beta, betart = data.beta, data.betart
+        nfaces, dim, dV, foc = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV, self.mesh.facesOfCells
+        cellgrads = self.cellgrads[:,:,:dim]
+        if type=='centered':
+            mat = np.einsum('n,njk,nk,i,nj -> ni', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1),u[foc])
+        elif type=='supg':
+            mus = data.md.mus
+            mat = np.einsum('n,njk,nk,ni,nj -> ni', dV, cellgrads, beta, 1-dim*mus,u[foc])
+        else: raise ValueError(f"unknown type {type=}")
+        np.add.at(du, foc, mat)
+        self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
+    def computeFormTransportUpwindAlg(self, du, u, data):
+        self.computeFormTransportCellWise(du, u, data, type='centered')
+        du += self.diffalg@u
+    def computeFormTransportSupg(self, du, u, data, method):
+        self.computeFormTransportCellWise(du, u, data, type='supg')
+        self.computeFormJump(du, u, data.betart)
+    def massDotSupg(self, b, f, data, coeff=1):
         dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
-        # beta, mus, deltas = self.beta, self.md.mus, self.md.deltas
+        # beta, mus, deltas = beta, self.md.mus, self.md.deltas
         # cellgrads = self.cellgrads[:,:,:dim]
         # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
         # r = np.einsum('n,ni->ni', deltas*dV*f[facesOfCells].mean(axis=1), betagrad)
-        r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*self.md.mus)
+        r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*data.md.mus)
         np.add.at(b, facesOfCells, r)
         return b
     # dotmat

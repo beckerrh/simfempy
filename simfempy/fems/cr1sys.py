@@ -23,6 +23,9 @@ class CR1sys(femsys.Femsys):
         for i in range(ncomp):
             unodes[i::ncomp] = self.fem.tonode(u[i::ncomp])
         return unodes
+    def interpolateBoundary(self, colors, f, lumped=False):
+        # fs={col:f[col] for col in colors if col in f.keys()}
+        return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
     def matrixBoundary(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -160,7 +163,17 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
             np.add.at(dv[icomp::ncomp], foc, r)
-           
+ 
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, ncomp, coeff=1):
+        for icomp in range(ncomp):
+            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colorsdir, udir[:,icomp], coeff)
+    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, ncomp, coeff=1):
+        A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colorsdir, coeff)
+        return self.matrix2systemdiagonal(A, ncomp)
+    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp):
+        for icomp in range(ncomp):
+            self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir)
+
 
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
