@@ -7,6 +7,8 @@ class NavierStokes(Stokes):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.mode='nonlinear'
+        self.convdata = fems.data.ConvectionData()
+        self.convmethod = 'supg'
     def solve(self, dirname='Run'):
         return self.static(dirname=dirname, mode='nonlinear',maxiter=200)
     def computeForm(self, u):
@@ -36,41 +38,22 @@ class NavierStokes(Stokes):
         return A,B,C
     def computeFormConvection(self, dv, v):
         rt = fems.rt0.RT0(self.mesh)
-        self.betart = rt.interpolateCR1(v)
-        self.beta = rt.toCell(self.betart)
-        d = self.mesh.dimension
+        self.convdata.betart = rt.interpolateCR1(v)
+        self.convdata.beta = rt.toCell(self.convdata.betart)
+        dim = self.mesh.dimension
         if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
-        self.md = meshes.move.move_midpoints(self.mesh, self.beta, bound=1/d)
-        #supg
-        nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-        cellgrads, foc = self.femv.fem.cellgrads[:,:,:dim], self.mesh.facesOfCells
+        self.convdata.md = meshes.move.move_midpoints(self.mesh, self.convdata.beta, bound=1/dim)
         for icomp in range(dim):
-            r = np.einsum('n,njk,nk,ni,nj -> ni', dV, cellgrads, self.beta, 1-dim*self.md.mus, v[icomp::dim][foc])
-            np.add.at(dv[icomp::dim], foc, r)
-        #bdry
-        faces = self.mesh.bdryFaces()
-        normalsS = self.mesh.normals[faces]
-        dS = -np.linalg.norm(normalsS, axis=1)*np.minimum(self.betart[faces],0)
-        for icomp in range(dim):
-            dv[icomp::dim][faces] += dS*v[icomp::dim][faces]
-        massloc = tools.barycentric.crbdryothers(dim)
-        ci = self.mesh.cellsOfFaces[faces][:,0]
-        foc = self.mesh.facesOfCells[ci]
-        mask = foc != faces[:, np.newaxis]
-        fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
-        for icomp in range(dim):
-            r = np.einsum('n,ij,nj -> ni', dS, massloc, v[icomp::dim][fi])
-            np.add.at(dv[icomp::dim], fi, r)
-
+            self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod)
 
     def computeMatrixConvection(self, v):
-        A = self.femv.fem.computeMatrixTransportCellWise(type='supg', data=(self.beta, self.betart, self.md.mus))
+        A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod)
         return self.femv.matrix2systemdiagonal(A, self.ncomp).tocsr()
 
     def getVelocityPreconditioner(self, A):
         import pyamg
-        config = pyamg.solver_configuration(A, verb=False)
-        smoother = ('block_gauss_seidel', {'sweep': 'symmetric', 'iterations': 2})
+        B = pyamg.solver_configuration(A, verb=False)['B']
+        smoother = ('block_gauss_seidel', {'sweep': 'symmetric', 'iterations': 4})
         build_args = {'symmetry': 'nonsymmetric', 'presmoother': smoother, 'postsmoother':smoother}       
-        return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy', presmoother=smoother, postsmoother=smoother)
-        return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy', **build_args)
+        # return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy', presmoother=smoother, postsmoother=smoother)
+        return pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy', **build_args)
