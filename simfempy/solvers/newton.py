@@ -15,10 +15,10 @@ else:
     from . import stoppingdata
 
 #----------------------------------------------------------------------
-def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
+def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
     maxiter, omega, c = sdata.bt_maxiter, sdata.bt_omega, sdata.bt_c
-    step = firststep
-    x = x0 - step*dx
+    step = 1
+    x = x0 + step*dx
     res = f(x)
     resnorm = np.linalg.norm(res)
     it = 0
@@ -28,7 +28,7 @@ def backtracking(f, x0, dx, resfirst, sdata, firststep=1.0, verbose=False):
     while resnorm > (1-c*step)*resfirst and it<maxiter:
         it += 1
         step *= omega
-        x = x0 - step * dx
+        x = x0 + step * dx
         res = f(x)
         resnorm = np.linalg.norm(res)
         if verbose:
@@ -46,7 +46,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         if maxiter is None: raise ValueError(f"if sdata is None please give 'maxiter'") 
         sdata = stoppingdata.StoppingData(maxiter=maxiter)
     atol, rtol, atoldx, rtoldx = sdata.atol, sdata.rtol, sdata.atoldx, sdata.rtoldx
-    maxiter, divx, firststep = sdata.maxiter, sdata.divx, sdata.firststep
+    maxiter, divx = sdata.maxiter, sdata.divx
     x = np.asarray(x0)
     assert x.ndim == 1
     # n = x.shape[0]
@@ -65,17 +65,19 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         print("{} {:>3} {:^10} {:^10} {:^10} {:^9} {:^5} {:^5} {:^3}".format("newton", "it", "|x|", "|dx|", '|r|', 'step','rhor','rhodx','lin'))
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", it, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
+    dx, step, resold = None, None, np.zeros_like(res)
     while(resnorm>tol  and it < maxiter):
         it += 1
         if not computedx:
             J = jac(x)
-            dx, liniter = linalg.solve(J, res), 1
+            dx, liniter = linalg.solve(J, -res), 1
         else:
-            dx, liniter = computedx(res, x, (it,rhor))
+            dx, liniter = computedx(-res, x, (it,rhor,dx, step, res-resold))
         dxnormold = dxnorm
         dxnorm = linalg.norm(dx)
         resnormold = resnorm
-        x, res, resnorm, step, itbt = backtracking(f, x, dx, resnorm, sdata, firststep=firststep)
+        resold[:] = res[:]
+        x, res, resnorm, step, itbt = backtracking(f, x, dx, resnorm, sdata)
         rhor, rhodx = resnorm/resnormold, dxnorm/dxnormold
         xnorm = linalg.norm(x)
         if verbose:

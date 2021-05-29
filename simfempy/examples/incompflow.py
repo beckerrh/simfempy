@@ -17,13 +17,15 @@ from simfempy.meshes import plotmesh
 # ================================================================c#
 def main():
     # create mesh and data
-    # mesh, data = drivenCavity()
-    mesh, data = backwardFacingStep(0.2)
+    # mesh, data = drivenCavity(mu=0.01)
+    mesh, data = backwardFacingStep(h=0.2)
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
-    # stokes = Stokes(mesh=mesh, problemdata=data)
-    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    # stokes = Stokes(mesh=mesh, problemdata=data, mode='newton', linearsolver='gmres')
+    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_20')
+    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
+    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
     result = stokes.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")

@@ -190,6 +190,77 @@ Let us considered solution of (\ref{eq:StokesDirPmean}) with $S=BA^{-1}\transpos
 %
 \end{equation}
 %
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Iterative solution}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+We have to solve (\ref{eq:StokesDirPmean}) with 
+%
+\begin{align*}
+\mathcal A = 
+\begin{bmatrix}
+A  & -\transpose{B}& 0\\
+B & 0 & \transpose{C}\\
+0 & C & 0
+\end{bmatrix}
+=
+\begin{bmatrix}
+I  & 0& 0\\
+BA^{-1} & I & 0\\
+0 & CS^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+A  & 0& 0\\
+0 & S & 0\\
+0 & 0 & T
+\end{bmatrix}
+\begin{bmatrix}
+I  & -A^{-1}\transpose{B}& 0\\
+0 & I & S^{-1}\transpose{C}\\
+0 & 0 & I
+\end{bmatrix}
+\end{align*}
+%
+where $S=BA^{-1}\transpose{B}$, $T=-CS^{-1}\transpose{C}$. We have
+%
+\begin{align*}
+\mathcal A^{-1} = 
+\begin{bmatrix}
+I  & A^{-1}\transpose{B}& 0\\
+0 & I & -S^{-1}\transpose{C}\\
+0 & 0 & I
+\end{bmatrix}
+\begin{bmatrix}
+A^{-1}  & 0& 0\\
+0 & S^{-1} & 0\\
+0 & 0 & T^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+I  & 0& 0\\
+-BA^{-1} & I & 0\\
+0 & -CS^{-1} & I
+\end{bmatrix}
+\end{align*}
+%
+We construct our preconditioner by approximations of $A$, $S$, and $T$. The preconditioner $(y_v,_p,y_{\lambda})\to(x_v,x_p,x_{\lambda})$has the steps
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+A {x_v'} =& y_v\\
+S {x_p'} =& y_p - B {x_v'}\\
+T x_{\lambda} =& y_{\lambda} - C {x_p'}\\
+S x_p'' =& \transpose{C} x_{\lambda}\\
+{x_p} =& {x_p'} - x_p''\\
+A x_v'' =& \transpose{B} x_p\\
+x_v =& x_v' + x_v''
+\end{aligned}
+\right.
+%
+\end{align*}
+%
 
 %
 %

@@ -71,7 +71,7 @@ class Application(object):
         if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
-    def solve(self, dirname): return self.static(dirname=dirname, mode=self.mode)
+    def solve(self, dirname="Run"): return self.static(dirname=dirname, mode=self.mode)
     def setParameter(self, paramname, param):
         assert 0
     def dirichletfct(self):
@@ -163,6 +163,7 @@ class Application(object):
     def computeForm(self, u):
         return self.A@u
     def computeDx(self, b, u, info):
+        it,rhor = info
         # if it>1:
         self.A = self.computeMatrix(u=u)           
         try:

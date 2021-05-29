@@ -32,7 +32,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'gmres')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    applicationargs['mode'] = 'newton'
+    # applicationargs['mode'] = 'newton'
     paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 

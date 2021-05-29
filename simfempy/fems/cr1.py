@@ -626,7 +626,8 @@ class CR1(fems.fem.Fem):
         self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
     def computeFormTransportUpwindAlg(self, du, u, data):
         self.computeFormTransportCellWise(du, u, data, type='centered')
-        du += self.diffalg@u
+        if hasattr(self,'diffalg'):
+            du += self.diffalg@u
     def computeFormTransportSupg(self, du, u, data, method):
         self.computeFormTransportCellWise(du, u, data, type='supg')
         self.computeFormJump(du, u, data.betart)

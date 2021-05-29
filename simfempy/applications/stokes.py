@@ -174,17 +174,19 @@ class Stokes(Application):
             return np.hstack([w, q])
     def getVelocityPreconditioner(self, A):
         import pyamg
-        config = pyamg.solver_configuration(A, verb=False)
-        return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy')
+        B = pyamg.solver_configuration(A, verb=False)['B']
+        return pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy')
     def getPrecMult(self, Ain):
         import pyamg
         A, B = Ain[0], Ain[1]
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         mu = self.problemdata.params.scal_glob['mu']
         BP = sparse.diags(1/self.mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
+        # Ainv = sparse.linalg.spilu(A)
         # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
+        # S = (B*Ainv*B.T).diagonal()
         # BP = splinalg.inv(B*Ainv*B.T)
-        # BP = sparse.diags((B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells))
+        # BP = sparse.diags(1/S, offsets=(0), shape=(ncells, ncells))
         if self.pmean: 
             C = Ain[2]
             CP = splinalg.inv(C*BP*C.T)
@@ -192,10 +194,11 @@ class Stokes(Application):
         if self.pmean: 
             def pmult(x):
                 v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+                # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
                 w = API.solve(v, maxiter=1, tol=1e-16)
                 q = BP.dot(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
-                q += BP.dot(C.T.dot(mu).ravel())
+                q -= BP.dot(C.T.dot(mu).ravel())
                 h = B.T.dot(q)
                 w += API.solve(h, maxiter=1, tol=1e-16)
                 return np.hstack([w, q, mu])
@@ -208,16 +211,17 @@ class Stokes(Application):
                 w += API.solve(h, maxiter=1, tol=1e-16)
                 return np.hstack([w, q])
         return pmult    
-    def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
+    def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0, atol=1e-14, rtol=1e-10):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             return uall, 1
-        elif solver == 'gmres':
+        elif solver[:4] == 'iter':
+            ssolver = solver.split('_')
+            method=ssolver[1] if len(ssolver)>1 else 'gmres'
+            disp=int(ssolver[2]) if len(ssolver)>2 else 0
             from simfempy import tools
-            if verbose==0: disp=0
-            else: disp=20
             counter = tools.iterationcounter.IterationCounter(name=solver, disp=disp)
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
@@ -225,7 +229,14 @@ class Stokes(Application):
             Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=partial(self.matrixVector, Ain))
             # Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
             P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPrecMult(Ain))
-            u, info = splinalg.lgmres(Amult, bin, M=P, callback=counter, atol=1e-14, tol=1e-14, inner_m=10, outer_k=4)
+            if method=='lgmres':
+                u, info = splinalg.lgmres(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol, inner_m=10, outer_k=4)
+            elif method=='gmres':
+                u, info = splinalg.gmres(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol)
+            elif method=='gcrotmk':
+                u, info = splinalg.gcrotmk(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol)
+            else:
+                raise ValueError(f"unknown {method=}")
             if info: raise ValueError("no convergence info={}".format(info))
             return u, counter.niter
         else:
@@ -288,12 +299,12 @@ class Stokes(Application):
         else:
             A, B = self.computeMatrixBdryNitsche(A, B, colorsdir, self.mucell)
         if not self.pmean:
-            return A, B
+            return [A, B]
         ncells = self.mesh.ncells
         rows = np.zeros(ncells, dtype=int)
         cols = np.arange(0, ncells)
         C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
-        return A,B,C
+        return [A,B,C]
     def computeFormMeanPressure(self,dp, dlam, p, lam):
         dlam += self.mesh.dV.dot(p)
         dp += lam*self.mesh.dV

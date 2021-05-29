@@ -1,1 +1,1 @@
-from . import timer, latexwriter
+from . import timer, latexwriter, matrix
