@@ -1,1 +1,1 @@
-from . import newton, optimize, stoppingdata
+from . import newton, optimize, newtondata

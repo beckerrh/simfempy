@@ -10,7 +10,7 @@ class StoppingData:
     def __init__(self, **kwargs):
         self.maxiter = kwargs.pop('maxiter',100)
         self.atol = kwargs.pop('atol',1e-14)
-        self.rtol = kwargs.pop('rtol',1e-10)
+        self.rtol = kwargs.pop('rtol',1e-8)
         self.atoldx = kwargs.pop('atoldx',1e-14)
         self.rtoldx = kwargs.pop('rtoldx',1e-10)
         self.divx = kwargs.pop('divx',1e8)

@@ -28,9 +28,9 @@ class NavierStokes(Stokes):
         rt = fems.rt0.RT0(self.mesh)
         self.convdata.betart = rt.interpolateCR1(v)
         self.convdata.beta = rt.toCell(self.convdata.betart)
-        meshes.plotmesh.meshWithData(self.mesh, title="Stokes", quiver_data={"V":[self.convdata.beta[:,0],self.convdata.beta[:,1]]})
-        import matplotlib.pyplot as plt
-        plt.show()
+        # meshes.plotmesh.meshWithData(self.mesh, title="Stokes", quiver_data={"V":[self.convdata.beta[:,0],self.convdata.beta[:,1]]})
+        # import matplotlib.pyplot as plt
+        # plt.show()
 
         dim = self.mesh.dimension
         if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
@@ -51,7 +51,7 @@ class NavierStokes(Stokes):
         #     yv = self._split(y)[0]
         #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=u, solver=self.linearsolver, rtol=0.01*rhor)
+            u, niter = self.linearSolver(self.A, bin=b, uin=dx, solver=self.linearsolver, rtol=0.01*rhor)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')

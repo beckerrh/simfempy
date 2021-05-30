@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
 if __name__ == '__main__':
-    import stoppingdata
+    import newtondata
 else:
-    from . import stoppingdata
+    from . import newtondata
 
 #----------------------------------------------------------------------
 def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
@@ -44,7 +44,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     """
     if sdata is None:
         if maxiter is None: raise ValueError(f"if sdata is None please give 'maxiter'") 
-        sdata = stoppingdata.StoppingData(maxiter=maxiter)
+        sdata = newtondata.StoppingData(maxiter=maxiter)
     atol, rtol, atoldx, rtoldx = sdata.atol, sdata.rtol, sdata.atoldx, sdata.rtoldx
     maxiter, divx = sdata.maxiter, sdata.divx
     x = np.asarray(x0)

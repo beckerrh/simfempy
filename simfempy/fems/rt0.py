@@ -92,8 +92,6 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # print("A (RTM)", A)
             return A
-
-
         elif self.massproj == "RT_Bar":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             scale = 1/ (dim+1)
