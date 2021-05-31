@@ -59,32 +59,30 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     tol = max(atol, rtol*resnorm)
     print(f"{tol=}")
     toldx = max(atoldx, rtoldx*xnorm)
-    it = 0
     rhor = 1
     if verbose:
         print("{} {:>3} {:^10} {:^10} {:^10} {:^9} {:^5} {:^5} {:^3}".format("newton", "it", "|x|", "|dx|", '|r|', 'step','rhor','rhodx','lin'))
-        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", it, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
+        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
-    while(resnorm>tol  and it < maxiter):
-        it += 1
+    iterdata = newtondata.IterationData(n=res.shape[0], nsteps=3)
+    while(resnorm>tol  and iterdata.iter < maxiter):
         if not computedx:
             J = jac(x)
             dx, liniter = linalg.solve(J, -res), 1
         else:
-            dx, liniter = computedx(-res, x, (it,rhor,dx, step, res-resold))
-        dxnormold = dxnorm
-        dxnorm = linalg.norm(dx)
+            dx, liniter = computedx(-res, x, iterdata)
+        iterdata.newstep(dx, liniter)
         resnormold = resnorm
         resold[:] = res[:]
         x, res, resnorm, step, itbt = backtracking(f, x, dx, resnorm, sdata)
-        rhor, rhodx = resnorm/resnormold, dxnorm/dxnormold
+        rhor = resnorm/resnormold
         xnorm = linalg.norm(x)
         if verbose:
-            print(f"newton {it:3} {xnorm:10.3e} {dxnorm:10.3e} {resnorm:10.3e} {step:9.2e} {rhor:5.2f} {rhodx:5.2f} {liniter:3d}")
+            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {step:9.2e} {rhor:5.2f} {iterdata.rhodx:5.2f} {liniter:3d}")
         if xnorm >= divx:
             return (x, maxiter)
-    return (x,it)
+    return (x,iterdata.iter)
 
 
 # ------------------------------------------------------ #

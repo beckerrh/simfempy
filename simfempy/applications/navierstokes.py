@@ -43,7 +43,7 @@ class NavierStokes(Stokes):
         return self.femv.matrix2systemdiagonal(A, self.ncomp).tocsr()
 
     def computeDx(self, b, u, info):
-        it,rhor,dx, step, y = info
+        # it,rhor,dx, step, y = info
         # if it>1:
         self.A = self.computeMatrix(u=u) 
         # if dx is not None and it>2:
@@ -51,7 +51,7 @@ class NavierStokes(Stokes):
         #     yv = self._split(y)[0]
         #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=dx, solver=self.linearsolver, rtol=0.01*rhor)
+            u, niter = self.linearSolver(self.A, bin=b, uin=None, solver=self.linearsolver, rtol=0.01)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
