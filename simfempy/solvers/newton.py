@@ -33,9 +33,27 @@ def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
         resnorm = np.linalg.norm(res)
         if verbose:
             print("{} {:3} {:10.3e}  {:9.2e}".format("bt", it, resnorm, step))
-    return x, res, resnorm, step, it
+    return x, res, resnorm, step
 
 #----------------------------------------------------------------------
+class Baseopt:
+    def __init__(self, f, sdata, n, verbose=False):
+        self.f, self.sdata, self.verbose = f, sdata, verbose
+        self.nbase, self.nused = sdata.nbase, 0
+        self.dx = np.zeros(shape=(self.nbase,n))
+        self.ind = []
+        self.iter = 0
+    def step(self, x0, dx, resfirst):
+        self.last = info.iter%self.nbase
+        if self.nused == self.nbase:
+           self.ind.pop(0)
+        else:
+            self.nused += 1
+        self.ind.append(self.last)
+        self.dx[self.last] = dx
+        self.iter += 1
+
+#--------------------------------------------------------------------
 def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1):
     """
     Aims to solve f(x) = 0, starting at x0
@@ -53,11 +71,9 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     # print(f"{x0=}")
     if not computedx:  assert jac
     xnorm = np.linalg.norm(x)
-    dxnorm = xnorm
     res = f(x)
     resnorm = np.linalg.norm(res)
     tol = max(atol, rtol*resnorm)
-    print(f"{tol=}")
     toldx = max(atoldx, rtoldx*xnorm)
     rhor = 1
     if verbose:
@@ -65,21 +81,24 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
-    iterdata = newtondata.IterationData(n=res.shape[0], nsteps=3)
+    iterdata = newtondata.IterationData(resnorm)
+    if sdata.steptype == 'rb':
+        bt = Baseopt(f, sdata, x.shape[0], verbose)
     while(resnorm>tol  and iterdata.iter < maxiter):
         if not computedx:
             J = jac(x)
             dx, liniter = linalg.solve(J, -res), 1
         else:
             dx, liniter = computedx(-res, x, iterdata)
-        iterdata.newstep(dx, liniter)
-        resnormold = resnorm
         resold[:] = res[:]
-        x, res, resnorm, step, itbt = backtracking(f, x, dx, resnorm, sdata)
-        rhor = resnorm/resnormold
+        if sdata.steptype == 'rb':
+            x, res, resnorm, step = bt.step(x, dx, resnorm)
+        else:
+            x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata)
+        iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:
-            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {step:9.2e} {rhor:5.2f} {iterdata.rhodx:5.2f} {liniter:3d}")
+            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {step:9.2e} {iterdata.rhor:5.2f} {iterdata.rhodx:5.2f} {liniter:3d}")
         if xnorm >= divx:
             return (x, maxiter)
     return (x,iterdata.iter)

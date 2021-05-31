@@ -17,37 +17,26 @@ class StoppingData:
         self.rtoldx = kwargs.pop('rtoldx',1e-10)
         self.divx = kwargs.pop('divx',1e8)
         self.firststep = 1.0
+        self.steptype = kwargs.pop('steptype','backtracking')
 
         self.bt_maxiter = kwargs.pop('bt_maxiter',50)
         self.bt_omega = kwargs.pop('bt_omega',0.75)
         self.bt_c = kwargs.pop('bt_c',0.1)
 
 class IterationData:
-    def __init__(self, n, nsteps, **kwargs):
-        self.iter, self.nsteps, self.nstepsused = 0, nsteps, 0
-        self.dx = np.zeros(shape=(nsteps,n))
-        self.liniter = np.zeros(shape=(nsteps))
-        self.dxnorm = np.zeros(shape=(nsteps))
-        self.ind = []
-    def newstep(self, dx, liniter):
-        self.last = self.iter%self.nsteps
-        if self.nstepsused == self.nsteps:
-           self.ind.pop(0)
-        else:
-            self.nstepsused += 1
-        self.ind.append(self.last)
-
-        self.liniter[self.last] = liniter
-        self.dxnorm[self.last] = np.linalg.norm(dx)
-        self.dx[self.last] = dx
-        if len(self.ind)>1:
-            self.rhodx = self.dxnorm[self.ind[-1]]/self.dxnorm[self.ind[-2]]
+    def __init__(self, resnorm, **kwargs):
+        self.liniter, self.dxnorm, self.resnorm, self.step = [], [], [], []
+        self.iter = 0
+        self.resnorm.append(resnorm)
+    def newstep(self, dx, liniter, resnorm, step):
+        self.liniter.append(liniter)
+        self.dxnorm.append(np.linalg.norm(dx))
+        self.resnorm.append(resnorm)
+        self.step.append(step)
+        if len(self.dxnorm)>1:
+            self.rhodx = self.dxnorm[-1]/self.dxnorm[-2]
         else:
             self.rhodx = 0
-
-
-        print(f"{self.iter=} {self.last=} {self.nstepsused=} {self.ind=}")
-        print(f"{self.dxnorm[self.ind]}")
-
+        self.rhor = self.resnorm[-1]/self.resnorm[-2]
         self.iter += 1
        
