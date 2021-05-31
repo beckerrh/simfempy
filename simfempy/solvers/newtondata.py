@@ -18,7 +18,7 @@ class StoppingData:
         self.divx = kwargs.pop('divx',1e8)
         self.firststep = 1.0
         self.steptype = kwargs.pop('steptype','backtracking')
-
+        if 'nbase' in kwargs: self.nbase = kwargs.pop('nbase')
         self.bt_maxiter = kwargs.pop('bt_maxiter',50)
         self.bt_omega = kwargs.pop('bt_omega',0.75)
         self.bt_c = kwargs.pop('bt_c',0.1)

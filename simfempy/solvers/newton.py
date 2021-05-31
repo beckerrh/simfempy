@@ -39,19 +39,40 @@ def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
 class Baseopt:
     def __init__(self, f, sdata, n, verbose=False):
         self.f, self.sdata, self.verbose = f, sdata, verbose
+        if not hasattr(sdata, 'nbase'): raise ValueError(f"please give 'nbase' in sdata")
         self.nbase, self.nused = sdata.nbase, 0
-        self.dx = np.zeros(shape=(self.nbase,n))
+        self.du = np.zeros(shape=(self.nbase,n))
+        self.u0, self.u, self.r = np.zeros(n), np.zeros(n), np.zeros(n)
         self.ind = []
         self.iter = 0
-    def step(self, x0, dx, resfirst):
-        self.last = info.iter%self.nbase
+    def res(self, x):
+        self.u[:] = self.u0[:]
+        for i in range(self.nused):
+            self.u += x[i]*self.du[self.ind[i]]
+        # print(f"{x=} {np.linalg.norm(self.u0)=} {np.linalg.norm(self.u)=}")
+        self.r = self.f(self.u)
+        return self.r.dot(self.r)
+    def step(self, u0, du, resfirst):
+        from scipy import optimize
+        self.u0[:] = u0[:]
+        self.resfirst = resfirst
+        self.last = self.iter%self.nbase
         if self.nused == self.nbase:
-           self.ind.pop(0)
+            self.ind.pop(0)
         else:
             self.nused += 1
         self.ind.append(self.last)
-        self.dx[self.last] = dx
+        # print(f"{self.iter} {self.ind=}")
+        self.du[self.last] = du
+        x0 = np.zeros(self.nused)
+        x0[-1] = 1
+        method = 'BFGS'
+        method = 'CG'
+        out = optimize.minimize(fun=self.res, x0=x0, method=method, options={'disp':False, 'maxiter':10, 'gtol':1e-2})
+        # print(f"{out=}")
+        # print(f"{self.resfirst=} {np.linalg.norm(self.r)=}")
         self.iter += 1
+        return self.u, self.r, out.fun, out.x
 
 #--------------------------------------------------------------------
 def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1):
@@ -77,7 +98,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     toldx = max(atoldx, rtoldx*xnorm)
     rhor = 1
     if verbose:
-        print("{} {:>3} {:^10} {:^10} {:^10} {:^9} {:^5} {:^5} {:^3}".format("newton", "it", "|x|", "|dx|", '|r|', 'step','rhor','rhodx','lin'))
+        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format("newton", "it", "|x|", "|dx|", '|r|','rhodx','rhor','lin', 'step'))
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
@@ -98,7 +119,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:
-            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {step:9.2e} {iterdata.rhor:5.2f} {iterdata.rhodx:5.2f} {liniter:3d}")
+            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
         if xnorm >= divx:
             return (x, maxiter)
     return (x,iterdata.iter)

@@ -132,7 +132,6 @@ class Application(object):
         return np.copy(b)
     def static(self, **kwargs):
         dirname = kwargs.pop('dirname','Run')
-        maxiter = kwargs.pop('maxiter',100)
         mode = kwargs.pop('mode','linear')
         # self.timer.reset_all()
         result = simfempy.applications.problemdata.Results()
@@ -150,10 +149,15 @@ class Application(object):
                 raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
             self.timer.add('solve')
         else:
-            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, maxiter=maxiter)
+            if 'sdata' in kwargs:
+                sdata = kwargs.pop('sdata')
+            else:
+                maxiter = kwargs.pop('maxiter', 100)
+                sdata = simfempy.solvers.newtondata.StoppingData(maxiter=maxiter)
+            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, sdata=sdata)
             # print(f"{info=}")
             u,niter = info
-            if niter==maxiter: raise ValueError(f"*** Attained maxiter {maxiter=}")
+            if niter==sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
         pp = self.postProcess(u)
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter={'lin':niter})

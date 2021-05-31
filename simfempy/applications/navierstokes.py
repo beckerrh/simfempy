@@ -1,6 +1,6 @@
 import numpy as np
 from simfempy.applications.stokes import Stokes
-from simfempy import fems, meshes, tools
+from simfempy import fems, meshes, solvers
 import scipy.sparse as sparse
 
 class NavierStokes(Stokes):
@@ -11,7 +11,8 @@ class NavierStokes(Stokes):
         self.convmethod = 'supg'
         # self.convmethod = 'upwalg'
     def solve(self, dirname="Run"):
-        return self.static(dirname=dirname, mode='nonlinear',maxiter=200)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=3)
+        return self.static(dirname=dirname, mode='nonlinear',sdata=sdata)
     def computeForm(self, u):
         d = super().computeForm(u)
         v = self._split(u)[0]
