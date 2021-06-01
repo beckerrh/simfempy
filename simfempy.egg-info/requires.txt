@@ -4,3 +4,4 @@ meshio
 scipy
 sympy
 pyamg
+matplotlib

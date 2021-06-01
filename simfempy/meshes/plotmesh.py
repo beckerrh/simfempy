@@ -132,8 +132,6 @@ def meshWithData(meshdata, **kwargs):
             x, y, z, simp, xc, yc, zc = meshdata
     addplots = kwargs.pop('addplots',[])
     numbering = kwargs.pop('numbering',False)
-    title = kwargs.pop('title', None)
-    suptitle = kwargs.pop('suptitle', None)
     alpha = kwargs.pop('alpha', 0.6)
     plotmesh = kwargs.pop('plotmesh', None)
     if 'data' in kwargs:
@@ -169,7 +167,6 @@ def meshWithData(meshdata, **kwargs):
                     pos = 100*nplots + 10*(ir+1) + (ic+1)
                     axl.append(fig.add_subplot(pos, projection='3d'))
             axs = np.array(axl).reshape(nrows,ncols)
-        if suptitle: fig.suptitle(suptitle)
     count=0
     for pdn, pd in point_data.items():
         if 'outer' in kwargs:

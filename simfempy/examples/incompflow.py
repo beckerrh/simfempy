@@ -22,9 +22,9 @@ def main():
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
-    stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_20')
-    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
+    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
     result = stokes.solve()
     print(f"{result.info['timer']}")

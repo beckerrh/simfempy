@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 print(f"{find_packages()=}")
 setup(
     name="simfempy",
-    version="2.0.5",
+    version="2.0.6",
     author="Roland Becker",
     author_email="beckerrolandh@gmail.com",
     packages=find_packages(),
@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     platforms="any",
-    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'pyamg'],
+    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'pyamg', 'matplotlib'],
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",

@@ -58,7 +58,11 @@ class Baseopt:
         self.resfirst = resfirst
         self.last = self.iter%self.nbase
         if self.nused == self.nbase:
-            self.ind.pop(0)
+            sp = np.abs([du.dot(self.du[self.ind[i]])/np.linalg.norm(self.du[self.ind[i]]) for i in range(self.nbase)])
+            i = np.argmax(sp)
+            self.last = i
+            # print(f"{i=} {sp=}" )
+            self.ind.pop(i)
         else:
             self.nused += 1
         self.ind.append(self.last)
@@ -67,7 +71,7 @@ class Baseopt:
         x0 = np.zeros(self.nused)
         x0[-1] = 1
         method = 'BFGS'
-        method = 'CG'
+        # method = 'CG'
         out = optimize.minimize(fun=self.res, x0=x0, method=method, options={'disp':False, 'maxiter':10, 'gtol':1e-2})
         # print(f"{out=}")
         # print(f"{self.resfirst=} {np.linalg.norm(self.r)=}")
@@ -96,7 +100,6 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     resnorm = np.linalg.norm(res)
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
-    rhor = 1
     if verbose:
         print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format("newton", "it", "|x|", "|dx|", '|r|','rhodx','rhor','lin', 'step'))
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))

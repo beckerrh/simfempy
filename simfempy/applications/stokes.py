@@ -1,10 +1,11 @@
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
-from simfempy import fems
+from simfempy import fems, tools
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import analyticalSolution
 from simfempy.tools import npext
+from functools import partial
 
 #=================================================================#
 class Stokes(Application):
@@ -174,16 +175,12 @@ class Stokes(Application):
             w = A.dot(v) - B.T.dot(p)
             q = B.dot(v)
             return np.hstack([w, q])
-    def getVelocityPreconditioner(self, A):
-        import pyamg
-        B = pyamg.solver_configuration(A, verb=False)['B']
-        return pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy')
-    def getPrecMult(self, Ain):
+    def getPrecMult(self, Ain, AP, SP):
         import pyamg
         A, B = Ain[0], Ain[1]
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        mu = self.problemdata.params.scal_glob['mu']
-        BP = sparse.diags(1/self.mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
+        # mu = self.problemdata.params.scal_glob['mu']
+        # BP = sparse.diags(1/self.mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
         # Ainv = sparse.linalg.spilu(A)
         # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
         # S = (B*Ainv*B.T).diagonal()
@@ -191,28 +188,67 @@ class Stokes(Application):
         # BP = sparse.diags(1/S, offsets=(0), shape=(ncells, ncells))
         if self.pmean: 
             C = Ain[2]
-            CP = splinalg.inv(C*BP*C.T)
-        API = self.getVelocityPreconditioner(A)
+            # BPCT = BP*C.T
+            BPCT = SP.solve(C.T)
+            CP = splinalg.inv(C*BPCT)
+            # CP = splinalg.inv(C*BP*C.T)
+        # API = self.getVelocityPreconditioner(A)
         if self.pmean: 
             def pmult(x):
                 v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
                 # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
-                w = API.solve(v, maxiter=1, tol=1e-16)
-                q = BP.dot(p-B.dot(w))
+                w = AP.solve(v, maxiter=1, tol=1e-16)
+                w = AP.solve(v)
+                q = SP.solve(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
-                q -= BP.dot(C.T.dot(mu).ravel())
+                q -= BPCT.dot(mu).ravel()
                 h = B.T.dot(q)
-                w += API.solve(h, maxiter=1, tol=1e-16)
+                w += AP.solve(h, maxiter=1, tol=1e-16)
                 return np.hstack([w, q, mu])
         else:
             def pmult(x):
                 v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
-                w = API.solve(v, maxiter=1, tol=1e-16)
-                q = BP.dot(p-B.dot(w))
+                w = AP.solve(v)
+                q = SP.solve(p-B.dot(w))
                 h = B.T.dot(q)
-                w += API.solve(h, maxiter=1, tol=1e-16)
+                w += AP.solve(h)
                 return np.hstack([w, q])
-        return pmult    
+        return pmult
+    def getVelocityPreconditioner(self, A):
+        import pyamg
+        B = pyamg.solver_configuration(A, verb=False)['B']
+        return pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy')
+    class VelcoitySolver():
+        def __init__(self, mesh, A):
+            self.A = A
+            import pyamg
+            B = pyamg.solver_configuration(A, verb=False)['B']
+            self.solver = pyamg.smoothed_aggregation_solver(A, B=B, smooth='energy')
+        def solve(self, b, maxiter=1, tol=1e-16):
+            b2 = np.empty_like(b)
+            b2[:] = b[:]
+            return self.solver.solve(b2, maxiter=1, tol=1e-16)
+    class PressureSolver():
+        def __init__(self, mesh, mu, A, B, AP):
+            self.A, self.B, self.AP = A, B, AP
+            ncells, nfaces = mesh.ncells, mesh.nfaces
+            # self.solver = splinalg.LinearOperator(shape=(nfaces,nfaces), matvec=self.matvec)
+            self.counter = tools.iterationcounter.IterationCounter(name="schur", disp=1)
+            self.BP = sparse.diags(1/mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
+        def matvec(self, x):
+            v = self.B.T.dot(x)
+            v2 = self.AP.solve(v)
+            return self.B.dot(v2)
+        def solve(self, b):
+            return self.BP.dot(b)
+            u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, callback=counter, atol=1e-12, tol=1e-10,maxiter=3)
+            if info: raise ValueError("no convergence info={}".format(info))
+            return u
+           
+    # def definePressureSolver(self, Ain, API):
+    #     mu = self.problemdata.params.scal_glob['mu']
+    #     return self.PressureSolver(self.mesh, mu, Ain[0], Ain[1], API)
+    
     def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0, atol=1e-14, rtol=1e-10):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if solver == 'umf':
@@ -223,20 +259,24 @@ class Stokes(Application):
             ssolver = solver.split('_')
             method=ssolver[1] if len(ssolver)>1 else 'gmres'
             disp=int(ssolver[2]) if len(ssolver)>2 else 0
-            from simfempy import tools
             counter = tools.iterationcounter.IterationCounter(name=solver, disp=disp)
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
-            from functools import partial
             Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=partial(self.matrixVector, Ain))
             # Amult = splinalg.LinearOperator(shape=(nall, nall), matvec=self.matrixVector)
-            P = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPrecMult(Ain))
+            AP = self.getVelocityPreconditioner(Ain[0])
+            # import pyamg
+            # AP = pyamg.smoothed_aggregation_solver(Ain[0], B=pyamg.solver_configuration(Ain[0], verb=False)['B'], smooth='energy')
+            # AP = self.VelcoitySolver(self.mesh, Ain[0])
+            mu = self.problemdata.params.scal_glob['mu']
+            SP = self.PressureSolver(self.mesh, mu, Ain[0], Ain[1], AP)
+            M = splinalg.LinearOperator(shape=(nall, nall), matvec=self.getPrecMult(Ain, AP, SP))
             if method=='lgmres':
-                u, info = splinalg.lgmres(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol, inner_m=10, outer_k=4)
+                u, info = splinalg.lgmres(Amult, bin, x0=uin, M=M, callback=counter, atol=atol, tol=rtol, inner_m=10, outer_k=4)
             elif method=='gmres':
-                u, info = splinalg.gmres(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol)
+                u, info = splinalg.gmres(Amult, bin, x0=uin, M=M, callback=counter, atol=atol, tol=rtol)
             elif method=='gcrotmk':
-                u, info = splinalg.gcrotmk(Amult, bin, x0=uin, M=P, callback=counter, atol=atol, tol=rtol)
+                u, info = splinalg.gcrotmk(Amult, bin, x0=uin, M=M, callback=counter, atol=atol, tol=rtol)
             else:
                 raise ValueError(f"unknown {method=}")
             if info: raise ValueError("no convergence info={}".format(info))
