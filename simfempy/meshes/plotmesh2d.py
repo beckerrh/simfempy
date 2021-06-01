@@ -163,7 +163,7 @@ def plotMeshWithPointData(ax, pdn, pd, x, y, tris, alpha):
 def plotMeshWithCellData(ax, cdn, cd, x, y, tris, alpha):
     if tris.shape[0] != cd.shape[0]:
         raise ValueError("wrong length in '{}' {}!={}".format(cdn, tris.shape[0], cd.shape[0]))
-    cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet')
+    cnt = ax.tripcolor(x, y, tris, facecolors=cd, edgecolors='k', cmap='jet', alpha=alpha)
     clb = plt.colorbar(cnt, ax=ax, shrink=0.6)
     clb.ax.set_title(cdn)
     _settitle(ax, cdn)
