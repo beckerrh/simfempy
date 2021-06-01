@@ -45,25 +45,23 @@ class NavierStokes(Stokes):
 
     def computeDx(self, b, u, info):
         # it,rhor,dx, step, y = info
-        # if it>1:
+        if info.iter>2: rtol = 0.1*info.rhor
+        else: rtol = 0.01
         self.A = self.computeMatrix(u=u) 
         # if dx is not None and it>2:
         #     dv = self._split(dx)[0]
         #     yv = self._split(y)[0]
         #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=None, solver=self.linearsolver, rtol=0.01)
+            u, niter = self.linearSolver(self.A, bin=b, uin=None, solver=self.linearsolver, rtol=rtol)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
         return u, niter
 
-    def getVelocityPreconditioner(self, A):
-        # return super().getVelocityPreconditioner(A)
-        import pyamg
-        B = pyamg.solver_configuration(A, verb=False)['B']
-        smoother = ('schwarz', {'sweep': 'symmetric', 'iterations': 2})
-        build_args = {'symmetry': 'nonsymmetric', 'presmoother': smoother, 'postsmoother':smoother}       
-        # return pyamg.smoothed_aggregation_solver(A, B=config['B'], smooth='energy', presmoother=smoother, postsmoother=smoother)
-        smooth = ('energy', {'krylov': 'bicgstab'})
-        return pyamg.smoothed_aggregation_solver(A, B=B, smooth=smooth, **build_args)
+    def getVelocitySolver(self, A):
+        return solvers.cfd.VelcoitySolver(A)
+    def getPressureSolver(self, A, B, AP):
+        mu = self.problemdata.params.scal_glob['mu']
+        # return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)    
+        return solvers.cfd.PressureSolverSchur(self.mesh, A, B, AP)    

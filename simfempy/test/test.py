@@ -3,13 +3,13 @@ import numpy as np
 
 #================================================================#
 class TestAnalytical(unittest.TestCase):
-    def _check(self, results):
+    def _check(self, results, eps=1e-10):
         for meth,err in results.items():
             if isinstance(err, dict):
                 for m, e in err.items():
-                    if not np.all(e<1e-10): raise ValueError("error in method '{}' '{}' error is {}".format(meth,m,e))
+                    if not np.all(e<eps): raise ValueError("error in method '{}' '{}' error is {}".format(meth,m,e))
             else:
-                if not np.all(err<1e-10): raise ValueError("error in method '{}' error is {}".format(meth,err))
+                if not np.all(err<eps): raise ValueError("error in method '{}' error is {}".format(meth,err))
 #---------------------------
     def test_poisson1d(self):
         from heat_analytic import test
@@ -30,10 +30,10 @@ class TestAnalytical(unittest.TestCase):
     # ---------------------------
     def test_stokes2d(self):
         from stokes_analytic import test
-        self._check(test(dim=2, exactsolution='Linear', verbose=0))
+        self._check(test(dim=2, exactsolution='Linear', linearsolver='umf', verbose=0))
     def test_stokes3d(self):
         from stokes_analytic import test
-        self._check(test(dim=3, exactsolution='Linear', verbose=0))
+        self._check(test(dim=3, exactsolution='Linear', linearsolver='umf', verbose=0))
 
 
 #     # ---------------------------

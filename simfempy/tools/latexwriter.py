@@ -5,7 +5,7 @@ Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
 
-import os
+import os, platform
 import numpy as np
 
 
@@ -194,7 +194,13 @@ class LatexWriter(object):
         except:
             raise ValueError("no pdflatex found") 
             pass
-        command = "xdg-open " + filename.replace('.tex', '.pdf')
+        if platform.system() == "Linux":
+            command = "xdg-open "
+        elif platform.system() == "Darwin":
+            command = "open "
+        elif platform.system() == "Windows":
+            command = "explorer "
+        command += filename.replace('.tex', '.pdf')
         try: 
             subprocess.call(command, shell=True)
         except: 
