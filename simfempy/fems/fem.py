@@ -14,7 +14,7 @@ import scipy.sparse as sparse
 #=================================================================#
 class Fem(object):
     def __repr__(self):
-        repr = f"fem={self.__class__.__name__}"
+        repr = f"{self.__class__.__name__}"
         return repr
     def __init__(self, **kwargs):
         mesh = kwargs.get('mesh', None)

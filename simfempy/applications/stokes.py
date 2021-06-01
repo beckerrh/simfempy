@@ -41,8 +41,10 @@ class Stokes(Application):
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
+        # self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
+        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
+            assert 'Navier' not in self.problemdata.bdrycond.type.values()
             colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
             self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
@@ -255,13 +257,14 @@ class Stokes(Application):
             if rhsp: self.femp.computeRhsCells(bp, rhsp)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         if self.dirichletmethod=='strong':
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
-            # self.computeRhsBdryNitscheOld((bv,bp), colorsdir, self.problemdata.bdrycond.fct, self.mucell)
-            self.computeRhsBdryNitsche((bv,bp), colorsdir, vdir, self.mucell)
+            self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
+            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, vdir, self.mucell)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
@@ -294,10 +297,13 @@ class Stokes(Application):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
             A, B = self.matrixBoundary(A, B, self.bdrydata, self.dirichletmethod)
         else:
-            A, B = self.computeMatrixBdryNitsche(A, B, colorsdir, self.mucell)
+            #TODO eviter le retour de A,B
+            A, B = self.computeMatrixBdryNitscheDirichlet(A, B, colorsdir, self.mucell)
+            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell)
         if not self.pmean:
             return [A, B]
         ncells = self.mesh.ncells
@@ -343,7 +349,7 @@ class Stokes(Application):
             # for icomp in range(ncomp):
             #     bv[icomp + ncomp * faces] += self.dirichlet_nitsche * np.choose(ind, mat.T) * dirichv[icomp]
         return flux.T
-    def computeRhsBdryNitsche(self, b, colorsdir, vdir, mucell, coeff=1):
+    def computeRhsBdryNitscheDirichlet(self, b, colorsdir, vdir, mucell, coeff=1):
         bv, bp = b
         ncomp  = self.ncomp
         faces = self.mesh.bdryFaces(colorsdir)
@@ -351,6 +357,8 @@ class Stokes(Application):
         normalsS = self.mesh.normals[faces][:,:ncomp]
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
         self.femv.computeRhsNitscheDiffusion(bv, mucell, colorsdir, vdir, ncomp)
+    def computeRhsBdryNitscheNavier(self, b, colors, vdir, mucell, coeff=1):
+        if len(colors): raise NotImplementedError("trop tot")
     def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
         xf, yf, zf = self.mesh.pointsf.T
@@ -377,6 +385,7 @@ class Stokes(Application):
             for icomp in range(ncomp):
                 bv[icomp+ncomp*faces] += self.dirichlet_nitsche * np.choose(ind, mat.T)*dirichv[icomp]
         # print(f"{bv.shape=} {bp.shape=}")
+        if len(colors): raise NotImplementedError("trop tot")
     def computeFormBdryNitsche(self, dv, dp, v, p, colorsdir, mu):
         ncomp, dim  = self.femv.ncomp, self.mesh.dimension
         self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp)
@@ -388,7 +397,7 @@ class Stokes(Application):
             np.add.at(dv[icomp::ncomp], faces, r)
             r = np.einsum('f,f->f', normalsS[:,icomp], v[icomp::ncomp][faces])
             np.add.at(dp, cells, -r)
-    def computeMatrixBdryNitsche(self, A, B, colorsdir, mucell):
+    def computeMatrixBdryNitscheDirichlet(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
         A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
         faces = self.mesh.bdryFaces(colorsdir)
@@ -401,6 +410,9 @@ class Stokes(Application):
         mat = normalsS.ravel()
         BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
         B -= BN
+        return A,B
+    def computeMatrixBdryNitscheNavier(self, A, B, colors, mucell):
+        if len(colors): raise NotImplementedError("trop tot")
         return A,B
     def computeMatrixBdryNitscheOld(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension

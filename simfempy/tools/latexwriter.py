@@ -122,6 +122,7 @@ class LatexWriter(object):
             tabledata.computePercentage()
         self.data[name] = tabledata
     def write(self, sort=False):
+        print(f"{self.latexfilename=}")
         self.latexfile = open(self.latexfilename, "w")
         if len(self.data) < 4: self.rotatenames=False
         self.writePreamble()
@@ -186,13 +187,18 @@ class LatexWriter(object):
         os.chdir(self.dirname)
         filename = os.path.basename(self.latexfilename)
         command = "pdflatex " + filename
+        print(f"{command=}")
         try:
             result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if result: raise ValueError("command pdflatex not found")
-        except: pass
-        command = "open " + filename.replace('.tex', '.pdf')
-        try: subprocess.call(command, shell=True)
-        except: pass
+        except:
+            raise ValueError("no pdflatex found") 
+            pass
+        command = "xdg-open " + filename.replace('.tex', '.pdf')
+        try: 
+            subprocess.call(command, shell=True)
+        except: 
+            pass
 
 
 # ------------------------------------- #

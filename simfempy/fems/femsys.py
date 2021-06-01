@@ -11,6 +11,9 @@ import scipy.sparse as sparse
 
 #=================================================================#
 class Femsys():
+    def __repr__(self):
+        repr = f"{self.__class__.__name__}:{self.fem.__class__.__name__}"
+        return repr
     def __init__(self, fem, ncomp, mesh=None):
         self.ncomp = ncomp
         self.fem = fem

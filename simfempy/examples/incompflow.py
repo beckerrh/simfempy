@@ -22,9 +22,9 @@ def main():
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application
-    # stokes = Stokes(mesh=mesh, problemdata=data, mode='newton', linearsolver='gmres')
+    stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_20')
-    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
+    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
     result = stokes.solve()
     print(f"{result.info['timer']}")
@@ -75,8 +75,9 @@ def backwardFacingStep(h=0.2, mu=0.02):
         mesh = geom.generate_mesh()
     data = ProblemData()
     # boundary conditions
-    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
+    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
     data.bdrycond.set("Neumann", [1004])
+    data.bdrycond.set("Navier", [1005])
     # data.bdrycond.fct[1000] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
     # parameters

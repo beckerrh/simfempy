@@ -1,7 +1,7 @@
 import sys
 from os import path
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-sys.path.append(simfempypath)
+sys.path.insert(0,simfempypath)
 
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.elasticity import Elasticity

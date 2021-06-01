@@ -130,7 +130,7 @@ class CR1sys(femsys.Femsys):
         rowsB = np.repeat(np.arange(ncells), ncomp * nloc).ravel()
         colsB = ncomp*np.repeat(foc, ncomp).reshape(ncells * nloc, ncomp) + np.arange(ncomp)
         mat = np.einsum('nkl,n->nkl', cellgrads[:, :, :ncomp], dV)
-        B = sparse.coo_matrix((mat.reshape(-1), (rowsB, colsB.ravel())),shape=(ncells, nfaces * ncomp)).tocsr()
+        B = sparse.coo_matrix((mat.ravel(), (rowsB, colsB.ravel())),shape=(ncells, nfaces * ncomp)).tocsr()
         return B
     def computeFormDivGrad(self, dv, dp, v, p):
         ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells

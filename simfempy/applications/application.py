@@ -167,7 +167,6 @@ class Application(object):
     def computeForm(self, u):
         return self.A@u
     def computeDx(self, b, u, info):
-        it,rhor = info
         # if it>1:
         self.A = self.computeMatrix(u=u)           
         try:

@@ -39,6 +39,7 @@ class BoundaryConditions(object):
     def set(self, type, colors, fcts=None):
         if isinstance(colors, int): colors = [colors]
         for i,color in enumerate(colors):
+            if color in self.type.keys(): raise ValueError(f"attempt to defone {type=}, butalready defined b.c {color} as {self.type[color]=}")
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]
     def colorsOfType(self, type):
@@ -49,7 +50,9 @@ class BoundaryConditions(object):
     def check(self, colors):
         colors = set(colors)
         typecolors = set(self.type.keys())
-        _check2setsequal_(colors, typecolors, "mesh colors", "types")
+        if colors != typecolors: raise ValueError(f"problem in boundary conditions {colors=} {typecolors=}")
+        # _check2setsequal_(colors, typecolors, "mesh colors", "types")
+            
 
 
 # ---------------------------------------------------------------- #
