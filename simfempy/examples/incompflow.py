@@ -23,8 +23,8 @@ def main():
     # plotmesh.meshWithBoundaries(mesh)
     # create application
     # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_10')
-    # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
-    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres')
+    stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
     result = stokes.solve()
@@ -77,10 +77,11 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data = ProblemData()
     # boundary conditions
     data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
     data.bdrycond.set("Neumann", [1004])
     data.bdrycond.set("Navier", [1005])
-    # data.bdrycond.fct[1000] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
-    data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
+    # data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
+    data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
     #TODO pass ncomp with mesh ?!

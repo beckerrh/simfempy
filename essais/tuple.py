@@ -1,5 +1,5 @@
 def fct():
-    return 1,2
+    return [1,2]
 
 
 x,y = fct()

@@ -347,7 +347,8 @@ class Stokes(Application):
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
         self.femv.computeRhsNitscheDiffusion(bv, mucell, colorsdir, vdir, ncomp)
     def computeRhsBdryNitscheNavier(self, b, colors, vdir, mucell, coeff=1):
-        if len(colors): raise NotImplementedError("trop tot")
+        pass
+        # if len(colors): raise Warning("trop tot")
     def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
         xf, yf, zf = self.mesh.pointsf.T
@@ -397,11 +398,37 @@ class Stokes(Application):
         cols = indfaces.ravel()
         rows = cells.repeat(ncomp).ravel()
         mat = normalsS.ravel()
-        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
-        B -= BN
+        B -= sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces))
         return A,B
     def computeMatrixBdryNitscheNavier(self, A, B, colors, mucell):
-        if len(colors): raise NotImplementedError("trop tot")
+        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
+        faces = self.mesh.bdryFaces(colors)
+        cells = self.mesh.cellsOfFaces[faces, 0]
+        normalsS = self.mesh.normals[faces][:, :dim]
+        indfaces = np.repeat(ncomp * faces, ncomp)
+        for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
+        cols = indfaces.ravel()
+        rows = cells.repeat(ncomp).ravel()
+        B -= sparse.coo_matrix((normalsS.ravel(), (rows, cols)), shape=(ncells, ncomp*nfaces))
+        #vitesses
+        dS = np.linalg.norm(normalsS, axis=1)
+        normals = normalsS/dS[:,np.newaxis]
+        cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
+        nloc = dim+1
+        foc = self.mesh.facesOfCells[cells]
+        mat = np.einsum('f,fk,fjk,fl,fm->fjlm', mucell[cells], normalsS, cellgrads, normals, normals)
+        rows = np.repeat(ncomp*faces, nloc*ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
+        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,np.newaxis,:]
+        # print(f"{rows.ravel()=}")
+       
+        cols = np.repeat(ncomp*foc,ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
+        cols +=  np.arange(ncomp)[np.newaxis,np.newaxis,:,np.newaxis]
+        # print(f"{cols.ravel()=}")
+        AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
+
+        A += - AN -AN.T
+        # if len(colors): raise NotImplementedError("trop tot")
+
         return A,B
     def computeMatrixBdryNitscheOld(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
