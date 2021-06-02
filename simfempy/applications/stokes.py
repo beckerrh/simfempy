@@ -291,8 +291,11 @@ class Stokes(Application):
             A, B = self.matrixBoundary(A, B, self.bdrydata, self.dirichletmethod)
         else:
             #TODO eviter le retour de A,B
+            # print(f"{id(A)=} {id(B)=}")
             A, B = self.computeMatrixBdryNitscheDirichlet(A, B, colorsdir, self.mucell)
-            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell)
+            # print(f"{id(A)=} {id(B)=}")
+            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, self.problemdata.params.scal_glob['Navier'])
+            # print(f"{id(A)=} {id(B)=}")
         if not self.pmean:
             return [A, B]
         ncells = self.mesh.ncells
@@ -400,7 +403,7 @@ class Stokes(Application):
         mat = normalsS.ravel()
         B -= sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces))
         return A,B
-    def computeMatrixBdryNitscheNavier(self, A, B, colors, mucell):
+    def computeMatrixBdryNitscheNavier(self, A, B, colors, mucell, lambdaR):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -419,50 +422,22 @@ class Stokes(Application):
         mat = np.einsum('f,fk,fjk,fl,fm->fjlm', mucell[cells], normalsS, cellgrads, normals, normals)
         rows = np.repeat(ncomp*faces, nloc*ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
         rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,np.newaxis,:]
-        # print(f"{rows.ravel()=}")
-       
         cols = np.repeat(ncomp*foc,ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
         cols +=  np.arange(ncomp)[np.newaxis,np.newaxis,:,np.newaxis]
         # print(f"{cols.ravel()=}")
         AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
 
-        A += - AN -AN.T
-        # if len(colors): raise NotImplementedError("trop tot")
-
-        return A,B
-    def computeMatrixBdryNitscheOld(self, A, B, colorsdir, mucell):
-        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
-        A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
-        # nloc = dim+1
-        # nlocncomp = ncomp * nloc
-        # cellgrads = self.femv.fem.cellgrads
-        faces = self.mesh.bdryFaces(colorsdir)
-        cells = self.mesh.cellsOfFaces[faces, 0]
-        normalsS = self.mesh.normals[faces][:, :self.ncomp]
-        indfaces = np.repeat(ncomp * faces, ncomp)
-        for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
-        cols = indfaces.ravel()
-        rows = cells.repeat(ncomp).ravel()
-        mat = normalsS.ravel()
-        BN = sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, ncomp*nfaces)).tocsr()
-
-        # mat = np.einsum('f,fi,fji->fj', mucell[cells], normalsS, cellgrads[cells, :, :dim])
-        # mats = mat.repeat(ncomp)
-        # dofs = self.mesh.facesOfCells[cells, :]
-        # cols = np.repeat(ncomp * dofs, ncomp).reshape(dofs.shape[0], nloc, ncomp)
-        # for icomp in range(ncomp): cols[:,:,icomp::ncomp] += icomp
-        # indfaces = np.repeat(ncomp * faces, ncomp*nloc).reshape(dofs.shape[0],nloc,ncomp)
-        # for icomp in range(ncomp): indfaces[:,:,icomp::ncomp] += icomp
-        # cols = cols.reshape(dofs.shape[0],nloc*ncomp)
-        # rows = indfaces.reshape(dofs.shape[0],nloc*ncomp)
-        # AN = sparse.coo_matrix((mats, (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
-        # AD = sparse.diags(AN.diagonal(), offsets=(0), shape=(ncomp*nfaces, ncomp*nfaces))
-        # A = A- AN -AN.T + self.dirichlet_nitsche*AD
-        # print(f"{AN.todense()=}")
-        # print(f"{AD.toarray()=}")
-        # print(f"{A.toarray()=}")
-        # print(f"{A=}")
-        B -= BN
+        mat = np.einsum('f,fk,fl->fkl', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells] -lambdaR/dS, normalsS, normalsS)
+        rows = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
+        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,:]
+        cols = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
+        cols +=  np.arange(ncomp, dtype='uint')[np.newaxis,:,np.newaxis]
+        AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
+        rows = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
+        AD += sparse.coo_matrix((lambdaR*dS.repeat(ncomp), (rows.ravel(), rows.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
+        #TODO il manque la matrice de masse complet au bord des conditions de Navier
+        A += AD- AN -AN.T
         return A,B
     def vectorBoundary(self, b, bdryfctv, bdrydata, method):
         bv, bp = b

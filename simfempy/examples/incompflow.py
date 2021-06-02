@@ -84,6 +84,7 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
+    data.params.scal_glob["Navier"] = 0.01
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data

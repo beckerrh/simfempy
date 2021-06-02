@@ -163,7 +163,6 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
             np.add.at(dv[icomp::ncomp], foc, r)
- 
     def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, ncomp, coeff=1):
         for icomp in range(ncomp):
             self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colorsdir, udir[:,icomp], coeff)

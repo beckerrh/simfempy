@@ -102,7 +102,7 @@ class Femsys():
         nr = row.shape[0]
         row2 = np.repeat(ncomp*row, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
         col2 = np.repeat(ncomp*col, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
-        return sparse.coo_matrix((data2, (row2, col2)), shape=(ncomp*n, ncomp*n))
+        return sparse.coo_matrix((data2, (row2, col2)), shape=(ncomp*n, ncomp*n)).tocsr()
 
 
 # ------------------------------
