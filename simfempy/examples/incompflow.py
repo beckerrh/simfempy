@@ -17,8 +17,8 @@ from simfempy.meshes import plotmesh
 # ================================================================c#
 def main():
     # create mesh and data
-    mesh, data = drivenCavity(h=0.2, mu=0.00025)
-    # mesh, data = backwardFacingStep(h=0.1)
+    # mesh, data = drivenCavity(h=0.2, mu=0.00025)
+    mesh, data = backwardFacingStep(h=0.1)
     print(f"{mesh=}")
     # plotmesh.meshWithBoundaries(mesh)
     # create application

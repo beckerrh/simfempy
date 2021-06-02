@@ -178,13 +178,6 @@ class Stokes(Application):
     def getPrecMult(self, Ain, AP, SP):
         A, B = Ain[0], Ain[1]
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        # mu = self.problemdata.params.scal_glob['mu']
-        # BP = sparse.diags(1/self.mesh.dV*mu, offsets=(0), shape=(ncells, ncells))
-        # Ainv = sparse.linalg.spilu(A)
-        # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
-        # S = (B*Ainv*B.T).diagonal()
-        # BP = splinalg.inv(B*Ainv*B.T)
-        # BP = sparse.diags(1/S, offsets=(0), shape=(ncells, ncells))
         if self.pmean: 
             C = Ain[2]
             BPCT = SP.solve(C.T.toarray())
@@ -199,7 +192,9 @@ class Stokes(Application):
                 w = AP.solve(v)
                 q = SP.solve(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
-                q -= BPCT.dot(mu).ravel()
+                # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
+                # q -= BPCT.dot(mu)
+                q -= mu*BPCT
                 h = B.T.dot(q)
                 w += AP.solve(h)
                 return np.hstack([w, q, mu])

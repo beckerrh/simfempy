@@ -26,17 +26,30 @@ class PressureSolverDiagonal():
         return self.BP.dot(b)
  #=================================================================#
 class PressureSolverSchur():
-    def __init__(self, mesh, A, B, AP):
+    def __init__(self, mesh, ncomp, A, B, AP, **kwargs):
         self.A, self.B, self.AP = A, B, AP
+        self.maxiter = kwargs.pop('maxiter',3)
         ncells, nfaces = mesh.ncells, mesh.nfaces
         self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)
-        self.counter = tools.iterationcounter.IterationCounter(name="schur", disp=10)
+        self.counter = tools.iterationcounter.IterationCounter(name="schur", disp=1)
+        Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
+        # self.spilu = splinalg.spilu(B*Ainv*B.T)
+        # self.M = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.spilu.solve)
+        self.M = sparse.diags( 1/(B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells) )
+        self.M = None
+
     def matvec(self, x):
         v = self.B.T.dot(x)
         v2 = self.AP.solve(v)
         return self.B.dot(v2)
     def solve(self, b):
-        u, info = splinalg.gmres(self.solver, b, x0=None, M=None, callback=self.counter, atol=1e-12, tol=1e-10, maxiter=30)
+        u, info = splinalg.lgmres(self.solver, b, x0=None, M=self.M, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
+        # u, info = splinalg.bicgstab(self.solver, b, x0=None, M=None, maxiter=20, atol=1e-12, tol=1e-10)
+        # u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
+        # self.counter.niter=0
+        # u, info = splinalg.lgmres(self.solver, b, x0=None, M=None, maxiter=3, atol=1e-12, tol=1e-10, callback=self.counter)
+        # print(f"{info=}")
+        # u, info = pyamg.krylov.bicgstab(self.solver, b, maxiter=3, callback=self.counter, tol=1e-10)
         # if info: raise ValueError(f"no convergence {info=}")
         return u
 

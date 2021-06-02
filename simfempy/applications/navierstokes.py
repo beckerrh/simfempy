@@ -64,4 +64,4 @@ class NavierStokes(Stokes):
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
         # return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)    
-        return solvers.cfd.PressureSolverSchur(self.mesh, A, B, AP)    
+        return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP)    
