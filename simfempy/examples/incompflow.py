@@ -60,7 +60,7 @@ def drivenCavity(h=0.1, mu=0.001):
     return SimplexMesh(mesh=mesh), data
 
 
-# ================================================================c#
+# ================================================================ #
 def backwardFacingStep(h=0.2, mu=0.02):
     with pygmsh.geo.Geometry() as geom:
         X = []
@@ -82,6 +82,32 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.bdrycond.set("Navier", [1005])
     # data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
+    # parameters
+    data.params.scal_glob["mu"] = mu
+    data.params.scal_glob["Navier"] = 0.01
+    #TODO pass ncomp with mesh ?!
+    data.ncomp = 2
+    return SimplexMesh(mesh=mesh), data
+# ================================================================ #
+def poiseuille_flux_gauche_droite(h= 0.1, mu=0.02):
+    with pygmsh.geo.Geometry() as geom:
+        #ms = [h*v for v in [1.,1.,0.2,0.2]]
+        ms = h
+        p = geom.add_rectangle(xmin=-1.0, xmax=3.0, ymin=-1.0, ymax=1.0, z=0, mesh_size=ms)
+        geom.add_physical(p.surface, label="100")
+        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        mesh = geom.generate_mesh()
+    data = ProblemData()
+   # boundary conditions
+    data.bdrycond.set("Dirichlet", [1000, 1003, 1002])
+    data.bdrycond.set("Neumann", [1001])
+    # data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
+    data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    #--------------------------------------------------------------------------
+    #navier_slip_boundary
+    data.bdrycond.fct[1002] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    #data.bdrycond.fct[1000] = [lambda x, y, z:  0, lambda x, y, z: 0]
+    #---------------------------------------------------------------------------
     # parameters
     data.params.scal_glob["mu"] = mu
     data.params.scal_glob["Navier"] = 0.01

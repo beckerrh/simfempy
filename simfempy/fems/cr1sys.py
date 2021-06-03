@@ -25,7 +25,11 @@ class CR1sys(femsys.Femsys):
         return unodes
     def interpolateBoundary(self, colors, f, lumped=False):
         # fs={col:f[col] for col in colors if col in f.keys()}
-        return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+        if len(colors) == 0: return
+        if isinstance(f[colors[0]], list):
+            return np.vstack([self.fem.interpolateBoundary(colors, {col:f[col][icomp] for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+        else:
+            raise ValueError(f"don't know how to handle {type(f[colors[0]])=}")
     def matrixBoundary(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T

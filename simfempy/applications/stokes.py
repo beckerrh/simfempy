@@ -107,6 +107,47 @@ class Stokes(Application):
                 rhsp -= v[i](x, y, z) * normals[i]
             return rhsp
         return _fctneumannv
+    def defineNavierAnalyticalSolution(self, problemdata, color):
+        solexact = problemdata.solexact
+        mu = self.problemdata.params.scal_glob['mu']
+        lambdaR = self.problemdata.params.scal_glob['Navier']
+        def _fctnaviervn(x, y, z, nx, ny, nz):
+            v, p = solexact
+            rhs = np.zeros(shape=x.shape[0])
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                rhs += v[i](x, y, z) * normals[i]
+            return rhs
+        def _fctnaviertangent(x, y, z, nx, ny, nz):
+            v, p = solexact
+            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            h = np.zeros(shape=(self.ncomp, x.shape[0]))
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                h[i] += lambdaR*v[i](x, y, z) * normals[i]
+                for j in range(self.ncomp):
+                    h[i] += mu*v[i].d(j, x, y, z) * normals[j]
+            for i in range(self.ncomp):
+                rhs[i,:] = h[i,:]
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs[i,:] -= normals[i]*normals[j]*h[j,:]
+            return rhs
+        def _fctnaviertangent2(x, y, z, nx, ny, nz, icomp):
+            v, p = solexact
+            rhs = np.zeros(shape=x.shape[0])
+            h = np.zeros(shape=(self.ncomp, x.shape[0]))
+            normals = nx, ny, nz
+            for i in range(self.ncomp):
+                h[i] += lambdaR*v[i](x, y, z) * normals[i]
+                for j in range(self.ncomp):
+                    h[i] += mu*v[i].d(j, x, y, z) * normals[j]
+            rhs[:] = h[icomp,:]
+            for j in range(self.ncomp):
+                rhs[:] -= normals[icomp]*normals[j]*h[j,:]
+            return rhs
+        # return _fctnaviervn, _fctnaviertangent
+        return _fctnaviervn, [np.vectorize(partial(_fctnaviertangent2, icomp=icomp), signature='(n),(n),(n),(n),(n),(n)->(n)') for icomp in range(self.ncomp)]
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
@@ -236,10 +277,6 @@ class Stokes(Application):
         b = self._zeros()
         bs  = self._split(b)
         bv,bp = bs[0], bs[1]
-        # if self.pmean: bv, bp, bmean = self._split(b)
-        # else: bv, bp = self._split(b)
-        # bv = np.zeros(self.femv.nunknowns() * self.ncomp)
-        # bp = np.zeros(self.femp.nunknowns())
         if 'rhs' in self.problemdata.params.fct_glob:
             rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
             if rhsv: self.femv.computeRhsCells(bv, rhsv)
@@ -253,7 +290,8 @@ class Stokes(Application):
         else:
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
-            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, vdir, self.mucell)
+            lambdaR = self.problemdata.params.scal_glob['Navier']
+            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, self.mucell, self.problemdata.bdrycond.fct, lambdaR)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
@@ -341,16 +379,54 @@ class Stokes(Application):
             # for icomp in range(ncomp):
             #     bv[icomp + ncomp * faces] += self.dirichlet_nitsche * np.choose(ind, mat.T) * dirichv[icomp]
         return flux.T
-    def computeRhsBdryNitscheDirichlet(self, b, colorsdir, vdir, mucell, coeff=1):
+    def computeRhsBdryNitscheDirichlet(self, b, colors, vdir, mucell, coeff=1):
         bv, bp = b
         ncomp  = self.ncomp
-        faces = self.mesh.bdryFaces(colorsdir)
+        faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:ncomp]
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
-        self.femv.computeRhsNitscheDiffusion(bv, mucell, colorsdir, vdir, ncomp)
-    def computeRhsBdryNitscheNavier(self, b, colors, vdir, mucell, coeff=1):
-        pass
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp)
+    def computeRhsBdryNitscheNavier(self, b, colors, mucell, bdryfct, lambdaR):
+        bv, bp = b
+        ncomp, dim  = self.ncomp, self.mesh.dimension
+        faces = self.mesh.bdryFaces(colors)
+        cells = self.mesh.cellsOfFaces[faces,0]
+        normalsS = self.mesh.normals[faces][:,:ncomp]
+        dS = np.linalg.norm(normalsS, axis=1)
+        vnfct = {col:np.vectorize(bdryfct[col][0], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors}
+        vn = self.femv.fem.interpolateBoundary(colors, vnfct)
+        np.add.at(bp, cells, -dS*vn[faces])
+
+        normals = normalsS/dS[:,np.newaxis]
+        foc = self.mesh.facesOfCells[cells]
+        cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
+
+        mat = -np.einsum('f,fk,fjk,fl->fjl', mucell[cells]*vn[faces], normalsS, cellgrads, normals)
+        indices = np.repeat(ncomp*foc, ncomp).reshape(faces.shape[0], dim+1, ncomp)
+        indices +=  np.arange(ncomp)[np.newaxis,np.newaxis,:]
+        np.add.at(bv, indices.ravel(), mat.ravel())
+
+        mat = np.einsum('f,fk,fl->fkl', (self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells] -lambdaR/dS)*vn[faces], normalsS, normalsS)
+        indices = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
+        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,:]
+        np.add.at(bv, indices.ravel(), mat.ravel())
+
+
+        indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
+        np.add.at(bv, indices.ravel(), lambdaR*(dS*vn[faces]).repeat(ncomp))
+
+
+
+        vtfct = {col: bdryfct[col][1] for col in colors}
+        vt = self.femv.interpolateBoundary(colors, vtfct)
+
+        mat = np.einsum('f,fk->fk', dS, vt[faces])
+        np.add.at(bv, indices.ravel(), mat.ravel())
+
+
+        print(f"{vt.shape=}")
         # if len(colors): raise Warning("trop tot")
     def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
