@@ -395,7 +395,9 @@ class Stokes(Application):
         normalsS = self.mesh.normals[faces][:,:ncomp]
         dS = np.linalg.norm(normalsS, axis=1)
         vnfct = {col:np.vectorize(bdryfct[col][0], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors}
-        vn = self.femv.fem.interpolateBoundary(colors, vnfct)
+        vn = self.femv.fem.interpolateBoundary(colors, vnfct, lumped=True)
+        print(f"{vn.shape=}")
+        print(f"{vn=}")
         np.add.at(bp, cells, -dS*vn[faces])
 
         normals = normalsS/dS[:,np.newaxis]
@@ -420,13 +422,14 @@ class Stokes(Application):
 
 
         vtfct = {col: bdryfct[col][1] for col in colors}
-        vt = self.femv.interpolateBoundary(colors, vtfct)
+        vt = self.femv.interpolateBoundary(colors, vtfct, lumped=True)
+        print(f"{vt.shape=}")
+        print(f"{vt=}")
 
         mat = np.einsum('f,fk->fk', dS, vt[faces])
         np.add.at(bv, indices.ravel(), mat.ravel())
 
 
-        print(f"{vt.shape=}")
         # if len(colors): raise Warning("trop tot")
     def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b

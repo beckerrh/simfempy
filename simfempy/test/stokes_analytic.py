@@ -15,7 +15,7 @@ def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     data = simfempy.applications.problemdata.ProblemData()
     data.params.scal_glob['mu'] = kwargs.pop('mu', 0.1)
-    data.params.scal_glob['Navier'] = kwargs.pop('navier', 0.1)
+    data.params.scal_glob['Navier'] = kwargs.pop('navier', 0)
     paramargs = {}
     if dim==2:
         data.ncomp=2
@@ -46,6 +46,7 @@ def test(dim, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
-    test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    # test(dim=2, exactsolution=[["-y","x"],"10"], niter=2, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    test(dim=2, exactsolution=[["1","0"],"10"], niter=2, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)
