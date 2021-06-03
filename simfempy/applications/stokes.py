@@ -110,7 +110,7 @@ class Stokes(Application):
     def defineNavierAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         mu = self.problemdata.params.scal_glob['mu']
-        lambdaR = self.problemdata.params.scal_glob['Navier']
+        lambdaR = self.problemdata.params.scal_glob['navier']
         def _fctnaviervn(x, y, z, nx, ny, nz):
             v, p = solexact
             rhs = np.zeros(shape=x.shape[0])
@@ -234,8 +234,9 @@ class Stokes(Application):
                 q = SP.solve(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
                 # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
-                # q -= BPCT.dot(mu)
-                q -= mu*BPCT
+                q -= BPCT.dot(mu)
+                # print(f"{BPCT.shape=} {mu=}")
+                # q -= mu*BPCT
                 h = B.T.dot(q)
                 w += AP.solve(h)
                 return np.hstack([w, q, mu])
@@ -283,14 +284,14 @@ class Stokes(Application):
             if rhsp: self.femp.computeRhsCells(bp, rhsp)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("navier")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         if self.dirichletmethod=='strong':
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
-            lambdaR = self.problemdata.params.scal_glob['Navier']
+            lambdaR = self.problemdata.params.scal_glob['navier']
             self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, self.mucell, self.problemdata.bdrycond.fct, lambdaR)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
@@ -324,7 +325,7 @@ class Stokes(Application):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("navier")
         if self.dirichletmethod == 'strong':
             A, B = self.matrixBoundary(A, B, self.bdrydata, self.dirichletmethod)
         else:
@@ -396,8 +397,8 @@ class Stokes(Application):
         dS = np.linalg.norm(normalsS, axis=1)
         vnfct = {col:np.vectorize(bdryfct[col][0], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors}
         vn = self.femv.fem.interpolateBoundary(colors, vnfct, lumped=True)
-        print(f"{vn.shape=}")
-        print(f"{vn=}")
+        # print(f"{vn.shape=}")
+        # print(f"{vn[faces]=}")
         np.add.at(bp, cells, -dS*vn[faces])
 
         normals = normalsS/dS[:,np.newaxis]
@@ -409,22 +410,15 @@ class Stokes(Application):
         indices +=  np.arange(ncomp)[np.newaxis,np.newaxis,:]
         np.add.at(bv, indices.ravel(), mat.ravel())
 
-        mat = np.einsum('f,fk,fl->fkl', (self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells] -lambdaR/dS)*vn[faces], normalsS, normalsS)
-        indices = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
-        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,:]
-        np.add.at(bv, indices.ravel(), mat.ravel())
-
-
+        mat = np.einsum('f,fk->fk', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells]*dS*vn[faces], normalsS)
         indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
         indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-        np.add.at(bv, indices.ravel(), lambdaR*(dS*vn[faces]).repeat(ncomp))
-
-
+        np.add.at(bv, indices.ravel(), mat.ravel())
 
         vtfct = {col: bdryfct[col][1] for col in colors}
         vt = self.femv.interpolateBoundary(colors, vtfct, lumped=True)
-        print(f"{vt.shape=}")
-        print(f"{vt=}")
+        # print(f"{vt.shape=}")
+        # print(f"{vt[faces]=}")
 
         mat = np.einsum('f,fk->fk', dS, vt[faces])
         np.add.at(bv, indices.ravel(), mat.ravel())
@@ -515,6 +509,10 @@ class Stokes(Application):
         rows = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
         rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
         AD += sparse.coo_matrix((lambdaR*dS.repeat(ncomp), (rows.ravel(), rows.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
+
+
+
+
         #TODO il manque la matrice de masse complet au bord des conditions de Navier
         A += AD- AN -AN.T
         return A,B

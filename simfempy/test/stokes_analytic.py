@@ -14,16 +14,16 @@ from simfempy.test.test_analytic import test_analytic
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     data = simfempy.applications.problemdata.ProblemData()
-    data.params.scal_glob['mu'] = kwargs.pop('mu', 0.1)
-    data.params.scal_glob['Navier'] = kwargs.pop('navier', 0)
+    data.params.scal_glob['mu'] = kwargs.pop('mu', 1)
+    data.params.scal_glob['Navier'] = kwargs.pop('navier', 1)
     paramargs = {}
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
         # colordir = [1000,1001,1003]
         # colorneu = [1002]
-        colordir = [1000,1002,1001]
-        colorneu = []
+        colordir = [1000,1002]
+        colorneu = [1001]
         colornav = [1003]
     else:
         data.ncomp=3
@@ -32,7 +32,7 @@ def test(dim, **kwargs):
         colorneu = [103]
     data.bdrycond.set("Dirichlet", colordir)
     data.bdrycond.set("Neumann", colorneu)
-    data.bdrycond.set("Navier", colornav)
+    data.bdrycond.set("navier", colornav)
     data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'iter')
@@ -45,8 +45,8 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
+    test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=2, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
-    test(dim=2, exactsolution=[["1","0"],"10"], niter=2, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    # test(dim=2, exactsolution=[["1","0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)

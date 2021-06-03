@@ -79,12 +79,12 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
     # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
     data.bdrycond.set("Neumann", [1004])
-    data.bdrycond.set("Navier", [1005])
+    data.bdrycond.set("navier", [1005])
     # data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
-    data.params.scal_glob["Navier"] = 0.01
+    data.params.scal_glob["navier"] = 0.01
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
@@ -110,7 +110,7 @@ def poiseuille_flux_gauche_droite(h= 0.1, mu=0.02):
     #---------------------------------------------------------------------------
     # parameters
     data.params.scal_glob["mu"] = mu
-    data.params.scal_glob["Navier"] = 0.01
+    data.params.scal_glob["navier"] = 0.01
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
