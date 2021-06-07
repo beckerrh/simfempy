@@ -118,36 +118,39 @@ class Stokes(Application):
             for i in range(self.ncomp):
                 rhs += v[i](x, y, z) * normals[i]
             return rhs
-        def _fctnaviertangent(x, y, z, nx, ny, nz):
-            v, p = solexact
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
-            h = np.zeros(shape=(self.ncomp, x.shape[0]))
-            normals = nx, ny, nz
-            for i in range(self.ncomp):
-                h[i] += lambdaR*v[i](x, y, z) * normals[i]
-                for j in range(self.ncomp):
-                    h[i] += mu*v[i].d(j, x, y, z) * normals[j]
-            for i in range(self.ncomp):
-                rhs[i,:] = h[i,:]
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhs[i,:] -= normals[i]*normals[j]*h[j,:]
-            return rhs
-        def _fctnaviertangent2(x, y, z, nx, ny, nz, icomp):
+        # def _fctnaviertangent(x, y, z, nx, ny, nz):
+        #     v, p = solexact
+        #     rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+        #     h = np.zeros(shape=(self.ncomp, x.shape[0]))
+        #     normals = nx, ny, nz
+        #     for i in range(self.ncomp):
+        #         h[i] += lambdaR*v[i](x, y, z) * normals[i]
+        #         for j in range(self.ncomp):
+        #             h[i] += mu*v[i].d(j, x, y, z) * normals[j]
+        #     for i in range(self.ncomp):
+        #         rhs[i,:] = h[i,:]
+        #     for i in range(self.ncomp):
+        #         for j in range(self.ncomp):
+        #             rhs[i,:] -= normals[i]*normals[j]*h[j,:]
+        #     return rhs
+        def _fctnaviertangent(x, y, z, nx, ny, nz, icomp):
             v, p = solexact
             rhs = np.zeros(shape=x.shape[0])
-            h = np.zeros(shape=(self.ncomp, x.shape[0]))
+            # h = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
-            for i in range(self.ncomp):
-                h[i] += lambdaR*v[i](x, y, z) * normals[i]
-                for j in range(self.ncomp):
-                    h[i] += mu*v[i].d(j, x, y, z) * normals[j]
-            rhs[:] = h[icomp,:]
+            rhs = lambdaR*v[icomp](x, y, z)
             for j in range(self.ncomp):
-                rhs[:] -= normals[icomp]*normals[j]*h[j,:]
+                rhs += mu*v[icomp].d(j, x, y, z) * normals[j]
+        #    for i in range(self.ncomp):
+        #         h[i] += lambdaR*v[i](x, y, z) * normals[i]
+        #         for j in range(self.ncomp):
+        #             h[i] += mu*v[i].d(j, x, y, z) * normals[j]
+        #     rhs[:] = h[icomp,:]
+        #     for j in range(self.ncomp):
+        #         rhs[:] -= normals[icomp]*normals[j]*h[j,:]
             return rhs
-        # return _fctnaviervn, _fctnaviertangent
-        return _fctnaviervn, [np.vectorize(partial(_fctnaviertangent2, icomp=icomp), signature='(n),(n),(n),(n),(n),(n)->(n)') for icomp in range(self.ncomp)]
+        # # return _fctnaviervn, _fctnaviertangent
+        return _fctnaviervn, [np.vectorize(partial(_fctnaviertangent, icomp=icomp), signature='(n),(n),(n),(n),(n),(n)->(n)') for icomp in range(self.ncomp)]
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
@@ -284,15 +287,14 @@ class Stokes(Application):
             if rhsp: self.femp.computeRhsCells(bp, rhsp)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
-        colorsnav = self.problemdata.bdrycond.colorsOfType("navier")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         if self.dirichletmethod=='strong':
             self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
-            lambdaR = self.problemdata.params.scal_glob['navier']
-            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, self.mucell, self.problemdata.bdrycond.fct, lambdaR)
+            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, self.mucell, self.problemdata.bdrycond.fct)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
@@ -325,7 +327,7 @@ class Stokes(Application):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        colorsnav = self.problemdata.bdrycond.colorsOfType("navier")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
             A, B = self.matrixBoundary(A, B, self.bdrydata, self.dirichletmethod)
         else:
@@ -333,7 +335,7 @@ class Stokes(Application):
             # print(f"{id(A)=} {id(B)=}")
             A, B = self.computeMatrixBdryNitscheDirichlet(A, B, colorsdir, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
-            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, self.problemdata.params.scal_glob['Navier'])
+            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, self.problemdata.params.scal_glob['navier'])
             # print(f"{id(A)=} {id(B)=}")
         if not self.pmean:
             return [A, B]
@@ -388,7 +390,7 @@ class Stokes(Application):
         normalsS = self.mesh.normals[faces][:,:ncomp]
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
         self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp)
-    def computeRhsBdryNitscheNavier(self, b, colors, mucell, bdryfct, lambdaR):
+    def computeRhsBdryNitscheNavier(self, b, colors, mucell, bdryfct):
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
         faces = self.mesh.bdryFaces(colors)
@@ -416,11 +418,16 @@ class Stokes(Application):
         np.add.at(bv, indices.ravel(), mat.ravel())
 
         vtfct = {col: bdryfct[col][1] for col in colors}
-        vt = self.femv.interpolateBoundary(colors, vtfct, lumped=True)
+        vt = self.femv.interpolateBoundary(colors, vtfct, lumped=False)
         # print(f"{vt.shape=}")
         # print(f"{vt[faces]=}")
 
         mat = np.einsum('f,fk->fk', dS, vt[faces])
+        np.add.at(bv, indices.ravel(), mat.ravel())
+        
+        mat = -np.einsum('f,fk,fk,fl->fl', dS, vt[faces],normals,normals)
+        indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
         np.add.at(bv, indices.ravel(), mat.ravel())
 
 

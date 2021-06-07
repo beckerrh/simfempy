@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  2 JUN 2021 08:20
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  4 JUN 2021 21:50
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1210,140 +1210,7 @@ LaTeX Font Info:    Trying to load font information for T1+ppl on input line 27
 .
 (/usr/local/texlive/2021/texmf-dist/tex/latex/psnfss/t1ppl.fd
 File: t1ppl.fd 2001/06/04 font definitions for T1/ppl.
-) (./simfempy.aux
-(./chap/heat.aux
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-) (./chap/stokes.aux
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `lemma:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-) (./chap/beam.aux
-
-LaTeX Warning: Label `sec:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `lemma:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-) (./chap/python.aux
-
-LaTeX Warning: Label `sec:' multiply defined.
-
-) (./chap/fem.aux
-
-LaTeX Warning: Label `sec:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `lemma:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-) (./chap/transport.aux
-
-LaTeX Warning: Label `sec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `lemma:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `lemma:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `cor:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `subsec:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-
-LaTeX Warning: Label `eq:' multiply defined.
-
-))
+) (./simfempy.aux)
 \openout1 = `simfempy.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 27.
@@ -1364,7 +1231,6 @@ LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 27.
 LaTeX Font Info:    ... okay on input line 27.
 LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 27.
 LaTeX Font Info:    ... okay on input line 27.
-
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 *geometry* verbose mode - [ preamble ] result:
@@ -1502,16 +1368,28 @@ LaTeX Font Info:    Trying to load font information for U+stmry on input line 3
 1.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/stmaryrd/Ustmry.fd)
-(./simfempy.toc)
+
+Package hyperref Warning: old toc file detected, not used; run LaTeX again.
+
 \tf@toc=\write9
 \openout9 = `simfempy.toc'.
 
- [1
+[1
 
 {/usr/local/texlive/2021/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
 \openout2 = `chap/heat.aux'.
 
- (./chap/heat.tex [2
+
+(./chap/heat.tex
+
+LaTeX Warning: Reference `eq:HeatEquationWeak' on page 2 undefined on input lin
+e 40.
+
+
+LaTeX Warning: Reference `eq:HeatEquation' on page 2 undefined on input line 40
+.
+
+[2
 
 ]
 Overfull \hbox (49.96819pt too wide) detected at line 110
@@ -1545,8 +1423,8 @@ LaTeX Warning: Empty bibliography on input line 143.
 \openout2 = `chap/stokes.aux'.
 
  (./chap/stokes.tex
-LaTeX Font Info:    Trying to load font information for T1+cmss on input line 3
-5.
+LaTeX Font Info:    Trying to load font information for T1+cmss on input line 2
+2.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/base/t1cmss.fd
 File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
@@ -1556,7 +1434,15 @@ Overfull \hbox (4.57489pt too wide) detected at line 68
  []
 
 
-Overfull \hbox (39.62787pt too wide) detected at line 90
+LaTeX Warning: Reference `eq:stokes:weakform' on page 4 undefined on input line
+ 72.
+
+
+LaTeX Warning: Reference `eq:stokes:strongform' on page 4 undefined on input li
+ne 72.
+
+
+Overfull \hbox (56.97867pt too wide) detected at line 90
 []
  []
 
@@ -1565,12 +1451,29 @@ Overfull \hbox (39.62787pt too wide) detected at line 90
 
 
 ] [5]
-Overfull \hbox (44.43365pt too wide) detected at line 266
+Overfull \hbox (44.43365pt too wide) detected at line 270
 [][] []
  []
 
-[6] [7]
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 425--429
+
+LaTeX Warning: Reference `eq:stokes:weakform' on page 6 undefined on input line
+ 275.
+
+
+LaTeX Warning: Reference `eq:stokes:nitsche' on page 6 undefined on input line 
+275.
+
+[6]
+
+LaTeX Warning: Reference `eq:StokesDirPmean' on page 7 undefined on input line 
+362.
+
+
+LaTeX Warning: Reference `eq:StokesDirPmean' on page 7 undefined on input line 
+383.
+
+[7]
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 429--433
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1579,16 +1482,41 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
  []
 
 
-LaTeX Warning: Empty bibliography on input line 449.
+LaTeX Warning: Empty bibliography on input line 453.
 
 ) [8]
 \openout2 = `chap/beam.aux'.
 
- (./chap/beam.tex [9
+ (./chap/beam.tex
+
+LaTeX Warning: Reference `eq:beam_vareq' on page 9 undefined on input line 46.
+
+
+LaTeX Warning: Reference `eq:beam_strong' on page 9 undefined on input line 47.
 
 
 
-] [10]
+LaTeX Warning: Reference `eq:beam_weakbc' on page 9 undefined on input line 69.
+
+
+
+LaTeX Warning: Reference `eq:beam_weakbc' on page 9 undefined on input line 69.
+
+
+
+LaTeX Warning: Reference `eq:beam_weakbc' on page 9 undefined on input line 69.
+
+
+[9
+
+
+
+]
+
+LaTeX Warning: Reference `eq:beam_varinfh' on page 10 undefined on input line 9
+8.
+
+[10]
 
 LaTeX Warning: Empty bibliography on input line 172.
 
@@ -1668,6 +1596,10 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 93.
+
+
+LaTeX Warning: Reference `eq:IntegrationFormulaBary' on page 14 undefined on in
+put line 105.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
@@ -1761,9 +1693,22 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 
 ]
+
+LaTeX Warning: Reference `eq:transportdg_dual' on page 18 undefined on input li
+ne 119.
+
+
+LaTeX Warning: Reference `eq:transportdg_cons' on page 18 undefined on input li
+ne 128.
+
+
 Overfull \hbox (12.04153pt too wide) detected at line 155
 []
  []
+
+
+LaTeX Warning: Reference `eq:transportdg0' on page 18 undefined on input line 1
+86.
 
 [18]
 Overfull \hbox (8.64256pt too wide) detected at line 209
@@ -1819,10 +1764,16 @@ LaTeX Warning: Empty bibliography on input line 269.
 LaTeX Warning: There were undefined references.
 
 
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
-Package rerunfilecheck Info: File `simfempy.out' has not changed.
-(rerunfilecheck)             Checksum: 8091E25D12DF9054BF12D2F517E1A990;4441.
+
+Package rerunfilecheck Warning: File `simfempy.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `simfempy.out':
+(rerunfilecheck)             Before: D41D8CD98F00B204E9800998ECF8427E;0
+(rerunfilecheck)             After:  8091E25D12DF9054BF12D2F517E1A990;4441.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1833,13 +1784,13 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37082 strings out of 478994
- 697971 string characters out of 5858185
- 1446687 words of memory out of 5000000
- 53758 multiletter control sequences out of 15000+600000
+ 37033 strings out of 478994
+ 697214 string characters out of 5858185
+ 1428673 words of memory out of 5000000
+ 53723 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,23n,119p,1891b,1731s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 117i,23n,119p,1891b,1721s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
 exlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
 live/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
@@ -1868,10 +1819,10 @@ ocal/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/tex
 live/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/20
 21/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texm
 f-dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (19 pages, 310394 bytes).
+Output written on simfempy.pdf (19 pages, 304996 bytes).
 PDF statistics:
- 461 PDF objects out of 1000 (max. 8388607)
- 409 compressed objects within 5 object streams
+ 328 PDF objects out of 1000 (max. 8388607)
+ 278 compressed objects within 3 object streams
  121 named destinations out of 1000 (max. 500000)
- 237 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 13 words of extra memory for PDF output out of 10000 (max. 10000000)
 

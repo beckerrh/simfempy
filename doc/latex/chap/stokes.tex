@@ -19,7 +19,7 @@ v = \vD \quad \mbox{in $\GammaD$},\\
 \left\{
 \begin{aligned}
 v_n =& \vn\\
-\lambda_R v_{\northo} + \mu \northo\frac{\partial v}{\partial n}  =& \gortho 
+(I-n\transpose{n}) \left( \lambda_R v + \mu \frac{\partial v}{\partial n}\right)  =& (I-n\transpose{n})\gR 
 \end{aligned}
 \right.
 %
@@ -58,8 +58,8 @@ The standard weak formulation reads
 &(v,p)\in V_{\vD,\vn}\times Q:\quad a_{\Omega}(v,p; \phi\xi)  = l_{\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V_{0,0}\times Q\\
 &\begin{aligned}
 a_{\Omega}(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi - \int_{\Omega}p \div \phi + \int_{\Omega} \div v \xi
-+ \lambda_R\int_{\Gamma_R}v_{\northo} \phi_{\northo},\\
- l_{\Omega}(\phi,\xi) &:= \int_{\Omega} f\cdot\phi + \int_{\Omega} g\xi + \int_{\GammaR}\gortho \phi_{\northo}
++ \lambda_R\int_{\Gamma_R}\left(v\cdot\phi - v_n\phi_n\right),\\
+ l_{\Omega}(\phi,\xi) &:= \int_{\Omega} f\cdot\phi + \int_{\Omega} g\xi + \int_{\GammaR}\left(\gR\cdot\phi - \gR_n\phi_n\right)
  -\int_{\GammaN}\pN \phi_n.
 \end{aligned}
 \end{aligned}
@@ -74,19 +74,19 @@ A regular solution of the formulation (\ref{eq:stokes:weakform}) satisfies (\ref
 %
 %---------------------------------------
 \begin{proof}
-By integration by parts we have
+By integration by parts we have, together with $v\cdot\phi - v_n\phi_n=(I-n\transpose{n})v\cdot\phi$
 %
 \begin{align*}
 a_{\Omega}(v,p; \phi,\xi) = \int_{\Omega} \left( -\mu \Delta v+\nabla p\right)\cdot\phi + 
 \int_{\partial\Omega} \mu\dn{v}\cdot\phi - \int_{\partial\Omega} p\phi_n
-+\int_{\Omega} \div v \xi+ \lambda_R\int_{\Gamma_R}v_{\northo} \phi_{\northo}
++\int_{\Omega} \div v \xi+ \lambda_R\int_{\Gamma_R}(I-n\transpose{n})v\cdot\phi
 \end{align*}
 %
 Then the (regular) weak solution satisfies
 %
 \begin{align*}
 \int_{\Omega} \left( -\mu \Delta v+\nabla p -f\right)\cdot\phi +\int_{\Omega} (\div v-g) \xi
-= \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n+ \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo}\right) \phi_{\northo}
+=& \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n+ \int_{\GammaR} (I-n\transpose{n})(\gR -\lambda_R v)\cdot\phi
 \end{align*}
 %
 Taking $\phi \in H^1_0(\Omega,\R^d)$, the right-hand side vanishes and the density of this space in $L^2(\Omega)$ gives us 
@@ -98,19 +98,21 @@ Taking $\phi \in H^1_0(\Omega,\R^d)$, the right-hand side vanishes and the densi
 But this means that for general $\phi\in V_{0,0}$
 %
 \begin{align*}
-\int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n + \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo}\right) \phi_{\northo}=0
+\int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n
++ \int_{\GammaR} (I-n\transpose{n})(\gR -\lambda_R v)\cdot\phi=0
 \end{align*}
 %
 Decomposing the test function as
 %
 \begin{align*}
-\phi = \phi_n n + \phi_{\northo}\northo
+\phi = \phi_n n + (I-n\transpose{n})\phi
 \end{align*}
 %
 and using the definition of $V_{0,0}$ we find
 %
 \begin{align*}
-\int_{\Gamma_N} \left( (p-\pN)\phi_n - \mu\dn{v}\cdot\phi\right) + \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo} - \mu\dn{v}\cdot\phi_{\northo}\right) \phi_{\northo}=0
+\int_{\Gamma_N} \left( (p-\pN)\phi_n - \mu\dn{v}\cdot\phi\right) 
++ \int_{\Gamma_R} (I-n\transpose{n})(\gR -\lambda_R v - \mu\dn{v})\cdot\phi =0
 \end{align*}
 %
 \end{proof}
@@ -136,7 +138,7 @@ v = \vD \quad \mbox{in $\GammaD$},\\
 \left\{
 \begin{aligned}
 v_n =& \vn\\
-\lambda_R v_{\northo} + \mu \northo\frac{\partial v}{\partial n}  =& \gortho 
+(I-n\transpose{n}) \left( \lambda_R v + \mu \frac{\partial v}{\partial n}\right)  =& (I-n\transpose{n})\gR 
 \end{aligned}
 \right.
 %
@@ -159,14 +161,16 @@ Using now
 we get in similar way as before
 %
 \begin{align*}
--\int_{\Gamma_N} \left( \sigma n + \pN n \right)\cdot\phi + \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo} - \sigma n \cdot \northo \right) \phi_{\northo}=0
+-\int_{\Gamma_N} \left( \sigma n + \pN n \right)\cdot\phi 
+%+ \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo} - \sigma n \cdot \northo \right) \phi_{\northo}=0
 \end{align*}
 %
-We have
+We have with $n\transpose{n}\transpose{(\nabla v)} n = n\transpose{\dn{v}}n= n\transpose{n}\dn{v}=\dn{v}$
 %
 \begin{align*}
-\sigma n = \mu\frac{\partial v}{\partial n} - p n + \mu \transpose{(\nabla v)} n
-\quad\Rightarrow\quad \sigma n \cdot \northo = \mu\frac{\partial v}{\partial n}  \cdot \northo
+\sigma n = \mu\dn{v} - p n + \mu \transpose{(\nabla v)} n
+\quad\Rightarrow\quad (I-n\transpose{n})\sigma n = (I-n\transpose{n})\mu\frac{\partial v}{\partial n}
+%\quad\Rightarrow\quad \sigma n \cdot \northo = \mu\frac{\partial v}{\partial n}  \cdot \northo
 \end{align*}
 %
 
