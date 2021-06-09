@@ -269,6 +269,8 @@ class CR1(fems.fem.Fem):
                 ff = f[color](x, y, z, nx, ny, nz)
             except:
                 ff = f[color](x, y, z)
+            # print(f"{f[color]=}")
+            # print(f"{color=} {colors=} {x.shape=} {ff.shape=}")
             np.put(b, foc, ff.T)
         return b
     # matrices

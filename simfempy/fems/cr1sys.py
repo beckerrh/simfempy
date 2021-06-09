@@ -25,11 +25,18 @@ class CR1sys(femsys.Femsys):
         return unodes
     def interpolateBoundary(self, colors, f, lumped=False):
         # fs={col:f[col] for col in colors if col in f.keys()}
-        if len(colors) == 0: return
-        if isinstance(f[colors[0]], list):
-            return np.vstack([self.fem.interpolateBoundary(colors, {col:f[col][icomp] for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+        if len(colors) == 0 or len(f) == 0: return
+        # print(f"{f=}")
+        if isinstance(next(iter(f.values())), list):
+            import inspect
+            fct = next(iter(f.values()))[0]
+            # print(f"{str(inspect.signature(fct))=}")
+            if 'nx' in str(inspect.signature(fct)):
+                return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+            else:
+                return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
         else:
-            raise ValueError(f"don't know how to handle {type(f[colors[0]])=}")
+            raise ValueError(f"don't know how to handle {type(next(iter(f.values())))=}")
     def matrixBoundary(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T

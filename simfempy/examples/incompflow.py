@@ -15,12 +15,18 @@ from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
 
 # ================================================================c#
-def main():
+def main(testcase='drivenCavity'):
+    testcases = ['drivenCavity', 'backwardFacingStep', 'poiseuille']
     # create mesh and data
-    # mesh, data = drivenCavity(h=0.2, mu=0.00025)
-    mesh, data = backwardFacingStep(h=0.1)
-    print(f"{mesh=}")
-    # plotmesh.meshWithBoundaries(mesh)
+    if testcase=='drivenCavity':
+        mesh, data = drivenCavity(h=0.2, mu=0.00025)
+    elif testcase=='backwardFacingStep':
+        mesh, data = backwardFacingStep(h=0.1)
+    elif testcase=='poiseuille':
+        mesh, data = poiseuille(h=0.1)
+    else:
+        raise ValueError(f"test case must be in {testcases=}")
+   # plotmesh.meshWithBoundaries(mesh)
     # create application
     # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_10')
     stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
@@ -50,7 +56,9 @@ def drivenCavity(h=0.1, mu=0.001):
         mesh = geom.generate_mesh()
     data = ProblemData()
     # boundary conditions
-    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    data.bdrycond.set("Dirichlet", [1001, 1002, 1003])
+    data.bdrycond.set("Navier", [1000])
     # data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     data.bdrycond.fct[1002] = [lambda x, y, z: 1, lambda x, y, z: 0]
     # parameters
@@ -89,7 +97,7 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def poiseuille_flux_gauche_droite(h= 0.1, mu=0.02):
+def poiseuille(h= 0.1, mu=0.02):
     with pygmsh.geo.Geometry() as geom:
         #ms = [h*v for v in [1.,1.,0.2,0.2]]
         ms = h

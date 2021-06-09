@@ -17,6 +17,7 @@ def test(dim, **kwargs):
     data.params.scal_glob['mu'] = kwargs.pop('mu', 1)
     data.params.scal_glob['navier'] = kwargs.pop('navier', 1)
     paramargs = {}
+    paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
@@ -28,8 +29,12 @@ def test(dim, **kwargs):
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
-        colordir = [100,101,102,104,105]
+        colordir = [100,101,102,104]
         colorneu = [103]
+        colornav = [105]
+    if 'strong' in paramargs['dirichletmethod']:
+        colordir.append(*colornav)
+        colornav=[]
     data.bdrycond.set("Dirichlet", colordir)
     data.bdrycond.set("Neumann", colorneu)
     data.bdrycond.set("Navier", colornav)
@@ -38,15 +43,14 @@ def test(dim, **kwargs):
     linearsolver = kwargs.pop('linearsolver', 'iter')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
     # applicationargs['mode'] = 'newton'
-    paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     return test_analytic(application=Stokes, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
 
 
 
 #================================================================#
 if __name__ == '__main__':
-    test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
+    # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
     # test(dim=2, exactsolution=[["1","0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
-    # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
+    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)
