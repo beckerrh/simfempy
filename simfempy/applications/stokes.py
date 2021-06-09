@@ -371,39 +371,46 @@ class Stokes(Application):
         normalsS = self.mesh.normals[faces][:,:ncomp]
         dS = np.linalg.norm(normalsS, axis=1)
         assert isinstance(next(iter(bdryfct.values())),list)
-        vnfct = {col: bdryfct[col][0] for col in colors if col in bdryfct.keys()}
-        vn = self.femv.fem.interpolateBoundary(colors, vnfct, lumped=True)
-        np.add.at(bp, cells, -dS*vn[faces])
-
+        vnfct, vtfct = {}, {}
+        for col in colors:
+            if col not in bdryfct.keys(): continue
+            if isinstance(bdryfct[col],list) and len(bdryfct[col])==2 and isinstance(bdryfct[col][1],list):
+                assert callable(bdryfct[col][0])
+                assert len(bdryfct[col][1])==self.ncomp
+                vnfct[col] = bdryfct[col][0]
+                vtfct[col] = bdryfct[col][1]
+            else:
+                if len(bdryfct[col])==self.ncomp:
+                    vtfct[col] = bdryfct[col]
+                elif len(bdryfct[col])==1:
+                    vnfct[col] = bdryfct[col]
+                else:
+                    raise ValueError(f"wrong {len(bdryfct[col][0])=}")
+        if len(vtfct)+len(vnfct)==0: return
         normals = normalsS/dS[:,np.newaxis]
         foc = self.mesh.facesOfCells[cells]
-        cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
-
-        mat = -np.einsum('f,fk,fjk,fl->fjl', mucell[cells]*vn[faces], normalsS, cellgrads, normals)
-        indices = np.repeat(ncomp*foc, ncomp).reshape(faces.shape[0], dim+1, ncomp)
-        indices +=  np.arange(ncomp)[np.newaxis,np.newaxis,:]
-        np.add.at(bv, indices.ravel(), mat.ravel())
-
-        mat = np.einsum('f,fk->fk', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells]*dS*vn[faces], normalsS)
-        indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-        np.add.at(bv, indices.ravel(), mat.ravel())
-
-        vtfct = {col: bdryfct[col][1] for col in colors if col in bdryfct.keys()}
-        vt = self.femv.interpolateBoundary(colors, vtfct, lumped=False)
-        # print(f"{vt.shape=}")
-        # print(f"{vt[faces]=}")
-
-        mat = np.einsum('f,fk->fk', dS, vt[faces])
-        np.add.at(bv, indices.ravel(), mat.ravel())
-        
-        mat = -np.einsum('f,fk,fk,fl->fl', dS, vt[faces],normals,normals)
-        indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-        indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-        np.add.at(bv, indices.ravel(), mat.ravel())
-
-
-        # if len(colors): raise Warning("trop tot")
+        if len(vnfct):
+            vn = self.femv.fem.interpolateBoundary(colors, vnfct, lumped=True)
+            np.add.at(bp, cells, -dS*vn[faces])
+            cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
+            mat = -np.einsum('f,fk,fjk,fl->fjl', mucell[cells]*vn[faces], normalsS, cellgrads, normals)
+            indices = np.repeat(ncomp*foc, ncomp).reshape(faces.shape[0], dim+1, ncomp)
+            indices +=  np.arange(ncomp)[np.newaxis,np.newaxis,:]
+            np.add.at(bv, indices.ravel(), mat.ravel())
+            mat = np.einsum('f,fk->fk', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells]*dS*vn[faces], normalsS)
+            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
+            np.add.at(bv, indices.ravel(), mat.ravel())
+        if len(vtfct):
+            vt = self.femv.interpolateBoundary(colors, vtfct, lumped=False)
+            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
+            mat = np.einsum('f,fk->fk', dS, vt[faces])
+            np.add.at(bv, indices.ravel(), mat.ravel())       
+            mat = -np.einsum('f,fk,fk,fl->fl', dS, vt[faces],normals,normals)
+            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
+            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
+            np.add.at(bv, indices.ravel(), mat.ravel())
     def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
         bv, bp = b
         xf, yf, zf = self.mesh.pointsf.T

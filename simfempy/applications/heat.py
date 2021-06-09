@@ -189,7 +189,7 @@ class Heat(Application):
         if self.dirichletmethod=="new":
             A = self.fem.matrixBoundary(A, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
-            A = self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colorsdir=colorsdir)
+            A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colorsdir=colorsdir)
         if self.verbose: print(f"{A.diagonal()=}")
         A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         if self.convection:
@@ -286,11 +286,10 @@ class Heat(Application):
     def own_gs(A, b):
         x = np.zeros_like(b)
         return x
-
     def pyamg_solver_args(self, maxiter):
         if self.convection:
-            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
-        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'cg'}
+            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-13, 'accel': 'bicgstab'}
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-13, 'accel': 'cg'}
     def build_pyamg(self, A):
         import pyamg
         # return pyamg.smoothed_aggregation_solver(A)

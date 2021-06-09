@@ -19,42 +19,42 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsubsection}{\numberline {2.3.1}Strong implementation of Dirichlet condition}{6}{subsubsection.2.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {2.3.2}Weak implementation (Nitsche's method)}{6}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.2}Weak implementation (Nitsche's method)}{7}{subsubsection.2.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.4}Computation of boundary forces}{7}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.4}Computation of boundary forces}{8}{subsection.2.4}%
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.5}Pressure mean}{8}{subsection.2.5}%
 \defcounter {refsection}{0}\relax 
 \contentsline {subsubsection}{\numberline {2.5.1}Iterative solution}{8}{subsubsection.2.5.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {3}Beam problem}{9}{section.3}%
+\contentsline {section}{\numberline {3}Beam problem}{10}{section.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.1}Weak formulation}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.1}Weak formulation}{10}{subsection.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.2}Lowest order approximation}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.2}Lowest order approximation}{11}{subsection.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {A}Python implementation}{12}{appendix.A}%
+\contentsline {section}{\numberline {A}Python implementation}{13}{appendix.A}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {B}Finite elements on simplices}{13}{appendix.B}%
+\contentsline {section}{\numberline {B}Finite elements on simplices}{14}{appendix.B}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.1}Simplices}{13}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.1}Simplices}{14}{subsection.B.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{13}{subsection.B.2}%
+\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{14}{subsection.B.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.3}Finite elements}{14}{subsection.B.3}%
+\contentsline {subsection}{\numberline {B.3}Finite elements}{15}{subsection.B.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{14}{subsubsection.B.3.1}%
+\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{15}{subsubsection.B.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\!R}^1_h(\Omega )$}{15}{subsubsection.B.3.2}%
+\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\!R}^1_h(\Omega )$}{16}{subsubsection.B.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\!T}^0_h(\Omega )$}{15}{subsubsection.B.3.3}%
+\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\!T}^0_h(\Omega )$}{16}{subsubsection.B.3.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{15}{subsubsection.B.3.4}%
+\contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{16}{subsubsection.B.3.4}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {C}Discreization of the transport equation}{17}{appendix.C}%
+\contentsline {section}{\numberline {C}Discreization of the transport equation}{18}{appendix.C}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.1}$\mathcal {D}^k_h(\Omega )$}{17}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.1}$\mathcal {D}^k_h(\Omega )$}{18}{subsection.C.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.2}$\mathcal {D}^1_h(\Omega )$}{19}{subsection.C.2}%
+\contentsline {subsection}{\numberline {C.2}$\mathcal {D}^1_h(\Omega )$}{20}{subsection.C.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.3}$\mathcal {P}^1_h(\Omega )$}{19}{subsection.C.3}%
+\contentsline {subsection}{\numberline {C.3}$\mathcal {P}^1_h(\Omega )$}{20}{subsection.C.3}%

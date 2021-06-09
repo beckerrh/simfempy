@@ -5,7 +5,8 @@
 %==========================================
 %
 Let $\Omega\subset \R^d$, $d=2,3$ be the computational domain. We suppose to have a disjoined partition of its boundary:
-$\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
+$\partial\Omega=\GammaD\cup\GammaN\cup\GammaR\cup\GammaP$, the outward unit normal is denotes by $n$. We denote by 
+$\pitang := (I-n\transpose{n})\in \R^{(d-1)\times d}$ the projection on the tangent plane.
 %
 \begin{equation}\label{eq:stokes:strongform}
 %
@@ -14,16 +15,33 @@ $\partial\Omega=\GammaD\cup\GammaN\cup\GammaR$.
 -\div\left(\mu\nabla v\right) + \nabla p = f \quad \mbox{in $\Omega$}\\
 \div v  = g \quad \mbox{in $\Omega$}\\
 v = \vD \quad \mbox{in $\GammaD$},\\
-\mu\frac{\partial v}{\partial n} - p n = -\pN n\quad \mbox{in $\GammaN$}\\
+%\mu\frac{\partial v}{\partial n} - p n = -\pN n\quad \mbox{in $\GammaN$}\\
 %
 \left\{
 \begin{aligned}
-v_n =& \vn\\
-(I-n\transpose{n}) \left( \lambda_R v + \mu \frac{\partial v}{\partial n}\right)  =& (I-n\transpose{n})\gR 
+\pitang \mu \frac{\partial v}{\partial n}  =& 0\\
+ \mu \frac{\partial v}{\partial n}\cdot n -p   =& -\pN
 \end{aligned}
-\right.
+\right\}\quad \mbox{in $\GammaN$},\\
 %
-\quad \mbox{in $\GammaR$}
+%
+\left\{
+\begin{aligned}
+v_n =& \vRn\\
+\pitang \left( \lambda_R v + \mu \frac{\partial v}{\partial n}\right)  =& \pitang\gR 
+\end{aligned}
+\right\}
+%
+\quad \mbox{in $\GammaR$},\\
+%
+\left\{
+\begin{aligned}
+\pitang v =& \pitang \vP\\
+\left(  \mu \frac{\partial v}{\partial n}\cdot n -p \right)  =& -\pP
+\end{aligned}
+\right\}
+%
+\quad \mbox{in $\GammaP$}.
 \end{aligned}
 \right.
 %
@@ -63,14 +81,14 @@ The standard weak formulation reads
 %
 \left\{
 \begin{aligned}
-&V_{\vD,\vn} :=  \SetDef{v\in H^1(\Omega,\R^d)}{\Rest{v}{\Gamma_D}=\vD\;\&\; \Rest{v_n}{\Gamma_R}=\vn}\quad Q := L^2(\Omega)
-\quad \left( Q := L^2(\Omega)/\R \;\mbox{if $\abs{\GammaN}=0$}\right)\\
-&(v,p)\in V_{\vD,\vn}\times Q:\quad a_{\Omega}(v,p; \phi\xi)  = l_{\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V_{0,0}\times Q\\
+&V_{\vD,\vRn,\vP} :=  \SetDef{v\in H^1(\Omega,\R^d)}{\Rest{v}{\Gamma_D}=\vD\;\&\; \Rest{v_n}{\Gamma_R}\;\&\; \Rest{\pitang v}{\Gamma_P}=\pi\vP}\\&Q := L^2(\Omega)
+\quad \left( Q := L^2(\Omega)/\R \quad\mbox{if $\abs{\GammaN\cup\GammaP}=0$}\right)\\
+&(v,p)\in V_{\vD,\vRn,\vP}\times Q:\quad a_{\Omega}(v,p; \phi\xi)  = l_{\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V_{0,0,0}\times Q\\
 &\begin{aligned}
 a_{\Omega}(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi - \int_{\Omega}p \div \phi + \int_{\Omega} \div v \xi
 + \lambda_R\int_{\Gamma_R}\left(v\cdot\phi - v_n\phi_n\right),\\
  l_{\Omega}(\phi,\xi) &:= \int_{\Omega} f\cdot\phi + \int_{\Omega} g\xi + \int_{\GammaR}\left(\gR\cdot\phi - \gR_n\phi_n\right)
- -\int_{\GammaN}\pN \phi_n.
+ -\int_{\GammaN}\pN \phi_n -\int_{\GammaP}\pP \phi_n.
 \end{aligned}
 \end{aligned}
 \right.
@@ -84,19 +102,19 @@ A regular solution of the formulation (\ref{eq:stokes:weakform}) satisfies (\ref
 %
 %---------------------------------------
 \begin{proof}
-By integration by parts we have, together with $v\cdot\phi - v_n\phi_n=(I-n\transpose{n})v\cdot\phi$
+By integration by parts we have, together with $v\cdot\phi - v_n\phi_n=\pitang v\cdot\phi$
 %
 \begin{align*}
 a_{\Omega}(v,p; \phi,\xi) = \int_{\Omega} \left( -\mu \Delta v+\nabla p\right)\cdot\phi + 
 \int_{\partial\Omega} \mu\dn{v}\cdot\phi - \int_{\partial\Omega} p\phi_n
-+\int_{\Omega} \div v \xi+ \lambda_R\int_{\Gamma_R}(I-n\transpose{n})v\cdot\phi
++\int_{\Omega} \div v \xi+ \lambda_R\int_{\Gamma_R}\pitang v\cdot\phi
 \end{align*}
 %
 Then the (regular) weak solution satisfies
 %
 \begin{align*}
 \int_{\Omega} \left( -\mu \Delta v+\nabla p -f\right)\cdot\phi +\int_{\Omega} (\div v-g) \xi
-=& \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n+ \int_{\GammaR} (I-n\transpose{n})(\gR -\lambda_R v)\cdot\phi
+=& \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n-\int_{\GammaP} \pP\phi_n+ \int_{\GammaR} \pitang(\gR -\lambda_R v)\cdot\phi
 \end{align*}
 %
 Taking $\phi \in H^1_0(\Omega,\R^d)$, the right-hand side vanishes and the density of this space in $L^2(\Omega)$ gives us 
@@ -105,24 +123,25 @@ Taking $\phi \in H^1_0(\Omega,\R^d)$, the right-hand side vanishes and the densi
 -\mu \Delta v+\nabla p = f,\quad \div v = g \quad  \mbox{a.e. in $\Omega$}.
 \end{align*}
 %
-But this means that for general $\phi\in V_{0,0}$
+But this means that for general $\phi\in V_{0,0,0}$
 %
 \begin{align*}
-\int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n
-+ \int_{\GammaR} (I-n\transpose{n})(\gR -\lambda_R v)\cdot\phi=0
+\int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n -\int_{\GammaP} \pP\phi_n
++ \int_{\GammaR} \pitang(\gR -\lambda_R v)\cdot\phi=0
 \end{align*}
 %
 Decomposing the test function as
 %
 \begin{align*}
-\phi = \phi_n n + (I-n\transpose{n})\phi
+\phi = \phi_n n + \pitang\phi
 \end{align*}
 %
-and using the definition of $V_{0,0}$ we find
+and using the definition of $V_{0,0,0}$ we find
 %
 \begin{align*}
-\int_{\Gamma_N} \left( (p-\pN)\phi_n - \mu\dn{v}\cdot\phi\right) 
-+ \int_{\Gamma_R} (I-n\transpose{n})(\gR -\lambda_R v - \mu\dn{v})\cdot\phi =0
+\int_{\Gamma_N} \left( (p-\pN)n - \mu\dn{v}\right)\cdot\phi 
++ \int_{\Gamma_P}  (p-\pP- \mu\dn{v}\cdot n)\phi_n 
++ \int_{\Gamma_R} \pitang(\gR -\lambda_R v - \mu\dn{v})\cdot\phi =0
 \end{align*}
 %
 \end{proof}
@@ -140,22 +159,67 @@ the resulting boundary conditions are
 %
 \begin{equation}\label{eq:stokes:bccauchy}
 %
-\left\{
 \begin{aligned}
-v = \vD \quad \mbox{in $\GammaD$},\\
-\mu\frac{\partial v}{\partial n} + \mu \transpose{(\nabla v)} n- p n = -\pN n\quad \mbox{in $\GammaN$}\\
 %
 \left\{
 \begin{aligned}
-v_n =& \vn\\
-(I-n\transpose{n}) \left( \lambda_R v + \mu \frac{\partial v}{\partial n}\right)  =& (I-n\transpose{n})\gR 
+v = \vD \quad &\mbox{in $\GammaD$},\\
+\sigma n= -\pN n\quad &\mbox{in $\GammaN$},\\
+%%
+\left\{
+\begin{aligned}
+\pitang v =& \pitang \vP\\
+(I-\pitang) \sigma n  =& -\pP 
+\end{aligned}
+\right\}
+\quad &\mbox{in $\GammaP$},\\
+%%
+\left\{
+\begin{aligned}
+v_n =& \vRn\\
+\pitang \left( \lambda_R v + \sigma n\right)  =& \pitang\gR 
+\end{aligned}
+\right\}
+%%
+\quad &\mbox{in $\GammaR$}.
 \end{aligned}
 \right.
 %
-\quad \mbox{in $\GammaR$}
+\qquad
+\left\{
+\begin{aligned}
+v = \vD \quad &\mbox{in $\GammaD$},\\
+\sigma n= -\pN n\quad &\mbox{in $\GammaN$},\\
+%%
+\left\{
+\begin{aligned}
+\pitang \mu \frac{\partial v}{\partial n} - \mu\omega n  =& 0\\
+ \mu \frac{\partial v}{\partial n}\cdot n -p   =& -\pN
+\end{aligned}
+\right\}
+\quad &\mbox{in $\GammaN$},\\
+%%
+%%
+\left\{
+\begin{aligned}
+\pitang v =& \pitang \vP\\
+ \mu \frac{\partial v}{\partial n}\cdot n -p   =& -\pP
+\end{aligned}
+\right\}
+\quad &\mbox{in $\GammaP$},\\
+%%
+\left\{
+\begin{aligned}
+v_n =& \vRn\\
+\pitang \left( \lambda_R v +\mu \dn{v}\right) - \mu\omega n  =& \pitang\gR 
+\end{aligned}
+\right\}
+%%
+\quad &\mbox{in $\GammaR$}.
 \end{aligned}
 \right.
 %
+\end{aligned}
 \end{equation}
 %
 \end{proposition}
@@ -172,19 +236,32 @@ Using now
 we get in similar way as before
 %
 \begin{align*}
--\int_{\Gamma_N} \left( \sigma n + \pN n \right)\cdot\phi 
-%+ \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo} - \sigma n \cdot \northo \right) \phi_{\northo}=0
+\int_{\Gamma_N} \left( \pN n + \sigma n\right)\cdot\phi 
++ \int_{\Gamma_P}  (I-\pitang)\left( \pP n+ \sigma n\right)\cdot\phi
++ \int_{\Gamma_R} \pitang\left ( \lambda_R v + \sigma n -\gR \right)\cdot\phi =0
 \end{align*}
 %
-We have with $n\transpose{n}\transpose{(\nabla v)} n = n\transpose{\dn{v}}n= n\transpose{n}\dn{v}=\dn{v}$
+%%
+%\begin{align*}
+%-\int_{\Gamma_N} \left( \sigma n + \pN n \right)\cdot\phi 
+%%+ \int_{\Gamma_R}\left(\gortho - \lambda_Rv_{\northo} - \sigma n \cdot \northo \right) \phi_{\northo}=0
+%\end{align*}
+%%
+We have 
 %
 \begin{align*}
-\sigma n = \mu\dn{v} - p n + \mu \transpose{(\nabla v)} n
-\quad\Rightarrow\quad (I-n\transpose{n})\sigma n = (I-n\transpose{n})\mu\frac{\partial v}{\partial n}
-%\quad\Rightarrow\quad \sigma n \cdot \northo = \mu\frac{\partial v}{\partial n}  \cdot \northo
+\transpose{n}\transpose{(\nabla v)} n =& \transpose{(\nabla v n)} n = \transpose{\dn{v}} n= \transpose{n}\dn{v}=
+\transpose{n}(\nabla v) n
 \end{align*}
 %
-
+and therefore
+%
+\begin{align*}
+\transpose{n}\sigma n =& \transpose{n}\widetilde{\sigma} n\quad\Rightarrow\quad (I-\pitang)\sigma n= (I-\pitang)\widetilde{\sigma} n,\\ 
+\pitang \sigma n =& (I-n\transpose{n})\sigma n = \sigma n - n\transpose{n}\widetilde{\sigma} n = \pitang \widetilde{\sigma} n  + (\sigma-\widetilde{\sigma}) n = \pitang \widetilde{\sigma} n  + \mu \omega n
+\end{align*}
+%
+with $\omega := \frac{1}{2}(\transpose{\nabla v}-\nabla v)$.
 \end{proof}
 %
 %
@@ -273,7 +350,7 @@ Instead of modifying the discrete velocity space, we add additional terms to the
 &+ \int_{\GammaD\cup\GammaR} \left( p\phi_n - v_n\xi\right)
  \\
  l_{\partial\Omega}(\phi,\xi) =& \int_{\GammaD}\mu\vD\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)- \int_{\GammaD}\vD_n\xi
-+ \int_{\GammaR}\mu\vn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vn\xi.
++ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vRn\xi.
 \end{aligned}
 \end{aligned}
 \right.
@@ -301,7 +378,7 @@ Thanks to the boundary conditions we also have
 %
 \begin{align*}
 \int_{\GammaD}\mu(\vD-v)\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)- \int_{\GammaD}(\vD_n-v_n)\xi =0\\
-\int_{\GammaR} \mu(\vn-v_n)\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right) - \int_{\GammaR}(\vn-v_n)\xi = 0
+\int_{\GammaR} \mu(\vRn-v_n)\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right) - \int_{\GammaR}(\vRn-v_n)\xi = 0
 \end{align*}
 %
 Adding these terms we get
@@ -315,7 +392,7 @@ a_{\Omega}(v,p; \phi\xi)  - l_{\Omega}(\phi,\xi) =&
 &-\int_{\GammaR}\frac{\gamma\mu}{h}v_n\phi_n
 + \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)
 - \int_{\GammaR} \left( p\phi_n - v_n\xi\right)\\
-&+ \int_{\GammaR}\mu\vn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vn\xi\\
+&+ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vRn\xi\\
 =& l_{\partial\Omega}(\phi,\xi) - a_{\partial\Omega}(v,p; \phi,\xi)
 \end{align*}
 %
@@ -382,7 +459,7 @@ Fo the weak implementation we have, since $\psi$ is no an admissible test functi
 & 
  \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n \right)
 - \int_{\GammaR} p\phi_n  
-+\int_{\GammaR}\mu(\vn-v_n)\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)
++\int_{\GammaR}\mu(\vRn-v_n)\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)
 &\quad \Gamma\subset\GammaR
 \end{aligned}
 \right.

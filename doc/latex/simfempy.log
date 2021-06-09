@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  8 JUN 2021 17:12
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  9 JUN 2021 21:53
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1551,32 +1551,27 @@ LaTeX Warning: Empty bibliography on input line 143.
 \openout2 = `chap/stokes.aux'.
 
  (./chap/stokes.tex
-LaTeX Font Info:    Trying to load font information for T1+cmss on input line 2
-2.
+LaTeX Font Info:    Trying to load font information for T1+cmss on input line 9
+.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/base/t1cmss.fd
 File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
-)
-Overfull \hbox (4.57489pt too wide) detected at line 78
-[][] []
- []
+) [4
 
 
-Overfull \hbox (56.97867pt too wide) detected at line 100
+
+]
+Overfull \hbox (89.311pt too wide) detected at line 118
 []
  []
 
-[4
-
-
-
-] [5]
-Overfull \hbox (44.43365pt too wide) detected at line 281
+[5]
+Overfull \hbox (44.43365pt too wide) detected at line 358
 [][] []
  []
 
-[6] [7]
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 485--489
+[6] [7] [8]
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 562--566
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1585,20 +1580,20 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
  []
 
 
-LaTeX Warning: Empty bibliography on input line 509.
+LaTeX Warning: Empty bibliography on input line 586.
 
-) [8]
+) [9]
 \openout2 = `chap/beam.aux'.
 
- (./chap/beam.tex [9
+ (./chap/beam.tex [10
 
 
 
-] [10]
+] [11]
 
 LaTeX Warning: Empty bibliography on input line 172.
 
-) [11]
+) [12]
 \openout2 = `chap/python.aux'.
 
  (./chap/python.tex
@@ -1625,7 +1620,7 @@ Overfull \hbox (33.86285pt too wide) in paragraph at lines 16--17
 
 LaTeX Warning: Empty bibliography on input line 28.
 
-) [12
+) [13
 
 
 
@@ -1643,14 +1638,14 @@ m/n/10.95 x[]\U/zeus/m/n/10.95 ©$\T1/ppl/m/n/10.95 .
  []
 
 
-LaTeX Warning: Citation 'EisenbergMalvern73' on page 13 undefined on input line
+LaTeX Warning: Citation 'EisenbergMalvern73' on page 14 undefined on input line
  56.
 
 
-LaTeX Warning: Citation 'VermolenSegal18' on page 13 undefined on input line 56
+LaTeX Warning: Citation 'VermolenSegal18' on page 14 undefined on input line 56
 .
 
-[13
+[14
 
 
 
@@ -1704,7 +1699,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 133.
 
-[14]
+[15]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
@@ -1734,11 +1729,11 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
 
-[15]
+[16]
 
 LaTeX Warning: Empty bibliography on input line 268.
 
-) [16]
+) [17]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
@@ -1762,7 +1757,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 70.
 
-[17
+[18
 
 
 
@@ -1771,7 +1766,7 @@ Overfull \hbox (12.04153pt too wide) detected at line 155
 []
  []
 
-[18]
+[19]
 Overfull \hbox (8.64256pt too wide) detected at line 209
 []
  []
@@ -1819,7 +1814,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 LaTeX Warning: Empty bibliography on input line 269.
 
-) [19] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
+) [20] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
 (./chap/python.aux) (./chap/fem.aux) (./chap/transport.aux))
 
 LaTeX Warning: There were undefined references.
@@ -1839,10 +1834,10 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37089 strings out of 478994
- 698092 string characters out of 5858185
- 1453773 words of memory out of 5000000
- 53761 multiletter control sequences out of 15000+600000
+ 37094 strings out of 478994
+ 698116 string characters out of 5858185
+ 1452813 words of memory out of 5000000
+ 53765 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  117i,23n,119p,1891b,1731s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -1875,10 +1870,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (19 pages, 315320 bytes).
+Output written on simfempy.pdf (20 pages, 317916 bytes).
 PDF statistics:
- 475 PDF objects out of 1000 (max. 8388607)
- 422 compressed objects within 5 object streams
- 125 named destinations out of 1000 (max. 500000)
+ 479 PDF objects out of 1000 (max. 8388607)
+ 425 compressed objects within 5 object streams
+ 126 named destinations out of 1000 (max. 500000)
  245 words of extra memory for PDF output out of 10000 (max. 10000000)
 
