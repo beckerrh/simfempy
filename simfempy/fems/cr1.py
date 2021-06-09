@@ -164,6 +164,7 @@ class CR1(fems.fem.Fem):
             flux[i] -= self.dirichlet_nitsche*np.einsum('f,fi,fi->', uD * diffcoff[cells], normalsS, self.cellgrads[cells, ind, :dim])
         return flux
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
+        #TODO correct flux computation Nitsche
         flux= np.zeros(len(colors))
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         facesOfCell = self.mesh.facesOfCells

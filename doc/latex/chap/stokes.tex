@@ -35,12 +35,22 @@ We can express the equations by means of the Cauchy stress tensor
 \sigma := 2\mu D(v) + \lambda\div(v) I - p I,\quad  D(v)  = \frac12 \left(\nabla v + \transpose{\nabla v}\right).
 \end{equation}
 %
+Due to $\div v=0$, the bulk viscosity $\lambda$ is neglected.
+
 Then the momentum balance is (with the row-wise divergence operator)
 %
 \begin{align*}
 -\div \sigma = f \quad \mbox{in $\Omega$}.
 \end{align*}
 %
+The weak formulation (\ref{eq:stokes:weakform}) is based on the non-symmetric
+%
+\begin{equation}\label{eq:Stokes:CauchyStressnonsymmetric}
+\widetilde{\sigma} := \mu \nabla v - p I,
+\end{equation}
+%
+which is equivalent to using $\sigma$ for volume integrals since $A:B=\frac{A+\transpose{A}}{2}:B$ for all symmetric $B\in\R^{d\times d}$ and any $A\in\R^{d\times d}$.
+
 Using $\sigma$ in a weak formulation will in general generate different boundary conditions.
 %
 %-------------------------------------------------------------------------
@@ -154,9 +164,10 @@ v_n =& \vn\\
 \begin{proof}
 Using now
 %
-\begin{align*}
+%
+\begin{equation}\label{eq:Stokes:ippsigma}
 \int_{\Omega} \sigma:\nabla\phi = -\int_{\Omega} \div \sigma\cdot \phi+ \int_{\partial \Omega} \sigma n\cdot \phi
-\end{align*}
+\end{equation}
 %
 we get in similar way as before
 %
@@ -332,7 +343,52 @@ b(v, \xi) &:=  \int_{\Omega} \div v \xi - \int_{\GammaD} v_n \xi
 %
 \end{equation}
 %
-
+%
+%-------------------------------------------------------------------------
+\subsection{Computation of boundary forces}\label{subsec:}
+%-------------------------------------------------------------------------
+%
+Suppose $\psi\in\R^d$ is a vector field wich equals $\vec{d}\in\R^d$ on a given part $\Gamma\subset\partial\Omega$ of the boundary and vanishes on its complement. Then we get the sum of the forces on $\Gamma$ in direction $\vec{d}$ by means of the integration by parts formula (\ref{eq:Stokes:ippsigma}), supposed the weak solution is sufficiently smooth, as
+%
+\begin{align*}
+\int_{\Gamma} \transpose{n}\sigma \vec{d} =& \int_{\partial\Omega} \transpose{n}\sigma \psi
+=\int_{\Omega} \sigma:\nabla\psi  + \int_{\Omega} \div \sigma\cdot \psi
+=\int_{\Omega} \sigma:\nabla\psi  -\int_{\Omega} f\cdot \psi\\
+=& a_{\Omega}(v,p; \psi,0) - l_{\Omega}(\psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
+ -\int_{\GammaN}\pN \psi_n
+\end{align*}
+%
+Supposing $\psi$ is a discrete vector field (in general we have to approximate it), for the strong implementation, we can retrieve the last expression by the parts of the matrix eliminated.
+Fo the weak implementation we have, since $\psi$ is no an admissible test function
+%
+\begin{align*}
+\int_{\Gamma} \transpose{n}\sigma \vec{d} =&a_{\Omega}(v,p; \psi,0) - l_{\Omega}(\psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
+ -\int_{\GammaN}\pN \psi_n\\
+=&  l_{\partial\Omega}(\psi,0) - a_{\partial\Omega}(v,p; \psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
+ -\int_{\GammaN}\pN \psi_n
+\end{align*}
+%
+%
+\begin{equation}\label{eq:}
+%
+\int_{\Gamma} \transpose{n}\sigma \vec{d} =
+\left\{
+\begin{aligned}
+& 
+ \int_{\GammaD}\mu \left(  \dn{v}\cdot  \phi \right)
+- \int_{\GammaD}  p\phi_n 
++\int_{\GammaD}\mu(\vD-v)\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)
+&\quad \Gamma\subset\GammaD\\ 
+& 
+ \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n \right)
+- \int_{\GammaR} p\phi_n  
++\int_{\GammaR}\mu(\vn-v_n)\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)
+&\quad \Gamma\subset\GammaR
+\end{aligned}
+\right.
+%
+\end{equation}
+% 
 %
 %-------------------------------------------------------------------------
 \subsection{Pressure mean}\label{subsec:}
