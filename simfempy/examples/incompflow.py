@@ -114,7 +114,7 @@ def poiseuille(h= 0.1, mu=0.02):
     data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
     #--------------------------------------------------------------------------
     #navier_slip_boundary
-    data.bdrycond.fct[1000] = [lambda x, y, z:  1, lambda x, y, z:  0]
+    data.bdrycond.fct[1000] = { 'g': [lambda x, y, z:  1, lambda x, y, z:  0]}
     #---------------------------------------------------------------------------
     # parameters
     data.params.scal_glob["mu"] = mu

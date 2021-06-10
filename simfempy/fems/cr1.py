@@ -298,11 +298,13 @@ class CR1(fems.fem.Fem):
             dS = linalg.norm(normalsS, axis=1)
             if isinstance(coeff, (int,float)): dS *= coeff
             elif coeff.shape[0]==self.mesh.nfaces: dS *= coeff[faces]
-            else: dS *= coeff
+            elif coeff.shape[0]==dS.shape[0]: dS *= coeff
+            else: raise  ValueError(f"cannot handle {coeff=}")
             AD = sparse.coo_matrix((dS, (faces, faces)), shape=(nfaces, nfaces))
             ci = self.mesh.cellsOfFaces[faces][:,0]
             foc = self.mesh.facesOfCells[ci]
             mask = foc != faces[:, np.newaxis]
+            print(f"{mask=}")
             fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
             # print(f"{massloc=}")
             cols = np.tile(fi, dim).ravel()

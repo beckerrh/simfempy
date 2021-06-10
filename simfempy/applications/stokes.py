@@ -127,7 +127,7 @@ class Stokes(Application):
             for j in range(self.ncomp):
                 rhs += mu*v[icomp].d(j, x, y, z) * normals[j]
             return rhs
-        return [_fctnaviervn, [partial(_fctnaviertangent, icomp=icomp) for icomp in range(self.ncomp)]]
+        return {'vn':_fctnaviervn, 'g':[partial(_fctnaviertangent, icomp=icomp) for icomp in range(self.ncomp)]}
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
@@ -363,29 +363,29 @@ class Stokes(Application):
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
         self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp)
     def computeRhsBdryNitscheNavier(self, b, colors, mucell, bdryfct):
-        if len(set(bdryfct.keys()).intersection(colors)) == 0: return
+        colorspres = set(bdryfct.keys()).intersection(colors)
+        if len(colorspres) == 0: return
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:ncomp]
         dS = np.linalg.norm(normalsS, axis=1)
-        assert isinstance(next(iter(bdryfct.values())),list)
+        if not isinstance(bdryfct[next(iter(colorspres))],dict):
+            msg = """
+            For Navier b.c. please give a dictionary {vn:fct_scal, g:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
+            """
+            raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
         vnfct, vtfct = {}, {}
-        for col in colors:
-            if col not in bdryfct.keys(): continue
-            if isinstance(bdryfct[col],list) and len(bdryfct[col])==2 and isinstance(bdryfct[col][1],list):
-                assert callable(bdryfct[col][0])
-                assert len(bdryfct[col][1])==self.ncomp
-                vnfct[col] = bdryfct[col][0]
-                vtfct[col] = bdryfct[col][1]
-            else:
-                if len(bdryfct[col])==self.ncomp:
-                    vtfct[col] = bdryfct[col]
-                elif len(bdryfct[col])==1:
-                    vnfct[col] = bdryfct[col]
-                else:
-                    raise ValueError(f"wrong {len(bdryfct[col][0])=}")
+        for col in colorspres:
+            if 'vn' in bdryfct[col].keys() : 
+                if not callable(bdryfct[col]['vn']):
+                    raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['vn']=}")
+                vnfct[col] = bdryfct[col]['vn']
+            if 'g' in bdryfct[col].keys() : 
+                if not isinstance(bdryfct[col]['g'], list) or len(bdryfct[col]['g'])!=self.ncomp:
+                    raise ValueError(f"'g' must be a list of functions with {self.ncomp} elements. Given:{bdryfct[col]['g']=}")
+                vtfct[col] = bdryfct[col]['g']
         if len(vtfct)+len(vnfct)==0: return
         normals = normalsS/dS[:,np.newaxis]
         foc = self.mesh.facesOfCells[cells]
