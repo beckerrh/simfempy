@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.lib.function_base import copy
 from simfempy.applications.stokes import Stokes
 from simfempy import fems, meshes, solvers
 import scipy.sparse as sparse
@@ -11,16 +12,22 @@ class NavierStokes(Stokes):
         self.convmethod = 'supg'
         # self.convmethod = 'upwalg'
     def solve(self, dirname="Run"):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=3)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=2)
         return self.static(dirname=dirname, mode='nonlinear',sdata=sdata)
     def computeForm(self, u):
-        d = super().computeForm(u)
+        self.timer.add('form')
+        if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
+        d = super().matrixVector(self.Astokes,u)
+        # d = super().computeForm(u)
         v = self._split(u)[0]
         dv = self._split(d)[0]
         self.computeFormConvection(dv, v)
         return d
     def computeMatrix(self, u=None):
-        X = super().computeMatrix(u)
+        self.timer.add('matrix')
+        if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
+        X = [A.copy() for A in self.Astokes]
+        # X = super().computeMatrix(u)
         if u is None: return X
         v = self._split(u)[0]
         X[0] += self.computeMatrixConvection(v)

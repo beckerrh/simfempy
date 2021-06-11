@@ -7,6 +7,7 @@ Created on Sun Dec  4 18:14:29 2016
 import os, sys, importlib
 import meshio
 import numpy as np
+from numpy.lib.shape_base import take_along_axis
 from scipy import sparse
 from simfempy.tools import npext
 
@@ -160,29 +161,83 @@ class SimplexMesh(object):
         allfaces = np.empty(shape=(nnpc*ncells,nnpc-1), dtype=int)
         for i in range(ncells):
             for ii in range(nnpc):
+                # face ii is opposite to node ii
                 mask = np.array( [jj !=ii for jj in range(nnpc)] )
                 allfaces[i*nnpc+ii] = np.sort(simplices[i,mask])
-        s = "{0}" + (nnpc-2)*", {0}"
-        s = s.format(allfaces.dtype)
-        order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        # s = "{0}" + (nnpc-2)*", {0}"
+        s = (nnpc-1)*"{0},"
+        s = s[:-1].format(allfaces.dtype)
+        # order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        order = ["f{:1d}".format(i) for i in range(nnpc-1)]
+        # print(f"{s=} {order=}")
         if self.dimension==1:
             perm = np.argsort(allfaces, axis=0).ravel()
         else:
             perm = np.argsort(allfaces.view(s), order=order, axis=0).ravel()
-        allfacescorted = allfaces[perm]
-        self.faces, indices = np.unique(allfacescorted, return_inverse=True, axis=0)
-        locindex = np.tile(np.arange(0,nnpc), ncells)
-        cellindex = np.repeat(np.arange(0,ncells), nnpc)
+        # print(f"{allfaces=}")
+        # print(f"{perm=}")
+        allfacesorted = allfaces[perm]
+        # print(f"{allfacesorted=}")
+        self.faces, indices = np.unique(allfacesorted, return_inverse=True, axis=0)
+        # print(f"{self.faces=}")
         self.nfaces = self.faces.shape[0]
         self.cellsOfFaces = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
         self.facesOfCells = np.zeros(shape=(ncells, nnpc), dtype=int)
-        for ii in range(indices.shape[0]):
-            f = indices[ii]
-            loc = locindex[perm[ii]]
-            cell = cellindex[perm[ii]]
-            self.facesOfCells[cell, loc] = f
-            if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
-            else: self.cellsOfFaces[f,1] = cell
+        locindex = np.tile(np.arange(0,nnpc), ncells).ravel()
+        cellindex = np.repeat(np.arange(0,ncells), nnpc)
+        # for ii in range(indices.shape[0]):
+        #     f = indices[ii]
+        #     loc = locindex[perm[ii]]
+        #     cell = cellindex[perm[ii]]
+        #     self.facesOfCells[cell, loc] = f
+        #     if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
+        #     else: self.cellsOfFaces[f,1] = cell
+        # foc = np.zeros(shape=(ncells, nnpc), dtype=int)
+        self.facesOfCells[cellindex[perm],locindex[perm]] = indices
+        for i in range(ncells):
+            for ii in range(nnpc):
+                f = self.facesOfCells[i,ii]
+                if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = i
+                else: self.cellsOfFaces[f,1] = i
+
+        # if not np.all(foc == self.facesOfCells):
+        #     raise ValueError(f"{foc=}\n{self.facesOfCells=}")
+    #     cof = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
+    #     cof2 = -1 * np.ones(shape=(self.nfaces, nnpc), dtype=int)
+    #     for ii in range(nnpc):
+    #         cof2[self.facesOfCells[:,ii],ii] = np.arange(ncells)
+    #     # nz = np.nonzero(cof2+1)
+    #     nz = np.argwhere(cof2!=-1)
+    #     print(f"{nz=}\n{nz[:,0]=}")
+    #     i0, indices, counts = np.unique(nz[:,0], return_index=True, return_counts=True)
+    #     assert np.all(nz[:,0][indices]==i0)
+    #     i1 = np.setdiff1d(np.arange(nz.shape[0]),indices)
+    #     print(f"{cof2=}\n{nz=}\n{i0=}\n{indices=}\n{counts=}\n{i1=}\n{nz[:,0][i1]=}")
+    #     cof[i0,0] = cof2[i0,nz[indices,1]]
+    #     cof[nz[i1,0],1] = cof2[nz[i1,0],nz[i1,1]]
+    #     print(f" {len(counts[counts==2])=} {len(counts[counts==1])=}")
+    #     print(f"{len(i0)=} {len(i1)=} {len(self.cellsOfFaces.ravel()==-1)=} {len(cof.ravel()==-1)=} {len(self.cellsOfFaces.ravel()!=-1)=} {len(cof.ravel()!=-1)=}")
+    #    # print(f"{np.nonzero(cof2!=-1)=}")
+    #     # print(f"{np.where(cof2!=-1, cof2, -11*np.ones(cof2.shape[0])[:,np.newaxis])=}")
+    #     # cof2 = cof2[cof2!=-1]
+    #     # cof2 = np.take_along_axis(cof2, cof2!=-1, axis=1)
+        
+    #     for i in range(self.nfaces):
+    #         if sorted(cof[i]) != sorted(self.cellsOfFaces[i]):
+    #             print(f"{i=}  {cof[i]=}   {self.cellsOfFaces[i]=}")
+    #     if not np.all(np.sort(cof) == np.sort(self.cellsOfFaces)):
+    #         cofs = np.sort(cof) 
+    #         cofs2 = np.sort(self.cellsOfFaces) 
+    #         m = np.where( cofs != cofs2)
+    #         raise ValueError(f"{m=}\n{cofs[m]=}\n{cofs2[m]=}")
+         
+
+    #     # print(f"{indices=}\n{perm[indices]=}")
+    #     # print(f"{self.cellsOfFaces=}\n{self.facesOfCells=}")
+        # cb = self.cellsOfFaces[self.cellsOfFaces[:,1]==-1][:,0]
+        # lastbdryfaces = self.facesOfCells[cb,-1]
+    #     print(f"{cb=}\n{self.facesOfCells[cb]=}")
+        # print(f"{self.cellsOfFaces[lastbdryfaces]=}")
 
     def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
         # bdries
@@ -238,6 +293,7 @@ class SimplexMesh(object):
             #     assert not indices[bpi[cb[0]]]
     def _constructNormalsAndAreas(self):
         elem = self.simplices
+        #TODO imrove computation of sigma
         self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
         if self.dimension==1:
             x = self.points[:,0]

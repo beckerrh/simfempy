@@ -29,10 +29,10 @@ def main(testcase='drivenCavity'):
    # plotmesh.meshWithBoundaries(mesh)
     # create application
     # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_10')
-    stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
-    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
     result = stokes.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
@@ -124,4 +124,5 @@ def poiseuille(h= 0.1, mu=0.02):
     return SimplexMesh(mesh=mesh), data
 
 # ================================================================c#
-main(testcase='poiseuille')
+# main(testcase='poiseuille')
+main(testcase='drivenCavity')

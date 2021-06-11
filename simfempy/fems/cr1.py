@@ -304,7 +304,7 @@ class CR1(fems.fem.Fem):
             ci = self.mesh.cellsOfFaces[faces][:,0]
             foc = self.mesh.facesOfCells[ci]
             mask = foc != faces[:, np.newaxis]
-            print(f"{mask=}")
+            # print(f"{mask=}")
             fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
             # print(f"{massloc=}")
             cols = np.tile(fi, dim).ravel()

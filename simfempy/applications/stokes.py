@@ -1,3 +1,4 @@
+from matplotlib import colors
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
@@ -291,10 +292,12 @@ class Stokes(Application):
         self.femv.computeFormLaplace(self.mucell, dv, v)
         self.femv.computeFormDivGrad(dv, dp, v, p)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
             self.femv.formBoundary(dv, self.bdrydata, self.dirichletmethod)
         else:
-            self.computeFormBdryNitsche(dv, dp, v, p, colorsdir, self.mucell)
+            self.computeFormBdryNitscheDirichlet(dv, dp, v, p, colorsdir, self.mucell)
+            self.computeFormBdryNitscheNavier(dv, dp, v, p, colorsnav, self.mucell)
         if self.pmean:
             self.computeFormMeanPressure(dp, dlam, p, lam)
         # if not np.allclose(d,d2):
@@ -438,7 +441,7 @@ class Stokes(Application):
                 bv[icomp+ncomp*faces] += self.dirichlet_nitsche * np.choose(ind, mat.T)*dirichv[icomp]
         # print(f"{bv.shape=} {bp.shape=}")
         if len(colors): raise NotImplementedError("trop tot")
-    def computeFormBdryNitsche(self, dv, dp, v, p, colorsdir, mu):
+    def computeFormBdryNitscheDirichlet(self, dv, dp, v, p, colorsdir, mu):
         ncomp, dim  = self.femv.ncomp, self.mesh.dimension
         self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp)
         faces = self.mesh.bdryFaces(colorsdir)
@@ -449,6 +452,9 @@ class Stokes(Application):
             np.add.at(dv[icomp::ncomp], faces, r)
             r = np.einsum('f,f->f', normalsS[:,icomp], v[icomp::ncomp][faces])
             np.add.at(dp, cells, -r)
+    def computeFormBdryNitscheNavier(self, dv, dp, v, p, colors, mu):
+        if not len(colors): return
+        raise NotImplementedError()
     def computeMatrixBdryNitscheDirichlet(self, A, B, colorsdir, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
         A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
