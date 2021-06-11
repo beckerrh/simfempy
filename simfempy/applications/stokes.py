@@ -502,9 +502,6 @@ class Stokes(Application):
         rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
         AD += sparse.coo_matrix((lambdaR*dS.repeat(ncomp), (rows.ravel(), rows.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
 
-
-
-
         #TODO il manque la matrice de masse complet au bord des conditions de Navier
         A += AD- AN -AN.T
         return A,B

@@ -343,14 +343,17 @@ Instead of modifying the discrete velocity space, we add additional terms to the
 \begin{aligned}
 &(v,p)\in V_h\times Q_h:\quad a_{\Omega}(v,p; \phi\xi) + a_{\partial\Omega}(v,p; \phi,\xi) = l_{\Omega}(\phi,\xi)+l_{\partial\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V_h\times Q_h\\
 &\begin{aligned}
- a_{\partial\Omega}(v,p; \phi,\xi) &:= \int_{\GammaD}\frac{\gamma\mu}{h}v\cdot\phi - 
- \int_{\GammaD}\mu \left(  \dn{v}\cdot  \phi + v  \cdot \dn{\phi}\right)
- +\int_{\GammaR}\frac{\gamma\mu}{h}v_n\phi_n
-- \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)\\
+ a_{\partial\Omega}(v,p; \phi,\xi) &:= \int_{\GammaD\cup\GammaP}\frac{\gamma\mu}{h}v\cdot\phi - 
+ \int_{\GammaD\cup\GammaP}\mu \left(  \dn{v}\cdot  \phi + v  \cdot \dn{\phi}\right)\\
+ &+\int_{\GammaR}\frac{\gamma\mu}{h}v_n\phi_n - \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)\\
+ &-\int_{\GammaP}\frac{\gamma\mu}{h}v_n\phi_n + \int_{\GammaP} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)\\
+%& + \int_{\GammaP}\frac{\gamma\mu}{h}\pitang v\cdot\pitang\phi
+%- \int_{\GammaP} \mu\left( \pitang\dn{v}\cdot\pitang\phi + \pitang v\cdot\pitang\dn{\phi}\right)\\
 &+ \int_{\GammaD\cup\GammaR} \left( p\phi_n - v_n\xi\right)
  \\
  l_{\partial\Omega}(\phi,\xi) =& \int_{\GammaD}\mu\vD\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)- \int_{\GammaD}\vD_n\xi
-+ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vRn\xi.
++ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaR}\vRn\xi\\
+&+ \int_{\GammaP}\mu\pitang\vP\cdot\pitang\left( \frac{\gamma}{h}\phi - \dn{\phi}\right).
 \end{aligned}
 \end{aligned}
 \right.
@@ -369,16 +372,18 @@ We have already seen that a regular continuous solution satisfies for $(\phi,\xi
 %
 %
 \begin{align*}
-a_{\Omega}(v,p; \phi\xi)  - l_{\Omega}(\phi,\xi) =& 
+a_{\Omega}(v,p; \phi,\xi)  - l_{\Omega}(\phi,\xi) =& 
 \int_{\GammaD} \left( \mu\dn{v} - pn\right)\cdot\phi
 + \int_{\GammaR} \left( \mu\dn{v}\cdot n-p\right)\phi_n
++ \int_{\GammaP} \pitang\mu\dn{v} \cdot\phi
 \end{align*}
 %
 Thanks to the boundary conditions we also have
 %
 \begin{align*}
 \int_{\GammaD}\mu(\vD-v)\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)- \int_{\GammaD}(\vD_n-v_n)\xi =0\\
-\int_{\GammaR} \mu(\vRn-v_n)\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right) - \int_{\GammaR}(\vRn-v_n)\xi = 0
+\int_{\GammaR} \mu(\vRn-v_n)\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right) - \int_{\GammaR}(\vRn-v_n)\xi = 0\\
+\int_{\GammaP}\mu\pitang(\vP-v)\cdot\left( \frac{\gamma}{h}\phi - \dn{\phi}\right) =0
 \end{align*}
 %
 Adding these terms we get
@@ -392,7 +397,11 @@ a_{\Omega}(v,p; \phi\xi)  - l_{\Omega}(\phi,\xi) =&
 &-\int_{\GammaR}\frac{\gamma\mu}{h}v_n\phi_n
 + \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)
 - \int_{\GammaR} \left( p\phi_n - v_n\xi\right)\\
-&+ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaD}\vRn\xi\\
+&+ \int_{\GammaR}\mu\vRn\cdot\left( \frac{\gamma}{h}\phi_n - \dn{\phi}\cdot n\right)- \int_{\GammaR}\vRn\xi\\
+&-\int_{\GammaP}\frac{\gamma\mu}{h}\pitang v\cdot\pitang\phi
++ \int_{\GammaP} \mu\left( \pitang\dn{v}\cdot\pitang\phi + \pitang v\cdot\pitang\dn{\phi} \right)\\
+&+ \int_{\GammaP}\mu\pitang\vP\cdot\pitang\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)\\
+%
 =& l_{\partial\Omega}(\phi,\xi) - a_{\partial\Omega}(v,p; \phi,\xi)
 \end{align*}
 %
@@ -411,8 +420,10 @@ Alternatively, we can write the system as
 \begin{aligned}
 &(v,p)\in V_h\times Q_h:\quad a(v,p; \phi\xi) + b(v, \xi)- b(\phi, p) = l_{\Omega}(\phi,\xi)+l_{\partial\Omega}(\phi,\xi) \quad\forall (\phi,\xi)\in V_h\times Q_h\\
 &\begin{aligned}
-a(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi +\int_{\GammaD}\frac{\gamma\mu}{h}v\cdot\phi - 
- \int_{\GammaD}\mu \left(  \dn{v}\cdot n \phi + v n \cdot \dn{\phi}\right)\\
+a(v,p; \phi,\xi) &:= \int_{\Omega} \mu \nabla v:\nabla\phi + \lambda_R\int_{\Gamma_R}\left(v\cdot\phi - v_n\phi_n\right)+\int_{\GammaD\cup\GammaP}\frac{\gamma\mu}{h}v\cdot\phi - 
+ \int_{\GammaD\cup\GammaP}\mu \left(  \dn{v}\cdot n \phi + v n \cdot \dn{\phi}\right)\\
+ &+\int_{\GammaR}\frac{\gamma\mu}{h}v_n\phi_n - \int_{\GammaR} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)
+ -\int_{\GammaP}\frac{\gamma\mu}{h}v_n\phi_n + \int_{\GammaP} \mu\left( \dn{v}\cdot n \phi_n + v_n\dn{\phi}\cdot n \right)\\
 b(v, \xi) &:=  \int_{\Omega} \div v \xi - \int_{\GammaD} v_n \xi
 \end{aligned}
 \end{aligned}
