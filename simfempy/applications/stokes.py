@@ -44,7 +44,7 @@ class Stokes(Application):
         self.femp.setMesh(self.mesh)
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
         # self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
-        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values())
+        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
             colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
@@ -75,7 +75,7 @@ class Stokes(Application):
         v,p = solexact
         mu = self.problemdata.params.scal_glob['mu']
         def _fctrhsv(x, y, z):
-            rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhsv = np.zeros(shape=(self.ncomp, *x.shape))
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhsv[i] -= mu * v[i].dd(j, j, x, y, z)
@@ -83,7 +83,7 @@ class Stokes(Application):
             # print(f"{rhsv=}")
             return rhsv
         def _fctrhsp(x, y, z):
-            rhsp = np.zeros(x.shape[0])
+            rhsp = np.zeros(x.shape)
             for i in range(self.ncomp):
                 rhsp += v[i].d(i, x, y, z)
             return rhsp
@@ -93,7 +93,7 @@ class Stokes(Application):
         mu = self.problemdata.params.scal_glob['mu']
         def _fctneumannv(x, y, z, nx, ny, nz):
             v, p = solexact
-            rhsv = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhsv = np.zeros(shape=(self.ncomp, *x.shape))
             normals = nx, ny, nz
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
@@ -102,7 +102,7 @@ class Stokes(Application):
             return rhsv
         def _fctneumannp(x, y, z, nx, ny, nz):
             v, p = solexact
-            rhsp = np.zeros(shape=x.shape[0])
+            rhsp = np.zeros(shape=x.shape)
             normals = nx, ny, nz
             for i in range(self.ncomp):
                 rhsp -= v[i](x, y, z) * normals[i]
@@ -114,14 +114,15 @@ class Stokes(Application):
         lambdaR = self.problemdata.params.scal_glob['navier']
         def _fctnaviervn(x, y, z, nx, ny, nz):
             v, p = solexact
-            rhs = np.zeros(shape=x.shape[0])
+            rhs = np.zeros(shape=x.shape)
             normals = nx, ny, nz
+            # print(f"{x.shape=} {nx.shape=} {normals[0].shape=}")
             for i in range(self.ncomp):
                 rhs += v[i](x, y, z) * normals[i]
             return rhs
         def _fctnaviertangent(x, y, z, nx, ny, nz, icomp):
             v, p = solexact
-            rhs = np.zeros(shape=x.shape[0])
+            rhs = np.zeros(shape=x.shape)
             # h = np.zeros(shape=(self.ncomp, x.shape[0]))
             normals = nx, ny, nz
             rhs = lambdaR*v[icomp](x, y, z)
@@ -129,6 +130,24 @@ class Stokes(Application):
                 rhs += mu*v[icomp].d(j, x, y, z) * normals[j]
             return rhs
         return {'vn':_fctnaviervn, 'g':[partial(_fctnaviertangent, icomp=icomp) for icomp in range(self.ncomp)]}
+    def definePressureAnalyticalSolution(self, problemdata, color):
+        solexact = problemdata.solexact
+        mu = self.problemdata.params.scal_glob['mu']
+        lambdaR = self.problemdata.params.scal_glob['navier']
+        def _fctpressure(x, y, z, nx, ny, nz):
+            v, p = solexact
+            # rhs = np.zeros(shape=x.shape)
+            normals = nx, ny, nz
+            # print(f"{x.shape=} {nx.shape=} {normals[0].shape=}")
+            rhs = 1.0*p(x,y,z)
+            for i in range(self.ncomp):
+                for j in range(self.ncomp):
+                    rhs -= mu*v[j].d(i, x, y, z) * normals[i]* normals[j]
+            return rhs
+        def _fctpressurevtang(x, y, z, nx, ny, nz, icomp):
+            v, p = solexact
+            return v[icomp](x,y,z)
+        return {'p':_fctpressure, 'v':[partial(_fctpressurevtang, icomp=icomp) for icomp in range(self.ncomp)]}
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
@@ -266,13 +285,60 @@ class Stokes(Application):
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
+        colorsp = self.problemdata.bdrycond.colorsOfType("Pressure")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
         if self.dirichletmethod=='strong':
-            self.vectorBoundary((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
+            self.vectorBoundaryStrong((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
-            self.computeRhsBdryNitscheNavier((bv,bp), colorsnav, self.mucell, self.problemdata.bdrycond.fct)
+            bdryfct = self.problemdata.bdrycond.fct
+            colorspres = set(bdryfct.keys()).intersection(colorsnav)
+            if len(colorspres):
+                if not isinstance(bdryfct[next(iter(colorspres))],dict):
+                    msg = """
+                    For Navier b.c. please give a dictionary {vn:fct_scal, g:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
+                    """
+                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
+                vnfct, gfct = {}, {}
+                for col in colorspres:
+                    if 'vn' in bdryfct[col].keys() : 
+                        if not callable(bdryfct[col]['vn']):
+                            raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['vn']=}")
+                        vnfct[col] = bdryfct[col]['vn']
+                    if 'g' in bdryfct[col].keys() : 
+                        if not isinstance(bdryfct[col]['g'], list) or len(bdryfct[col]['g'])!=self.ncomp:
+                            raise ValueError(f"'g' must be a list of functions with {self.ncomp} elements. Given:{bdryfct[col]['g']=}")
+                        gfct[col] = bdryfct[col]['g']
+                if len(vnfct): 
+                    vn = self.femv.fem.interpolateBoundary(colorsnav, vnfct, lumped=False)
+                    self.computeRhsBdryNitscheNavierNormal((bv,bp), colorsnav, self.mucell, vn)
+                if len(gfct): 
+                    gt = self.femv.interpolateBoundary(colorsnav, gfct)
+                    self.computeRhsBdryNitscheNavierTangent((bv,bp), colorsnav, self.mucell, gt)
+            colorspres = set(bdryfct.keys()).intersection(colorsp)
+            if len(colorspres):
+                if not isinstance(bdryfct[next(iter(colorspres))],dict):
+                    msg = """
+                    For Pressure b.c. please give a dictionary {p:fct_scal, v:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
+                    """
+                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
+                pfct, vfct = {}, {}
+                for col in colorspres:
+                    if 'p' in bdryfct[col].keys() : 
+                        if not callable(bdryfct[col]['p']):
+                            raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['p']=}")
+                        pfct[col] = bdryfct[col]['p']
+                    if 'v' in bdryfct[col].keys() : 
+                        if not isinstance(bdryfct[col]['v'], list) or len(bdryfct[col]['v'])!=self.ncomp:
+                            raise ValueError(f"'v' must be a list of functions with {self.ncomp} elements. Given:{bdryfct[col]['v']=}")
+                        vfct[col] = bdryfct[col]['v']
+                if len(pfct):
+                    p = self.femv.fem.interpolateBoundary(colorsp, pfct, lumped=False)
+                    self.computeRhsBdryNitschePressureNormal((bv,bp), colorsp, self.mucell, p)
+                if len(vfct): 
+                    v = self.femv.interpolateBoundary(colorsp, vfct)
+                    self.computeRhsBdryNitschePressureTangent((bv,bp), colorsp, self.mucell, v)
         if not self.pmean: return b
         if self.problemdata.solexact is not None:
             p = self.problemdata.solexact[1]
@@ -308,8 +374,9 @@ class Stokes(Application):
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
+        colorsp = self.problemdata.bdrycond.colorsOfType("Pressure")
         if self.dirichletmethod == 'strong':
-            A, B = self.matrixBoundary(A, B, self.bdrydata, self.dirichletmethod)
+            A, B = self.matrixBoundaryStrong(A, B, self.bdrydata, self.dirichletmethod)
         else:
             #TODO eviter le retour de A,B
             # print(f"{id(A)=} {id(B)=}")
@@ -317,6 +384,7 @@ class Stokes(Application):
             # print(f"{id(A)=} {id(B)=}")
             lam = self.problemdata.params.scal_glob.get('navier',0) 
             A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
+            A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
         if not self.pmean:
             return [A, B]
@@ -364,86 +432,34 @@ class Stokes(Application):
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:ncomp]
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
-        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp)
-    def computeRhsBdryNitscheNavier(self, b, colors, mucell, bdryfct):
-        colorspres = set(bdryfct.keys()).intersection(colors)
-        if len(colorspres) == 0: return
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp, nitsche_param=self.dirichlet_nitsche)
+    def computeRhsBdryNitscheNavierNormal(self, b, colors, mucell, vn):
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:ncomp]
         dS = np.linalg.norm(normalsS, axis=1)
-        if not isinstance(bdryfct[next(iter(colorspres))],dict):
-            msg = """
-            For Navier b.c. please give a dictionary {vn:fct_scal, g:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
-            """
-            raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
-        vnfct, vtfct = {}, {}
-        for col in colorspres:
-            if 'vn' in bdryfct[col].keys() : 
-                if not callable(bdryfct[col]['vn']):
-                    raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['vn']=}")
-                vnfct[col] = bdryfct[col]['vn']
-            if 'g' in bdryfct[col].keys() : 
-                if not isinstance(bdryfct[col]['g'], list) or len(bdryfct[col]['g'])!=self.ncomp:
-                    raise ValueError(f"'g' must be a list of functions with {self.ncomp} elements. Given:{bdryfct[col]['g']=}")
-                vtfct[col] = bdryfct[col]['g']
-        if len(vtfct)+len(vnfct)==0: return
-        normals = normalsS/dS[:,np.newaxis]
-        foc = self.mesh.facesOfCells[cells]
-        if len(vnfct):
-            vn = self.femv.fem.interpolateBoundary(colors, vnfct, lumped=True)
-            np.add.at(bp, cells, -dS*vn[faces])
-            cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
-            mat = -np.einsum('f,fk,fjk,fl->fjl', mucell[cells]*vn[faces], normalsS, cellgrads, normals)
-            indices = np.repeat(ncomp*foc, ncomp).reshape(faces.shape[0], dim+1, ncomp)
-            indices +=  np.arange(ncomp)[np.newaxis,np.newaxis,:]
-            np.add.at(bv, indices.ravel(), mat.ravel())
-            mat = np.einsum('f,fk->fk', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells]*dS*vn[faces], normalsS)
-            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-            np.add.at(bv, indices.ravel(), mat.ravel())
-        if len(vtfct):
-            vt = self.femv.interpolateBoundary(colors, vtfct, lumped=False)
-            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-            mat = np.einsum('f,fk->fk', dS, vt[faces])
-            np.add.at(bv, indices.ravel(), mat.ravel())       
-            mat = -np.einsum('f,fk,fk,fl->fl', dS, vt[faces],normals,normals)
-            indices = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-            indices +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-            np.add.at(bv, indices.ravel(), mat.ravel())
-    def computeRhsBdryNitscheOld(self, b, colorsdir, bdryfct, mucell, coeff=1):
+        # normals = normalsS/dS[:,np.newaxis]
+        # foc = self.mesh.facesOfCells[cells]
+        np.add.at(bp, cells, -dS*vn[faces])
+        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, vn, ncomp, nitsche_param=self.dirichlet_nitsche)
+    def computeRhsBdryNitscheNavierTangent(self, b, colors, mucell, gt):
         bv, bp = b
-        xf, yf, zf = self.mesh.pointsf.T
-        nfaces, ncells, dim, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.ncomp
-        cellgrads = self.femv.fem.cellgrads
-        for color in colorsdir:
-            faces = self.mesh.bdrylabels[color]
-            cells = self.mesh.cellsOfFaces[faces,0]
-            normalsS = self.mesh.normals[faces][:,:ncomp]
-            dS = np.linalg.norm(normalsS,axis=1)
-            # normalsS = normalsS/dS[:,np.newaxis]
-            if not color in bdryfct.keys(): continue
-            bfctv = bdryfct[color]
-            # dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
-            dirichv = np.vstack([f(xf[faces], yf[faces], zf[faces]) for f in bfctv])
-            # print(f"{dirichv.shape=} {normalsS.shape=}")
-            bp[cells] -= np.einsum('kn,nk->n', coeff*dirichv, normalsS)
-            mat = np.einsum('f,fi,fji->fj', coeff*mucell[cells], normalsS, cellgrads[cells, :, :dim])
-            indfaces = self.mesh.facesOfCells[cells]
-            for icomp in range(ncomp):
-                mat2 = np.einsum('fj,f->fj', mat, dirichv[icomp])
-                np.add.at(bv, icomp+ncomp*indfaces, -mat2)
-            ind = npext.positionin(faces, indfaces).astype(int)
-            for icomp in range(ncomp):
-                bv[icomp+ncomp*faces] += self.dirichlet_nitsche * np.choose(ind, mat.T)*dirichv[icomp]
-        # print(f"{bv.shape=} {bp.shape=}")
-        if len(colors): raise NotImplementedError("trop tot")
+        ncomp, dim  = self.ncomp, self.mesh.dimension
+        self.femv.massDotBoundary(bv, gt.ravel(), colors=colors, ncomp=ncomp, coeff=1)
+        self.femv.massDotBoundaryNormal(bv, -gt.ravel(), colors=colors, ncomp=ncomp, coeff=1)
+    def computeRhsBdryNitschePressureNormal(self, b, colors, mucell, p):
+        bv, bp = b
+        self.femv.massDotBoundaryNormal(bv, -p, colors=colors, ncomp=self.ncomp, coeff=1)
+    def computeRhsBdryNitschePressureTangent(self, b, colors, mucell, v):
+        bv, bp = b
+        ncomp, dim  = self.ncomp, self.mesh.dimension
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, v, ncomp, nitsche_param=self.dirichlet_nitsche)
+        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, -v.ravel(), ncomp, nitsche_param=self.dirichlet_nitsche)
     def computeFormBdryNitscheDirichlet(self, dv, dp, v, p, colorsdir, mu):
         ncomp, dim  = self.femv.ncomp, self.mesh.dimension
-        self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp)
+        self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp, nitsche_param=self.dirichlet_nitsche)
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
@@ -455,10 +471,11 @@ class Stokes(Application):
     def computeFormBdryNitscheNavier(self, dv, dp, v, p, colors, mu):
         if not len(colors): return
         raise NotImplementedError()
-    def computeMatrixBdryNitscheDirichlet(self, A, B, colorsdir, mucell):
+    def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
-        A += self.femv.computeMatrixNitscheDiffusion(mucell, colorsdir, ncomp)
-        faces = self.mesh.bdryFaces(colorsdir)
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, ncomp, nitsche_param=self.dirichlet_nitsche)
+        #grad-div
+        faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
         indfaces = np.repeat(ncomp * faces, ncomp)
@@ -473,41 +490,24 @@ class Stokes(Application):
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces][:, :dim]
+        #grad-div
         indfaces = np.repeat(ncomp * faces, ncomp)
         for icomp in range(ncomp): indfaces[icomp::ncomp] += icomp
         cols = indfaces.ravel()
         rows = cells.repeat(ncomp).ravel()
         B -= sparse.coo_matrix((normalsS.ravel(), (rows, cols)), shape=(ncells, ncomp*nfaces))
         #vitesses
-        dS = np.linalg.norm(normalsS, axis=1)
-        normals = normalsS/dS[:,np.newaxis]
-        cellgrads = self.femv.fem.cellgrads[cells, :, :dim]
-        nloc = dim+1
-        foc = self.mesh.facesOfCells[cells]
-        mat = np.einsum('f,fk,fjk,fl,fm->fjlm', mucell[cells], normalsS, cellgrads, normals, normals)
-        rows = np.repeat(ncomp*faces, nloc*ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
-        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,np.newaxis,:]
-        cols = np.repeat(ncomp*foc,ncomp*ncomp).reshape(faces.shape[0], nloc, ncomp, ncomp)
-        cols +=  np.arange(ncomp)[np.newaxis,np.newaxis,:,np.newaxis]
-        # print(f"{cols.ravel()=}")
-        AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
-
-        mat = np.einsum('f,fk,fl->fkl', self.dirichlet_nitsche*mucell[cells]/self.mesh.dV[cells] -lambdaR/dS, normalsS, normalsS)
-        rows = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
-        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,np.newaxis,:]
-        cols = np.repeat(ncomp*faces, ncomp*ncomp).reshape(faces.shape[0], ncomp, ncomp)
-        cols +=  np.arange(ncomp, dtype='uint')[np.newaxis,:,np.newaxis]
-        AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
-        rows = np.repeat(ncomp*faces, ncomp).reshape(faces.shape[0], ncomp)
-        rows +=  np.arange(ncomp, dtype='uint')[np.newaxis,:]
-        AD += sparse.coo_matrix((lambdaR*dS.repeat(ncomp), (rows.ravel(), rows.ravel())), shape=(ncomp*nfaces, ncomp*nfaces))
-
-        #TODO il manque la matrice de masse complet au bord des conditions de Navier
-        A += AD- AN -AN.T
+        A += self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, ncomp, nitsche_param=self.dirichlet_nitsche)
+        A += self.femv.computeMassMatrixBoundary(colors, ncomp, coeff=lambdaR)-self.femv.computeMassMatrixBoundaryNormal(colors, ncomp, coeff=lambdaR)
         return A,B
-    def vectorBoundary(self, b, bdryfctv, bdrydata, method):
+    def computeMatrixBdryNitschePressure(self, A, B, colors, mucell):
+        #vitesses
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, self.ncomp, nitsche_param=self.dirichlet_nitsche)
+        A -= self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, self.ncomp, nitsche_param=self.dirichlet_nitsche)
+        return A,B
+    def vectorBoundaryStrong(self, b, bdryfctv, bdrydata, method):
         bv, bp = b
-        bv = self.femv.vectorBoundary(bv, bdryfctv, bdrydata, method)
+        bv = self.femv.vectorBoundaryStrong(bv, bdryfctv, bdrydata, method)
         facesdirall, facesinner, colorsdir, facesdirflux = bdrydata.facesdirall, bdrydata.facesinner, bdrydata.colorsdir, bdrydata.facesdirflux
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
         bdrydata.bsaved = {}
@@ -520,8 +520,8 @@ class Stokes(Application):
         #suppose strong-trad
         bp -= bdrydata.B_inner_dir * bv[inddir]
         return (bv,bp)
-    def matrixBoundary(self, A, B, bdrydata, method):
-        A = self.femv.matrixBoundary(A, bdrydata, method)
+    def matrixBoundaryStrong(self, A, B, bdrydata, method):
+        A = self.femv.matrixBoundaryStrong(A, bdrydata, method)
         facesdirall, facesinner, colorsdir, facesdirflux = bdrydata.facesdirall, bdrydata.facesinner, bdrydata.colorsdir, bdrydata.facesdirflux
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
         bdrydata.Bsaved = {}

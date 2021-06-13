@@ -58,7 +58,7 @@ def createProblemData():
     # boundary conditions
     data.bdrycond.set("Dirichlet", [100, 102])
     data.bdrycond.set("Neumann", [101])
-    data.bdrycond.fct[102] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),-np.ones(x.shape[0])))
+    data.bdrycond.fct[102] = lambda x, y, z: np.vstack((np.ones(x.shape),-np.ones(x.shape)))
     # postprocess
     # data.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
     # paramaters in equation

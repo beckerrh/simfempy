@@ -8,12 +8,12 @@ class Elliptic(solvers.solver.Application):
     """
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu0(x, y, z, diff):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             for i in range(self.mesh.dimension):
                 rhs -= diff * solexact[0].dd(i, i, x, y, z)
             return rhs
         def _fctu1(x, y, z, diff):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             for i in range(self.mesh.dimension):
                 rhs -= diff * solexact[1].dd(i, i, x, y, z)
             return rhs
@@ -21,7 +21,7 @@ class Elliptic(solvers.solver.Application):
 
     def defineNeumannAnalyticalSolution_0(self, solexact):
         def _fctneumann(x, y, z, nx, ny, nz, diff):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
                 rhs += diff * solexact[0].d(i, x, y, z) * normals[i]
@@ -30,7 +30,7 @@ class Elliptic(solvers.solver.Application):
 
     def defineNeumannAnalyticalSolution_1(self, solexact):
         def _fctneumann(x, y, z, nx, ny, nz, diff):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
                 rhs += diff * solexact[1].d(i, x, y, z) * normals[i]

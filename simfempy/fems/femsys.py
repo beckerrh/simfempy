@@ -47,8 +47,8 @@ class Femsys():
         for i in range(self.ncomp):
             self.fem.massDot(b[i::self.ncomp], f[i::self.ncomp], coeff=coeff)
         return b
-    def vectorBoundaryZero(self, du, bdrydata):
-        for i in range(self.ncomp): self.fem.vectorBoundaryZero(du[i::self.ncomp], bdrydata)
+    def vectorBoundaryStrongZero(self, du, bdrydata):
+        for i in range(self.ncomp): self.fem.vectorBoundaryStrongZero(du[i::self.ncomp], bdrydata)
         return du
     def computeErrorL2(self, solex, uh):
         eall, ecall = [], []
@@ -103,6 +103,15 @@ class Femsys():
         row2 = np.repeat(ncomp*row, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
         col2 = np.repeat(ncomp*col, ncomp) + np.tile(np.arange(ncomp),nr).ravel()
         return sparse.coo_matrix((data2, (row2, col2)), shape=(ncomp*n, ncomp*n)).tocsr()
+    def matrix2system(self, A, ncomp, i, j):
+        A = A.tocoo()
+        data, row, col, shape = A.data, A.row, A.col, A.shape
+        n = shape[0]
+        assert n==shape[1]
+        nr = row.shape[0]
+        row2 = ncomp*row + i
+        col2 = ncomp*col + j
+        return sparse.coo_matrix((data, (row2, col2)), shape=(ncomp*n, ncomp*n)).tocsr()
 
 
 # ------------------------------
@@ -111,13 +120,13 @@ class Femsys():
         colors = self.mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdirichlet=colors)
         A = self.computeMatrixElasticity(mucell=1, lamcell=10)
-        A, bdrydata = self.matrixBoundary(A, bdrydata=bdrydata)
+        A, bdrydata = self.matrixBoundaryStrong(A, bdrydata=bdrydata)
         b = np.zeros(self.nunknowns() * self.ncomp)
-        rhs = lambda x, y, z: np.ones(shape=(self.ncomp, x.shape[0]))
+        rhs = lambda x, y, z: np.ones(shape=(self.ncomp, x.shape))
         # self.computeRhsCells(b, rhs)
         fp1 = self.interpolate(rhs)
         self.massDot(b, fp1, coeff=1)
-        b = self.vectorBoundaryZero(b, bdrydata)
+        b = self.vectorBoundaryStrongZero(b, bdrydata)
         return splinalg.spsolve(A, b)
 
 

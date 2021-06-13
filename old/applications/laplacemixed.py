@@ -13,7 +13,7 @@ class LaplaceMixed(solvers.solver.Application):
     def defineRhsAnalyticalSolution(self, solexact):
         # constant diffusion
         def _fctu(x, y, z):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             if self.beta is not None:
                 beta = self.beta(x,y,z)
                 for i in range(self.mesh.dimension):
@@ -25,7 +25,7 @@ class LaplaceMixed(solvers.solver.Application):
 
     def defineNeumannAnalyticalSolution(self, solexact, color):
         def _fctneumann(x, y, z, nx, ny, nz):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             normals = nx, ny, nz
             for i in range(self.mesh.dimension):
                 rhs += self.diff(0)*solexact.d(i, x, y, z) * normals[i]

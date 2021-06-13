@@ -13,7 +13,7 @@ from simfempy import fems, tools, meshes
 class P1(fems.fem.Fem):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dirichlet_al = 1
+        self.dirichlet_strong = 1
         self.dirichlet_nitsche = 4
     def setMesh(self, mesh):
         super().setMesh(mesh)
@@ -76,7 +76,7 @@ class P1(fems.fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
-    def matrixBoundary(self, A, bdrydata, method):
+    def matrixBoundaryStrong(self, A, bdrydata, method):
         assert method != 'nitsche'
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
@@ -95,14 +95,14 @@ class P1(fems.fem.Fem):
             diag[nodedirall] = 1.0
             diag = sparse.dia_matrix((diag, 0), shape=(nnodes, nnodes))
         else:
-            bdrydata.A_dir_dir = self.dirichlet_al*A[nodedirall, :][:, nodedirall]
-            diag[nodedirall] = np.sqrt(self.dirichlet_al)
+            bdrydata.A_dir_dir = self.dirichlet_strong*A[nodedirall, :][:, nodedirall]
+            diag[nodedirall] = np.sqrt(self.dirichlet_strong)
             diag = sparse.dia_matrix((diag, 0), shape=(nnodes, nnodes))
             diag = diag.dot(A.dot(diag))
         A = help.dot(A)
         A += diag
         return A
-    def vectorBoundary(self, b, bdrycond, bdrydata, method):
+    def vectorBoundaryStrong(self, b, bdrycond, bdrydata, method):
         assert method != 'nitsche'
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         x, y, z = self.mesh.points.T
@@ -125,10 +125,10 @@ class P1(fems.fem.Fem):
             # b[nodesinner] -= bdrydata.A_inner_dir * help[nodedirall]
             b[nodedirall] = bdrydata.A_dir_dir * help[nodedirall]
         return b
-    def vectorBoundaryEqual(self, du, u, bdrydata):
+    def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         nodedirall = bdrydata.nodedirall
         du[nodedirall] = u[nodedirall]
-    def vectorBoundaryZero(self, du, bdrydata):
+    def vectorBoundaryStrongZero(self, du, bdrydata):
         du[bdrydata.nodedirall] = 0
     def formBoundary(self, du, u, bdrydata, dirichletmethod):
         assert(dirichletmethod=='new')
@@ -169,7 +169,8 @@ class P1(fems.fem.Fem):
         np.add.at(du, simp, -mat)
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells]/dim, normalsS, cellgrads,u[simp]).repeat(dim).reshape(faces.shape[0],dim)
         np.add.at(du, nodes, -mat)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, coeff=1):
+    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, nitsche_param=None, lumped=True):
+        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
         nnodes, ncells, dim, nlocal  = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.nlocal()
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -192,12 +193,12 @@ class P1(fems.fem.Fem):
         massloc = tools.barycentric.tensor(d=dim-1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
         # print(f"{massloc=}")
-        mat = np.einsum('f,ij->fij', coeff * dS**2/dV*diffcoff[cells], massloc)
+        mat = np.einsum('f,ij->fij', nitsche_param * dS**2/dV*diffcoff[cells], massloc)
         # mat = np.repeat(coeff * diffcoff[cells]/dS, dim)
         rows = np.repeat(facenodes,dim)
         cols = np.tile(facenodes,dim)
         AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
-        return  - AN - AN.T + self.dirichlet_nitsche * AD
+        return  - AN - AN.T + AD
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
         flux= np.zeros(len(colors))
         nnodes, dim  = self.mesh.nnodes, self.mesh.dimension
@@ -572,12 +573,12 @@ class P1(fems.fem.Fem):
         colors = mesh.bdrylabels.keys()
         bdrydata = self.prepareBoundary(colorsdir=colors)
         A = self.computeMatrixDiffusion(coeff=1)
-        A = self.matrixBoundary(A, bdrydata=bdrydata, method='strong')
+        A = self.matrixBoundaryStrong(A, bdrydata=bdrydata, method='strong')
         b = np.zeros(self.nunknowns())
         rhs = np.vectorize(lambda x,y,z: 1)
         fp1 = self.interpolateCell(rhs)
         self.massDotCell(b, fp1, coeff=1)
-        b = self.vectorBoundaryZero(b, bdrydata)
+        b = self.vectorBoundaryStrongZero(b, bdrydata)
         return splinalg.spsolve(A, b)
 
 

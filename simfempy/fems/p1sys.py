@@ -14,7 +14,7 @@ from simfempy.fems import femsys, p1
 class P1sys(femsys.Femsys):
     def __init__(self, ncomp, mesh=None):
         super().__init__(p1.P1(mesh=mesh), ncomp, mesh)
-    def matrixBoundary(self, A, bdrydata, method):
+    def matrixBoundaryStrong(self, A, bdrydata, method):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         for key, nodes in nodesdirflux.items():
@@ -47,7 +47,7 @@ class P1sys(femsys.Femsys):
             help2 = sparse.dia_matrix((help2, 0), shape=(ncomp * nnodes, ncomp * nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A
-    def vectorBoundary(self, b, bdryfct, bdrydata, method):
+    def vectorBoundaryStrong(self, b, bdryfct, bdrydata, method):
         x, y, z = self.mesh.points.T
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux

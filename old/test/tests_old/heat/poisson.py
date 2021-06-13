@@ -110,7 +110,7 @@ def test_dirichlet(exactsolution="Linear", geomname = "unitsquare", verbose=3):
     method = 'p1-new'
     fem, meth  = method.split('-')
     methods = {method: Heat(problemdata=problemdata, fem=fem, method=meth)}
-    comp = simfempy.tools.comparemethods.CompareMethods(methods, h=h, paramname='dirichlet_al', verbose=verbose)
+    comp = simfempy.tools.comparemethods.CompareMethods(methods, h=h, paramname='dirichlet_strong', verbose=verbose)
     result = comp.compare(geometry=geometry, params=params)
     return print("result=",result)
 

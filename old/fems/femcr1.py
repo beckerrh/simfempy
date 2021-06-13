@@ -20,7 +20,7 @@ class FemCR1(object):
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
-        self.dirichlet_al = 10
+        self.dirichlet_strong = 10
 
     def setMesh(self, mesh, bdrycond=None):
         self.mesh = mesh
@@ -180,12 +180,12 @@ class FemCR1(object):
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
             A += help
         else:
-            bdrydata.A_dir_dir = self.dirichlet_al*A[facesdirall, :][:, facesdirall]
+            bdrydata.A_dir_dir = self.dirichlet_strong*A[facesdirall, :][:, facesdirall]
             help = np.ones((nfaces))
             help[facesdirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
             help2 = np.zeros((nfaces))
-            help2[facesdirall] = np.sqrt(self.dirichlet_al)
+            help2[facesdirall] = np.sqrt(self.dirichlet_strong)
             help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata

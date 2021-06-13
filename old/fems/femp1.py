@@ -20,7 +20,7 @@ class FemP1(object):
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
-        self.dirichlet_al = 10
+        self.dirichlet_strong = 10
 
     def setMesh(self, mesh, bdrycond=None):
         self.mesh = mesh
@@ -199,12 +199,12 @@ class FemP1(object):
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             A += help
         else:
-            bdrydata.A_dir_dir = self.dirichlet_al*A[nodedirall, :][:, nodedirall]
+            bdrydata.A_dir_dir = self.dirichlet_strong*A[nodedirall, :][:, nodedirall]
             help = np.ones(nnodes)
             help[nodedirall] = 0
             help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
             help2 = np.zeros(nnodes)
-            help2[nodedirall] = np.sqrt(self.dirichlet_al)
+            help2[nodedirall] = np.sqrt(self.dirichlet_strong)
             help2 = sparse.dia_matrix((help2, 0), shape=(nnodes, nnodes))
             A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
         return A, bdrydata

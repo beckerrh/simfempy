@@ -59,7 +59,6 @@ def drivenCavity(h=0.1, mu=0.001):
     # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
     data.bdrycond.set("Dirichlet", [1001, 1002, 1003])
     data.bdrycond.set("Navier", [1000])
-    # data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     data.bdrycond.fct[1002] = [lambda x, y, z: 1, lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
@@ -110,7 +109,6 @@ def poiseuille(h= 0.1, mu=0.02):
     data.bdrycond.set("Dirichlet", [1003, 1002])
     data.bdrycond.set("Neumann", [1001])
     data.bdrycond.set("Navier", [1000])
-    # data.bdrycond.fct[1002] = lambda x, y, z: np.vstack((np.ones(x.shape[0]),np.zeros(x.shape[0])))
     data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
     #--------------------------------------------------------------------------
     #navier_slip_boundary

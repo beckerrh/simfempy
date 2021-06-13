@@ -72,7 +72,7 @@ class Elasticity(Application):
             self.lamcell = np.full(self.mesh.ncells, lam)
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhs = np.zeros(shape=(self.ncomp, *x.shape))
             mu, lam = self.mu, self.lam
             # print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
@@ -84,7 +84,7 @@ class Elasticity(Application):
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         def _fctneumann(x, y, z, nx, ny, nz):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhs = np.zeros(shape=(self.ncomp, *x.shape))
             normals = nx, ny, nz
             mu, lam = self.mu, self.lam
             for i in range(self.ncomp):
@@ -101,11 +101,11 @@ class Elasticity(Application):
         colorsneu = self.problemdata.bdrycond.colorsOfType("Neumann")
         bdrycond, bdrydata = self.problemdata.bdrycond, self.bdrydata
         self.fem.computeRhsBoundary(b, colorsneu, bdrycond.fct)
-        b = self.fem.vectorBoundary(b, bdrycond.fct, bdrydata, self.dirichletmethod)
+        b = self.fem.vectorBoundaryStrong(b, bdrycond.fct, bdrydata, self.dirichletmethod)
         return b
     def computeMatrix(self):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
-        A = self.fem.matrixBoundary(A, self.bdrydata, self.dirichletmethod)
+        A = self.fem.matrixBoundaryStrong(A, self.bdrydata, self.dirichletmethod)
         return A
     def postProcess(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}

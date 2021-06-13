@@ -23,7 +23,7 @@ class CR1sys(femsys.Femsys):
         for i in range(ncomp):
             unodes[i::ncomp] = self.fem.tonode(u[i::ncomp])
         return unodes
-    def interpolateBoundary(self, colors, f, lumped=False):
+    def interpolateBoundary(self, colors, f):
         # fs={col:f[col] for col in colors if col in f.keys()}
         if len(colors) == 0 or len(f) == 0: return
         # print(f"{f=}")
@@ -31,13 +31,15 @@ class CR1sys(femsys.Femsys):
             import inspect
             fct = next(iter(f.values()))[0]
             # print(f"{str(inspect.signature(fct))=}")
-            if 'nx' in str(inspect.signature(fct)):
-                return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
-            else:
-                return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+            # print(f"{len(inspect.signature(fct).parameters)=}")
+            # if 'nx' in str(inspect.signature(fct)):
+            #     return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+            # else:
+            #     return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
+            return np.vstack([self.fem.interpolateBoundary(colors, {col:f[col][icomp] for col in colors if col in f.keys()}) for icomp in range(self.ncomp)]).T
         else:
             raise ValueError(f"don't know how to handle {type(next(iter(f.values())))=}")
-    def matrixBoundary(self, A, bdrydata, method):
+    def matrixBoundaryStrong(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -78,7 +80,7 @@ class CR1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         b[inddir] = 0
-    def vectorBoundary(self, b, bdryfct, bdrydata, method):
+    def vectorBoundaryStrong(self, b, bdryfct, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -174,15 +176,75 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
             np.add.at(dv[icomp::ncomp], foc, r)
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, ncomp, coeff=1):
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp, nitsche_param):
         for icomp in range(ncomp):
-            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colorsdir, udir[:,icomp], coeff)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, ncomp, coeff=1):
-        A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colorsdir, coeff)
+            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[:,icomp], nitsche_param)
+    def computeRhsNitscheDiffusionNormal(self, b, diffcoff, colors, udir, ncomp, nitsche_param):
+        faces = self.mesh.bdryFaces(colors)
+        normalsS = self.mesh.normals[faces][:,:ncomp]
+        dS = np.linalg.norm(normalsS, axis=1)
+        normals = normalsS/dS[:,np.newaxis]
+        if udir.shape[0] == self.mesh.nfaces*ncomp:
+            for icomp in range(ncomp):
+                for jcomp in range(ncomp):
+                    self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[jcomp::ncomp], nitsche_param, coeff=normals[:,icomp]*normals[:,jcomp])
+        else:
+            assert udir.shape[0] == self.mesh.nfaces
+            for icomp in range(ncomp):
+                self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir, nitsche_param, coeff=normals[:,icomp])
+    def massDotBoundary(self, b, f, colors, ncomp, coeff=1):
+        for icomp in range(ncomp):
+            self.fem.massDotBoundary(b[icomp::ncomp], f[icomp::ncomp], colors=colors, coeff=coeff)
+    def massDotBoundaryNormal(self, b, f, colors, ncomp, coeff=1):
+        faces = self.mesh.bdryFaces(colors)
+        normalsS = self.mesh.normals[faces][:,:ncomp]
+        dS = np.linalg.norm(normalsS, axis=1)
+        normals = normalsS/dS[:,np.newaxis]
+        if f.shape[0] == self.mesh.nfaces*ncomp:
+            for icomp in range(ncomp):
+                for jcomp in range(ncomp):
+                    self.fem.massDotBoundary(b[icomp::ncomp], f[jcomp::ncomp], colors=colors, coeff=normals[:,icomp]*normals[:,jcomp]*coeff)
+        else:
+            assert f.shape[0] == self.mesh.nfaces
+            for icomp in range(ncomp):
+                self.fem.massDotBoundary(b[icomp::ncomp], f, colors=colors, coeff=normals[:,icomp]*coeff)
+
+    def computeMassMatrixBoundary(self, colors, ncomp, coeff):
+        A = self.fem.computeBdryMassMatrix(colors, coeff)
         return self.matrix2systemdiagonal(A, ncomp)
-    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp):
+    def computeMassMatrixBoundaryNormal(self, colors, ncomp, coeff):
+        nfaces, ncells, dim  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension
+        assert dim == ncomp
+        faces = self.mesh.bdryFaces(colors)
+        normalsS = self.mesh.normals[faces][:, :dim]
+        dS = np.linalg.norm(normalsS, axis=1)
+        A = sparse.coo_matrix((ncomp*nfaces, ncomp*nfaces))
+        for i in range(ncomp):
+            for j in range(i,ncomp):
+                Aij = self.fem.computeBdryMassMatrix(colors, coeff*normalsS[:,i]*normalsS[:,j]/dS**2)
+                A += self.matrix2system(Aij, ncomp, i, j)
+                if i!=j: A += self.matrix2system(Aij, ncomp, j, i)
+        return A
+    def computeMatrixNitscheDiffusion(self, diffcoff, colors, ncomp, nitsche_param):
+        A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors, nitsche_param)
+        return self.matrix2systemdiagonal(A, ncomp)
+    def computeMatrixNitscheDiffusionNormal(self, diffcoff, colors, ncomp, nitsche_param):
+        nfaces, ncells, dim  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension
+        assert dim == ncomp
+        faces = self.mesh.bdryFaces(colors)
+        # cells = self.mesh.cellsOfFaces[faces, 0]
+        normalsS = self.mesh.normals[faces][:, :dim]
+        dS = np.linalg.norm(normalsS, axis=1)
+        A = sparse.coo_matrix((ncomp*nfaces, ncomp*nfaces))
+        for i in range(ncomp):
+            for j in range(i,ncomp):
+                Aij = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors, nitsche_param=nitsche_param, coeff=normalsS[:,i]*normalsS[:,j]/dS**2)
+                A += self.matrix2system(Aij, ncomp, i, j)
+                if i!=j: A += self.matrix2system(Aij, ncomp, j, i)
+        return A
+    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp, nitsche_param):
         for icomp in range(ncomp):
-            self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir)
+            self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir, nitsche_param)
 
 
     def computeMatrixElasticity(self, mucell, lamcell):

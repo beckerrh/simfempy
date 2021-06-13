@@ -69,7 +69,7 @@ class CompareMethods(object):
             outer = gridspec.GridSpec(1, len(params)*len(self.methods), wspace=0.2, hspace=0.2)
             plotcount = 0
         for iter, param in enumerate(params):
-            if self.verbose: print(f"{self.paramname=} {param=}")
+            if self.verbose: print(f"{iter:2d} {self.paramname=} {param=}")
             if self.paramname == "ncells":
                 if gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)

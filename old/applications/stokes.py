@@ -31,14 +31,14 @@ class Stokes(solvers.solver.Application):
     def defineRhsAnalyticalSolution(self, solexact):
         print("self.mu", self.mu(0))
         def _fctv(x, y, z):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhs = np.zeros(shape=(self.ncomp, *x.shape))
             for i in range(self.ncomp):
                 for j in range(self.ncomp):
                     rhs[i] -= self.mu(0)* solexact[i].dd(j, j, x, y, z)
                 rhs[i] += solexact[self.ncomp].d(i, x, y, z)
             return rhs
         def _fctp(x, y, z):
-            rhs = np.zeros(x.shape[0])
+            rhs = np.zeros(x.shape)
             for i in range(self.ncomp):
                 rhs += solexact[i].d(i, x, y, z)
             return rhs
@@ -46,7 +46,7 @@ class Stokes(solvers.solver.Application):
 
     def defineNeumannAnalyticalSolution(self, solexact):
         def _fctneumann(x, y, z, nx, ny, nz):
-            rhs = np.zeros(shape=(self.ncomp, x.shape[0]))
+            rhs = np.zeros(shape=(self.ncomp, *x.shape))
             normals = nx, ny, nz
             for i in range(self.ncomp):
                 for j in range(self.ncomp):

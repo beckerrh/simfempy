@@ -21,25 +21,27 @@ def test(dim, **kwargs):
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
-        # colordir = [1000,1001,1003]
-        # colorneu = [1002]
-        colordir = [1000,1002]
-        colorneu = [1001]
-        colornav = [1003]
+        colors = [1000,1001,1002,1003]
+        colorsneu = [1001]
+        colorsnav = [1003]
+        colorsp = [1002]
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
-        colordir = [100,101,102,104]
-        colorneu = [103]
-        colornav = [105]
+        colors = [100,101,102,103,104,105]
+        colorsneu = [103]
+        colorsnav = [105]
+        colorsp = [101]
+    colorsdir = [col for col in colors if col not in colorsnav and col not in colorsp and col not in colorsneu]
     if 'strong' in paramargs['dirichletmethod']:
-        colordir.append(*colornav)
-        colornav=[]
-    data.bdrycond.set("Dirichlet", colordir)
-    data.bdrycond.set("Neumann", colorneu)
-    data.bdrycond.set("Navier", colornav)
-    data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorneu)
-    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
+        colorsdir.append(*colorsnav)
+        colorsnav=[]
+    data.bdrycond.set("Dirichlet", colorsdir)
+    data.bdrycond.set("Neumann", colorsneu)
+    data.bdrycond.set("Navier", colorsnav)
+    data.bdrycond.set("Pressure", colorsp)
+    data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorsneu)
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
     linearsolver = kwargs.pop('linearsolver', 'iter')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
     # applicationargs['mode'] = 'newton'
@@ -49,8 +51,9 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, h1=0.5, plotsolution=False, linearsolver='iter')
-    # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, plotsolution=False, linearsolver='iter_gcrotmk')
+    test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
+    # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["1","0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
-    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='iter_gmres')
+    # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)
