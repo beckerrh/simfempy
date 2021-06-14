@@ -23,22 +23,15 @@ class CR1sys(femsys.Femsys):
         for i in range(ncomp):
             unodes[i::ncomp] = self.fem.tonode(u[i::ncomp])
         return unodes
-    def interpolateBoundary(self, colors, f):
+    def interpolateBoundary(self, colors, f, lumped=False):
         # fs={col:f[col] for col in colors if col in f.keys()}
         if len(colors) == 0 or len(f) == 0: return
         # print(f"{f=}")
-        if isinstance(next(iter(f.values())), list):
-            import inspect
-            fct = next(iter(f.values()))[0]
-            # print(f"{str(inspect.signature(fct))=}")
-            # print(f"{len(inspect.signature(fct).parameters)=}")
-            # if 'nx' in str(inspect.signature(fct)):
-            #     return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp], signature='(n),(n),(n),(n),(n),(n)->(n)') for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
-            # else:
-            #     return np.vstack([self.fem.interpolateBoundary(colors, {col:np.vectorize(f[col][icomp]) for col in colors if col in f.keys()},lumped) for icomp in range(self.ncomp)]).T
-            return np.vstack([self.fem.interpolateBoundary(colors, {col:f[col][icomp] for col in colors if col in f.keys()}) for icomp in range(self.ncomp)]).T
-        else:
-            raise ValueError(f"don't know how to handle {type(next(iter(f.values())))=}")
+        for col in colors:
+            if not col in f.keys(): continue
+            if not isinstance(f[col], list):
+                raise ValueError(f"don't know how to handle {type(next(iter(f.values())))=}")
+        return np.vstack([self.fem.interpolateBoundary(colors, {col:f[col][icomp] for col in colors if col in f.keys()},lumped=lumped) for icomp in range(self.ncomp)]).T
     def matrixBoundaryStrong(self, A, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -131,9 +124,10 @@ class CR1sys(femsys.Femsys):
             dS = linalg.norm(normalsS,axis=1)
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T / dS
-            neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
+            # neumanns = np.vectorize(bdryfct[color])(xf, yf, zf, nx, ny, nz)
+            # assert neumanns.shape[0] == self.ncomp
             for i in range(self.ncomp):
-                bS = dS * neumanns[i]
+                bS = dS * np.vectorize(bdryfct[color][i])(xf, yf, zf, nx, ny, nz)
                 indices = i + self.ncomp * faces
                 b[indices] += bS
         return b

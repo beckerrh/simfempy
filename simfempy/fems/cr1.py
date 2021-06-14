@@ -95,7 +95,7 @@ class CR1(fems.fem.Fem):
         dS, dV = np.linalg.norm(normalsS,axis=1), self.mesh.dV[cells]
         mat = np.einsum('f,fi,fji->fj', coeff*udir[faces]*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
         np.add.at(b, self.mesh.facesOfCells[cells], -mat)
-        self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=nitsche_param * coeff*dS/dV, lumped=lumped)
+        self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=nitsche_param * coeff*dS/dV*diffcoff[cells], lumped=lumped)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, nitsche_param=None):
         if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
         assert u.shape[0] == self.mesh.nfaces
@@ -107,7 +107,7 @@ class CR1(fems.fem.Fem):
         np.add.at(du, foc, -mat)
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells], normalsS, cellgrads, u[foc])
         np.add.at(du, faces, -mat)
-        self.massDotBoundary(du, f=u, colors=colorsdir, coeff=nitsche_param * dS/dV)
+        self.massDotBoundary(du, f=u, colors=colorsdir, coeff=nitsche_param*diffcoff[cells]* dS/dV)
     def computeMatrixNitscheDiffusion(self, diffcoff, colors, nitsche_param=None, coeff=1, lumped=False):
         if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
@@ -236,9 +236,7 @@ class CR1(fems.fem.Fem):
                 # ff = f[color](x, y, z, nx[None,:], ny[None,:], nz[None,:])
                 ff = f[color](x, y, z, nx, ny, nz)
             else:
-                ff = f[color](x, y, z)
-            # print(f"{f[color]=}")
-            # print(f"{color=} {colors=} {x.shape=} {ff.shape=}")
+                ff = np.vectorize(f[color])(x, y, z)
             np.put(b, foc, ff.T)
         return b
     # matrices

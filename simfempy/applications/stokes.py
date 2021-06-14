@@ -55,6 +55,8 @@ class Stokes(Application):
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
         if exactsolution=="Linear":
             exactsolution = ["Linear", "Constant"]
+        elif exactsolution=="Quadratic":
+            exactsolution = ["Quadratic", "Linear"]
         v = analyticalSolution(exactsolution[0], dim, dim, random)
         p = analyticalSolution(exactsolution[1], dim, 1, random)
         return v,p

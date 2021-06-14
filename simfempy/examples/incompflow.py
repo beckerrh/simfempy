@@ -57,11 +57,12 @@ def drivenCavity(h=0.1, mu=0.001):
     data = ProblemData()
     # boundary conditions
     # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
-    data.bdrycond.set("Dirichlet", [1001, 1002, 1003])
-    data.bdrycond.set("Navier", [1000])
+    data.bdrycond.set("Dirichlet", [1002])
+    data.bdrycond.set("Navier", [1000, 1001, 1003])
     data.bdrycond.fct[1002] = [lambda x, y, z: 1, lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
+    data.params.scal_glob["navier"] = mu
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
@@ -96,7 +97,7 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def poiseuille(h= 0.1, mu=0.02):
+def poiseuille(h= 0.1, mu=0.1):
     with pygmsh.geo.Geometry() as geom:
         #ms = [h*v for v in [1.,1.,0.2,0.2]]
         ms = h
@@ -106,13 +107,17 @@ def poiseuille(h= 0.1, mu=0.02):
         mesh = geom.generate_mesh()
     data = ProblemData()
    # boundary conditions
-    data.bdrycond.set("Dirichlet", [1003, 1002])
-    data.bdrycond.set("Neumann", [1001])
-    data.bdrycond.set("Navier", [1000])
-    data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    data.bdrycond.set("Dirichlet", [1002,1000])
+    data.bdrycond.set("Neumann", [1001,1003])
+    data.bdrycond.set("Navier", [])
+    data.bdrycond.set("Pressure", [])
+    # data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    # data.bdrycond.fct[1002] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    # data.bdrycond.fct[1003] = {'p': lambda x, y, z:  1}
+    data.bdrycond.fct[1003] = [lambda x, y, z, nx, ny, nz:  1, lambda x, y, z, nx, ny, nz:  0]
     #--------------------------------------------------------------------------
     #navier_slip_boundary
-    data.bdrycond.fct[1000] = { 'g': [lambda x, y, z:  1, lambda x, y, z:  0]}
+    # data.bdrycond.fct[1000] = { 'g': [lambda x, y, z:  1, lambda x, y, z:  0]}
     #---------------------------------------------------------------------------
     # parameters
     data.params.scal_glob["mu"] = mu
@@ -122,5 +127,5 @@ def poiseuille(h= 0.1, mu=0.02):
     return SimplexMesh(mesh=mesh), data
 
 # ================================================================c#
-# main(testcase='poiseuille')
-main(testcase='drivenCavity')
+main(testcase='poiseuille')
+# main(testcase='drivenCavity')

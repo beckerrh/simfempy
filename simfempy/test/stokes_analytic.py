@@ -22,9 +22,10 @@ def test(dim, **kwargs):
         data.ncomp=2
         createMesh = testmeshes.unitsquare
         colors = [1000,1001,1002,1003]
-        colorsneu = [1001]
-        colorsnav = [1003]
-        colorsp = [1002]
+        colorsneu = [1000]
+        #TODO cl navier faux pour deux bords ?!
+        colorsnav = [1001]
+        colorsp = []
     else:
         data.ncomp=3
         createMesh = testmeshes.unitcube
@@ -52,8 +53,10 @@ def test(dim, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, plotsolution=False, linearsolver='iter_gcrotmk')
-    test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
-    # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='umf')
+    # test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
+    # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    # test(dim=2, exactsolution="Linear", niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
+    test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
     # test(dim=2, exactsolution=[["1","0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='umf')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='umf')
     # test(dim=2, exactsolution=[["0","1"],"1"], niter=2, h1=2)
