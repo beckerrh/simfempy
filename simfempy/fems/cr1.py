@@ -95,7 +95,7 @@ class CR1(fems.fem.Fem):
         dS, dV = np.linalg.norm(normalsS,axis=1), self.mesh.dV[cells]
         mat = np.einsum('f,fi,fji->fj', coeff*udir[faces]*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
         np.add.at(b, self.mesh.facesOfCells[cells], -mat)
-        self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=nitsche_param * coeff*dS/dV*diffcoff[cells], lumped=lumped)
+        self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=coeff*nitsche_param*diffcoff[cells] * dS/dV, lumped=lumped)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, nitsche_param=None):
         if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
         assert u.shape[0] == self.mesh.nfaces
@@ -136,10 +136,12 @@ class CR1(fems.fem.Fem):
             cells = self.mesh.cellsOfFaces[faces, 0]
             normalsS = self.mesh.normals[faces,:dim]
             cellgrads = self.cellgrads[cells, :, :dim]
-            flux[i] = np.einsum('fj,f,fi,fji->', u[facesOfCell[cells]], diffcoff[cells], normalsS, cellgrads)
+            foc = facesOfCell[cells]
+            flux[i] = np.einsum('fj,f,fi,fji->', u[foc], diffcoff[cells], normalsS, cellgrads)
             dS = np.linalg.norm(normalsS,axis=1)
             dV = self.mesh.dV[cells]
-            flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * dS/dV)
+            flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
+            flux[i] /= np.sum(dS)
         return flux
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         facesdirall = bdrydata.facesdirall
@@ -305,7 +307,6 @@ class CR1(fems.fem.Fem):
     def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=False):
         #TODO CR1 boundary integrals: can do at ones since last index in facesOfCells is the bdry side:
         # assert np.all(faces == foc[:,-1])
-
         if colors is None: colors = self.mesh.bdrylabels.keys()
         massloc = barycentric.crbdryothers(self.mesh.dimension)
         # lumped==False
@@ -316,7 +317,7 @@ class CR1(fems.fem.Fem):
             if isinstance(coeff, (int,float)): dS *= coeff
             elif coeff.shape[0]==self.mesh.nfaces: dS *= coeff[faces]
             else: dS *= coeff
-            if b is None: bmean = np.mean(dS*f[faces])
+            if b is None: bsum = np.sum(dS*f[faces])
             else: b[faces] += dS*f[faces]
             if not lumped:
                 ci = self.mesh.cellsOfFaces[faces][:, 0]
@@ -324,7 +325,7 @@ class CR1(fems.fem.Fem):
                 mask = foc!=faces[:,np.newaxis]
                 fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
                 r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
-                if b is None: return bmean+np.sum(r)
+                if b is None: return bsum+np.sum(r)
                 # print(f"{np.linalg.norm(f[fi])=}")
                 np.add.at(b, fi, r)
             return b

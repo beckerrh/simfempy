@@ -189,7 +189,7 @@ class Heat(Application):
         if self.dirichletmethod=="new":
             A = self.fem.matrixBoundaryStrong(A, self.bdrydata, self.dirichletmethod)
         elif self.dirichletmethod=="nitsche":
-            A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colorsdir=colorsdir)
+            A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colors=colorsdir)
         if self.verbose: print(f"{A.diagonal()=}")
         A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         if self.convection:
@@ -232,7 +232,7 @@ class Heat(Application):
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
         self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
         #Neumann
-        fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct, lumped=True)
+        fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
         if self.dirichletmethod == "new":
             b2 = np.zeros_like(b)
             self.fem.massDotBoundary(b2, fp1, colorsneu)

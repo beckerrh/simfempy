@@ -154,7 +154,7 @@ class P1(fems.fem.Fem):
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
         assert u.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
-        massloc = simfempy.tools.barycentric.tensor(d=dim - 1, k=2)
+        massloc = tools.barycentric.tensor(d=dim - 1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
         faces = self.mesh.bdryFaces(colorsdir)
         nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
@@ -169,10 +169,10 @@ class P1(fems.fem.Fem):
         np.add.at(du, simp, -mat)
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells]/dim, normalsS, cellgrads,u[simp]).repeat(dim).reshape(faces.shape[0],dim)
         np.add.at(du, nodes, -mat)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colorsdir, nitsche_param=None, lumped=True):
+    def computeMatrixNitscheDiffusion(self, diffcoff, colors, nitsche_param=None, lumped=True):
         if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
         nnodes, ncells, dim, nlocal  = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.nlocal()
-        faces = self.mesh.bdryFaces(colorsdir)
+        faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces, :dim]
         dS = np.linalg.norm(normalsS, axis=1)
@@ -186,7 +186,7 @@ class P1(fems.fem.Fem):
         #     raise ValueError(f"***not found***\n{facenodes=}\n{fnind=} {ind=}")
         cols = np.tile(simp,dim)
         rows = facenodes.repeat(dim+1)
-        mat = np.einsum('f,fk,fjk,i->fij', coeff * diffcoff[cells]/dim, normalsS, cellgrads, np.ones(dim))
+        mat = np.einsum('f,fk,fjk,i->fij', diffcoff[cells]/dim, normalsS, cellgrads, np.ones(dim))
         # mat = np.repeat(mat,dim)
         # print(f"{cols.shape=} {rows.shape=} {mat.shape=}")
         AN = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
@@ -216,8 +216,8 @@ class P1(fems.fem.Fem):
             flux[i] = np.einsum('nj,n,ni,nji->', u[simp], diffcoff[cells], normalsS, cellgrads)
             uD = u[nodes]-udir[nodes]
             dV = self.mesh.dV[cells]
-            dS *= self.dirichlet_nitsche * diffcoff[cells] * dS / dV
-            flux[i] -= np.einsum('n,kl,nl->', dS, massloc, uD)
+            flux[i] -= np.einsum('n,kl,nl->', self.dirichlet_nitsche * diffcoff[cells] * dS**2 / dV, massloc, uD)
+            flux[i] /= np.sum(dS)
         return flux
     # interpolate
     def interpolate(self, f):

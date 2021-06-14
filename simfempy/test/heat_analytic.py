@@ -50,7 +50,7 @@ if __name__ == '__main__':
     #TODO: p1-new-robin wrong
 
     # test dirichletmethod
-    test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=2, linearsolver='umf', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=False)
+    test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='umf', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=False)
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=3 , linearsolver='umf', dirichletmethod=['nitsche'], kheat=1, plotsolution=False)
     # test convection
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=6, h1=2, convection=["0.8","1.1"], convmethod=['upwalg','upw','upwsides'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='umf', plotsolution=True)
