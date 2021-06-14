@@ -41,6 +41,7 @@ class Baseopt:
         self.f, self.sdata, self.verbose = f, sdata, verbose
         if not hasattr(sdata, 'nbase'): raise ValueError(f"please give 'nbase' in sdata")
         self.nbase, self.nused = sdata.nbase, 0
+        self.sdata = sdata
         self.du = np.zeros(shape=(self.nbase,n))
         self.u0, self.u, self.r = np.zeros(n), np.zeros(n), np.zeros(n)
         self.ind = []
@@ -72,7 +73,8 @@ class Baseopt:
         x0[-1] = 1
         method = 'BFGS'
         # method = 'CG'
-        out = optimize.minimize(fun=self.res, x0=x0, method=method, options={'disp':False, 'maxiter':10, 'gtol':1e-2})
+        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-2}
+        out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
         # print(f"{out=}")
         # print(f"{self.resfirst=} {np.linalg.norm(self.r)=}")
         self.iter += 1

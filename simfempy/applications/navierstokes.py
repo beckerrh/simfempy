@@ -43,6 +43,9 @@ class NavierStokes(Stokes):
         dim = self.mesh.dimension
         if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
         self.convdata.md = meshes.move.move_midpoints(self.mesh, self.convdata.beta, bound=1/dim)
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        vdir = self.femv.interpolateBoundary(colorsdirichlet, self.problemdata.bdrycond.fct).ravel()
+        self.femv.massDotBoundary(dv, vdir, colors=colorsdirichlet, ncomp=self.ncomp, coeff=np.minimum(self.convdata.betart, 0))
         for icomp in range(dim):
             self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod)
 

@@ -22,6 +22,7 @@ class StoppingData:
         self.bt_maxiter = kwargs.pop('bt_maxiter',50)
         self.bt_omega = kwargs.pop('bt_omega',0.75)
         self.bt_c = kwargs.pop('bt_c',0.1)
+        self.maxter_stepsize = 5
 
 class IterationData:
     def __init__(self, resnorm, **kwargs):

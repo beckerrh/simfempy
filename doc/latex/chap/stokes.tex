@@ -443,17 +443,17 @@ Suppose $\psi\in\R^d$ is a vector field wich equals $\vec{d}\in\R^d$ on a given 
 =\int_{\Omega} \sigma:\nabla\psi  + \int_{\Omega} \div \sigma\cdot \psi
 =\int_{\Omega} \sigma:\nabla\psi  -\int_{\Omega} f\cdot \psi\\
 =& a_{\Omega}(v,p; \psi,0) - l_{\Omega}(\psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
- -\int_{\GammaN}\pN \psi_n
+ -\int_{\GammaN}\pN \psi_n -\int_{\GammaP}\pP \psi_n
 \end{align*}
 %
 Supposing $\psi$ is a discrete vector field (in general we have to approximate it), for the strong implementation, we can retrieve the last expression by the parts of the matrix eliminated.
-Fo the weak implementation we have, since $\psi$ is no an admissible test function
+Fo the weak implementation we have, since $\psi$ is now an admissible test function
 %
 \begin{align*}
 \int_{\Gamma} \transpose{n}\sigma \vec{d} =&a_{\Omega}(v,p; \psi,0) - l_{\Omega}(\psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
- -\int_{\GammaN}\pN \psi_n\\
+ -\int_{\GammaN}\pN \psi_n-\int_{\GammaP}\pP \psi_n\\
 =&  l_{\partial\Omega}(\psi,0) - a_{\partial\Omega}(v,p; \psi,0) - \lambda_R\int_{\Gamma_R}\left(v\cdot\psi - v_n\psi_n\right)+ \int_{\GammaR}\left(\gR\cdot\psi - \gR_n\psi_n\right)
- -\int_{\GammaN}\pN \psi_n
+ -\int_{\GammaN}\pN \psi_n-\int_{\GammaP}\pP \psi_n
 \end{align*}
 %
 %

@@ -15,25 +15,34 @@ from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
 
 # ================================================================c#
-def main(testcase='drivenCavity'):
-    testcases = ['drivenCavity', 'backwardFacingStep', 'poiseuille']
+def main(**kwargs):
+    testcases = ['drivenCavity', 'backwardFacingStep', 'poiseuille', 'schaeferTurek']
+    testcase = kwargs.pop('testcase', testcases[0])
+    model = kwargs.pop('model', 'NavierStokes')
+    bdryplot = kwargs.pop('bdryplot', False)
     # create mesh and data
-    if testcase=='drivenCavity':
-        mesh, data = drivenCavity(h=0.2, mu=0.00025)
-    elif testcase=='backwardFacingStep':
-        mesh, data = backwardFacingStep(h=0.1)
-    elif testcase=='poiseuille':
-        mesh, data = poiseuille(h=0.1)
-    else:
-        raise ValueError(f"test case must be in {testcases=}")
-   # plotmesh.meshWithBoundaries(mesh)
+    mesh, data = eval(testcase)(**kwargs)
+    # if testcase=='drivenCavity':
+    #     mesh, data = drivenCavity(**kwargs)
+    # elif testcase=='backwardFacingStep':
+    #     mesh, data = backwardFacingStep(**kwargs)
+    # elif testcase=='poiseuille':
+    #     mesh, data = poiseuille(**kwargs)
+    # else:
+    #     raise ValueError(f"test case must be in {testcases=}")
+    if bdryplot: 
+        plotmesh.meshWithBoundaries(mesh)
+        plt.show()
+        return
     # create application
     # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_10')
-    # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    if model == "Stokes":
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres')
     # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
-    stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
-    result = stokes.solve()
+    else:
+        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
+    result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
     for p, v in result.data['global'].items(): print(f"{p}: {v}")
@@ -107,14 +116,14 @@ def poiseuille(h= 0.1, mu=0.1):
         mesh = geom.generate_mesh()
     data = ProblemData()
    # boundary conditions
-    data.bdrycond.set("Dirichlet", [1002,1000])
-    data.bdrycond.set("Neumann", [1001,1003])
+    data.bdrycond.set("Dirichlet", [1002,1000,1003])
+    data.bdrycond.set("Neumann", [])
     data.bdrycond.set("Navier", [])
-    data.bdrycond.set("Pressure", [])
-    # data.bdrycond.fct[1003] = [lambda x, y, z:  1, lambda x, y, z: 0]
+    data.bdrycond.set("Pressure", [1001])
+    data.bdrycond.fct[1003] = [lambda x, y, z:  1-y**2, lambda x, y, z: 0]
     # data.bdrycond.fct[1002] = [lambda x, y, z:  1, lambda x, y, z: 0]
     # data.bdrycond.fct[1003] = {'p': lambda x, y, z:  1}
-    data.bdrycond.fct[1003] = [lambda x, y, z, nx, ny, nz:  1, lambda x, y, z, nx, ny, nz:  0]
+    # data.bdrycond.fct[1003] = [lambda x, y, z, nx, ny, nz:  1, lambda x, y, z, nx, ny, nz:  0]
     #--------------------------------------------------------------------------
     #navier_slip_boundary
     # data.bdrycond.fct[1000] = { 'g': [lambda x, y, z:  1, lambda x, y, z:  0]}
@@ -125,7 +134,27 @@ def poiseuille(h= 0.1, mu=0.1):
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
+# ================================================================ #
+def schaeferTurek(h= 0.5, mu=0.1, hcircle=0.2):
+    with pygmsh.geo.Geometry() as geom:
+        circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=6, make_surface=False)
+        geom.add_physical(circle.curve_loop.curves, label="3000")
+        p = geom.add_rectangle(xmin=0, xmax=11, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
+        geom.add_physical(p.surface, label="100")
+        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        mesh = geom.generate_mesh()
+    data = ProblemData()
+   # boundary conditions
+    data.bdrycond.set("Dirichlet", [1002,1000,1003,3000])
+    data.bdrycond.set("Pressure", [1001])
+    data.bdrycond.fct[1003] = [lambda x, y, z:  y*(4.1-y)/2.05**2, lambda x, y, z: 0]
+    data.params.scal_glob["mu"] = mu
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=3000)
+    #TODO pass ncomp with mesh ?!
+    data.ncomp = 2
+    return SimplexMesh(mesh=mesh), data
 
 # ================================================================c#
-main(testcase='poiseuille')
+# main(testcase='poiseuille', h=0.2, mu=0.001, bdryplot=True)
 # main(testcase='drivenCavity')
+main(testcase='schaeferTurek', mu=0.01)
