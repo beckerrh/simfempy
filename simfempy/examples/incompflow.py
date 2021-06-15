@@ -149,4 +149,4 @@ def schaeferTurek(h= 0.5, mu=0.01, hcircle=0.2):
 # ================================================================c#
 # main(testcase='poiseuille', h=0.2, mu=0.001, bdryplot=True)
 # main(testcase='drivenCavity')
-main(testcase='schaeferTurek', h=0.25, hcircle=0.01, mu=0.01)
+main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)

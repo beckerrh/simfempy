@@ -13,7 +13,7 @@ class NavierStokes(Stokes):
         self.convmethod = 'upwalg'
         self.convmethod = 'supg'
     def solve(self, dirname="Run"):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=2)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='bt', nbase=2)
         return self.static(dirname=dirname, mode='nonlinear',sdata=sdata)
     def computeForm(self, u):
         if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
