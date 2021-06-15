@@ -141,7 +141,7 @@ class CR1(fems.fem.Fem):
             dS = np.linalg.norm(normalsS,axis=1)
             dV = self.mesh.dV[cells]
             flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
-            flux[i] /= np.sum(dS)
+            # flux[i] /= np.sum(dS)
         return flux
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         facesdirall = bdrydata.facesdirall
@@ -605,6 +605,9 @@ class CR1(fems.fem.Fem):
     def computeFormTransportSupg(self, du, u, data, method):
         self.computeFormTransportCellWise(du, u, data, type='supg')
         self.computeFormJump(du, u, data.betart)
+    def computeFormTransportLps(self, du, u, data):
+        self.computeFormTransportCellWise(du, u, data, type='centered')
+        self.computeFormLps(du, u, data.beta)
     def massDotSupg(self, b, f, data, coeff=1):
         dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
         # beta, mus, deltas = beta, self.md.mus, self.md.deltas

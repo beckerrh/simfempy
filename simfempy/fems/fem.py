@@ -103,6 +103,26 @@ class Fem(object):
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
 
+    def computeFormLps(self, du, u, betaC):
+        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        ci = self.mesh.cellsOfInteriorFaces
+        normalsS = self.mesh.normals[self.mesh.innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
+        betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
+        scale *= 0.01*dS*betan
+        cg0 = self.cellgrads[ci[:,0], :, :]
+        cg1 = self.cellgrads[ci[:,1], :, :]
+        mat00 = np.einsum('nki,nli,n,nl->nk', cg0, cg0, scale, u[dofspercell[ci[:,0],:]])
+        np.add.at(du, dofspercell[ci[:,0],:], mat00)
+        mat01 = np.einsum('nki,nli,n,nl->nk', cg0, cg1, -scale, u[dofspercell[ci[:,1],:]])
+        np.add.at(du, dofspercell[ci[:,0],:], mat01)
+        mat10 = np.einsum('nki,nli,n,nl->nk', cg1, cg0, -scale, u[dofspercell[ci[:,0],:]])
+        np.add.at(du, dofspercell[ci[:,1],:], mat10)
+        mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci[:,1],:]])
+        np.add.at(du, dofspercell[ci[:,1],:], mat11)
+
     def computeFormConvection(self, du, u, data, method):
         if method[:4] == 'supg':
             self.computeFormTransportSupg(du, u, data, method)

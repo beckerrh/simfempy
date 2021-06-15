@@ -22,14 +22,6 @@ def main(**kwargs):
     bdryplot = kwargs.pop('bdryplot', False)
     # create mesh and data
     mesh, data = eval(testcase)(**kwargs)
-    # if testcase=='drivenCavity':
-    #     mesh, data = drivenCavity(**kwargs)
-    # elif testcase=='backwardFacingStep':
-    #     mesh, data = backwardFacingStep(**kwargs)
-    # elif testcase=='poiseuille':
-    #     mesh, data = poiseuille(**kwargs)
-    # else:
-    #     raise ValueError(f"test case must be in {testcases=}")
     if bdryplot: 
         plotmesh.meshWithBoundaries(mesh)
         plt.show()
@@ -45,12 +37,12 @@ def main(**kwargs):
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
-    for p, v in result.data['global'].items(): print(f"{p}: {v}")
+    for k, v in result.data['global'].items(): print(f"{k}: {-50*v}")
     fig = plt.figure(figsize=(10, 8))
-    outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
-    plotmesh.meshWithBoundaries(mesh, fig=fig, outer=outer[0])
-    plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[1])
-    plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[2],
+    outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
+    # plotmesh.meshWithBoundaries(mesh, fig=fig, outer=outer[0])
+    plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[0])
+    plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[1],
                           quiver_data={"V":list(result.data['point'].values())})
     plt.show()
 
@@ -135,9 +127,9 @@ def poiseuille(h= 0.1, mu=0.1):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def schaeferTurek(h= 0.5, mu=0.1, hcircle=0.2):
+def schaeferTurek(h= 0.5, mu=0.01, hcircle=0.2):
     with pygmsh.geo.Geometry() as geom:
-        circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=6, make_surface=False)
+        circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=10, make_surface=False)
         geom.add_physical(circle.curve_loop.curves, label="3000")
         p = geom.add_rectangle(xmin=0, xmax=11, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
         geom.add_physical(p.surface, label="100")
@@ -146,8 +138,8 @@ def schaeferTurek(h= 0.5, mu=0.1, hcircle=0.2):
     data = ProblemData()
    # boundary conditions
     data.bdrycond.set("Dirichlet", [1002,1000,1003,3000])
-    data.bdrycond.set("Pressure", [1001])
-    data.bdrycond.fct[1003] = [lambda x, y, z:  y*(4.1-y)/2.05**2, lambda x, y, z: 0]
+    data.bdrycond.set("Neumann", [1001])
+    data.bdrycond.fct[1003] = [lambda x, y, z:  0.3*y*(4.1-y)/2.05**2, lambda x, y, z: 0]
     data.params.scal_glob["mu"] = mu
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=3000)
     #TODO pass ncomp with mesh ?!
@@ -157,4 +149,4 @@ def schaeferTurek(h= 0.5, mu=0.1, hcircle=0.2):
 # ================================================================c#
 # main(testcase='poiseuille', h=0.2, mu=0.001, bdryplot=True)
 # main(testcase='drivenCavity')
-main(testcase='schaeferTurek', mu=0.01)
+main(testcase='schaeferTurek', h=0.25, hcircle=0.01, mu=0.01)

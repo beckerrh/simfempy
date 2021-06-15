@@ -217,7 +217,7 @@ class P1(fems.fem.Fem):
             uD = u[nodes]-udir[nodes]
             dV = self.mesh.dV[cells]
             flux[i] -= np.einsum('n,kl,nl->', self.dirichlet_nitsche * diffcoff[cells] * dS**2 / dV, massloc, uD)
-            flux[i] /= np.sum(dS)
+            # flux[i] /= np.sum(dS)
         return flux
     # interpolate
     def interpolate(self, f):

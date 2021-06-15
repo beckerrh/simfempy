@@ -399,6 +399,18 @@ class Stokes(Application):
         dlam += self.mesh.dV.dot(p)
         dp += lam*self.mesh.dV
     def computeBdryNormalFluxNitsche(self, v, p, colors):
+        ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
+        flux = np.zeros(shape=(ncomp,len(colors)))
+        vdir = self.femv.interpolateBoundary(colors, bdryfct).ravel()
+        for icomp in range(ncomp):
+            flux[icomp] = self.femv.fem.computeBdryNormalFluxNitsche(v[icomp::ncomp], colors, vdir[icomp::ncomp], self.mucell, nitsche_param=self.dirichlet_nitsche)
+            for i,color in enumerate(colors):
+                faces = self.mesh.bdrylabels[color]
+                cells = self.mesh.cellsOfFaces[faces,0]
+                normalsS = self.mesh.normals[faces][:,:ncomp]
+                dS = np.linalg.norm(normalsS, axis=1)
+                flux[icomp,i] -= p[cells].dot(normalsS[:,icomp])
+        return flux
         nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
         bdryfct = self.problemdata.bdrycond.fct
         flux, omega = np.zeros(shape=(len(colors),ncomp)), np.zeros(len(colors))

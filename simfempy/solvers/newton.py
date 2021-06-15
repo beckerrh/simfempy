@@ -71,13 +71,13 @@ class Baseopt:
         self.du[self.last] = du
         x0 = np.zeros(self.nused)
         x0[-1] = 1
+        self.iter += 1
         method = 'BFGS'
         # method = 'CG'
         options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-2}
         out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
         # print(f"{out=}")
         # print(f"{self.resfirst=} {np.linalg.norm(self.r)=}")
-        self.iter += 1
         return self.u, self.r, out.fun, out.x
 
 #--------------------------------------------------------------------
@@ -120,7 +120,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:
-            x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata)
+            x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata, verbose=True)
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:
