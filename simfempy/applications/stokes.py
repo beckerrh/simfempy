@@ -249,7 +249,7 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A)
+        return solvers.cfd.VelcoitySolver(A, maxiter=1)
     def getPressureSolver(self, A, B, AP):
         if self.precond_p == "schur":    
             return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP) 

@@ -17,18 +17,18 @@ def postproc(info):
     print(f"{info=}")
 
 def run(paramsdict, applicationargs={}, **kwargs):
-    niter = kwargs.pop('niter', 3)
-    h1 = kwargs.pop('h1', 1)
-    h = [h1*0.5**i for i in range(niter)]
-    mesh, data = schaeferTurek(h[0])
+    # niter = kwargs.pop('niter', 3)
+    # h1 = kwargs.pop('h1', 1)
+    # h = [h1*0.5**i for i in range(niter)]
+    mesh, data = schaeferTurek()
     applicationargs['problemdata'] = data
     def createMesh(h): return schaeferTurek(h)[0]
     kwargs['postproc'] = postproc
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=NavierStokes, applicationargs=applicationargs, **kwargs)
-    result = comp.compare(h=h)
+    result = comp.compare()
 
 #================================================================#
 if __name__ == '__main__':
     # paramsdict = {'convmethod': ['lps','supg'], 'linearsolver': ['umf', 'gcrotmk', 'bicgstab'], 'precond_p': 'schur'}
-    paramsdict = {'convmethod': ['lps','supg'], 'linearsolver': ['umf', 'gcrotmk'], 'precond_p': 'diag'}
-    run(paramsdict, niter=2)
+    paramsdict = {'convmethod': ['lps'], 'linearsolver': ['gmres_10'], 'precond_p': 'schur'}
+    run(paramsdict, niter=2, h1=0.5)
