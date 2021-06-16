@@ -72,7 +72,12 @@ class Baseopt:
         x0 = np.zeros(self.nused)
         x0[-1] = 1
         self.iter += 1
-        method = 'BFGS'
+        if self.iter==1:
+            self.res(x0)
+            return self.u, self.r, 1, x0
+        # method = 'COBYLA'
+        method = 'TNC'
+        # method = 'BFGS'
         # method = 'CG'
         options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-2}
         out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
@@ -102,9 +107,11 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     resnorm = np.linalg.norm(res)
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
+    name = 'newton'
+    if hasattr(sdata,'addname'): name += '_' + sdata.addname
     if verbose:
-        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format("newton", "it", "|x|", "|dx|", '|r|','rhodx','rhor','lin', 'step'))
-        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format("newton", 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
+        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format(name, "it", "|x|", "|dx|", '|r|','rhodx','rhor','lin', 'step'))
+        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format(name, 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
     iterdata = newtondata.IterationData(resnorm)
@@ -124,10 +131,10 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:
-            print(f"newton {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
+            print(f"{name} {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
         if xnorm >= divx:
-            return (x, maxiter)
-    return (x,iterdata.iter)
+            return (x, maxiter, np.mean(iterdata.liniter))
+    return (x,iterdata.iter, np.mean(iterdata.liniter))
 
 
 # ------------------------------------------------------ #

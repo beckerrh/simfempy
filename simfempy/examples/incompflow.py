@@ -1,4 +1,3 @@
-assert __name__ == '__main__'
 # in shell
 import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
@@ -127,7 +126,8 @@ def poiseuille(h= 0.1, mu=0.1):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def schaeferTurek(h= 0.5, mu=0.01, hcircle=0.2):
+def schaeferTurek(h= 0.5, mu=0.01, hcircle=None):
+    if hcircle is None: hcircle = 0.2*h
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=10, make_surface=False)
         geom.add_physical(circle.curve_loop.curves, label="3000")
@@ -146,7 +146,9 @@ def schaeferTurek(h= 0.5, mu=0.01, hcircle=0.2):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 
-# ================================================================c#
-# main(testcase='poiseuille', h=0.2, mu=0.001, bdryplot=True)
-# main(testcase='drivenCavity')
-main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)
+#================================================================#
+if __name__ == '__main__':
+    main(testcase='poiseuille', h=0.2, mu=0.001)
+    main(testcase='drivenCavity')
+    main(testcase='backwardFacingStep')
+    main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)

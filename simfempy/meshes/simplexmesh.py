@@ -152,6 +152,8 @@ class SimplexMesh(object):
         # bdry faces
         # for key, cellblock in cells:
         #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
+        if self.facesname not in cellsoflabel:
+            raise ValueError(f"{self.facesname=} not in {cellsoflabel=}")
         bdrylabelsgmsh = cellsoflabel[self.facesname]
         self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
     def _constructFacesFromSimplices(self):
@@ -352,13 +354,18 @@ class SimplexMesh(object):
             cells = {'lines': self.simplices}
             cells['vertex'] = self.facesdata
         elif self.dimension ==2:
-            cells = {'triangle': self.simplices}
-            cells['line'] = self.facesdata
+            # cells = {'triangle': self.simplices}
+            # cells['line'] = self.facesdata
+            cells = [('triangle', self.simplices), ('line', self.facesdata)]
+            # cells = [('triangle', self.simplices)]
         else:
-            cells = {'tetra': self.simplices}
-            cells['triangle'] = self.facesdata
-        mesh = meshio.Mesh(self.points, cells)
-        meshio.write(filename, mesh)
+            # cells = {'tetra': self.simplices}
+            # cells['triangle'] = self.facesdata
+            cells = [('tetra', self.simplices)]
+        meshio.write_points_cells(filename, self.points, cells, file_format="gmsh")
+        # mesh = meshio.Mesh(self.points, cells, point_data={"gmsh:dim_tags":self.dimension*np.ones(self.nnodes)})
+        # print(f"{mesh=}")
+        # meshio.write(filename, mesh)
     # ----------------------------------------------------------------#
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)

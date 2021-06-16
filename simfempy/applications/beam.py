@@ -125,7 +125,7 @@ class Beam(Application):
         assert np.allclose(Aall.data, Aall.T.data)
         print(f"A=\n{Aall.toarray()}")
         return Aall
-    def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0):
+    def linearSolver(self, Ain, bin, uin=None, linearsolver='umf', verbose=0):
         n = self.fem.nunknowns()
         if solver == 'umf':
             Aall = self._to_single_matrix(Ain)

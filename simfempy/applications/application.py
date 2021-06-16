@@ -144,23 +144,26 @@ class Application(object):
         self.timer.add('rhs')
         if mode == 'linear':
             try:
-                u, niter = self.linearSolver(self.A, self.b, u, solver=self.linearsolver)
+                u, niterlin = self.linearSolver(self.A, self.b, u, linearsolver=self.linearsolver)
             except Warning:
                 raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
             self.timer.add('solve')
+            iter={'lin':niterlin}
         else:
             if 'sdata' in kwargs:
                 sdata = kwargs.pop('sdata')
             else:
                 maxiter = kwargs.pop('maxiter', 100)
                 sdata = simfempy.solvers.newtondata.StoppingData(maxiter=maxiter)
+            sdata.addname = self.linearsolver
             info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, sdata=sdata)
             # print(f"{info=}")
-            u,niter = info
+            u,niter,niterlin = info
+            iter={'lin':niterlin, 'nlin':niter}
             if niter==sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
         pp = self.postProcess(u)
         self.timer.add('postp')
-        result.setData(pp, timer=self.timer, iter={'lin':niter})
+        result.setData(pp, timer=self.timer, iter=iter)
         return result
     def computeDefect(self, u):
         return self.computeForm(u)-self.b

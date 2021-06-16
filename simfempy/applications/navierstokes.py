@@ -5,18 +5,25 @@ from simfempy import fems, meshes, solvers
 import scipy.sparse as sparse
 
 class NavierStokes(Stokes):
+    def __format__(self, spec):
+        if spec=='-':
+            repr = super().__format__(spec)
+            repr += f"\tconvmethod={self.convmethod}"
+            return repr
+        return self.__repr__()
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
-        self.convmethod = 'lps'
-        self.convmethod = 'upwalg'
-        self.convmethod = 'supg'
+        self.convmethod = kwargs.pop('convmethod', 'supg')
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        self.Astokes = super().computeMatrix()
     def solve(self, dirname="Run"):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='bt', nbase=2)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=2)
         return self.static(dirname=dirname, mode='nonlinear',sdata=sdata)
     def computeForm(self, u):
-        if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
+        # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
         d = super().matrixVector(self.Astokes,u)
         # d = super().computeForm(u)
         v = self._split(u)[0]
@@ -25,7 +32,7 @@ class NavierStokes(Stokes):
         self.timer.add('form')
         return d
     def computeMatrix(self, u=None):
-        if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
+        # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
         X = [A.copy() for A in self.Astokes]
         # X = super().computeMatrix(u)
         if u is None: return X
@@ -70,15 +77,8 @@ class NavierStokes(Stokes):
         #     yv = self._split(y)[0]
         #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=None, solver=self.linearsolver, rtol=rtol)
+            u, niter = self.linearSolver(self.A, bin=b, uin=None, linearsolver=self.linearsolver, rtol=rtol)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
         return u, niter
-
-    def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A)
-    def getPressureSolver(self, A, B, AP):
-        mu = self.problemdata.params.scal_glob['mu']
-        # return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)    
-        return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP)    

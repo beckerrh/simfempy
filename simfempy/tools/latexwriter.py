@@ -77,7 +77,7 @@ class TableData(object):
                 fnd = float(n[i])/float(n[i-1])
                 vnd = values[key][i]/values[key][i-1]
                 if abs(vnd)>1e-10:
-                    p = -dim* np.log(vnd) / np.log(fnd)
+                    p = -dim* np.log(np.abs(vnd)) / np.log(np.abs(fnd))
                 else:
                     p=-1
                 valorder[i] = p

@@ -108,9 +108,10 @@ class P1sys(femsys.Femsys):
             xS = np.mean(self.mesh.points[self.mesh.faces[faces]], axis=1)
             x1, y1, z1 = xS[:, 0], xS[:, 1], xS[:, 2]
             nx, ny, nz = normalsS[:, 0] / dS, normalsS[:, 1] / dS, normalsS[:, 2] / dS
-            neumanns = bdryfct[color](x1, y1, z1, nx, ny, nz)
+            # neumanns = bdryfct[color](x1, y1, z1, nx, ny, nz)
             for i in range(self.ncomp):
-                bS = scale * dS * neumanns[i]
+                # bS = scale * dS * neumanns[i]
+                bS = scale * dS *  bdryfct[color][i](x1, y1, z1, nx, ny, nz)
                 indices = i + self.ncomp * self.mesh.faces[faces]
                 np.add.at(b, indices.T, bS)
         return b

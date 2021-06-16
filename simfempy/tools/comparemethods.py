@@ -9,6 +9,17 @@ import pygmsh
 from simfempy.tools.latexwriter import LatexWriter
 import simfempy.meshes.pygmshext
 #=================================================================#
+
+class Results():
+    def __init__(self, names, paramname, parameters, infos):
+        self.names = names
+        self.paramname = paramname 
+        self.parameters = parameters 
+        self.infos = infos
+        self.errors={}
+        for k, v in infos.items():
+            if k[:3]=='err': self.errors[k] = v
+
 class CompareMethods(object):
     """
     Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes)
@@ -19,8 +30,7 @@ class CompareMethods(object):
       plotpostprocs
       verb: in [0,5]
     """
-    def __init__(self, methods, **kwargs):
-        self.methods = methods
+    def __init__(self, **kwargs):
         self.dirname = "Results"
         if 'clean' in kwargs and kwargs.pop("clean")==True:
             import os, shutil
@@ -36,10 +46,55 @@ class CompareMethods(object):
         self.createMesh = kwargs.pop("createMesh", None)
         self.geom = kwargs.pop("geom", None)
         self.mesh = kwargs.pop("mesh", None)
+        self.postproc = kwargs.pop("postproc", None)
         self.h = kwargs.pop("h", None)
-        self.parameters = []
+        if self.paramname == "ncells":
+            if 'h' in kwargs:
+                self.params = kwargs.pop("h")
+                self.gmshrefine = False
+            elif not 'uniformrefine' in kwargs:
+                h1 = kwargs.pop("h1", 1)
+                niter = kwargs.pop("niter", 3)
+                # if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
+                hred = kwargs.pop("hred", 0.5)
+                self.params = [h1*hred**i for i in range(niter)]
+                self.gmshrefine = False
+            else:
+                raise NotImplementedError(f"gmeshrefine not working")
+                # ne marche pas à cause de pygmsh !!!
+                mesh = self._mesh_from_geom_or_fct()
+                self.gmshrefine = True
+                niter = kwargs.pop("niter", None)
+                if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
+                self.params = [mesh.ncells*mesh.dimension**i for i in range(niter)]
+        else:
+            self.params = kwargs.pop("params", None)
+        self.methods = kwargs.pop("methods", None)
+        if self.methods == None:
+            requiredargs = ['application', 'applicationargs', 'paramsdict']
+            for requiredarg in requiredargs:
+                if not requiredarg in kwargs:
+                    raise ValueError("need 'application' (class) and 'applicationargs' (dict) and  'paramsdict' (dict)")
+            self._definemethods(kwargs.pop("application"), kwargs.pop("applicationargs"), kwargs.pop("paramsdict"))
+    def _definemethods(self, application, applicationargs, paramsdict):
+        import itertools
+        for pname,params in paramsdict.items():
+            if isinstance(params, str): paramsdict[pname] = [params]
+        paramsprod = list(itertools.product(*paramsdict.values()))
+        paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
+        if not 'problemdata' in applicationargs:
+            raise KeyError(f"'problemdata' should be set in 'applicationargs'")
+        self.methods = {}
+        for p in paramslist:
+            name = ''
+            for pname, param in p.items():
+                if len(paramsdict[pname])>1: name += param
+                applicationargs[pname] = param
+            self.methods[name] = application(**applicationargs)
+           
     def _mesh_from_geom_or_fct(self, h=None):
         if h is None:
+            if self.createMesh is not None: return self.createMesh()
             if self.mesh is not None: return self.mesh
             if self.h is None: raise ValueError(f"I need h({self.h=})")
             h = self.h
@@ -50,34 +105,26 @@ class CompareMethods(object):
             with self.geom(h) as geom:
                 mesh = geom.generate_mesh()
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
-    def compare(self, h=None, params=None, niter=None):
-        if self.paramname == "ncells":
-            if h is None:
-                mesh = self._mesh_from_geom_or_fct()
-                gmshrefine = True
-                if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
-                params = [mesh.ncells*mesh.dimension**i for i in range(niter)]
-            else:
-                params = h
-                gmshrefine = False
-        else:
+    def compare(self, **kwargs):
+        if (self.gmshrefine or self.paramname != "ncells") and self.mesh is None:
             mesh = self._mesh_from_geom_or_fct()
-            # mesh = SimplexMesh(geometry=geometry, hmean=self.h)
+
         if self.plotsolution:
             import matplotlib.gridspec as gridspec
             fig = plt.figure(figsize=(10, 8))
-            outer = gridspec.GridSpec(1, len(params)*len(self.methods), wspace=0.2, hspace=0.2)
+            outer = gridspec.GridSpec(1, len(self.params)*len(self.methods), wspace=0.1, hspace=0.1)
             plotcount = 0
-        for iter, param in enumerate(params):
+        parameters = []
+        for iter, param in enumerate(self.params):
             if self.verbose: print(f"{iter:2d} {self.paramname=} {param=}")
             if self.paramname == "ncells":
-                if gmshrefine:
+                if self.gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
                     mesh = self._mesh_from_geom_or_fct(param)
-                self.parameters.append(mesh.ncells)
+                parameters.append(mesh.ncells)
             else:
-                self.parameters.append(param)
+                parameters.append(param)
             for name, method in self.methods.items():
                 if self.verbose: print(f"{method:-}")
                 method.setMesh(mesh)
@@ -86,19 +133,20 @@ class CompareMethods(object):
                 result = method.solve(self.dirname)
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh
-                    suptitle = "{}={}".format(self.paramname, self.parameters[-1])
+                    suptitle = "{}={}".format(self.paramname, parameters[-1])
                     plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
                     plotcount += 1
                     # plt.show()
                 resdict = result.info.copy()
+                if self.postproc: self.postproc(result.data['global'])
                 resdict.update(result.data['global'])
-                self.fillInfo(iter, name, resdict, len(params))
+                self.fillInfo(iter, name, resdict, len(self.params))
         if self.plotsolution: plt.show()
         if self.plotpostprocs:
-            self.plotPostprocs(self.methods.keys(), self.paramname, self.parameters, self.infos)
+            self.plotPostprocs(self.methods.keys(), self.paramname, parameters, self.infos)
         if self.latex:
-            self.generateLatex(self.methods.keys(), self.paramname, self.parameters, self.infos)
-        return  self.methods.keys(), self.paramname, self.parameters, self.infos
+            self.generateLatex(self.methods.keys(), self.paramname, parameters, self.infos)
+        return  Results(self.methods.keys(), self.paramname, parameters, self.infos)
     def fillInfo(self, iter, name, info, n):
         if not hasattr(self, 'infos'):
             # first time - we have to generate some data
@@ -141,12 +189,20 @@ class CompareMethods(object):
             keysplit = key.split('_')
             if key == 'iter':
                 newdict={}
+                valformat={}
                 for key2, val2 in val.items():
                     for name in names:
-                        newdict["{}-{}".format(key2, name)] = val2[name]
+                        keyname = "{}-{}".format(key2, name)
+                        # print(f"{keyname=} {val2[name]=}")
+                        newdict[keyname] = val2[name]
+                        if np.issubdtype(val2[name].dtype, np.integer): valformat[keyname]='3d'
+                        elif np.issubdtype(val2[name].dtype, np.float): valformat[keyname]='5.1f'
+                        else:  raise ValueError(f"{val2[name].dtype=}")
+                # print(f"{valformat=}")                
                 kwargs['name'] = '{}'.format(key)
                 kwargs['values'] = newdict
-                kwargs['valformat'] = '3d'
+                kwargs['valformat'] = valformat
+                # print(f"{kwargs=}")
                 latexwriter.append(**kwargs)
             elif key == 'timer':
                 for name in names:

@@ -3,6 +3,7 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 from simfempy import fems
 from simfempy.applications.application import Application
+from functools import partial
 
 #=================================================================#
 class Elasticity(Application):
@@ -72,7 +73,7 @@ class Elasticity(Application):
             self.lamcell = np.full(self.mesh.ncells, lam)
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
-            rhs = np.zeros(shape=(self.ncomp, *x.shape))
+            rhs = np.zeros(shape=(self.ncomp,*x.shape))
             mu, lam = self.mu, self.lam
             # print(f"{solexact[0](x,y,z)=}")
             for i in range(self.ncomp):
@@ -80,20 +81,22 @@ class Elasticity(Application):
                     rhs[i] -= (lam+mu) * solexact[j].dd(i, j, x, y, z)
                     rhs[i] -= mu * solexact[i].dd(j, j, x, y, z)
             return rhs
+        # return [partial(_fctu, icomp=icomp) for icomp in range(self.ncomp)]
         return _fctu
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
-        def _fctneumann(x, y, z, nx, ny, nz):
-            rhs = np.zeros(shape=(self.ncomp, *x.shape))
+        def _fctneumann(x, y, z, nx, ny, nz, icomp):
+            rhs = np.zeros(shape=x.shape)
             normals = nx, ny, nz
             mu, lam = self.mu, self.lam
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhs[i] += lam * solexact[j].d(j, x, y, z) * normals[i]
-                    rhs[i] += mu  * solexact[i].d(j, x, y, z) * normals[j]
-                    rhs[i] += mu  * solexact[j].d(i, x, y, z) * normals[j]
+            # for i in range(self.ncomp):
+            for j in range(self.ncomp):
+                rhs += lam * solexact[j].d(j, x, y, z) * normals[icomp]
+                rhs += mu  * solexact[icomp].d(j, x, y, z) * normals[j]
+                rhs += mu  * solexact[j].d(icomp, x, y, z) * normals[j]
             return rhs
-        return _fctneumann
+        return [partial(_fctneumann, icomp=icomp) for icomp in range(self.ncomp)]
+        # return _fctneumann
     def computeRhs(self, b=None, coeffmass=None):
         b = np.zeros(self.fem.nunknowns() * self.ncomp)
         rhs = self.problemdata.params.fct_glob.get('rhs', None)

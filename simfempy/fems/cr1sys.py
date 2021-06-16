@@ -127,7 +127,9 @@ class CR1sys(femsys.Femsys):
             # neumanns = np.vectorize(bdryfct[color])(xf, yf, zf, nx, ny, nz)
             # assert neumanns.shape[0] == self.ncomp
             for i in range(self.ncomp):
-                bS = dS * np.vectorize(bdryfct[color][i])(xf, yf, zf, nx, ny, nz)
+                # print(f"{bdryfct[color][i]=} {xf.shape=}")
+                # bS = dS * np.vectorize(bdryfct[color][i])(xf, yf, zf, nx, ny, nz)
+                bS = dS * bdryfct[color][i](xf, yf, zf, nx, ny, nz)
                 indices = i + self.ncomp * faces
                 b[indices] += bS
         return b

@@ -6,7 +6,7 @@ __pygmsh6__ = False
 if hasattr(pygmsh, "built_in"): __pygmsh6__ = True
 
 # ------------------------------------- #
-def unitline(h):
+def unitline(h=0.5):
     if __pygmsh6__:
         geom = pygmsh.built_in.Geometry()
         p0 = geom.add_point([0, 0, 0], lcar=h)
@@ -28,7 +28,7 @@ def unitline(h):
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ------------------------------------- #
-def unitsquare(h):
+def unitsquare(h=0.5):
     a=1
     if __pygmsh6__:
         geom = pygmsh.built_in.Geometry()
@@ -52,7 +52,7 @@ def unitsquare(h):
 
 
 # ------------------------------------- #
-def unitcube(h):
+def unitcube(h=0.5):
     if __pygmsh6__:
         geom = pygmsh.built_in.Geometry()
         x, y, z = [-1, 1], [-1, 1], [-1, 1]
@@ -85,7 +85,7 @@ def unitcube(h):
 
 
 # ------------------------------------- #
-def backwardfacingstep(h=1.):
+def backwardfacingstep(h=0.5):
     if __pygmsh6__:
         geom = pygmsh.built_in.Geometry()
         X = []
@@ -116,7 +116,7 @@ def backwardfacingstep(h=1.):
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
 
 # ------------------------------------- #
-def backwardfacingstep3d(h):
+def backwardfacingstep3d(h=0.5):
     X = []
     X.append([-1.0, 1.0])
     X.append([-1.0, 0.0])

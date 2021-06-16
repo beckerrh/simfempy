@@ -50,6 +50,7 @@ simfempy/test/__init__.py
 simfempy/test/beam_analytic.py
 simfempy/test/elasticity_analytic.py
 simfempy/test/heat_analytic.py
+simfempy/test/schaeferturek.py
 simfempy/test/stokes_analytic.py
 simfempy/test/test.py
 simfempy/test/test_analytic.py

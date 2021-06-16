@@ -22,6 +22,7 @@ class Stokes(Application):
         self.dirichlet_nitsche = 4
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
+        self.precond_p = kwargs.pop('precond_p', 'diag')
         self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
@@ -93,23 +94,16 @@ class Stokes(Application):
     def defineNeumannAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         mu = self.problemdata.params.scal_glob['mu']
-        def _fctneumannv(x, y, z, nx, ny, nz):
+        def _fctneumannv(x, y, z, nx, ny, nz, icomp):
             v, p = solexact
-            rhsv = np.zeros(shape=(self.ncomp, *x.shape))
+            rhsv = np.zeros(shape=x.shape)
             normals = nx, ny, nz
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
-                    rhsv[i] += mu  * v[i].d(j, x, y, z) * normals[j]
-                rhsv[i] -= p(x, y, z) * normals[i]
+            # for i in range(self.ncomp):
+            for j in range(self.ncomp):
+                rhsv += mu  * v[icomp].d(j, x, y, z) * normals[j]
+            rhsv -= p(x, y, z) * normals[icomp]
             return rhsv
-        def _fctneumannp(x, y, z, nx, ny, nz):
-            v, p = solexact
-            rhsp = np.zeros(shape=x.shape)
-            normals = nx, ny, nz
-            for i in range(self.ncomp):
-                rhsp -= v[i](x, y, z) * normals[i]
-            return rhsp
-        return _fctneumannv
+        return [partial(_fctneumannv, icomp=icomp) for icomp in range(self.ncomp)]
     def defineNavierAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         mu = self.problemdata.params.scal_glob['mu']
@@ -213,10 +207,13 @@ class Stokes(Application):
             q = B.dot(v)+C.T.dot(lam)
             return np.hstack([w, q, C.dot(p)])
         else:
-            A, B = Ain
-            v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
-            w = A.dot(v) - B.T.dot(p)
-            q = B.dot(v)
+            try:
+                A, B = Ain
+                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
+                w = A.dot(v) - B.T.dot(p)
+                q = B.dot(v)
+            except:
+                raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
             return np.hstack([w, q])
     def getPrecMult(self, Ain, AP, SP):
         A, B = Ain[0], Ain[1]
@@ -254,18 +251,24 @@ class Stokes(Application):
     def getVelocitySolver(self, A):
         return solvers.cfd.VelcoitySolver(A)
     def getPressureSolver(self, A, B, AP):
-        mu = self.problemdata.params.scal_glob['mu']
-        return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)    
-    def linearSolver(self, Ain, bin, uin=None, solver='umf', verbose=0, atol=1e-14, rtol=1e-10):
+        if self.precond_p == "schur":    
+            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP) 
+        elif self.precond_p == "diag":    
+            mu = self.problemdata.params.scal_glob['mu']
+            return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)
+        else:
+            raise ValueError(f"unknown {self.precond_p=}")   
+    def linearSolver(self, Ain, bin, uin=None, linearsolver='umf', verbose=0, atol=1e-14, rtol=1e-10):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        if solver == 'umf':
+        if linearsolver == 'umf':
             Aall = self._to_single_matrix(Ain)
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             return uall, 1
-        elif solver[:4] == 'iter':
-            ssolver = solver.split('_')
-            method=ssolver[1] if len(ssolver)>1 else 'lgmres'
-            disp=int(ssolver[2]) if len(ssolver)>2 else 0
+        else:
+            # print(f"{atol=} {rtol=}")
+            ssolver = linearsolver.split('_')
+            method=ssolver[0] if len(ssolver)>0 else 'lgmres'
+            disp=int(ssolver[1]) if len(ssolver)>1 else 0
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
             matvec = partial(self.matrixVector, Ain)
@@ -274,8 +277,6 @@ class Stokes(Application):
             matvecprec=self.getPrecMult(Ain, AP, SP)
             S = solvers.cfd.SystemSolver(n=nall, matvec=matvec, matvecprec=matvecprec, method=method, disp=disp, atol=atol, rtol=rtol)
             return S.solve(b=bin, x0=uin)
-        else:
-            raise ValueError(f"unknown solve '{solver=}'")
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()
         bs  = self._split(b)
@@ -411,34 +412,6 @@ class Stokes(Application):
                 dS = np.linalg.norm(normalsS, axis=1)
                 flux[icomp,i] -= p[cells].dot(normalsS[:,icomp])
         return flux
-        nfaces, ncells, ncomp = self.mesh.nfaces, self.mesh.ncells, self.ncomp
-        bdryfct = self.problemdata.bdrycond.fct
-        flux, omega = np.zeros(shape=(len(colors),ncomp)), np.zeros(len(colors))
-        xf, yf, zf = self.mesh.pointsf.T
-        cellgrads = self.femv.fem.cellgrads
-        facesOfCell = self.mesh.facesOfCells
-        mucell = self.mucell
-        for i,color in enumerate(colors):
-            faces = self.mesh.bdrylabels[color]
-            cells = self.mesh.cellsOfFaces[faces,0]
-            normalsS = self.mesh.normals[faces][:,:ncomp]
-            dS = np.linalg.norm(normalsS, axis=1)
-            if color in bdryfct:
-                # bfctv, bfctp = bdryfct[color]
-                bfctv = bdryfct[color]
-                # dirichv = np.hstack([bfctv(xf[faces], yf[faces], zf[faces])])
-                dirichv = np.vstack([f(xf[faces], yf[faces], zf[faces]) for f in bfctv])
-            flux[i] -= np.einsum('f,fk->k', p[cells], normalsS)
-            indfaces = self.mesh.facesOfCells[cells]
-            ind = npext.positionin(faces, indfaces).astype(int)
-            for icomp in range(ncomp):
-                vicomp = v[icomp+ ncomp*facesOfCell[cells]]
-                flux[i,icomp] = np.einsum('fj,f,fi,fji->', vicomp, mucell[cells], normalsS, cellgrads[cells, :, :ncomp])
-                vD = v[icomp+ncomp*faces]
-                if color in bdryfct:
-                    vD -= dirichv[icomp]
-                flux[i,icomp] -= self.dirichlet_nitsche*np.einsum('f,fi,fi->', vD * mucell[cells], normalsS, cellgrads[cells, ind, :ncomp])
-        return flux.T
     def computeRhsBdryNitscheDirichlet(self, b, colors, vdir, mucell, coeff=1):
         bv, bp = b
         ncomp  = self.ncomp

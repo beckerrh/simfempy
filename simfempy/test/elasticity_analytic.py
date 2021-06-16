@@ -6,13 +6,13 @@ sys.path.insert(0,simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.applications.elasticity import Elasticity
 import simfempy.applications.problemdata
-from simfempy.test.test_analytic import test_analytic
+from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
-    paramargs = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    paramargs['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','new'])
+    paramsdict = {'fem': kwargs.pop('fem', ['p1','cr1'])}
+    paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','new'])
     data = simfempy.applications.problemdata.ProblemData()
     if dim==2:
         data.ncomp=2
@@ -34,7 +34,8 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colordir)
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    return test_analytic(application=Elasticity, createMesh=createMesh, paramargs=paramargs, applicationargs=applicationargs, **kwargs)
+    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Elasticity, applicationargs=applicationargs, **kwargs)
+    return comp.compare()
 
 
 

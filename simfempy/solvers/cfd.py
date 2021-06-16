@@ -43,9 +43,10 @@ class PressureSolverSchur():
         v2 = self.AP.solve(v)
         return self.B.dot(v2)
     def solve(self, b):
-        u, info = splinalg.lgmres(self.solver, b, x0=None, M=self.M, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
+        tol = 0.1
+        # u, info = splinalg.lgmres(self.solver, b, x0=None, M=self.M, maxiter=self.maxiter, atol=1e-12, tol=tol)
         # u, info = splinalg.bicgstab(self.solver, b, x0=None, M=None, maxiter=20, atol=1e-12, tol=1e-10)
-        # u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
+        u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
         # self.counter.niter=0
         # u, info = splinalg.lgmres(self.solver, b, x0=None, M=None, maxiter=3, atol=1e-12, tol=1e-10, callback=self.counter)
         # print(f"{info=}")
@@ -65,13 +66,15 @@ class SystemSolver():
         self.M = splinalg.LinearOperator(shape=(n, n), matvec=matvecprec)
     def solve(self, b, x0):
         if self.method=='lgmres':
-            u, info = splinalg.lgmres(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol, inner_m=10, outer_k=4)
+            u, info = splinalg.lgmres(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
         elif self.method=='gmres':
             u, info = splinalg.gmres(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
         elif self.method=='gcrotmk':
             u, info = splinalg.gcrotmk(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol, m=10, truncate='smallest')
+        elif self.method=='bicgstab':
+            u, info = splinalg.bicgstab(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
         else:
             raise ValueError(f"unknown {self.method=}")
-        if info: raise ValueError("no convergence info={}".format(info))
+        if info: raise ValueError(f"no convergence in {self.method=} {info=}")
         return u, self.counter.niter
 

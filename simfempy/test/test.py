@@ -4,7 +4,7 @@ import numpy as np
 #================================================================#
 class TestAnalytical(unittest.TestCase):
     def _check(self, results, eps=1e-10):
-        for meth,err in results.items():
+        for meth,err in results.errors.items():
             if isinstance(err, dict):
                 for m, e in err.items():
                     if not np.all(e<eps): raise ValueError("error in method '{}' '{}' error is {}".format(meth,m,e))

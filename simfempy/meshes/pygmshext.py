@@ -16,6 +16,7 @@ def gmshRefine(mesh):
     cmd += ["{}".format(filenamemshref)]
     # cmd += ["-format"]
     # cmd += ["{}".format("msh2")]
+    print(f"{cmd=}")
     p = subprocess.Popen(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = p.communicate()
     # if stderr != "":
@@ -24,8 +25,8 @@ def gmshRefine(mesh):
     #     print("stderr=", stderr)
     #     raise RuntimeError('Gmsh exited with error (return code %d).' % p.returncode)
     mesh = meshio.read(filenamemshref)
-    # print("mesh.cells", mesh.cells.keys())
-    # print("mesh.cell_data", mesh.cell_data.keys())
+    print(f"{mesh.cells=}")
+    print(f"{mesh.cell_data=}")
     # data =  mesh.points, mesh.cells, mesh.point_data, mesh.cell_data, mesh.field_data
     return simplexmesh.SimplexMesh(mesh=mesh)
 
