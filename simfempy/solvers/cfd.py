@@ -6,6 +6,42 @@ from simfempy import tools
 import time
 
 #=================================================================#
+class Scipy():
+    def __init__(self, **kwargs):
+        self.method = kwargs.pop('method')
+        if "matrix" in kwargs:
+            self.matvec = kwargs.pop('matrix')
+        else:
+            # self.matvec = kwargs.pop('matvec')
+            n = kwargs.get('n')
+            self.matvec = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvec'))
+        if "matvecprec" in kwargs:
+            n = kwargs.get('n')
+            self.M = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvecprec'))
+        else:
+            M2 = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=3)
+            self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: M2.solve(x))
+        self.atol = 1e-14
+        disp = kwargs.pop('disp', 0)
+        self.counter = tools.iterationcounter.IterationCounter(name=self.method, disp=disp)
+    def solve(self, b, maxiter, tol, x0=None):
+        if self.method=='lgmres':
+            u, info = splinalg.lgmres(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
+        elif self.method=='gmres':
+            u, info = splinalg.gmres(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
+        elif self.method=='gcrotmk':
+            u, info = splinalg.gcrotmk(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol, m=10, truncate='smallest')
+        elif self.method=='bicgstab':
+            u, info = splinalg.bicgstab(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
+        elif self.method=='cgs':
+            u, info = splinalg.cgs(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
+        else:
+            raise ValueError(f"unknown {self.method=}")
+        if info: raise ValueError(f"no convergence in {self.method=} {info=}")
+        return u, self.counter.niter
+
+
+#=================================================================#
 class Pyamg():
     def __init__(self, A, **kwargs):
         self.nsmooth = kwargs.pop('nsmooth', 2)
