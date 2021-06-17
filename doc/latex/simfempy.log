@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  14 JUN 2021 20:08
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  17 JUN 2021 14:27
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1561,27 +1561,27 @@ File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
 
 
 ]
-Overfull \hbox (89.311pt too wide) detected at line 118
+Overfull \hbox (9.2529pt too wide) detected at line 118
 []
  []
 
 [5] [6] [7]
-Overfull \hbox (59.84836pt too wide) detected at line 432
+Overfull \hbox (59.84836pt too wide) detected at line 439
 [][] []
  []
 
 
-Overfull \hbox (39.40414pt too wide) detected at line 447
+Overfull \hbox (39.40414pt too wide) detected at line 454
 []
  []
 
-
-Overfull \hbox (50.50815pt too wide) detected at line 467
+[8]
+Overfull \hbox (50.50815pt too wide) detected at line 474
 []
  []
 
-[8] [9]
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 582--586
+[9]
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 589--593
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1590,7 +1590,7 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
  []
 
 
-LaTeX Warning: Empty bibliography on input line 606.
+LaTeX Warning: Empty bibliography on input line 613.
 
 ) [10]
 \openout2 = `chap/beam.aux'.
@@ -1846,7 +1846,7 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 Here is how much of TeX's memory you used:
  37095 strings out of 478994
  698123 string characters out of 5858185
- 1453648 words of memory out of 5000000
+ 1449813 words of memory out of 5000000
  53765 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -1880,7 +1880,7 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (21 pages, 320680 bytes).
+Output written on simfempy.pdf (21 pages, 320505 bytes).
 PDF statistics:
  484 PDF objects out of 1000 (max. 8388607)
  429 compressed objects within 5 object streams

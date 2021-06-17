@@ -110,13 +110,20 @@ a_{\Omega}(v,p; \phi,\xi) = \int_{\Omega} \left( -\mu \Delta v+\nabla p\right)\c
 +\int_{\Omega} \div v \xi+ \lambda_R\int_{\Gamma_R}\pitang v\cdot\phi
 \end{align*}
 %
-Then the (regular) weak solution satisfies
+Then the (regular) weak solution satisfies for all $\phi$
 %
 \begin{align*}
-\int_{\Omega} \left( -\mu \Delta v+\nabla p -f\right)\cdot\phi +\int_{\Omega} (\div v-g) \xi
-=& \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n-\int_{\GammaP} \pP\phi_n+ \int_{\GammaR} \pitang(\gR -\lambda_R v)\cdot\phi
+\int_{\Omega} \left( -\mu \Delta v+\nabla p -f\right)\cdot\phi
+=& \int_{\partial\Omega} p\phi_n - \int_{\partial\Omega} \mu\dn{v}\cdot\phi -\int_{\GammaN} \pN\phi_n-\int_{\GammaP} \pP\phi_n+ \int_{\GammaR} \pitang(\gR -\lambda_R v)\cdot\phi,
 \end{align*}
 %
+and for all $\xi$
+%
+\begin{align*}
+\int_{\Omega} (\div v-g) \xi = 0.
+\end{align*}
+%
+
 Taking $\phi \in H^1_0(\Omega,\R^d)$, the right-hand side vanishes and the density of this space in $L^2(\Omega)$ gives us 
 %
 \begin{align*}
@@ -152,7 +159,7 @@ If we use the weak formulation based on the stress tensor
 %
 \begin{equation}\label{eq:}
 a_{\Omega}(v,p; \phi,\xi) := \int_{\Omega} \sigma:\nabla\phi + \int_{\Omega} \div v \xi
-+ \lambda_R\int_{\Gamma_R}v_{\northo} \phi_{\northo},
++ \lambda_R\int_{\Gamma_R}\pitang v\cdot\pitang \phi,
 \end{equation}
 %
 the resulting boundary conditions are 
@@ -211,7 +218,7 @@ v = \vD \quad &\mbox{in $\GammaD$},\\
 \left\{
 \begin{aligned}
 v_n =& \vRn\\
-\pitang \left( \lambda_R v +\mu \dn{v}\right) - \mu\omega n  =& \pitang\gR 
+\pitang \left( \lambda_R v +\mu \dn{v} - \mu\omega n\right)  =& \pitang\gR 
 \end{aligned}
 \right\}
 %%
@@ -258,10 +265,10 @@ and therefore
 %
 \begin{align*}
 \transpose{n}\sigma n =& \transpose{n}\widetilde{\sigma} n\quad\Rightarrow\quad (I-\pitang)\sigma n= (I-\pitang)\widetilde{\sigma} n,\\ 
-\pitang \sigma n =& (I-n\transpose{n})\sigma n = \sigma n - n\transpose{n}\widetilde{\sigma} n = \pitang \widetilde{\sigma} n  + (\sigma-\widetilde{\sigma}) n = \pitang \widetilde{\sigma} n  + \mu \omega n
+\pitang \sigma n =& (I-n\transpose{n})\sigma n = \sigma n - n\transpose{n}\widetilde{\sigma} n = \pitang \widetilde{\sigma} n  + (\sigma-\widetilde{\sigma}) n = \pitang \widetilde{\sigma} n  - \mu \omega n
 \end{align*}
 %
-with $\omega := \frac{1}{2}(\transpose{\nabla v}-\nabla v)$.
+with $\omega := \frac{1}{2}(\nabla v-\transpose{\nabla v})$.
 \end{proof}
 %
 %
