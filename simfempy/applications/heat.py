@@ -281,15 +281,17 @@ class Heat(Application):
             raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
         data['cell']['k'] = self.kheatcell
         return data
-    def pyamg_solver_args(self, maxiter):
-        return {'cycle': 'W', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
+    # def pyamg_solver_args(self, maxiter):
+    #     return {'cycle': 'W', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
+    def setup_own_gs(**kwargs):
+        print(f"{kwargs=}")
     def own_gs(A, b):
         x = np.zeros_like(b)
         return x
     def pyamg_solver_args(self, maxiter):
         if self.convection:
-            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-13, 'accel': 'bicgstab'}
-        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-13, 'accel': 'cg'}
+            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'bicgstab'}
+        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'cg'}
     def build_pyamg(self, A):
         import pyamg
         # return pyamg.smoothed_aggregation_solver(A)
@@ -300,8 +302,10 @@ class Heat(Application):
             # smoother = 'gauss_seidel_nr'
             smoother = 'gauss_seidel'
             smoother = 'block_gauss_seidel'
-            # smoother = 'strength_based_schwarz'
+            smoother = 'strength_based_schwarz'
             smoother = 'schwarz'
+            # smoother = 'own_gs'
+            # smoother = 'gmres'
 
             # global setup_own_gs
             # def setup_own_gs(lvl, iterations=2, sweep='forward'):
@@ -313,7 +317,7 @@ class Heat(Application):
             # smoother = 'own_gs'
             # smooth = ('energy', {'krylov': 'fgmres'})
             smooth = ('energy', {'krylov': 'bicgstab'})
-            # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 1}), None]
+            # improve_candidates =[ (smoother, {'sweep': 'symmetric', 'iterations': 4}), None]
             improve_candidates = None
         else:
             symmetry = 'hermitian'
@@ -321,19 +325,24 @@ class Heat(Application):
             smoother = 'gauss_seidel'
             # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 4}), None]
             improve_candidates = None
-        strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
-        presmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
-        postsmoother = (smoother, {'sweep': 'symmetric', 'iterations': 2})
+        # strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
+        strength = [('symmetric', {'theta': 0.05})]
+        psmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
+        # psmoother = (smoother, {'maxiter': 10})
         SA_build_args = {
             'max_levels': 10,
             'max_coarse': 25,
             'coarse_solver': 'pinv2',
-            'symmetry': symmetry
+            'symmetry': symmetry,
+            'smooth': smooth,
+            'strength': strength,
+            'presmoother': psmoother,
+            'presmoother': psmoother,
+            'improve_candidates': improve_candidates,
+            'diagonal_dominance': False
         }
-        return pyamg.smoothed_aggregation_solver(A, B, smooth=smooth, strength=strength, presmoother=presmoother,
-                                                 postsmoother=postsmoother, improve_candidates=improve_candidates,
-                                                **SA_build_args)
-        # return pyamg.rootnode_solver(A, B, **SA_build_args)
+        # return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
+        return pyamg.rootnode_solver(A, B, **SA_build_args)
 
 
 #=================================================================#

@@ -260,18 +260,18 @@ class Application(object):
             if callback: callback(self.time, u)
         return result
 
-    def linearSolver(self, A, b, u=None, solver = None, verbose=0):
+    def linearSolver(self, A, b, u=None, linearsolver = None, verbose=0, disp=0):
         if spsp.issparse(A):
             if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
                 raise ValueError(f"{A.shape=} {b.shape=}")
-        if solver is None: solver = self.linearsolver
+        if linearsolver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
-        if solver not in self.linearsolvers: solver = "umf"
-        if solver == 'umf':
+        if linearsolver not in self.linearsolvers: solver = "umf"
+        if linearsolver == 'umf':
             return splinalg.spsolve(A, b), 1
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        elif solver in ['gmres','lgmres','bicgstab','cg']:
-            if solver == 'cg':
+        elif linearsolver in ['gmres','lgmres','bicgstab','cg','gcrotmk']:
+            if linearsolver == 'cg':
                 def gaussSeidel(A):
                     dd = A.diagonal()
                     D = spsp.dia_matrix(A.shape)
@@ -283,14 +283,14 @@ class Application(object):
             else:
                 # defaults: drop_tol=0.0001, fill_factor=10
                 M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
-            M_x = lambda x: M2.solve(x)
-            M = splinalg.LinearOperator(A.shape, M_x)
-            counter = simfempy.tools.iterationcounter.IterationCounter(name=solver, verbose=verbose)
+            M = splinalg.LinearOperator(A.shape, lambda x: M2.solve(x))
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=linearsolver, disp=disp)
             args=""
-            cmd = "u = splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(solver,args)
-            exec(cmd)
+            cmd = "splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(linearsolver,args)
+            u, info = eval(cmd)
+            # print(f"{u=}")
             return u, counter.niter
-        elif solver == 'pyamg':
+        elif linearsolver == 'pyamg':
             ml = self.build_pyamg(A)
             maxiter = 100
             u, res = self.solve_pyamg(ml, b, u, maxiter)
@@ -298,7 +298,7 @@ class Application(object):
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
         else:
-            raise NotImplementedError("unknown solve '{}'".format(solver))
+            raise NotImplementedError("unknown solve '{}'".format(linearsolver))
     def pyamg_solver_args(self, maxiter):
         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
     def solve_pyamg(self, ml, b, u, maxiter):
@@ -310,41 +310,6 @@ class Application(object):
         import pyamg
         return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
-
-
-    # def solveNonlinearProblem(self, u=None, sdata=None, method="newton", checkmaxiter=True):
-    #     if not hasattr(self,'mesh'): raise ValueError("*** no mesh given ***")
-    #     self.timer.add('init')
-    #     A = self.matrix()
-    #     self.timer.add('matrix')
-    #     self.b,u = self.computeRhs(u)
-    #     self.du = np.empty_like(u)
-    #     self.timer.add('rhs')
-    #     if method == 'newton':
-    #         from . import newton
-    #         u, nit = newton.newton(x0=u, f=self.residualNewton, computedx=self.solveForNewton, sdata=sdata, verbose=True)
-    #     elif method in ['broyden2','krylov', 'df-sane', 'anderson']:
-    #         sol = optimize.root(self.residualNewton, u, method=method)
-    #         u, nit = sol.x, sol.nit
-    #     else:
-    #         raise ValueError(f"unknown method {method}")
-    #     point_data, cell_data, info = self.postProcess(u)
-    #     self.timer.add('postp')
-    #     info['timer'] = self.timer
-    #     info['iter'] = {'lin':nit}
-    #     return point_data, cell_data, info
-
-    # def residualNewton(self, u):
-    #     # print(f"self.b={self.b.shape}")
-    #     self.A = self.matrix()
-    #     return self.A.dot(u) - self.b
-    #
-    # def solveForNewton(self, r, x):
-    #     # print(f"solveForNewton r={np.linalg.norm(r)}")
-    #     du, niter = self.linearSolver(self.A, r, x, verbose=0)
-    #     # print(f"solveForNewton du={np.linalg.norm(du)}")
-    #     return du
-
 
 
 # ------------------------------------- #

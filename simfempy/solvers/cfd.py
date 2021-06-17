@@ -1,14 +1,13 @@
 import numpy as np
-from numpy.random import random
 import pyamg
 import scipy.sparse.linalg as splinalg
 import scipy.sparse as sparse
 from simfempy import tools
+import time
 
 #=================================================================#
-class VelcoitySolver():
+class Pyamg():
     def __init__(self, A, **kwargs):
-        self.maxiter = kwargs.pop('maxiter', 1)
         self.nsmooth = kwargs.pop('nsmooth', 2)
         self.smoother = kwargs.pop('smoother', 'schwarz')
         # self.smoother = kwargs.pop('smoother', 'strength_based_schwarz')
@@ -19,21 +18,48 @@ class VelcoitySolver():
         pyamgargs['symmetry'] = 'nonsymmetric'
         pyamgargs['coarse_solver'] = 'splu'
         self.solver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
-        monotone, rho = self.checkConvergence(n=A.shape[0])
-        if not monotone: raise ValueError(f"VelcoitySolver not monotone {rho=}")
-        if rho > 0.5: raise ValueError(f"VelcoitySolver bad {rho=}")
-        self.maxiter = int(np.log(0.1)/np.log(rho))+1
-        print(f"{rho=} {self.maxiter=}")
-    def checkConvergence(self, n):
-        res=[]
-        self.solver.solve(np.random.random(n), maxiter=100, tol=1e-6, residuals=res)
-        # print(f"{res=}")
-        res = np.asarray(res)
-        monotone = np.all(np.diff(res) < 0)
-        rho = np.power(res[-1]/res[0], 1/len(res))
-        return monotone, rho
+    def testsolve(self, b, maxiter, tol):
+        res = []
+        self.solver.solve(b, maxiter=maxiter, tol=tol, residuals=res)
+        return np.asarray(res)
+    def solve(self, b, maxiter, tol):
+        return self.solver.solve(b, maxiter=maxiter, tol=tol)
+#=================================================================#
+class VelcoitySolver():
+    def __init__(self, A, **kwargs):
+        self.maxiter = kwargs.pop('maxiter', None)
+        solvernames = kwargs.pop('solvers',  ['Pyamg'])
+        self.solvers = {}
+        self.analysis = {}
+        for solvername in solvernames:
+            solver = eval(solvername)(A,**kwargs)
+            self.solvers[solvername] = solver
+            t0 = time.time()
+            res = solver.testsolve(np.random.random(A.shape[0]), maxiter=100, tol=1e-6)
+            t = time.time() - t0
+            monotone = np.all(np.diff(res) < 0)
+            rho = np.power(res[-1]/res[0], 1/len(res))
+            if not monotone:
+                print(f"***VelcoitySolver {solvername} not monotone {rho=}")
+                continue
+            if rho > 0.8: 
+                print(f"***VelcoitySolver {solvername} bad {rho=}")
+                continue
+            maxiter = int(np.log(0.1)/np.log(rho))+1
+            treq = t/len(res)*maxiter
+            self.analysis[solvername] = (maxiter, treq)
+        for solvername, val in self.analysis.items():
+            print(f"{solvername=} {val=}")
+        ibest = np.argmin([v[1] for v in self.analysis.values()])
+        solverbest = list(self.analysis.keys())[ibest]
+        print(f"{solverbest=}")
+        self.solver = self.solvers[solverbest]
+        self.maxiter = self.analysis[solverbest][0]
     def solve(self, b):
         return self.solver.solve(b, maxiter=self.maxiter, tol=1e-16)
+
+
+
 #=================================================================#
 class PressureSolverDiagonal():
     def __init__(self, mesh, mu):
@@ -44,10 +70,11 @@ class PressureSolverDiagonal():
 class PressureSolverSchur():
     def __init__(self, mesh, ncomp, A, B, AP, **kwargs):
         self.A, self.B, self.AP = A, B, AP
-        self.maxiter = kwargs.pop('maxiter',30)
+        self.maxiter = kwargs.pop('maxiter',3)
+        disp = kwargs.pop('disp',0)
         ncells, nfaces = mesh.ncells, mesh.nfaces
         self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)
-        self.counter = tools.iterationcounter.IterationCounter(name="pschur", disp=1)
+        self.counter = tools.iterationcounter.IterationCounter(name="pschur", disp=0)
         Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
         # self.spilu = splinalg.spilu(B*Ainv*B.T)
         # self.M = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.spilu.solve)

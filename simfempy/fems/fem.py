@@ -78,50 +78,53 @@ class Fem(object):
         r = np.einsum('n,nil,njl,nj->ni', self.mesh.dV*coeff, cellgrads, cellgrads, u[doc])
         np.add.at(du, doc, r)
 
-    def computeMatrixLps(self, betaC):
+    def computeMatrixLps(self, betart):
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
         ci = self.mesh.cellsOfInteriorFaces
+        ci0, ci1 = ci[:,0], ci[:,1]
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
-        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
-        betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
-        scale *= 0.01*dS*betan
-        cg0 = self.cellgrads[ci[:,0], :, :]
-        cg1 = self.cellgrads[ci[:,1], :, :]
+        scale = 0.5*(dV[ci0]+ dV[ci1])
+        betan = np.absolute(betart[self.mesh.innerfaces])
+        # betan = 0.5*(np.linalg.norm(betaC[ci0],axis=1)+ np.linalg.norm(betaC[ci1],axis=1))
+        scale *= 0.15*dS*betan
+        cg0 = self.cellgrads[ci0, :, :]
+        cg1 = self.cellgrads[ci1, :, :]
         mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
         mat01 = np.einsum('nki,nli,n->nkl', cg0, cg1, -scale)
         mat10 = np.einsum('nki,nli,n->nkl', cg1, cg0, -scale)
         mat11 = np.einsum('nki,nli,n->nkl', cg1, cg1, scale)
-        rows0 = dofspercell[ci[:,0],:].repeat(nloc)
-        cols0 = np.tile(dofspercell[ci[:,0],:],nloc).reshape(-1)
-        rows1 = dofspercell[ci[:,1],:].repeat(nloc)
-        cols1 = np.tile(dofspercell[ci[:,1],:],nloc).reshape(-1)
+        rows0 = dofspercell[ci0,:].repeat(nloc)
+        cols0 = np.tile(dofspercell[ci0,:],nloc).reshape(-1)
+        rows1 = dofspercell[ci1,:].repeat(nloc)
+        cols1 = np.tile(dofspercell[ci1,:],nloc).reshape(-1)
         A00 = sparse.coo_matrix((mat00.reshape(-1), (rows0, cols0)), shape=(ndofs, ndofs))
         A01 = sparse.coo_matrix((mat01.reshape(-1), (rows0, cols1)), shape=(ndofs, ndofs))
         A10 = sparse.coo_matrix((mat10.reshape(-1), (rows1, cols0)), shape=(ndofs, ndofs))
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
 
-    def computeFormLps(self, du, u, betaC):
+    def computeFormLps(self, du, u, betart):
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
         ci = self.mesh.cellsOfInteriorFaces
+        ci0, ci1 = ci[:,0], ci[:,1]
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
-        scale = 0.5*(dV[ci[:,0]]+ dV[ci[:,1]])
-        betan = 0.5*(np.linalg.norm(betaC[ci[:,0]],axis=1)+ np.linalg.norm(betaC[ci[:,1]],axis=1))
-        scale *= 0.01*dS*betan
-        cg0 = self.cellgrads[ci[:,0], :, :]
-        cg1 = self.cellgrads[ci[:,1], :, :]
-        mat00 = np.einsum('nki,nli,n,nl->nk', cg0, cg0, scale, u[dofspercell[ci[:,0],:]])
-        np.add.at(du, dofspercell[ci[:,0],:], mat00)
-        mat01 = np.einsum('nki,nli,n,nl->nk', cg0, cg1, -scale, u[dofspercell[ci[:,1],:]])
-        np.add.at(du, dofspercell[ci[:,0],:], mat01)
-        mat10 = np.einsum('nki,nli,n,nl->nk', cg1, cg0, -scale, u[dofspercell[ci[:,0],:]])
-        np.add.at(du, dofspercell[ci[:,1],:], mat10)
-        mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci[:,1],:]])
-        np.add.at(du, dofspercell[ci[:,1],:], mat11)
+        scale = 0.5*(dV[ci0]+ dV[ci1])
+        betan = np.absolute(betart[self.mesh.innerfaces])
+        scale *= 0.15*dS*betan
+        cg0 = self.cellgrads[ci0, :, :]
+        cg1 = self.cellgrads[ci1, :, :]
+        r = np.einsum('nki,nli,n,nl->nk', cg0, cg0, scale, u[dofspercell[ci0,:]]-u[dofspercell[ci1,:]])
+        np.add.at(du, dofspercell[ci0,:], r)
+        # mat01 = np.einsum('nki,nli,n,nl->nk', cg0, cg1, -scale, u[dofspercell[ci1,:]])
+        # np.add.at(du, dofspercell[ci0,:], mat01)
+        r = np.einsum('nki,nli,n,nl->nk', cg1, cg0, -scale, u[dofspercell[ci0,:]]-u[dofspercell[ci1,:]])
+        np.add.at(du, dofspercell[ci1,:], r)
+        # mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci1,:]])
+        # np.add.at(du, dofspercell[ci1,:], mat11)
 
     def computeFormConvection(self, du, u, data, method):
         if method[:4] == 'supg':

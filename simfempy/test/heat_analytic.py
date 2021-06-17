@@ -16,6 +16,8 @@ def test(dim, **kwargs):
     if 'convection' in kwargs:
         data.params.fct_glob['convection'] = kwargs.pop('convection')
         paramsdict['convmethod'] = kwargs.pop('convmethod', ['supg'])
+    if 'linearsolver' in kwargs:
+        paramsdict['linearsolver'] = kwargs.pop('linearsolver', ['umf'])
     data.params.scal_glob['kheat'] = kwargs.pop('kheat', 0.01)
     if dim==1:
         createMesh = testmeshes.unitline
@@ -51,10 +53,10 @@ if __name__ == '__main__':
     #TODO: p1-new-robin wrong
 
     # test dirichletmethod
-    test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='umf', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=True)
+    # test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='umf', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=True)
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=3 , linearsolver='umf', dirichletmethod=['nitsche'], kheat=1, plotsolution=False)
     # test convection
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=6, h1=2, convection=["0.8","1.1"], convmethod=['upwalg','upw','upwsides'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='umf', plotsolution=True)
     # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=4, h1=0.2, convection=["0.8","1.1"], convmethod=['upwalg','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='pyamg', plotsolution=True)
-    # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=5, h1=2, convection=["1-x","1+y"], convmethod=['upw','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='umf', plotsolution=True)
+    test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk','lgmres','umf','pyamg'], plotsolution=False)
     # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=6, convection=["0.8","1.1"], convmethod=['upw'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='pyamg')

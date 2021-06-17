@@ -365,7 +365,7 @@ class P1(fems.fem.Fem):
         return self.computeMatrixTransportCellWise(data, type='supg')
     def computeMatrixTransportLps(self, data):
         A = self.computeMatrixTransportCellWise(data, type='centered')
-        A += self.computeMatrixLps(data.beta)
+        A += self.computeMatrixLps(data.betart)
         return A
     def computeMatrixTransportCellWise(self, data, type):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension

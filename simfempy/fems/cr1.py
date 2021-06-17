@@ -498,7 +498,7 @@ class CR1(fems.fem.Fem):
         return A
     def computeMatrixTransportLps(self, data):
         A = self.computeMatrixTransportCellWise(data, type='centered')
-        A += self.computeMatrixLps(data.beta)
+        A += self.computeMatrixLps(data.betart)
         return A
     def computeMatrixTransportCellWise(self, data, type):
         beta, betart = data.beta, data.betart
