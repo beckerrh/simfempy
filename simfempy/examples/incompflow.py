@@ -47,7 +47,7 @@ def main(**kwargs):
 
 
 # ================================================================c#
-def drivenCavity(h=0.1, mu=0.001):
+def drivenCavity(h=0.1, mu=0.01):
     with pygmsh.geo.Geometry() as geom:
         ms = [h*v for v in [1.,1.,0.2,0.2]]
         p = geom.add_rectangle(xmin=0, xmax=1, ymin=0, ymax=1, z=0, mesh_size=ms)
@@ -92,7 +92,7 @@ def backwardFacingStep(h=0.2, mu=0.02):
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
-    data.params.scal_glob["navier"] = 0.01
+    data.params.scal_glob["navier"] = 0.1
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
@@ -148,7 +148,7 @@ def schaeferTurek(h= 0.5, mu=0.01, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille', h=0.2, mu=0.001)
-    main(testcase='drivenCavity')
-    main(testcase='backwardFacingStep')
-    main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)
+    main(testcase='poiseuille', h=0.2, bdryplot=True)
+    # main(testcase='drivenCavity')
+    # main(testcase='backwardFacingStep')
+    # main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)

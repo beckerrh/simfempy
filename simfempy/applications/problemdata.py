@@ -50,7 +50,7 @@ class BoundaryConditions(object):
     def check(self, colors):
         colors = set(colors)
         typecolors = set(self.type.keys())
-        if colors != typecolors: raise ValueError(f"problem in boundary conditions {colors=} colos with b.c.={typecolors}")
+        if colors != typecolors: raise ValueError(f"problem in boundary conditions {colors=} colors with b.c.={typecolors}")
         # _check2setsequal_(colors, typecolors, "mesh colors", "types")
             
 

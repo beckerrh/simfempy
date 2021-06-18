@@ -141,7 +141,10 @@ class CompareMethods(object):
                 if self.postproc: self.postproc(result.data['global'])
                 resdict.update(result.data['global'])
                 self.fillInfo(iter, name, resdict, len(self.params))
-        if self.plotsolution: plt.show()
+        if self.plotsolution:
+            import os
+            plt.savefig(os.path.join(self.dirname,"toto.png")) 
+            plt.show()
         if self.plotpostprocs:
             self.plotPostprocs(self.methods.keys(), self.paramname, parameters, self.infos)
         if self.latex:

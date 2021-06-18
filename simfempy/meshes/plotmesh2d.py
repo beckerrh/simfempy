@@ -194,10 +194,10 @@ def meshWithBoundaries(x, y, tris, **kwargs):
     patches=[]
     i=0
     for color, edges in bdrylabels.items():
-        color = pltcolors[i%len(pltcolors)]
-        patches.append(mpatches.Patch(color=color, label=color))
+        col = pltcolors[i%len(pltcolors)]
+        patches.append(mpatches.Patch(color=col, label=f"{color}"))
         for ie in edges:
-            ax.plot(x[lines[ie]], y[lines[ie]], color=color, lw=4)
+            ax.plot(x[lines[ie]], y[lines[ie]], color=col, lw=4)
         i += 1
     if 'celllabels' in kwargs:
         celllabels = kwargs.pop('celllabels')
