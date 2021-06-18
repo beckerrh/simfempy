@@ -607,7 +607,7 @@ class CR1(fems.fem.Fem):
         self.computeFormJump(du, u, data.betart)
     def computeFormTransportLps(self, du, u, data):
         self.computeFormTransportCellWise(du, u, data, type='centered')
-        self.computeFormLps(du, u, data.beta)
+        self.computeFormLps(du, u, data.betart)
     def massDotSupg(self, b, f, data, coeff=1):
         dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
         # beta, mus, deltas = beta, self.md.mus, self.md.deltas

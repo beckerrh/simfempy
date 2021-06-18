@@ -252,7 +252,7 @@ class Stokes(Application):
         return solvers.cfd.VelcoitySolver(A, maxiter=1)
     def getPressureSolver(self, A, B, AP):
         if self.precond_p == "schur":    
-            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP) 
+            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, maxiter=1) 
         elif self.precond_p == "diag":    
             mu = self.problemdata.params.scal_glob['mu']
             return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)

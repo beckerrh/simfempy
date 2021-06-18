@@ -4,93 +4,68 @@ import scipy.sparse.linalg as splinalg
 import scipy.sparse as sparse
 from simfempy import tools
 import time
+import simfempy.solvers.linalg as linalg
 
-#=================================================================#
-class Scipy():
-    def __init__(self, **kwargs):
-        self.method = kwargs.pop('method')
-        if "matrix" in kwargs:
-            self.matvec = kwargs.pop('matrix')
-        else:
-            # self.matvec = kwargs.pop('matvec')
-            n = kwargs.get('n')
-            self.matvec = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvec'))
-        if "matvecprec" in kwargs:
-            n = kwargs.get('n')
-            self.M = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvecprec'))
-        else:
-            M2 = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=3)
-            self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: M2.solve(x))
-        self.atol = 1e-14
-        disp = kwargs.pop('disp', 0)
-        self.counter = tools.iterationcounter.IterationCounter(name=self.method, disp=disp)
-    def solve(self, b, maxiter, tol, x0=None):
-        if self.method=='lgmres':
-            u, info = splinalg.lgmres(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
-        elif self.method=='gmres':
-            u, info = splinalg.gmres(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
-        elif self.method=='gcrotmk':
-            u, info = splinalg.gcrotmk(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol, m=10, truncate='smallest')
-        elif self.method=='bicgstab':
-            u, info = splinalg.bicgstab(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
-        elif self.method=='cgs':
-            u, info = splinalg.cgs(self.matvec, b, x0=x0, maxiter=maxiter, M=self.M, callback=self.counter, atol=self.atol, tol=tol)
-        else:
-            raise ValueError(f"unknown {self.method=}")
-        if info: raise ValueError(f"no convergence in {self.method=} {info=}")
-        return u, self.counter.niter
-
-
-#=================================================================#
-class Pyamg():
-    def __init__(self, A, **kwargs):
-        self.nsmooth = kwargs.pop('nsmooth', 2)
-        self.smoother = kwargs.pop('smoother', 'schwarz')
-        # self.smoother = kwargs.pop('smoother', 'strength_based_schwarz')
-        # self.smoother = kwargs.pop('smoother', 'block_gauss_seidel')
-        smooth = ('energy', {'krylov': 'fgmres'})
-        smoother = (self.smoother, {'sweep': 'symmetric', 'iterations': self.nsmooth})
-        pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B'], 'smooth': smooth, 'presmoother':smoother, 'postsmoother':smoother}
-        pyamgargs['symmetry'] = 'nonsymmetric'
-        pyamgargs['coarse_solver'] = 'splu'
-        self.solver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
-    def testsolve(self, b, maxiter, tol):
-        res = []
-        self.solver.solve(b, maxiter=maxiter, tol=tol, residuals=res)
-        return np.asarray(res)
-    def solve(self, b, maxiter, tol):
-        return self.solver.solve(b, maxiter=maxiter, tol=tol)
 #=================================================================#
 class VelcoitySolver():
+    def _selectsolver(self, solvername, A, **kwargs):
+        if solvername in linalg.scipysolvers:
+            return linalg.ScipySolve(matrix=A, method=solvername, **kwargs)
+        elif solvername == "pyamg":
+            return linalg.Pyamg(A, **kwargs)
+        elif solvername == "umf":
+            return linalg.ScipySpSolve(matrix=A)
+        else:
+            raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
         self.maxiter = kwargs.pop('maxiter', None)
-        solvernames = kwargs.pop('solvers',  ['Pyamg'])
+        solvernames = kwargs.pop('solvers',  ['pyamg','lgmres', 'umf'])
+        self.reduction = kwargs.pop('reduction', 0.001)
         self.solvers = {}
-        self.analysis = {}
+        # self.analysis = {}
+        # print(f"{solvernames=}")
         for solvername in solvernames:
-            solver = eval(solvername)(A,**kwargs)
+            solver = self._selectsolver(solvername, A, **kwargs)
+            # if solvername in linalg.scipysolvers:
+            #     solver = linalg.ScipySolve(matrix=A, method=solvername, **kwargs)
+            # elif solvername == "pyamg":
+            #     solver = linalg.Pyamg(A, **kwargs)
+            # elif solvername == "umf":
+            #     solver = linalg.ScipySpSolve(matrix=A)
+            # else:
+            #     raise ValueError(f"unknwown {solvername=}")
             self.solvers[solvername] = solver
-            t0 = time.time()
-            res = solver.testsolve(np.random.random(A.shape[0]), maxiter=100, tol=1e-6)
-            t = time.time() - t0
-            monotone = np.all(np.diff(res) < 0)
-            rho = np.power(res[-1]/res[0], 1/len(res))
-            if not monotone:
-                print(f"***VelcoitySolver {solvername} not monotone {rho=}")
-                continue
-            if rho > 0.8: 
-                print(f"***VelcoitySolver {solvername} bad {rho=}")
-                continue
-            maxiter = int(np.log(0.1)/np.log(rho))+1
-            treq = t/len(res)*maxiter
-            self.analysis[solvername] = (maxiter, treq)
-        for solvername, val in self.analysis.items():
-            print(f"{solvername=} {val=}")
-        ibest = np.argmin([v[1] for v in self.analysis.values()])
-        solverbest = list(self.analysis.keys())[ibest]
+        b = np.random.random(A.shape[0])
+        solverbest, self.maxiter = linalg.selectBestSolver(self.solvers, self.reduction, b, maxiter=100, tol=1e-6, verbose=1)
         print(f"{solverbest=}")
         self.solver = self.solvers[solverbest]
-        self.maxiter = self.analysis[solverbest][0]
+        # self.maxiter = self.analysis[solverbest][0]
+        # for solvername in solvernames:
+        #     t0 = time.time()
+        #     res = solver.testsolve(b=b, maxiter=100, tol=1e-6)
+        #     t = time.time() - t0
+        #     monotone = np.all(np.diff(res) < 0)
+        #     if len(res)==1:
+        #         if res[0] > 1e-6: raise ValueError(f"no convergence")
+        #         maxiter = 1
+        #     else:
+        #         rho = np.power(res[-1]/res[0], 1/len(res))
+        #         if not monotone:
+        #             print(f"***VelcoitySolver {solvername} not monotone {rho=}")
+        #             continue
+        #         if rho > 0.8: 
+        #             print(f"***VelcoitySolver {solvername} bad {rho=}")
+        #             continue
+        #         maxiter = int(np.log(self.reduction)/np.log(rho))+1
+        #     treq = t/len(res)*maxiter
+        #     self.analysis[solvername] = (maxiter, treq)
+        # # print(f"{self.analysis=}")
+        # for solvername, val in self.analysis.items():
+        #     print(f"{solvername=} {val=}")
+        # ibest = np.argmin([v[1] for v in self.analysis.values()])
+        # solverbest = list(self.analysis.keys())[ibest]
+        # print(f"{solverbest=}")
+        # self.solver = self.solvers[solverbest]
     def solve(self, b):
         return self.solver.solve(b, maxiter=self.maxiter, tol=1e-16)
 
@@ -106,7 +81,7 @@ class PressureSolverDiagonal():
 class PressureSolverSchur():
     def __init__(self, mesh, ncomp, A, B, AP, **kwargs):
         self.A, self.B, self.AP = A, B, AP
-        self.maxiter = kwargs.pop('maxiter',3)
+        self.maxiter = kwargs.pop('maxiter',1)
         disp = kwargs.pop('disp',0)
         ncells, nfaces = mesh.ncells, mesh.nfaces
         self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)

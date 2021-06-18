@@ -23,3 +23,18 @@ class IterationCounter(object):
         self.niter += 1
     def __del__(self):
         if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
+#=================================================================#
+class IterationCounterWithRes(IterationCounter):
+    """
+    Simple class for information on iterative solver
+    """
+    def __init__(self, disp=20, name="", verbose=False, callback_type='x', b=None, A=None):
+        super().__init__(disp, name, verbose)
+        self.res = []
+        self.callback_type = callback_type
+        self.b, self.A = b, A
+    def __call__(self, x):
+        super().__call__(x)
+        self.res.append(np.linalg.norm(self.b-self.A@x))
+        # print(f"{self.niter =} \t{self.res=}")
+ 

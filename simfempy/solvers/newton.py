@@ -73,8 +73,8 @@ class Baseopt:
         x0[-1] = 1
         self.iter += 1
         if self.iter==1:
-            self.res(x0)
-            return self.u, self.r, 1, x0
+            resnorm = self.res(x0)
+            return self.u, self.r, resnorm, 1
         # method = 'COBYLA'
         method = 'TNC'
         # method = 'BFGS'
@@ -123,6 +123,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             dx, liniter = linalg.solve(J, -res), 1
         else:
             dx, liniter = computedx(-res, x, iterdata)
+        assert dx.shape == x0.shape
         resold[:] = res[:]
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)

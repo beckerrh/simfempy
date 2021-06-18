@@ -29,5 +29,5 @@ def run(paramsdict, applicationargs={}, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # paramsdict = {'convmethod': ['lps','supg'], 'linearsolver': ['umf', 'gcrotmk', 'bicgstab'], 'precond_p': 'schur'}
-    paramsdict = {'convmethod': ['supg'], 'linearsolver': ['gmres'], 'precond_p': 'schur'}
+    paramsdict = {'convmethod': ['lps'], 'linearsolver': ['gcrotmk'], 'precond_p': 'schur'}
     run(paramsdict, niter=3, h1=0.5)
