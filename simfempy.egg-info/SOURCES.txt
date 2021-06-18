@@ -43,6 +43,7 @@ simfempy/meshes/simplexmesh.py
 simfempy/meshes/testmeshes.py
 simfempy/solvers/__init__.py
 simfempy/solvers/cfd.py
+simfempy/solvers/linalg.py
 simfempy/solvers/newton.py
 simfempy/solvers/newtondata.py
 simfempy/solvers/optimize.py

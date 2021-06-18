@@ -35,6 +35,8 @@ class IterationCounterWithRes(IterationCounter):
         self.b, self.A = b, A
     def __call__(self, x):
         super().__call__(x)
-        self.res.append(np.linalg.norm(self.b-self.A@x))
+        res = np.linalg.norm(self.b-self.A@x)
+        if self.verbose: print(f"{res=}")
+        self.res.append(res)
         # print(f"{self.niter =} \t{self.res=}")
  

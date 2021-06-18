@@ -19,7 +19,7 @@ class VelcoitySolver():
             raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
         self.maxiter = kwargs.pop('maxiter', None)
-        solvernames = kwargs.pop('solvers',  ['pyamg','lgmres', 'umf'])
+        solvernames = kwargs.pop('solvers',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
         self.reduction = kwargs.pop('reduction', 0.001)
         self.solvers = {}
         # self.analysis = {}

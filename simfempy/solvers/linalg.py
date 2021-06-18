@@ -16,7 +16,7 @@ def selectBestSolver(solvers, reduction, b, maxiter=100, tol=1e-6, verbose=0):
         monotone = np.all(np.diff(res) < 0)
         if len(res)==1:
             if res[0] > 1e-6: raise ValueError(f"no convergence in {solvername=} {res=}")
-            maxiter = 1
+            iterused = 1
         else:
             rho = np.power(res[-1]/res[0], 1/len(res))
             if not monotone:
@@ -25,9 +25,9 @@ def selectBestSolver(solvers, reduction, b, maxiter=100, tol=1e-6, verbose=0):
             if rho > 0.8: 
                 print(f"***VelcoitySolver {solvername} bad {rho=}")
                 continue
-            maxiter = int(np.log(reduction)/np.log(rho))+1
-        treq = t/len(res)*maxiter
-        analysis[solvername] = (maxiter, treq)
+            iterused = int(np.log(reduction)/np.log(rho))+1
+        treq = t/len(res)*iterused
+        analysis[solvername] = (iterused, treq)
     # print(f"{self.analysis=}")
     if verbose:
         for solvername, val in analysis.items():
@@ -92,7 +92,7 @@ class ScipySolve():
         # if info: raise ValueError(f"no convergence in {self.method=} {info=}")
         return u
     def testsolve(self, b, maxiter, tol):
-        # print(f"{b=} {maxiter=} {tol=}")
+        # print(f"{np.linalg.norm(b)=} {maxiter=} {tol=}")
         counter = tools.iterationcounter.IterationCounterWithRes(name=self.method, callback_type='x', disp=0, b=b, A=self.matvec)
         args = self.args.copy()
         args["callback"] = counter
@@ -100,7 +100,7 @@ class ScipySolve():
         args['maxiter'] = maxiter
         args['tol'] = tol
         u, info = self.solver(**args)
-        print(f"{counter.res=}")
+        # print(f"{counter.res=}")
         return counter.res
 
 #=================================================================#
