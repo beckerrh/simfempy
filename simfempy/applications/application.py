@@ -8,6 +8,7 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.sparse as spsp
 import scipy.sparse.linalg as splinalg
+from scipy.optimize import root
 
 import simfempy.tools.analyticalfunction
 import simfempy.tools.timer
@@ -156,11 +157,20 @@ class Application(object):
                 maxiter = kwargs.pop('maxiter', 100)
                 sdata = simfempy.solvers.newtondata.StoppingData(maxiter=maxiter)
             sdata.addname = self.linearsolver
-            info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, sdata=sdata)
-            # print(f"{info=}")
-            u,niter,niterlin = info
-            iter={'lin':niterlin, 'nlin':niter}
-            if niter==sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
+            if mode == 'newton':
+                info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, sdata=sdata)
+                # print(f"{info=}")
+                u,niter,niterlin = info
+                iter={'lin':niterlin, 'nlin':niter}
+                if niter==sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
+            elif mode == 'newtonkrylov':
+                counter = simfempy.tools.iterationcounter.IterationCounterWithRes(name=mode, disp=1, callback_type='x,Fx')
+                n = u.shape[0]
+                prec = splinalg.LinearOperator(shape=(n,n), matvec=lambda x: self.computePrec(x))
+                root(fun=self.computeDefect, x0=u, args=(), method='krylov', tol=sdata.rtol, callback=counter, 
+                options={'inner_M': prec})
+            else:
+                raise ValueError(f"unknwon {mode=}")
         pp = self.postProcess(u)
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter=iter)

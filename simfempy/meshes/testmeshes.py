@@ -59,12 +59,12 @@ def unitcube(h=0.5):
         p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], lcar=h)
         geom.add_physical(p.surface, label=100)
         axis = [0, 0, z[1] - z[0]]
-        top, vol, ext = geom.extrude(p.surface, axis)
+        top, vol, lat = geom.extrude(p.surface, axis)
         geom.add_physical(top, label=105)
-        geom.add_physical(ext[0], label=101)
-        geom.add_physical(ext[1], label=102)
-        geom.add_physical(ext[2], label=103)
-        geom.add_physical(ext[3], label=104)
+        geom.add_physical(lat[0], label=101)
+        geom.add_physical(lat[1], label=102)
+        geom.add_physical(lat[2], label=103)
+        geom.add_physical(lat[3], label=104)
         geom.add_physical(vol, label=10)
         mesh = pygmsh.generate_mesh(geom, verbose=False)
     else:
@@ -73,12 +73,12 @@ def unitcube(h=0.5):
             p = geom.add_rectangle(xmin=x[0], xmax=x[1], ymin=y[0], ymax=y[1], z=z[0], mesh_size=h)
             geom.add_physical(p.surface, label="100")
             axis = [0, 0, z[1] - z[0]]
-            top, vol, ext = geom.extrude(p.surface, axis)
+            top, vol, lat = geom.extrude(p.surface, axis)
             geom.add_physical(top, label="105")
-            geom.add_physical(ext[0], label="101")
-            geom.add_physical(ext[1], label="102")
-            geom.add_physical(ext[2], label="103")
-            geom.add_physical(ext[3], label="104")
+            geom.add_physical(lat[0], label="101")
+            geom.add_physical(lat[1], label="102")
+            geom.add_physical(lat[2], label="103")
+            geom.add_physical(lat[3], label="104")
             geom.add_physical(vol, label="10")
             mesh = geom.generate_mesh()
     return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
@@ -129,11 +129,11 @@ def backwardfacingstep3d(h=0.5):
         p = geom.add_polygon(X=np.insert(np.array(X), 2, -1.0, axis=1), lcar=h)
         geom.add_physical(p.surface, label=100)
         axis = [0, 0, 2]
-        top, vol, ext = geom.extrude(p.surface, axis)
-        next = len(ext)
-        geom.add_physical(top, label=101+next)
-        for i in range(next):
-            geom.add_physical(ext[i], label=101+i)
+        top, vol, lat = geom.extrude(p.surface, axis)
+        nlat = len(lat)
+        geom.add_physical(top, label=101+nlat)
+        for i in range(nlat):
+            geom.add_physical(lat[i], label=101+i)
         geom.add_physical(vol, label=10)
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=pygmsh.generate_mesh(geom, verbose=False))
     else:
@@ -141,11 +141,11 @@ def backwardfacingstep3d(h=0.5):
             p = geom.add_polygon(points=np.insert(np.array(X), 2, -1.0, axis=1), mesh_size=h)
             geom.add_physical(p.surface, label="100")
             axis = [0, 0, 2]
-            top, vol, ext = geom.extrude(p.surface, axis)
-            next = len(ext)
-            geom.add_physical(top, label=f"{101 + next}")
-            for i in range(next):
-                geom.add_physical(ext[i], label=f"{101 + i}")
+            top, vol, lat = geom.extrude(p.surface, axis)
+            nlat = len(lat)
+            geom.add_physical(top, label=f"{101 + nlat}")
+            for i in range(nlat):
+                geom.add_physical(lat[i], label=f"{101 + i}")
             geom.add_physical(vol, label="10")
             mesh = geom.generate_mesh()
         return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)

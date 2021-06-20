@@ -17,9 +17,9 @@ def _plotNodeLabels(x, y, z, ax=plt):
     for i in range(len(x)):
         ax.text(x[i], y[i], z[i], r'%d' % (i), fontweight='bold', bbox=props)
 #=================================================================#
-def _plotCells(x, y, z, tets, ax=plt):
+def _plotCells(x, y, z, tets, ax=plt, alpha=1):
     for i in range(len(tets)):
-        ax.plot(x[tets[i]], y[tets[i]], z[tets[i]], color=(0.5,0.5,0.5))
+        ax.plot(x[tets[i]], y[tets[i]], z[tets[i]], color='k', alpha=alpha, linewidth=1, linestyle='dashed')
 #=================================================================#
 def _plotCellLabels(tets, xc, yc, zc, ax=plt):
     for i in range(len(tets)):
@@ -28,21 +28,24 @@ def _plotCellLabels(tets, xc, yc, zc, ax=plt):
 def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=plt):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_xlabel(r'x')
-    ax.set_ylabel(r'y')
-    ax.set_zlabel(r'z')
     # if nodelabels: _plotNodeLabels(x, y, z, ax=ax)
-    _plotCells(x, y, z, tets, ax=ax)
+    # _plotCells(x, y, z, tets, ax=ax)
     cmap = plt.get_cmap("tab10")
     patches=[]
     i=0
     for color, bdryfaces in bdrylabels.items():
         patches.append(mpatches.Patch(color=cmap(i), label=color))
-        for ie in bdryfaces:
-            poly3d = [ [x[f], y[f], z[f]] for f in faces[ie]]
-            ax.add_collection3d(Poly3DCollection([poly3d], facecolors=cmap(i), linewidths=1))
+        xf,yf,zf = x[faces[bdryfaces]], y[faces[bdryfaces]], z[faces[bdryfaces]]
+        # print(f"{xf.shape=}")
+        vert = [[ [x[f], y[f], z[f]] for f in faces[ie]] for ie in bdryfaces]
+        # ax.add_collection3d(Poly3DCollection(vert, facecolors=cmap(i), linewidths=1, alpha=0.5))
+        ax.scatter(xf,yf,zf, color=cmap(i))
         i += 1
     ax.legend(handles=patches)
+    ax.set_box_aspect((int(np.ptp(x)), int(np.ptp(y)), int(np.ptp(z))))
+    # ax.set_xlabel(r'x')
+    # ax.set_ylabel(r'y')
+    # ax.set_zlabel(r'z')
     _settitle(ax, "Mesh and Boundary Labels")
 #=================================================================#
 def plotmesh(mesh, **kwargs):
@@ -144,7 +147,7 @@ def meshWithDataPlt(**kwargs):
     if title: fig.canvas.set_window_title(title)
     plt.show()
 # ================================================================#
-def meshWithData(**kwargs):
+def plotMeshWithPointData(**kwargs):
     import pyvista
     import vtk
 

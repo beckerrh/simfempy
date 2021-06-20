@@ -19,6 +19,7 @@ def main(**kwargs):
     testcase = kwargs.pop('testcase', testcases[0])
     model = kwargs.pop('model', 'NavierStokes')
     bdryplot = kwargs.pop('bdryplot', False)
+    linearsolver = kwargs.pop('linearsolver', 'umf')
     # create mesh and data
     mesh, data = eval(testcase)(**kwargs)
     if bdryplot: 
@@ -26,24 +27,23 @@ def main(**kwargs):
         plt.show()
         return
     # create application
-    # stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres_10')
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver='umf')
-    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gmres')
-    # stokes = NavierStokes(mesh=mesh, problemdata=data, linearsolver='iter_gcrotmk')
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver)
     else:
-        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='umf')
+        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
-    for k, v in result.data['global'].items(): print(f"{k}: {-50*v}")
-    fig = plt.figure(figsize=(10, 8))
-    outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
-    # plotmesh.meshWithBoundaries(mesh, fig=fig, outer=outer[0])
-    plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[0])
-    plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[1],
-                          quiver_data={"V":list(result.data['point'].values())})
-    plt.show()
+    for k, v in result.data['global'].items(): print(f"{k}: {v}")
+    if mesh.dimension ==2:
+        fig = plt.figure(figsize=(10, 8))
+        outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
+        plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[0])
+        plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[1],
+                            quiver_data={"V":list(result.data['point'].values())})
+        plt.show()
+    else:
+        mesh.write(testcase+'.vtu', data=result.data)
 
 
 # ================================================================c#
@@ -56,9 +56,9 @@ def drivenCavity(h=0.1, mu=0.01):
         mesh = geom.generate_mesh()
     data = ProblemData()
     # boundary conditions
-    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
-    data.bdrycond.set("Dirichlet", [1002])
-    data.bdrycond.set("Navier", [1000, 1001, 1003])
+    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    # data.bdrycond.set("Dirichlet", [1002])
+    # data.bdrycond.set("Navier", [1000, 1001, 1003])
     data.bdrycond.fct[1002] = [lambda x, y, z: 1, lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
@@ -84,10 +84,11 @@ def backwardFacingStep(h=0.2, mu=0.02):
         mesh = geom.generate_mesh()
     data = ProblemData()
     # boundary conditions
-    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
-    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
-    data.bdrycond.set("Neumann", [1004])
-    data.bdrycond.set("Navier", [1005])
+    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
+    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
+    # data.bdrycond.set("Neumann", [1004])
+    data.bdrycond.set("Pressure", [1004])
+    # data.bdrycond.set("Navier", [1005])
     # data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
@@ -126,7 +127,7 @@ def poiseuille(h= 0.1, mu=0.1):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def schaeferTurek(h= 0.5, mu=0.01, hcircle=None):
+def schaeferTurek2d(h= 0.5, hcircle=None):
     if hcircle is None: hcircle = 0.2*h
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=10, make_surface=False)
@@ -140,15 +141,52 @@ def schaeferTurek(h= 0.5, mu=0.01, hcircle=None):
     data.bdrycond.set("Dirichlet", [1002,1000,1003,3000])
     data.bdrycond.set("Neumann", [1001])
     data.bdrycond.fct[1003] = [lambda x, y, z:  0.3*y*(4.1-y)/2.05**2, lambda x, y, z: 0]
-    data.params.scal_glob["mu"] = mu
+    data.params.scal_glob["mu"] = 0.01
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=3000)
+    def changepostproc(info):
+        bdrynflux = info.pop('bdrynflux')
+        info['drag'] = -50*bdrynflux[0]
+        info['lift'] = -50*bdrynflux[1]
+        info['err_drag'] =  5.57953523384+50*bdrynflux[0]
+        info['err_lift'] =  0.010618937712+50*bdrynflux[1]    
+    data.postproc.changepostproc = changepostproc
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
+# ================================================================ #
+def schaeferTurek3d(h= 0.5, hcircle=None):
+    if hcircle is None: hcircle = 0.25*h
+    with pygmsh.geo.Geometry() as geom:
+        circle = geom.add_circle(x0=[5,2], radius=0.5, mesh_size=hcircle, num_sections=8, make_surface=False)
+        # geom.add_physical(circle.curve_loop.curves, label="3000")
+        p = geom.add_rectangle(xmin=0, xmax=25, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
+        # for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        axis = [0, 0, 4.1]
+        top, vol, lat = geom.extrude(p.surface, axis)
+        # print(f"{len(lat)=}")
+        geom.add_physical([top,p.surface, lat[0], lat[2]], label="100")
+        geom.add_physical(lat[1], label="101")
+        geom.add_physical(lat[3], label="103")
+        geom.add_physical(lat[4:], label="300")
+        geom.add_physical(vol, label="10")
+        mesh = geom.generate_mesh()
+    mesh = SimplexMesh(mesh=mesh)
+    mesh.write("mesh.vtu")
+    data = ProblemData()
+   # boundary conditions
+    data.bdrycond.set("Dirichlet", [100,103,300])
+    data.bdrycond.set("Neumann", [101])
+    data.bdrycond.fct[103] = [lambda x, y, z:  0.45*y*(4.1-y)*z*(4.1-z)/2.05**4, lambda x, y, z: 0, lambda x, y, z: 0]
+    data.params.scal_glob["mu"] = 0.01
+    data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=300)
+    #TODO pass ncomp with mesh ?!
+    data.ncomp = 3
+    return mesh, data
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille', h=0.2, bdryplot=True)
-    # main(testcase='drivenCavity')
-    # main(testcase='backwardFacingStep')
-    # main(testcase='schaeferTurek', h=0.5, hcircle=0.1, mu=0.01)
+    # main(testcase='poiseuille', h=0.2, mu=1e-3)
+    # main(testcase='drivenCavity', mu=3e-4)
+    # main(testcase='backwardFacingStep', mu=2e-3)
+    main(testcase='schaeferTurek2d', linearsolver='umf')
+    # main(testcase='schaeferTurek3d', bdryplot=False, linearsolver='gcrotmk')

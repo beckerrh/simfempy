@@ -89,7 +89,6 @@ class Heat(Application):
         return colors
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
-        self.problemdata.check(self.mesh)
         if self.convection:
             convection_given = self.problemdata.params.fct_glob['convection']
             if not isinstance(convection_given, list):

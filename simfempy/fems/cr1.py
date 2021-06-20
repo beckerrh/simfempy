@@ -496,9 +496,10 @@ class CR1(fems.fem.Fem):
         A = self.computeMatrixTransportCellWise(data, type='supg')
         A += self.computeMatrixJump(betart)
         return A
-    def computeMatrixTransportLps(self, data):
+    def computeMatrixTransportLps(self, data, **kwargs):
         A = self.computeMatrixTransportCellWise(data, type='centered')
-        A += self.computeMatrixLps(data.betart)
+        A += self.computeMatrixJump(data.betart)
+        A += self.computeMatrixLps(data.betart, **kwargs)
         return A
     def computeMatrixTransportCellWise(self, data, type):
         beta, betart = data.beta, data.betart
@@ -605,9 +606,10 @@ class CR1(fems.fem.Fem):
     def computeFormTransportSupg(self, du, u, data, method):
         self.computeFormTransportCellWise(du, u, data, type='supg')
         self.computeFormJump(du, u, data.betart)
-    def computeFormTransportLps(self, du, u, data):
+    def computeFormTransportLps(self, du, u, data, **kwargs):
         self.computeFormTransportCellWise(du, u, data, type='centered')
-        self.computeFormLps(du, u, data.betart)
+        self.computeFormJump(du, u, data.betart)
+        self.computeFormLps(du, u, data.betart, **kwargs)
     def massDotSupg(self, b, f, data, coeff=1):
         dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
         # beta, mus, deltas = beta, self.md.mus, self.md.deltas

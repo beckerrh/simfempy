@@ -344,7 +344,8 @@ class SimplexMesh(object):
                 if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
     # ----------------------------------------------------------------#
-    def write(self, filename, dirname = None, point_data=None):
+    def write(self, filename, dirname = None, data=None):
+        type = filename.split('.')[1]
         if dirname is not None:
             dirname = dirname + os.sep + "mesh"
             if not os.path.isdir(dirname) :
@@ -359,13 +360,19 @@ class SimplexMesh(object):
             cells = [('triangle', self.simplices), ('line', self.facesdata)]
             # cells = [('triangle', self.simplices)]
         else:
-            # cells = {'tetra': self.simplices}
-            # cells['triangle'] = self.facesdata
             cells = [('tetra', self.simplices)]
-        meshio.write_points_cells(filename, self.points, cells, file_format="gmsh")
-        # mesh = meshio.Mesh(self.points, cells, point_data={"gmsh:dim_tags":self.dimension*np.ones(self.nnodes)})
+            # cells = [('tetra', self.simplices), ('triangle', self.facesdata)]
+        # meshio.write_points_cells(filename, self.points, cells, file_format="gmsh")
+        args = {'points': self.points, 'cells':cells}
+        if data is not None:
+            if 'point' in data:
+                args['point_data'] = data['point']
+            if 'cell' in data:
+                # print(f"{data['cell']=}")
+                args['cell_data'] = {k: [data['cell'][k]] for k in data['cell'].keys()}
+        mesh = meshio.Mesh(**args)
         # print(f"{mesh=}")
-        # meshio.write(filename, mesh)
+        meshio.write(filename, mesh)
     # ----------------------------------------------------------------#
     def computeSimpOfVert(self, test=False):
         S = sparse.dok_matrix((self.nnodes, self.ncells), dtype=int)

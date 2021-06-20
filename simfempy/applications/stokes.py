@@ -22,7 +22,7 @@ class Stokes(Application):
         self.dirichlet_nitsche = 4
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
-        self.precond_p = kwargs.pop('precond_p', 'diag')
+        self.precond_p = kwargs.pop('precond_p', 'schur')
         self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
@@ -40,6 +40,7 @@ class Stokes(Application):
         return np.split(x, ind)
     def setMesh(self, mesh):
         super().setMesh(mesh)
+        self._checkProblemData()
         assert self.ncomp==self.mesh.dimension
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
@@ -51,6 +52,13 @@ class Stokes(Application):
             colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
             self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
+    def _checkProblemData(self):
+        for col, fct in self.problemdata.bdrycond.fct.items():
+            type = self.problemdata.bdrycond.type[col]
+            if type == "Dirichlet":
+                if len(fct) != self.mesh.dimension: raise ValueError(f"*** {type=} {len(fct)=} {self.mesh.dimension=}")
+        print("_checkProblemData() incomplete")
+
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
@@ -173,6 +181,8 @@ class Stokes(Application):
                         data['global'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
+        if hasattr(self.problemdata.postproc, "changepostproc"):
+            self.problemdata.postproc.changepostproc(data['global'])
         return data
     def _to_single_matrix(self, Ain):
         ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
@@ -229,7 +239,6 @@ class Stokes(Application):
                 v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
                 # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
                 w = AP.solve(v)
-                w = AP.solve(v)
                 q = SP.solve(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
                 # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
@@ -243,16 +252,20 @@ class Stokes(Application):
             def pmult(x):
                 v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
                 w = AP.solve(v)
+                # print(f"{np.linalg.norm(v)=} {np.linalg.norm(p)=}")
+                # print(f"{np.linalg.norm(w)=} {np.linalg.norm(p-B.dot(w))=}")
                 q = SP.solve(p-B.dot(w))
+                # print(f"{np.linalg.norm(q)=}")
                 h = B.T.dot(q)
                 w += AP.solve(h)
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, maxiter=1)
+        return solvers.cfd.VelcoitySolver(A, maxiter=1, solver='lgmres')
+        # return solvers.cfd.VelcoitySolver(A, maxiter=1)
     def getPressureSolver(self, A, B, AP):
         if self.precond_p == "schur":    
-            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, maxiter=1) 
+            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, maxiter=1, disp=0) 
         elif self.precond_p == "diag":    
             mu = self.problemdata.params.scal_glob['mu']
             return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)

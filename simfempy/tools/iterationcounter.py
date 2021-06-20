@@ -12,31 +12,31 @@ class IterationCounter(object):
     """
     Simple class for information on iterative solver
     """
-    def __init__(self, disp=20, name="", verbose=False):
+    def __init__(self, disp=20, name=""):
         self.disp = disp
         self.name = name
-        self.verbose = verbose
         self.niter = 0
-    def __call__(self, rk=None):
+        self.history = []
+    def __call__(self, val=None):
+        res = np.linalg.norm(val)
         if self.disp and self.niter%self.disp==0:
-            print(f"iter({self.name}) {self.niter:4d}\trk = {np.linalg.norm(rk)}")
+            print(f"{self.name} {self.niter:4d}\t{res}")
         self.niter += 1
-    def __del__(self):
-        if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
+        self.history.append(res)
+    # def __del__(self):
+    #     if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
 #=================================================================#
 class IterationCounterWithRes(IterationCounter):
     """
     Simple class for information on iterative solver
     """
-    def __init__(self, disp=20, name="", verbose=False, callback_type='x', b=None, A=None):
-        super().__init__(disp, name, verbose)
-        self.res = []
+    def __init__(self, disp=20, name="", callback_type='x', b=None, A=None):
+        super().__init__(disp, name)
         self.callback_type = callback_type
         self.b, self.A = b, A
     def __call__(self, x):
-        super().__call__(x)
-        res = np.linalg.norm(self.b-self.A@x)
-        if self.verbose: print(f"{res=}")
-        self.res.append(res)
-        # print(f"{self.niter =} \t{self.res=}")
- 
+        if self.callback_type == "x":
+            super().__call__(self.b-self.A@x)
+    def __call__(self, x, Fx):
+        if self.callback_type == "x,Fx":
+            super().__call__(Fx)

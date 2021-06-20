@@ -540,6 +540,94 @@ Let us considered solution of (\ref{eq:StokesDirPmean}) with $S=BA^{-1}\transpos
 \subsubsection{Iterative solution}
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %
+%
+\begin{align*}
+\mathcal A = 
+\begin{bmatrix}
+A & -\transpose{B}\\
+B & 0 
+\end{bmatrix}
+=
+\begin{bmatrix}
+I  & 0\\
+BA^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+A  & -\transpose{B}\\
+0 & S
+\end{bmatrix}
+\quad
+\mathcal A^{-1} = 
+\begin{bmatrix}
+A^{-1}  & A^{-1}\transpose{B}S^{-1}\\
+0 & S^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+I  & 0\\
+-BA^{-1} & I
+\end{bmatrix}
+\quad
+S = B A^{-1}\transpose{B}
+\end{align*}
+
+What is the effect of replacing $A$ by $X$? Let
+%
+\begin{align*}
+\mathcal M := \begin{bmatrix}
+X & -\transpose{B}\\
+B & 0 
+\end{bmatrix}
+\end{align*}
+%
+
+Then with $T=B X^{-1}\transpose{B}$
+%
+\begin{align*}
+\mathcal M^{-1}\mathcal A =&
+\begin{bmatrix}
+X^{-1}  & X^{-1}\transpose{B}T^{-1}\\
+0 & T^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+I  & 0\\
+-BX^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+A & -\transpose{B}\\
+B & 0 
+\end{bmatrix}\\
+=&
+%\begin{bmatrix}
+%X^{-1}  & X^{-1}\transpose{B}T^{-1}\\
+%0 & T^{-1}
+%\end{bmatrix}
+%\begin{bmatrix}
+%I  & 0\\
+%B(A^{-1}-X^{-1}) & I
+%\end{bmatrix}
+%\begin{bmatrix}
+%A  & -\transpose{B}\\
+%0 & S
+%\end{bmatrix}\\
+%=&
+\begin{bmatrix}
+X^{-1}  & X^{-1}\transpose{B}T^{-1}\\
+0 & T^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+A  & -\transpose{B}\\
+B(I -X^{-1}A) & T
+\end{bmatrix}\\
+=&
+\begin{bmatrix}
+X^{-1}\left(A + \transpose{B}T^{-1}B(I-X^{-1}A)\right)  & 0\\
+T^{-1}B(I -X^{-1}A) & I
+\end{bmatrix}
+\end{align*}
+%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 We have to solve (\ref{eq:StokesDirPmean}) with 
 %
 \begin{align*}

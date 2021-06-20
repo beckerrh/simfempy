@@ -78,7 +78,8 @@ class Fem(object):
         r = np.einsum('n,nil,njl,nj->ni', self.mesh.dV*coeff, cellgrads, cellgrads, u[doc])
         np.add.at(du, doc, r)
 
-    def computeMatrixLps(self, betart):
+    def computeMatrixLps(self, betart, **kwargs):
+        param = kwargs.pop('lpsparam', 0.1)
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
         ci = self.mesh.cellsOfInteriorFaces
@@ -88,7 +89,7 @@ class Fem(object):
         scale = 0.5*(dV[ci0]+ dV[ci1])
         betan = np.absolute(betart[self.mesh.innerfaces])
         # betan = 0.5*(np.linalg.norm(betaC[ci0],axis=1)+ np.linalg.norm(betaC[ci1],axis=1))
-        scale *= 0.15*dS*betan
+        scale *= param*dS*betan
         cg0 = self.cellgrads[ci0, :, :]
         cg1 = self.cellgrads[ci1, :, :]
         mat00 = np.einsum('nki,nli,n->nkl', cg0, cg0, scale)
@@ -105,7 +106,8 @@ class Fem(object):
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
 
-    def computeFormLps(self, du, u, betart):
+    def computeFormLps(self, du, u, betart, **kwargs):
+        param = kwargs.pop('lpsparam', 0.1)
         dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
         ci = self.mesh.cellsOfInteriorFaces
@@ -114,7 +116,7 @@ class Fem(object):
         dS = linalg.norm(normalsS, axis=1)
         scale = 0.5*(dV[ci0]+ dV[ci1])
         betan = np.absolute(betart[self.mesh.innerfaces])
-        scale *= 0.15*dS*betan
+        scale *= param*dS*betan
         cg0 = self.cellgrads[ci0, :, :]
         cg1 = self.cellgrads[ci1, :, :]
         r = np.einsum('nki,nli,n,nl->nk', cg0, cg0, scale, u[dofspercell[ci0,:]]-u[dofspercell[ci1,:]])
@@ -126,7 +128,7 @@ class Fem(object):
         # mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci1,:]])
         # np.add.at(du, dofspercell[ci1,:], mat11)
 
-    def computeFormConvection(self, du, u, data, method):
+    def computeFormConvection(self, du, u, data, method, **kwargs):
         if method[:4] == 'supg':
             self.computeFormTransportSupg(du, u, data, method)
         elif method == 'upwalg':
@@ -134,10 +136,10 @@ class Fem(object):
         elif method[:3] == 'upw':
             self.computeFormTransportUpwind(du, u, data, method)
         elif method == 'lps':
-            self.computeFormTransportLps(du, u, data)
+            self.computeFormTransportLps(du, u, data, **kwargs)
         else:
             raise NotImplementedError(f"{method=}")
-    def computeMatrixConvection(self, data, method):
+    def computeMatrixConvection(self, data, method, **kwargs):
         if method[:4] == 'supg':
             return self.computeMatrixTransportSupg(data, method)
         elif method == 'upwalg':
@@ -145,7 +147,7 @@ class Fem(object):
         elif method[:3] == 'upw':
             return self.computeMatrixTransportUpwind(data, method)
         elif method == 'lps':
-            return self.computeMatrixTransportLps(data)
+            return self.computeMatrixTransportLps(data, **kwargs)
         else:
             raise NotImplementedError(f"{method=}")
 

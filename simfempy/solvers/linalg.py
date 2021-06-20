@@ -7,7 +7,10 @@ import time
 
 scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs']
 
-def selectBestSolver(solvers, reduction, b, maxiter=100, tol=1e-6, verbose=0):
+def selectBestSolver(solvers, reduction, b, **kwargs):
+    maxiter = kwargs.pop('maxiter', 100)
+    verbose = kwargs.pop('verbose', 0)
+    tol = kwargs.pop('tol') if not 'tol' in kwargs else 0.1*reduction
     analysis = {}
     for solvername, solver in solvers.items():
         t0 = time.time()
@@ -63,7 +66,7 @@ class ScipySolve():
             n = kwargs.get('n')
             self.M = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvecprec'))
         else:
-            spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=3)
+            spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
             self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
         self.atol = 1e-14
         disp = kwargs.pop('disp', 0)
@@ -74,7 +77,7 @@ class ScipySolve():
         elif self.method=='gmres':
             u, info = splinalg.gmres
         elif self.method=='gcrotmk':
-            self.args['m'] = 10
+            self.args['m'] = 5
             self.args['truncate'] = 'smallest'
             self.solver = splinalg.gcrotmk
         elif self.method=='bicgstab':
