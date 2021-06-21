@@ -23,6 +23,9 @@ class IterationCounter(object):
             print(f"{self.name} {self.niter:4d}\t{res}")
         self.niter += 1
         self.history.append(res)
+    def reset(self):
+        self.niter = 0
+        self.history = []
     # def __del__(self):
     #     if self.verbose: print('niter ({}) {:4d}'.format(self.name, self.niter))
 #=================================================================#
@@ -34,9 +37,8 @@ class IterationCounterWithRes(IterationCounter):
         super().__init__(disp, name)
         self.callback_type = callback_type
         self.b, self.A = b, A
-    def __call__(self, x):
+    def __call__(self, x, Fx=None):
         if self.callback_type == "x":
             super().__call__(self.b-self.A@x)
-    def __call__(self, x, Fx):
-        if self.callback_type == "x,Fx":
+        elif self.callback_type == "x,Fx":
             super().__call__(Fx)

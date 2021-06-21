@@ -52,7 +52,7 @@ class SimplexMesh(object):
             mesh = kwargs.pop('mesh')
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
-        self.timer = timer.Timer(verbose=1)
+        self.timer = timer.Timer(name="SimplexMesh")
         self._initMeshPyGmsh(mesh)
         self.check()
         print(self.timer)
@@ -299,9 +299,9 @@ class SimplexMesh(object):
             # else:
             #     assert not indices[bpi[cb[0]]]
     def _constructNormalsAndAreas(self):
+        # t = timer.Timer("_constructNormalsAndAreas")
         elem = self.simplices
-        #TODO imrove computation of sigma
-        self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
+        #TODO improve computation of sigma
         if self.dimension==1:
             x = self.points[:,0]
             self.normals = np.stack((np.ones(self.nfaces), np.zeros(self.nfaces), np.zeros(self.nfaces)), axis=-1)
@@ -339,14 +339,37 @@ class SimplexMesh(object):
             dz2 = z[elem[:, 2]] - z[elem[:, 0]]
             dz3 = z[elem[:, 3]] - z[elem[:, 0]]
             self.dV = (1/6) * np.abs(dx1*(dy2*dz3-dy3*dz2) - dx2*(dy1*dz3-dy3*dz1) + dx3*(dy1*dz2-dy2*dz1))
-        for i in range(self.nfaces):
-            i0, i1 = self.cellsOfFaces[i, 0], self.cellsOfFaces[i, 1]
-            if i1 == -1:
-                xt = np.mean(self.points[self.faces[i]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
-                if np.dot(self.normals[i], xt)<0:  self.normals[i] *= -1
-            else:
-                xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
-                if np.dot(self.normals[i], xt) < 0:  self.normals[i] *= -1
+        # t.add("ndV")
+        # self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
+        # for ic in range(self.ncells):
+        #     print(self.cellsOfFaces[self.facesOfCells[ic, :], 0], ic, self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)
+        ind = np.arange(self.ncells)
+        # print(f"{self.cellsOfFaces[self.facesOfCells[ind, :], 0].shape=} {ind.shape=}")
+        self.sigma = 2* np.equal(self.cellsOfFaces[self.facesOfCells[ind, :], 0], ind[:,np.newaxis]) -1
+        # print(f"{ind2.shape=}")
+        # sigma2 = 2*ind2 - 1
+        # if not np.all(self.sigma==sigma2): raise ValueError(f"{self.sigma=}\n{sigma2=}")
+        # t.add("sigma")
+        ib = np.arange(self.nfaces)[self.cellsOfFaces[:, 1] == -1]
+        xt = np.mean(self.points[self.faces[ib]], axis=1) - np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 0]]], axis=1)
+        m = np.einsum('nk,nk->n', self.normals[ib], xt)<0
+        self.normals[ib[m]] *= -1
+
+        ib = np.arange(self.nfaces)[self.cellsOfFaces[:, 1] != -1]
+        xt = np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 1]]], axis=1) - np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 0]]], axis=1)
+        m = np.einsum('nk,nk->n', self.normals[ib], xt)<0
+        self.normals[ib[m]] *= -1
+
+        # for i in range(self.nfaces):
+        #     i0, i1 = self.cellsOfFaces[i, 0], self.cellsOfFaces[i, 1]
+        #     if i1 == -1:
+        #         xt = np.mean(self.points[self.faces[i]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
+        #         if np.dot(self.normals[i], xt)<0: self.normals[i] *= -1
+        #     else:
+        #         xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
+        #         if np.dot(self.normals[i], xt) < 0: self.normals[i] *= -1
+        # t.add("switch")
+        # print(t)
         # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
     # ----------------------------------------------------------------#
     def write(self, filename, dirname = None, data=None):

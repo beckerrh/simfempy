@@ -19,11 +19,11 @@ class VelcoitySolver():
             raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
         solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
-        self.reduction = kwargs.pop('reduction', 0.01)
         if isinstance(solvernames, str):
             self.solver = self._selectsolver(solvernames, A, **kwargs)
             self.maxiter = kwargs.pop('maxiter', 1)
         else:
+            self.reduction = kwargs.pop('reduction', 0.01)
             self.solvers = {}
             for solvername in solvernames:
                 self.solvers[solvername] = self._selectsolver(solvername, A, **kwargs)
@@ -45,29 +45,32 @@ class PressureSolverDiagonal():
  #=================================================================#
 class PressureSolverSchur():
     def __init__(self, mesh, ncomp, A, B, AP, **kwargs):
+        ncells, nfaces = mesh.ncells, mesh.nfaces
         self.A, self.B, self.AP = A, B, AP
         self.maxiter = kwargs.pop('maxiter',1)
-        disp = kwargs.pop('disp',0)
-        ncells, nfaces = mesh.ncells, mesh.nfaces
-        self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)
-        self.counter = tools.iterationcounter.IterationCounter(name="pschur", disp=disp)
-        Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
+        # disp = kwargs.pop('disp',0)
+        solvername = kwargs.pop('solver',0)
+        assert solvername in linalg.scipysolvers
+        self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, counter="pschur", n = ncells, **kwargs)
+        # self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)
+        # self.counter = tools.iterationcounter.IterationCounter(name="pschur", disp=disp)
+        # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
         # self.spilu = splinalg.spilu(B*Ainv*B.T)
         # self.M = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.spilu.solve)
-        self.M = sparse.diags( 1/(B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells) )
-        self.M = None
+        # self.M = sparse.diags( 1/(B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells) )
+        # self.M = None
 
     def matvec(self, x):
         v = self.B.T.dot(x)
         v2 = self.AP.solve(v)
         return self.B.dot(v2)
     def solve(self, b):
-        tol = 0.1
-        self.counter.niter=0
+        self.solver.counter.reset()
+        u = self.solver.solve(b, x0=None, maxiter=self.maxiter, tol=1e-12)
         # print(f"### {np.linalg.norm(b)=}")
         # u, info = splinalg.gmres(self.solver, b, x0=None, M=self.M, callback=self.counter, maxiter=self.maxiter, atol=1e-12, tol=tol)
         # print(f"### {np.linalg.norm(u)=}")
-        u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, m=5, truncate='smallest', callback=self.counter, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
+        # u, info = splinalg.gcrotmk(self.solver, b, x0=None, M=None, m=5, truncate='smallest', callback=self.counter, maxiter=self.maxiter, atol=1e-12, tol=1e-10)
         # self.counter.niter=0
         # u, info = splinalg.lgmres(self.solver, b, x0=None, M=None, maxiter=3, atol=1e-12, tol=1e-10, callback=self.counter)
         # print(f"{info=}")

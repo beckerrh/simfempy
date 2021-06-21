@@ -7,6 +7,7 @@ import time
 
 scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs']
 
+#-------------------------------------------------------------------#
 def selectBestSolver(solvers, reduction, b, **kwargs):
     maxiter = kwargs.pop('maxiter', 100)
     verbose = kwargs.pop('verbose', 0)
@@ -58,35 +59,44 @@ class ScipySolve():
         self.method = kwargs.pop('method')
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
+            if not "matvecprec" in kwargs:
+                spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
+                self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
         else:
             # self.matvec = kwargs.pop('matvec')
+            if not 'n' in kwargs: raise ValueError(f"need 'n' if no matrix given")
             n = kwargs.get('n')
             self.matvec = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvec'))
         if "matvecprec" in kwargs:
             n = kwargs.get('n')
             self.M = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvecprec'))
         else:
-            spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
-            self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
+            self.M = None
         self.atol = 1e-14
         disp = kwargs.pop('disp', 0)
-        self.counter = tools.iterationcounter.IterationCounter(name=self.method, disp=disp)
-        self.args = {"A": self.matvec, "M":self.M, "callback":self.counter, "atol":self.atol}
-        if self.method=='lgmres':
-            self.solver = splinalg.lgmres
-        elif self.method=='gmres':
-            u, info = splinalg.gmres
-        elif self.method=='gcrotmk':
-            self.args['m'] = 5
-            self.args['truncate'] = 'smallest'
+        # print(f"**** {disp=}")
+        self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
+        if 'counter' in kwargs:
+            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+self.method, disp=disp)
+            self.args['callback'] = self.counter
+        self.solver = eval('splinalg.'+self.method)
+        # if self.method=='lgmres':
+        #     self.solver = splinalg.lgmres
+        # elif self.method=='gmres':
+        #     self.solver = splinalg.gmres
+        if self.method=='gcrotmk':
+            self.args['m'] = kwargs.pop('m', 5)
+            self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
-        elif self.method=='bicgstab':
-            self.solver = splinalg.bicgstab
-        elif self.method=='cgs':
-            self.solver = splinalg.cgs
-        else:
-            raise ValueError(f"unknown {self.method=}")
+        # elif self.method=='bicgstab':
+        #     self.solver = splinalg.bicgstab
+        # elif self.method=='cgs':
+        #     self.solver = splinalg.cgs
+        # else:
+        #     raise ValueError(f"unknown {self.method=}")
     def solve(self, b, maxiter, tol, x0=None):
+        # print(f"**** {maxiter=}")
+        if hasattr(self, 'counter'): self.counter.reset()
         self.args['b'] = b
         self.args['maxiter'] = maxiter
         self.args['x0'] = x0
@@ -104,7 +114,7 @@ class ScipySolve():
         args['tol'] = tol
         u, info = self.solver(**args)
         # print(f"{counter.res=}")
-        return counter.res
+        return counter.history
 
 #=================================================================#
 class Pyamg():

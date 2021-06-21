@@ -44,7 +44,7 @@ class Application(object):
         self.mode = kwargs.pop('mode', 'linear')
         self.verbose = kwargs.pop('verbose', 0)
         self.linearsolver = kwargs.pop('linearsolver', 'umf')
-        self.timer = simfempy.tools.timer.Timer(verbose=0)
+        self.timer = simfempy.tools.timer.Timer(verbose=self.verbose)
         if 'problemdata' in kwargs:
             self.problemdata = kwargs.get('problemdata')
             self.ncomp = self.problemdata.ncomp

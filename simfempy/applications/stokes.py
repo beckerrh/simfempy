@@ -19,7 +19,7 @@ class Stokes(Application):
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
-        self.dirichlet_nitsche = 4
+        self.dirichlet_nitsche = 10
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
         self.precond_p = kwargs.pop('precond_p', 'schur')
@@ -263,11 +263,11 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, maxiter=1, solver='lgmres')
+        return solvers.cfd.VelcoitySolver(A, maxiter=2, disp=0)
         # return solvers.cfd.VelcoitySolver(A, maxiter=1)
     def getPressureSolver(self, A, B, AP):
         if self.precond_p == "schur":    
-            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, maxiter=1, disp=0) 
+            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, solver='gmres', maxiter=20, disp=0)
         elif self.precond_p == "diag":    
             mu = self.problemdata.params.scal_glob['mu']
             return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)
@@ -278,6 +278,7 @@ class Stokes(Application):
         if linearsolver == 'umf':
             Aall = self._to_single_matrix(Ain)
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
+            self.timer.add("linearsolve")
             return uall, 1
         else:
             # print(f"{atol=} {rtol=}")
@@ -291,6 +292,7 @@ class Stokes(Application):
             SP = self.getPressureSolver(Ain[0], Ain[1], AP)
             matvecprec=self.getPrecMult(Ain, AP, SP)
             S = solvers.cfd.SystemSolver(n=nall, matvec=matvec, matvecprec=matvecprec, method=method, disp=disp, atol=atol, rtol=rtol)
+            self.timer.add("linearsolve")
             return S.solve(b=bin, x0=uin)
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()

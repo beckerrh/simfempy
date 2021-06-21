@@ -20,6 +20,7 @@ def main(**kwargs):
     testcase = kwargs.pop('testcase', testcases[0])
     model = kwargs.pop('model', 'NavierStokes')
     bdryplot = kwargs.pop('bdryplot', False)
+    plot = kwargs.pop('plot', False)
     linearsolver = kwargs.pop('linearsolver', 'umf')
     # create mesh and data
     mesh, data = eval(testcase)(**kwargs)
@@ -30,7 +31,7 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='diag')
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='schur')
     else:
         model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
     result = model.solve()
@@ -47,9 +48,10 @@ def main(**kwargs):
     else:
         filename = testcase+'.vtu'
         mesh.write(filename, data=result.data)
-        import pyvista as pv
-        mesh = pv.read(filename)
-        cpos = mesh.plot()
+        if plot:
+            import pyvista as pv
+            mesh = pv.read(filename)
+            cpos = mesh.plot()
 
 
 # ================================================================c#
@@ -162,7 +164,7 @@ def schaeferTurek2d(h= 0.5, hcircle=None):
 # ================================================================ #
 def schaeferTurek3d(h= 1, hcircle=None):
     if hcircle is None: hcircle = 0.25*h
-    t = timer.Timer()
+    t = timer.Timer("mesh")
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[5,2], radius=0.5, mesh_size=hcircle, num_sections=8, make_surface=False)
         p = geom.add_rectangle(xmin=0, xmax=25, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
@@ -186,7 +188,7 @@ def schaeferTurek3d(h= 1, hcircle=None):
     data.bdrycond.fct[103] = [lambda x, y, z:  0.45*y*(4.1-y)*z*(4.1-z)/2.05**4, lambda x, y, z: 0, lambda x, y, z: 0]
     data.params.scal_glob["mu"] = 0.01
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=300)
-    data.postproc.set(name='mean', type='bdry_vmean', colors=[100,101])
+    data.postproc.set(name='mean', type='bdry_vmean', colors=[101,103])
     #TODO pass ncomp with mesh ?!
     data.ncomp = 3
     return mesh, data
@@ -197,4 +199,5 @@ if __name__ == '__main__':
     # main(testcase='drivenCavity', mu=3e-4)
     # main(testcase='backwardFacingStep', mu=2e-3)
     # main(testcase='schaeferTurek2d', linearsolver='umf')
-    main(testcase='schaeferTurek3d', h=0.75, bdryplot=False, linearsolver='umf', model='Stokes')
+    # main(testcase='schaeferTurek3d', h=0.75, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)
+    main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
