@@ -22,13 +22,14 @@ def main(**kwargs):
     linearsolver = kwargs.pop('linearsolver', 'umf')
     # create mesh and data
     mesh, data = eval(testcase)(**kwargs)
+    print(f"{mesh=}")
     if bdryplot: 
         plotmesh.meshWithBoundaries(mesh)
         plt.show()
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver)
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='diag')
     else:
         model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
     result = model.solve()
@@ -43,7 +44,11 @@ def main(**kwargs):
                             quiver_data={"V":list(result.data['point'].values())})
         plt.show()
     else:
-        mesh.write(testcase+'.vtu', data=result.data)
+        filename = testcase+'.vtu'
+        mesh.write(filename, data=result.data)
+        import pyvista as pv
+        mesh = pv.read(filename)
+        cpos = mesh.plot()
 
 
 # ================================================================c#
@@ -154,16 +159,13 @@ def schaeferTurek2d(h= 0.5, hcircle=None):
     data.ncomp = 2
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def schaeferTurek3d(h= 0.5, hcircle=None):
+def schaeferTurek3d(h= 1, hcircle=None):
     if hcircle is None: hcircle = 0.25*h
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[5,2], radius=0.5, mesh_size=hcircle, num_sections=8, make_surface=False)
-        # geom.add_physical(circle.curve_loop.curves, label="3000")
         p = geom.add_rectangle(xmin=0, xmax=25, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
-        # for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
         axis = [0, 0, 4.1]
         top, vol, lat = geom.extrude(p.surface, axis)
-        # print(f"{len(lat)=}")
         geom.add_physical([top,p.surface, lat[0], lat[2]], label="100")
         geom.add_physical(lat[1], label="101")
         geom.add_physical(lat[3], label="103")
@@ -179,6 +181,7 @@ def schaeferTurek3d(h= 0.5, hcircle=None):
     data.bdrycond.fct[103] = [lambda x, y, z:  0.45*y*(4.1-y)*z*(4.1-z)/2.05**4, lambda x, y, z: 0, lambda x, y, z: 0]
     data.params.scal_glob["mu"] = 0.01
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=300)
+    data.postproc.set(name='mean', type='bdry_vmean', colors=101)
     #TODO pass ncomp with mesh ?!
     data.ncomp = 3
     return mesh, data
@@ -188,5 +191,5 @@ if __name__ == '__main__':
     # main(testcase='poiseuille', h=0.2, mu=1e-3)
     # main(testcase='drivenCavity', mu=3e-4)
     # main(testcase='backwardFacingStep', mu=2e-3)
-    main(testcase='schaeferTurek2d', linearsolver='umf')
-    # main(testcase='schaeferTurek3d', bdryplot=False, linearsolver='gcrotmk')
+    # main(testcase='schaeferTurek2d', linearsolver='umf')
+    main(testcase='schaeferTurek3d', h=0.75, bdryplot=False, linearsolver='umf', model='Stokes')

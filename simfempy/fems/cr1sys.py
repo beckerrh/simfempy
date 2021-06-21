@@ -307,6 +307,12 @@ class CR1sys(femsys.Femsys):
             for icomp in range(self.ncomp):
                 flux[i, icomp] = np.sum(res[icomp::self.ncomp])
         return flux
+    def computeBdryMean(self, u, colors):
+        mean = np.empty(shape=(self.ncomp, len(colors)))
+        for i in range(self.ncomp):
+            mean[i] = self.fem.computeBdryMean(u[i::self.ncomp], colors)
+        return mean
+
 
 # ------------------------------------- #
 

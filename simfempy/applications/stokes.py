@@ -169,12 +169,14 @@ class Stokes(Application):
             err, e = self.femp.computeErrorL2(self.problemdata.solexact[1], p)
             data['global']['error_P_L2'] = err
         if self.problemdata.postproc:
-            types = ["bdry_pmean", "bdry_nflux"]
+            types = ["bdry_pmean", "bdry_vmean", "bdry_nflux"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
                     data['global'][name] = self.femp.computeBdryMean(p, colors)
                 elif type == types[1]:
+                    data['global'][name] = self.femv.computeBdryMean(v, colors)
+                elif type == types[2]:
                     if self.dirichletmethod=='strong':
                         data['global'][name] = self.computeBdryNormalFluxStrong(v, p, colors)
                     else:
