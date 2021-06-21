@@ -12,6 +12,7 @@ from simfempy.applications.navierstokes import NavierStokes
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
+from simfempy.tools import timer
 
 # ================================================================c#
 def main(**kwargs):
@@ -161,6 +162,7 @@ def schaeferTurek2d(h= 0.5, hcircle=None):
 # ================================================================ #
 def schaeferTurek3d(h= 1, hcircle=None):
     if hcircle is None: hcircle = 0.25*h
+    t = timer.Timer()
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[5,2], radius=0.5, mesh_size=hcircle, num_sections=8, make_surface=False)
         p = geom.add_rectangle(xmin=0, xmax=25, ymin=0, ymax=4.1, z=0, mesh_size=h, holes=[circle])
@@ -172,8 +174,11 @@ def schaeferTurek3d(h= 1, hcircle=None):
         geom.add_physical(lat[4:], label="300")
         geom.add_physical(vol, label="10")
         mesh = geom.generate_mesh()
+    t.add('pygmsh')
     mesh = SimplexMesh(mesh=mesh)
-    mesh.write("mesh.vtu")
+    t.add('SimplexMesh')
+    print(t)
+    # mesh.write("mesh.vtu")
     data = ProblemData()
    # boundary conditions
     data.bdrycond.set("Dirichlet", [100,103,300])
@@ -181,7 +186,7 @@ def schaeferTurek3d(h= 1, hcircle=None):
     data.bdrycond.fct[103] = [lambda x, y, z:  0.45*y*(4.1-y)*z*(4.1-z)/2.05**4, lambda x, y, z: 0, lambda x, y, z: 0]
     data.params.scal_glob["mu"] = 0.01
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=300)
-    data.postproc.set(name='mean', type='bdry_vmean', colors=101)
+    data.postproc.set(name='mean', type='bdry_vmean', colors=[100,101])
     #TODO pass ncomp with mesh ?!
     data.ncomp = 3
     return mesh, data

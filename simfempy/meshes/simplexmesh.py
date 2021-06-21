@@ -9,7 +9,7 @@ import meshio
 import numpy as np
 from numpy.lib.shape_base import take_along_axis
 from scipy import sparse
-from simfempy.tools import npext
+from simfempy.tools import npext, timer
 
 #=================================================================#
 class SimplexMesh(object):
@@ -52,8 +52,10 @@ class SimplexMesh(object):
             mesh = kwargs.pop('mesh')
         else:
             raise KeyError("Needs a mesh (no longer geometry)")
+        self.timer = timer.Timer(verbose=1)
         self._initMeshPyGmsh(mesh)
         self.check()
+        print(self.timer)
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
@@ -104,13 +106,16 @@ class SimplexMesh(object):
         # boundaries
         bdryfacesgmsh = np.array(bdryfacesgmshlist)
         self._constructFacesFromSimplices()
+        self.timer.add("_constructFacesFromSimplices")
         assert self.dimension+1 == self.simplices.shape[1]
         self.ncells = self.simplices.shape[0]
         self.pointsc = self.points[self.simplices].mean(axis=1)
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
+        self.timer.add("_constructNormalsAndAreas")
         self.cell_sets = mesh.cell_sets
         self._initMeshPyGmsh7(mesh.cells, mesh.cell_sets, bdryfacesgmsh)
+        self.timer.add("_initMeshPyGmsh7")
         #TODO : remplacer -1 par nan dans les indices
     def constructInnerFaces(self):
         self.innerfaces = self.cellsOfFaces[:,1]>=0

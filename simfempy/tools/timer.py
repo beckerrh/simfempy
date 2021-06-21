@@ -8,6 +8,7 @@ class Timer():
         self.name = name
         self.verbose = verbose
         self.tlast = time.time()
+        self.nameslast = 'none'
         self.data = {}
         self.counter = 0
     def __repr__(self):
@@ -22,8 +23,9 @@ class Timer():
         if name not in self.data: self.data[name] = 0
         t = time.time()
         self.data[name] += t - self.tlast
+        if self.verbose: print(f"{name=} {self.nameslast=} {(t - self.tlast)=}")
         self.tlast = t
-        if self.verbose==1: print(f"{name=} {t - self.tlast}\n {self=}")
+        self.nameslast = name
     def reset(self, name):
         self.data[name] = 0
     def reset_all(self):
