@@ -31,7 +31,7 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='schur')
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='diag')
     else:
         model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
     result = model.solve()
