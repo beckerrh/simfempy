@@ -23,6 +23,7 @@ class VelcoitySolver():
             self.solver = self._selectsolver(solvernames, A, **kwargs)
             self.maxiter = kwargs.pop('maxiter', 1)
         else:
+            if 'maxiter' in kwargs: print(f"??? maxiter unused")
             self.reduction = kwargs.pop('reduction', 0.01)
             self.solvers = {}
             for solvername in solvernames:
@@ -37,28 +38,37 @@ class VelcoitySolver():
 
 
 #=================================================================#
-class PressureSolverDiagonal():
+class PressureSolverScale():
     def __init__(self, mesh, mu):
         self.BP = sparse.diags(1/mesh.dV*mu, offsets=(0), shape=(mesh.ncells, mesh.ncells))
     def solve(self, b):
         return self.BP.dot(b)
- #=================================================================#
-class PressureSolverSchur():
-    def __init__(self, mesh, ncomp, A, B, AP, **kwargs):
-        ncells, nfaces = mesh.ncells, mesh.nfaces
-        self.A, self.B, self.AP = A, B, AP
+#=================================================================#
+class PressureSolverDiagonal():
+    def __init__(self, mesh, mu, ncomp, A, B, AP, **kwargs):
+        AD = sparse.diags(1/A.diagonal(), offsets=(0), shape=A.shape)
+        self.mat = B@AD@B.T
+        self.prec = pyamg.smoothed_aggregation_solver(self.mat)
+        self.M = splinalg.LinearOperator(shape=self.mat.shape, matvec=lambda u: self.prec.solve(u))
+        self.matvec = splinalg.LinearOperator(shape=self.mat.shape, matvec=lambda u: self.mat.dot(u))
         self.maxiter = kwargs.pop('maxiter',1)
-        # disp = kwargs.pop('disp',0)
         solvername = kwargs.pop('solver',0)
         assert solvername in linalg.scipysolvers
-        self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, counter="pschur", n = ncells, **kwargs)
-        # self.solver = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.matvec)
-        # self.counter = tools.iterationcounter.IterationCounter(name="pschur", disp=disp)
-        # Ainv = sparse.diags(1/A.diagonal(), offsets=(0), shape=(nfaces*ncomp, nfaces*ncomp))
-        # self.spilu = splinalg.spilu(B*Ainv*B.T)
-        # self.M = splinalg.LinearOperator(shape=(ncells,ncells), matvec=self.spilu.solve)
-        # self.M = sparse.diags( 1/(B*Ainv*B.T).diagonal(), offsets=(0), shape=(ncells, ncells) )
-        # self.M = None
+        self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, M=self.M, counter="pschur", n = self.mat.shape[0], **kwargs)
+    def solve(self, b):
+        return self.prec.solve(b, maxiter=self.maxiter, tol=1e-12)
+        return self.solver.solve(b, maxiter=self.maxiter, tol=1e-12)
+#=================================================================#
+class PressureSolverSchur():
+    def __init__(self, mesh, mu, ncomp, A, B, AP, **kwargs):
+        ncells, nfaces = mesh.ncells, mesh.nfaces
+        self.A, self.B, self.AP = A, B, AP
+        self.BP = sparse.diags(1/mesh.dV*mu, offsets=(0), shape=(mesh.ncells, mesh.ncells))
+        self.M = splinalg.LinearOperator(shape=(mesh.ncells, mesh.ncells), matvec=lambda u: self.BP.dot(u))
+        self.maxiter = kwargs.pop('maxiter',1)
+        solvername = kwargs.pop('solver',0)
+        assert solvername in linalg.scipysolvers
+        self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, M=self.M, counter="pschur", n = ncells, **kwargs)
 
     def matvec(self, x):
         v = self.B.T.dot(x)

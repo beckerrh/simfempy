@@ -166,7 +166,13 @@ class ProblemData(object):
 
     def check(self, mesh):
         colors = mesh.bdrylabels.keys()
+        # colors = list(mesh.bdrylabels.keys())
+        # colors.extend(list(mesh.verticesoflabel.keys()))
+        # colors.extend(list(mesh.linesoflabel.keys()))
         self.bdrycond.check(colors)
+        colors = list(colors)
+        colors.extend(list(mesh.verticesoflabel.keys()))
+        colors.extend(list(mesh.linesoflabel.keys()))
         if self.postproc: self.postproc.check(colors)
         self.params.check(mesh)
 

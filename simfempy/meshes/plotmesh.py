@@ -13,13 +13,25 @@ def _getDim(meshdata):
     return dim, meshdataismesh
 #----------------------------------------------------------------#
 def plotmesh(mesh, **kwargs):
-    dim, meshdataismesh = _getDim(mesh)
-    if dim == 1:
-        plotmesh1d.plotmesh(mesh=mesh, **kwargs)
-    elif dim == 2:
-        plotmesh2d.plotmesh(mesh=mesh, **kwargs)
+    if isinstance(mesh, meshio.Mesh):
+        celltypes = [key for key, cellblock in mesh.cells]
+        assert celltypes==list(mesh.cells_dict.keys())
+        if 'tetra' in celltypes:
+            args = {'x':mesh.points[:,0], 'y':mesh.points[:,1], 'z':mesh.points[:,2], 'tets':mesh.cells_dict['tetra']}
+            plotmesh3d.plotmesh(**args, **kwargs)
+        elif 'triangle' in celltypes:
+            args = {'x':mesh.points[:,0], 'y':mesh.points[:,1], 'tris': mesh.cells_dict['triangle']}
+            plotmesh2d.plotmesh(**args, **kwargs)
+        else:
+            assert 0
     else:
-        plotmesh3d.plotmesh(mesh=mesh, **kwargs)
+        dim, meshdataismesh = _getDim(mesh)
+        if dim == 1:
+            plotmesh1d.plotmesh(mesh=mesh, **kwargs)
+        elif dim == 2:
+            plotmesh2d.plotmesh(mesh=mesh, **kwargs)
+        else:
+            plotmesh3d.plotmesh(mesh=mesh, **kwargs)
     # if not 'ax' in kwargs or kwargs['ax']==plt: plt.show()
 #----------------------------------------------------------------#
 def plotmeshWithNumbering(meshdata, **kwargs):

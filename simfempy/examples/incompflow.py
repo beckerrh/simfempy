@@ -31,7 +31,7 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p='diag')
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver)
     else:
         model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
     result = model.solve()
@@ -195,9 +195,10 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    # main(testcase='poiseuille', h=0.2, mu=1e-3)
-    # main(testcase='drivenCavity', mu=3e-4)
-    # main(testcase='backwardFacingStep', mu=2e-3)
-    # main(testcase='schaeferTurek2d', linearsolver='umf')
+    main(testcase='poiseuille', h=0.2, mu=1e-3)
+    main(testcase='drivenCavity', mu=3e-4)
+    main(testcase='backwardFacingStep', mu=2e-3)
+    main(testcase='schaeferTurek2d', linearsolver='umf')
     # main(testcase='schaeferTurek3d', h=0.75, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)
-    main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
+    # main(testcase='schaeferTurek3d', h=0.75, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
+    # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)

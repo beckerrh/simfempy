@@ -55,7 +55,7 @@ class SimplexMesh(object):
         self.timer = timer.Timer(name="SimplexMesh")
         self._initMeshPyGmsh(mesh)
         self.check()
-        print(self.timer)
+        # print(self.timer)
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
@@ -68,11 +68,9 @@ class SimplexMesh(object):
         return faces
 
     def _initMeshPyGmsh(self, mesh):
-        # only 3d-coordinates
-        assert mesh.points.shape[1] ==3
-        self.points = mesh.points
-        self.nnodes = self.points.shape[0]
+        self.pygmsh = mesh
         self.celltypes = [key for key, cellblock in mesh.cells]
+        assert self.celltypes==list(mesh.cells_dict.keys())
         # for key, cellblock in cells: keys.append(key)
         # print("self.celltypes", self.celltypes)
         if 'tetra' in self.celltypes:
@@ -86,25 +84,35 @@ class SimplexMesh(object):
             self.simplicesname, self.facesname = 'line', 'vertex'
         else:
             raise ValueError(f"something wrong {self.celltypes=} {mesh=}")
-        bdryfacesgmshlist = []
+        # bdryfacesgmshlist = []
         for key, cellblock in mesh.cells:
             # print(f"{key=} {cellblock=}")
             if key == self.simplicesname: self.simplices = cellblock
-            if key == 'vertex': self.vertices = cellblock
-            if key == self.facesname:
+            elif key == self.facesname:
                 self.facesdata = cellblock
                 # print(f"{key=} {cellblock=}")
-                bdryfacesgmshlist.extend(cellblock)
+                # bdryfacesgmshlist.extend(cellblock)
+            # elif key == 'vertex': self.vertices = cellblock
+            # elif key == 'line': self.lines = cellblock
+            else:
+                continue
+                # raise ValueError(f"unknown cellblock {cellblock=}")
         if not hasattr(self,"simplices"):
             raise ValueError(f"something wrong {self.dimension=}")
+        assert np.all(self.facesdata==mesh.cells_dict[self.facesname])
+        assert np.all(self.simplices==mesh.cells_dict[self.simplicesname])
+        # only 3d-coordinates
+        assert mesh.points.shape[1] ==3
         # eliminate drangling points
         nnp = len(np.unique(self.simplices))
-        if nnp != self.nnodes:
-            assert np.all(np.unique(self.simplices)==np.arange(nnp))
-            self.points = self.points[:nnp]
-            self.nnodes = nnp
-        # boundaries
-        # bdryfacesgmsh = np.array(bdryfacesgmshlist)
+        if not np.all(np.unique(self.simplices)==np.arange(nnp)):
+            msg = f"points in simplices {nnp} but {self.points.shape=}"
+            msg += f"\n{self.celltypes=}\n{mesh.cell_sets=}"
+            msg += f"\n{np.unique(self.simplices)=}"
+            msg += f"\n{mesh.cells_dict=}"
+            raise ValueError(msg)
+        self.points = mesh.points[:nnp]
+        self.nnodes = self.points.shape[0]
         self._constructFacesFromSimplices()
         self.timer.add("_constructFacesFromSimplices")
         assert self.dimension+1 == self.simplices.shape[1]
@@ -113,19 +121,19 @@ class SimplexMesh(object):
         self.pointsf = self.points[self.faces].mean(axis=1)
         self._constructNormalsAndAreas()
         self.timer.add("_constructNormalsAndAreas")
-        self.cell_sets = mesh.cell_sets
-        bdrylabelsgmsh =self._initMeshPyGmsh7(mesh.cell_sets)
+        # self.cell_sets = mesh.cell_sets
+        bdrylabelsgmsh = self._initMeshPyGmsh7(mesh.cell_sets, mesh.cells_dict)
         self.timer.add("_initMeshPyGmsh7")
-        print(f"{type(bdryfacesgmshlist)=}")
-        # bdryfacesgmsh = np.array(bdryfacesgmshlist)
-        # self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
-        self._constructBoundaryFaces7(bdryfacesgmshlist, bdrylabelsgmsh)
+        # boundaries
+        # self._constructBoundaryFaces7(bdryfacesgmshlist, bdrylabelsgmsh)
+        self._constructBoundaryFaces7(self.facesdata, bdrylabelsgmsh)
         self.timer.add("_constructBoundaryFaces7")
+        # print(f"{self.bdrylabels.keys()=}")
         #TODO : remplacer -1 par nan dans les indices
     def constructInnerFaces(self):
         self.innerfaces = self.cellsOfFaces[:,1]>=0
         self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
-    def _initMeshPyGmsh7(self, cell_sets):
+    def _initMeshPyGmsh7(self, cell_sets, cells_dict):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
         # ???
@@ -148,6 +156,7 @@ class SimplexMesh(object):
                     sizes[celltype] += info.shape[0]
                     typesoflabel[ilabel] = celltype
                     ctorderd.append(celltype)
+        # print(f"{self.celltypes=}\n{cellsoflabel=}")
         #correcting the numbering in cell_sets
         n = 0
         for ct in list(dict.fromkeys(ctorderd)):
@@ -155,7 +164,12 @@ class SimplexMesh(object):
             for l, cb in cellsoflabel[ct].items(): cb -= n
             n += sizes[ct]
         self.cellsoflabel = cellsoflabel[self.simplicesname]
-        self.verticesoflabel = {}
+        # print(f"{cellsoflabel['vertex']=}\n{cells_dict['vertex']}")
+        # self.verticesoflabel = cellsoflabel['vertex']
+        self.verticesoflabel = {k:cells_dict['vertex'][v] for k,v in cellsoflabel['vertex'].items()}
+        # self.linesoflabel = cellsoflabel['line']
+        self.linesoflabel = {k:cells_dict['line'][v] for k,v in cellsoflabel['line'].items()}
+        # print(f"{self.verticesoflabel=}")
         # print(f"{cellsoflabel=}\n{cellsoflabel.keys()}")
         # if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
         # print(f"{self.verticesoflabel=}")
@@ -165,8 +179,6 @@ class SimplexMesh(object):
         if self.facesname not in cellsoflabel:
             raise ValueError(f"{self.facesname=} not in {cellsoflabel=}")
         return cellsoflabel[self.facesname]
-        # bdrylabelsgmsh = cellsoflabel[self.facesname]
-        # self._constructBoundaryFaces7(bdryfacesgmsh, bdrylabelsgmsh)
     def _constructFacesFromSimplices(self):
         simplices = self.simplices
         ncells = simplices.shape[0]
@@ -217,9 +229,6 @@ class SimplexMesh(object):
         #         f = self.facesOfCells[i,ii]
         #         if cellsOfFacesOld[f,0] == -1: cellsOfFacesOld[f,0] = i
         #         else: cellsOfFacesOld[f,1] = i
-
-
-
         unique, indices = np.unique(self.facesOfCells,return_index=True)
         assert np.all(unique == np.arange(self.nfaces))
         i0, i1 = np.unravel_index(indices, shape=self.facesOfCells.shape)

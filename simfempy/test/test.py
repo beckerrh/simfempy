@@ -16,7 +16,7 @@ class TestAnalytical(unittest.TestCase):
         self._check(test(dim=1, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
     def test_poisson2d(self):
         from heat_analytic import test
-        self._check(test(dim=2, exactsolution = 'Linear', verbose=0))
+        self._check(test(dim=2, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
     def test_poisson3d(self):
         from heat_analytic import test
         self._check(test(dim=3, exactsolution = 'Linear', verbose=0, linearsolver='umf'))

@@ -4,6 +4,7 @@ import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
@@ -36,7 +37,17 @@ def main(mode = 'static', h=0.1, convection=True, fem='p1', plot='data'):
         fig.suptitle("Heat static", fontsize=16)
         outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
         plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
-        plotmesh.meshWithData(heat.mesh, data=result.data, alpha=0.2,fig=fig, outer=outer[1])
+        plotmesh.meshWithData(heat.mesh, data=result.data, alpha=0.1,fig=fig, outer=outer[1])
+        nodes = np.unique(heat.mesh.linesoflabel[999])
+        nodes2 = np.unique(heat.mesh.linesoflabel[1002])
+        u = result.data['point']['U']
+        ax = fig.gca()
+        ins = ax.inset_axes([0.6, 0.6, 0.4, 0.4])
+        ins.plot(heat.mesh.points[nodes,0], u[nodes], 'xr')
+        ins.set_title("999")
+        ins = ax.inset_axes([0, 0, 0.4, 0.4])
+        ins.plot(heat.mesh.points[nodes2,0], u[nodes2], 'xb')
+        ins.set_title("1002", color='w')
         plt.show()
     elif mode == 'dynamic':
         u0 = heat.initialCondition()
@@ -67,7 +78,19 @@ def createMesh(h=0.2):
         p = geom.add_rectangle(xmin=-2, xmax=2, ymin=-2, ymax=2, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+
+        p1 = geom.add_point((-1., 1.5, 0.), mesh_size=0.1*h)
+        p2 = geom.add_point(( 1., 1.5, 0.), mesh_size=0.2*h)
+        l6 = geom.add_line(p1, p2)
+        geom.add_physical(p1, label="9999")
+        # geom.in_surface(p1, p.surface)
+        # geom.in_surface(p2, p.surface)
+        geom.in_surface(l6, p.surface)
+        geom.add_physical(l6, label="999")
+
         mesh = geom.generate_mesh()
+        # plotmesh.plotmesh(mesh)
+        # plt.show()
     return SimplexMesh(mesh=mesh)
 # ---------------------------------------------------------------- #
 def createProblemData(mode='static', convection=False):
@@ -82,6 +105,8 @@ def createProblemData(mode='static', convection=False):
     data.postproc.set(name='bdrymean_left', type='bdry_mean', colors=1003)
     data.postproc.set(name='bdrymean_up', type='bdry_mean', colors=1002)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
+    data.postproc.set(name='pointvalue', type='pointvalues', colors=9999)
+    # data.postproc.set(name='linemean', type='linemeans', colors=999)
     #paramaters in equation
     # cell-wise
     # data.params.set_scal_cells("kheat", [100], 0.001)
@@ -97,5 +122,5 @@ def createProblemData(mode='static', convection=False):
 
 # ================================================================c#
 
-main(mode='static', convection=True, h=0.1)
+main(mode='static', convection=True, h=1)
 # main(mode='dynamic', convection=True, h=0.1)

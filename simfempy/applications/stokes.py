@@ -22,7 +22,7 @@ class Stokes(Application):
         self.dirichlet_nitsche = 10
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
-        self.precond_p = kwargs.pop('precond_p', 'schur')
+        self.precond_p = kwargs.pop('precond_p', 'diag')
         self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
@@ -263,14 +263,16 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, maxiter=2, disp=0)
-        # return solvers.cfd.VelcoitySolver(A, maxiter=1)
+        # return solvers.cfd.VelcoitySolver(A, disp=0)
+        return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
     def getPressureSolver(self, A, B, AP):
+        mu = self.problemdata.params.scal_glob['mu']
         if self.precond_p == "schur":    
-            return solvers.cfd.PressureSolverSchur(self.mesh, self.ncomp, A, B, AP, solver='gmres', maxiter=20, disp=0)
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=10, disp=20)
         elif self.precond_p == "diag":    
-            mu = self.problemdata.params.scal_glob['mu']
-            return solvers.cfd.PressureSolverDiagonal(self.mesh, mu)
+            return solvers.cfd.PressureSolverDiagonal(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=1, disp=20)
+        elif self.precond_p == "scale":    
+            return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:
             raise ValueError(f"unknown {self.precond_p=}")   
     def linearSolver(self, Ain, bin, uin=None, linearsolver='umf', verbose=0, atol=1e-14, rtol=1e-10):

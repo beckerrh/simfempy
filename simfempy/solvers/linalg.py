@@ -60,7 +60,8 @@ class ScipySolve():
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
             if not "matvecprec" in kwargs:
-                spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
+                # spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
+                spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.01, fill_factor=1)
                 self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
         else:
             # self.matvec = kwargs.pop('matvec')
@@ -76,24 +77,16 @@ class ScipySolve():
         disp = kwargs.pop('disp', 0)
         # print(f"**** {disp=}")
         self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
-        if 'counter' in kwargs:
-            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+self.method, disp=disp)
-            self.args['callback'] = self.counter
         self.solver = eval('splinalg.'+self.method)
-        # if self.method=='lgmres':
-        #     self.solver = splinalg.lgmres
-        # elif self.method=='gmres':
-        #     self.solver = splinalg.gmres
+        name = self.method
         if self.method=='gcrotmk':
             self.args['m'] = kwargs.pop('m', 5)
             self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
-        # elif self.method=='bicgstab':
-        #     self.solver = splinalg.bicgstab
-        # elif self.method=='cgs':
-        #     self.solver = splinalg.cgs
-        # else:
-        #     raise ValueError(f"unknown {self.method=}")
+            name += '_' + str(self.args['m'])
+        if 'counter' in kwargs:
+            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+name, disp=disp)
+            self.args['callback'] = self.counter
     def solve(self, b, maxiter, tol, x0=None):
         # print(f"**** {maxiter=}")
         if hasattr(self, 'counter'): self.counter.reset()

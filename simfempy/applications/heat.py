@@ -257,7 +257,7 @@ class Heat(Application):
             data['global']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
             data['cell']['err'] = ec
         if self.problemdata.postproc:
-            types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues"]
+            types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues", "linemeans"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
@@ -274,6 +274,8 @@ class Heat(Application):
                     data['global'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:
                     data['global'][name] = self.fem.computeMeanValues(u, colors)
+                elif type == types[5]:
+                    data['global'][name] = self.fem.computeLineValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         if self.kheatcell.shape[0] != self.mesh.ncells:

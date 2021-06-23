@@ -62,15 +62,13 @@ class P1(fems.fem.Fem):
     def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = fems.data.BdryData()
         bdrydata.nodesdir={}
-        # bdrydata.nodedirall = np.empty(shape=(0), dtype=np.int)
-        bdrydata.nodedirall = np.empty(shape=(0), dtype=int)
+        bdrydata.nodedirall = np.empty(shape=(0), dtype=self.mesh.faces.dtype)
         for color in colorsdir:
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
-        # print(f"{bdrydata.nodedirall=}")
         # bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=np.int),bdrydata.nodedirall)
-        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=int),bdrydata.nodedirall)
+        bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=self.mesh.faces.dtype),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         for color in colorsflux:
             facesdir = self.mesh.bdrylabels[color]
@@ -86,7 +84,7 @@ class P1(fems.fem.Fem):
             for i in range(nb): help[i, nodes[i]] = 1
             bdrydata.Asaved[color] = help.dot(A)
         bdrydata.A_inner_dir = A[nodesinner, :][:, nodedirall]
-        help = np.ones((nnodes))
+        help = np.ones((nnodes), dtype=nodedirall.dtype)
         help[nodedirall] = 0
         help = sparse.dia_matrix((help, 0), shape=(nnodes, nnodes))
         # A = help.dot(A.dot(help))
@@ -253,7 +251,7 @@ class P1(fems.fem.Fem):
             mass = coeff/(dim+1)*dV.repeat(dim+1)
             rows = self.mesh.simplices.ravel()
             return sparse.coo_matrix((mass, (rows, rows)), shape=(nnodes, nnodes)).tocsr()
-        massloc = barycentric.tensor(d=dim, k=2)
+        massloc = tools.barycentric.tensor(d=dim, k=2)
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
@@ -555,17 +553,31 @@ class P1(fems.fem.Fem):
         up = np.empty(len(colors))
         for i,color in enumerate(colors):
             nodes = self.mesh.verticesoflabel[color]
+            # print(f"{nodes=} {self.mesh.points[nodes]=}")
             up[i] = u[nodes]
         return up
+    def computeLineValues(self, u, colors):
+        raise NotImplementedError()
+        up = np.empty(len(colors))
+        for i,color in enumerate(colors):
+            lines = self.mesh.linesoflabel[color]
+            nodes = np.unique(lines)
+            print(f"{u[nodes]=}")
+            print(f"{self.mesh.points[nodes,0]=}")
+            print(f"{self.mesh.points[nodes,1]=}")
+            import matplotlib.pyplot as plt
+            plt.plot(self.mesh.points[nodes,0], u[nodes])
+            plt.show()
+            # print(f"{np.unique(lines)=}")
+            # print(f"{self.mesh.points[lines]=}")
+        return up
+
     def computeMeanValues(self, u, colors):
         up = np.empty(len(colors))
         for i, color in enumerate(colors):
-            up[i] = self.computeMeanValue(u,color)
+            cells = self.mesh.cellsoflabel[color]
+            up[i] = np.sum(np.mean(u[self.mesh.simplices[cells]],axis=1)*self.mesh.dV[cells])
         return up
-    def computeMeanValue(self, u, color):
-        cells = self.mesh.cellsoflabel[color]
-        # print("umean", np.mean(u[self.mesh.simplices[cells]],axis=1))
-        return np.sum(np.mean(u[self.mesh.simplices[cells]],axis=1)*self.mesh.dV[cells])
 
     #------------------------------
     def test(self):
