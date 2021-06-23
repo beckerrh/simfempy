@@ -294,8 +294,9 @@ class Stokes(Application):
             SP = self.getPressureSolver(Ain[0], Ain[1], AP)
             matvecprec=self.getPrecMult(Ain, AP, SP)
             S = solvers.cfd.SystemSolver(n=nall, matvec=matvec, matvecprec=matvecprec, method=method, disp=disp, atol=atol, rtol=rtol)
+            uall, it =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
-            return S.solve(b=bin, x0=uin)
+            return uall, it
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()
         bs  = self._split(b)

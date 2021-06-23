@@ -55,7 +55,7 @@ class SimplexMesh(object):
         self.timer = timer.Timer(name="SimplexMesh")
         self._initMeshPyGmsh(mesh)
         self.check()
-        # print(self.timer)
+        print(self.timer)
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
@@ -168,17 +168,8 @@ class SimplexMesh(object):
         simplices = self.simplices
         ncells = simplices.shape[0]
         nnpc = simplices.shape[1]
-        # allfaces = np.empty(shape=(nnpc*ncells,nnpc-1), dtype=np.uint64)
-        # for i in range(ncells):
-        #     for ii in range(nnpc):
-        #         # face ii is opposite to node ii
-        #         mask = np.array( [jj !=ii for jj in range(nnpc)] )
-        #         allfaces[i*nnpc+ii] = np.sort(simplices[i,mask])
         nd = np.logical_not(np.eye(nnpc,dtype=bool)).ravel()
         allfaces = np.sort(np.tile(simplices, nnpc)[:,nd].reshape(ncells, nnpc, nnpc-1), axis=2).reshape(nnpc*ncells,nnpc-1)
-        # if np.any(allfaces!=allfaces2):
-        #     raise ValueError(f"{allfaces=}\n{allfaces2=}")
-        # s = "{0}" + (nnpc-2)*", {0}"
         s = (nnpc-1)*"{0},"
         s = s[:-1].format(allfaces.dtype)
         # order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
@@ -198,22 +189,7 @@ class SimplexMesh(object):
         self.facesOfCells = np.zeros(shape=(ncells, nnpc), dtype=int)
         locindex = np.tile(np.arange(0,nnpc), ncells).ravel()
         cellindex = np.repeat(np.arange(0,ncells), nnpc)
-        # for ii in range(indices.shape[0]):
-        #     f = indices[ii]
-        #     loc = locindex[perm[ii]]
-        #     cell = cellindex[perm[ii]]
-        #     self.facesOfCells[cell, loc] = f
-        #     if self.cellsOfFaces[f,0] == -1: self.cellsOfFaces[f,0] = cell
-        #     else: self.cellsOfFaces[f,1] = cell
-        # foc = np.zeros(shape=(ncells, nnpc), dtype=int)
         self.facesOfCells[cellindex[perm],locindex[perm]] = indices
-
-        # cellsOfFacesOld = -1 * np.ones(shape=(self.nfaces, 2), dtype=int)
-        # for i in range(ncells):
-        #     for ii in range(nnpc):
-        #         f = self.facesOfCells[i,ii]
-        #         if cellsOfFacesOld[f,0] == -1: cellsOfFacesOld[f,0] = i
-        #         else: cellsOfFacesOld[f,1] = i
         unique, indices = np.unique(self.facesOfCells,return_index=True)
         assert np.all(unique == np.arange(self.nfaces))
         i0, i1 = np.unravel_index(indices, shape=self.facesOfCells.shape)
@@ -224,11 +200,9 @@ class SimplexMesh(object):
         i = -1*np.ones(self.nfaces, dtype=self.facesOfCells.dtype)
         i[unique[1:]] = i2
         self.cellsOfFaces =np.vstack([i0,i]).T
-        # print(f"{self.cellsOfFaces.shape=} {cellsOfFacesOld.shape=}")
-        # assert np.all(i0 == cellsOfFacesOld[:,0])
-        # assert np.all(i == cellsOfFacesOld[:,1])
- 
+
     def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
+        t = timer.Timer("_constructBoundaryFaces7")
         # bdries
         # bdryfacesgmsh may contains interior edges for len(celllabels)>1
         bdryfacesgmsh = np.sort(bdryfacesgmsh)
@@ -239,6 +213,7 @@ class SimplexMesh(object):
         dtb = s.format(bdryfacesgmsh.dtype)
         dtf = s.format(bdryfaces.dtype)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
+        t.add("a")
         if self.dimension==1:
             bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).ravel()
             fp = np.argsort(bdryfaces.view(dtf), axis=0).ravel()
@@ -248,22 +223,31 @@ class SimplexMesh(object):
         # print(f"{bp=}")
         # print(f"{fp=}")
 #https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
+        t.add("b")
+        ################
         indices = (bdryfacesgmsh[bp, None] == bdryfaces[fp]).all(-1).any(-1)
+        ################
+        t.add("c")
         if not np.all(bdryfaces[fp]==bdryfacesgmsh[bp[indices]]):
             raise ValueError(f"{bdryfaces.T=}\n{bdryfacesgmsh.T=}\n{indices=}\n{bdryfaces[fp].T=}\n{bdryfacesgmsh[bp[indices]].T=}")
+        t.add("d")
         bp2 = bp[indices]
         for i in range(len(fp)):
             if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
                 raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
+        t.add("e")
         bpi = np.argsort(bp)
         binv = -1*np.ones_like(bp)
         binv[bp2] = np.arange(len(bp2))
         self.bdrylabels = {}
+        t.add("f")
         for col, cb in bdrylabelsgmsh.items():
             if indices[bpi[cb[0]]]:
                 self.bdrylabels[int(col)] = bdryids[fp[binv[cb]]]
             # else:
             #     assert not indices[bpi[cb[0]]]
+        t.add("g")
+        print(t)
     def _constructNormalsAndAreas(self):
         # t = timer.Timer("_constructNormalsAndAreas")
         elem = self.simplices
