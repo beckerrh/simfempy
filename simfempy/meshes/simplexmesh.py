@@ -84,21 +84,15 @@ class SimplexMesh(object):
             self.simplicesname, self.facesname = 'line', 'vertex'
         else:
             raise ValueError(f"something wrong {self.celltypes=} {mesh=}")
-        # bdryfacesgmshlist = []
         for key, cellblock in mesh.cells:
             # print(f"{key=} {cellblock=}")
             if key == self.simplicesname: self.simplices = cellblock
             elif key == self.facesname:
                 self.facesdata = cellblock
-                # print(f"{key=} {cellblock=}")
-                # bdryfacesgmshlist.extend(cellblock)
-            # elif key == 'vertex': self.vertices = cellblock
-            # elif key == 'line': self.lines = cellblock
             else:
                 continue
-                # raise ValueError(f"unknown cellblock {cellblock=}")
-        if not hasattr(self,"simplices"):
-            raise ValueError(f"something wrong {self.dimension=}")
+        if not hasattr(self,"simplices") or not hasattr(self,"facesdata"):
+            raise ValueError(f"something wrong {self=}")
         assert np.all(self.facesdata==mesh.cells_dict[self.facesname])
         assert np.all(self.simplices==mesh.cells_dict[self.simplicesname])
         # only 3d-coordinates
@@ -122,6 +116,7 @@ class SimplexMesh(object):
         self._constructNormalsAndAreas()
         self.timer.add("_constructNormalsAndAreas")
         # self.cell_sets = mesh.cell_sets
+        # print(f"{mesh.cell_sets_dict=}")
         bdrylabelsgmsh = self._initMeshPyGmsh7(mesh.cell_sets, mesh.cells_dict)
         self.timer.add("_initMeshPyGmsh7")
         # boundaries
@@ -164,18 +159,8 @@ class SimplexMesh(object):
             for l, cb in cellsoflabel[ct].items(): cb -= n
             n += sizes[ct]
         self.cellsoflabel = cellsoflabel[self.simplicesname]
-        # print(f"{cellsoflabel['vertex']=}\n{cells_dict['vertex']}")
-        # self.verticesoflabel = cellsoflabel['vertex']
         self.verticesoflabel = {k:cells_dict['vertex'][v] for k,v in cellsoflabel['vertex'].items()}
-        # self.linesoflabel = cellsoflabel['line']
         self.linesoflabel = {k:cells_dict['line'][v] for k,v in cellsoflabel['line'].items()}
-        # print(f"{self.verticesoflabel=}")
-        # print(f"{cellsoflabel=}\n{cellsoflabel.keys()}")
-        # if self.dimension > 1: self.verticesoflabel = cellsoflabel['vertex']
-        # print(f"{self.verticesoflabel=}")
-        # bdry faces
-        # for key, cellblock in cells:
-        #     if key == self.facesnames[self.dimension - 1]: bdryfacesgmsh = cellblock
         if self.facesname not in cellsoflabel:
             raise ValueError(f"{self.facesname=} not in {cellsoflabel=}")
         return cellsoflabel[self.facesname]
@@ -248,14 +233,7 @@ class SimplexMesh(object):
         # bdryfacesgmsh may contains interior edges for len(celllabels)>1
         bdryfacesgmsh = np.sort(bdryfacesgmsh)
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
-        # print(f"{bdryids=}")
-        # assert np.all(bdryids == np.flatnonzero(np.any(self.cellsOfFaces == -1, axis=1)))
         bdryfaces = np.sort(self.faces[bdryids],axis=1)
-        # print(f"{bdryfacesgmsh=}\n{bdryfaces=}")
-        # ind = np.isin(bdryfacesgmsh, bdryfaces)
-        # print(f"{ind=} {bdryfacesgmsh[ind]=}")
-        # print(f"{bdryfaces=}")
-        # nbdryfaces = len(bdryids)
         nnpc = self.simplices.shape[1]
         s = "{0}" + (nnpc-2)*", {0}"
         dtb = s.format(bdryfacesgmsh.dtype)
@@ -278,20 +256,11 @@ class SimplexMesh(object):
             if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
                 raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
         bpi = np.argsort(bp)
-        # bp2i = {bp2[i]:i for i in range(len(bp2))}
-        # print(f"{bp=} \n{bp2=} \n{bpi=} \n{bp2i=} \n{indices=}")
         binv = -1*np.ones_like(bp)
         binv[bp2] = np.arange(len(bp2))
         self.bdrylabels = {}
         for col, cb in bdrylabelsgmsh.items():
-            # if cb[0] in bp2i.keys():
             if indices[bpi[cb[0]]]:
-                # for i in range(len(cb)):
-                #     if not bp2i[cb[i]] == binv[cb[i]]:
-                #         raise ValueError(f"{bp2i[cb[i]]} {binv[cb[i]]}")
-                # print(f"{col=}")
-                # self.bdrylabels[int(col)] = np.empty_like(cb)
-                # for i in range(len(cb)): self.bdrylabels[int(col)][i] = bdryids[fp[binv[cb[i]]]]
                 self.bdrylabels[int(col)] = bdryids[fp[binv[cb]]]
             # else:
             #     assert not indices[bpi[cb[0]]]
@@ -336,46 +305,32 @@ class SimplexMesh(object):
             dz2 = z[elem[:, 2]] - z[elem[:, 0]]
             dz3 = z[elem[:, 3]] - z[elem[:, 0]]
             self.dV = (1/6) * np.abs(dx1*(dy2*dz3-dy3*dz2) - dx2*(dy1*dz3-dy3*dz1) + dx3*(dy1*dz2-dy2*dz1))
-        # t.add("ndV")
-        # self.sigma = np.array([2 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)-1 for ic in range(self.ncells)])
-        # for ic in range(self.ncells):
-        #     print(self.cellsOfFaces[self.facesOfCells[ic, :], 0], ic, self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic)
         ind = np.arange(self.ncells)
-        # print(f"{self.cellsOfFaces[self.facesOfCells[ind, :], 0].shape=} {ind.shape=}")
         self.sigma = 2* np.equal(self.cellsOfFaces[self.facesOfCells[ind, :], 0], ind[:,np.newaxis]) -1
-        # print(f"{ind2.shape=}")
-        # sigma2 = 2*ind2 - 1
-        # if not np.all(self.sigma==sigma2): raise ValueError(f"{self.sigma=}\n{sigma2=}")
-        # t.add("sigma")
         ib = np.arange(self.nfaces)[self.cellsOfFaces[:, 1] == -1]
         xt = np.mean(self.points[self.faces[ib]], axis=1) - np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 0]]], axis=1)
         m = np.einsum('nk,nk->n', self.normals[ib], xt)<0
         self.normals[ib[m]] *= -1
-
         ib = np.arange(self.nfaces)[self.cellsOfFaces[:, 1] != -1]
         xt = np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 1]]], axis=1) - np.mean(self.points[self.simplices[self.cellsOfFaces[ib, 0]]], axis=1)
         m = np.einsum('nk,nk->n', self.normals[ib], xt)<0
         self.normals[ib[m]] *= -1
-
-        # for i in range(self.nfaces):
-        #     i0, i1 = self.cellsOfFaces[i, 0], self.cellsOfFaces[i, 1]
-        #     if i1 == -1:
-        #         xt = np.mean(self.points[self.faces[i]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
-        #         if np.dot(self.normals[i], xt)<0: self.normals[i] *= -1
-        #     else:
-        #         xt = np.mean(self.points[self.simplices[i1]], axis=0) - np.mean(self.points[self.simplices[i0]], axis=0)
-        #         if np.dot(self.normals[i], xt) < 0: self.normals[i] *= -1
-        # t.add("switch")
-        # print(t)
-        # self.sigma = np.array([1.0 - 2.0 * (self.cellsOfFaces[self.facesOfCells[ic, :], 0] == ic) for ic in range(self.ncells)])
     # ----------------------------------------------------------------#
-    def write(self, filename, dirname = None, data=None):
-        type = filename.split('.')[1]
+    def _getfilename(self, filename, dirname=None):
         if dirname is not None:
             dirname = dirname + os.sep + "mesh"
-            if not os.path.isdir(dirname) :
+            if not os.path.isdir(dirname):
                 os.makedirs(dirname)
             filename = os.path.join(dirname, filename)
+        return filename
+    # ----------------------------------------------------------------#
+    def writemeshio(self, filename, dirname = None, data=None):
+        assert filename.split('.')[-1] == 'msh'
+        filename = self._getfilename(filename, dirname)
+        self.pygmsh.write(filename, file_format="gmsh22")
+    # ----------------------------------------------------------------#
+    def write(self, filename, dirname = None, data=None):
+        filename = self._getfilename(filename, dirname)
         if self.dimension == 1:
             cells = {'lines': self.simplices}
             cells['vertex'] = self.facesdata

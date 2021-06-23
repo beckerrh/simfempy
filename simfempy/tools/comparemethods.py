@@ -60,7 +60,7 @@ class CompareMethods(object):
                 self.params = [h1*hred**i for i in range(niter)]
                 self.gmshrefine = False
             else:
-                raise NotImplementedError(f"gmeshrefine not working")
+                # raise NotImplementedError(f"gmeshrefine not working")
                 # ne marche pas à cause de pygmsh !!!
                 mesh = self._mesh_from_geom_or_fct()
                 self.gmshrefine = True

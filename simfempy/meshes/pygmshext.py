@@ -8,7 +8,7 @@ def gmshRefine(mesh):
     # TODO: gmsh refine
     filenamemsh = "coarse.msh"
     filenamemshref = "fine.msh"
-    mesh.write(filename=filenamemsh)
+    mesh.writemeshio(filename=filenamemsh)
     cmd = ['gmsh']
     cmd += ["-refine"]
     cmd += ["{}".format(filenamemsh)]

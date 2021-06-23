@@ -83,14 +83,10 @@ def createMesh(h=0.2):
         p2 = geom.add_point(( 1., 1.5, 0.), mesh_size=0.2*h)
         l6 = geom.add_line(p1, p2)
         geom.add_physical(p1, label="9999")
-        # geom.in_surface(p1, p.surface)
-        # geom.in_surface(p2, p.surface)
         geom.in_surface(l6, p.surface)
         geom.add_physical(l6, label="999")
 
         mesh = geom.generate_mesh()
-        # plotmesh.plotmesh(mesh)
-        # plt.show()
     return SimplexMesh(mesh=mesh)
 # ---------------------------------------------------------------- #
 def createProblemData(mode='static', convection=False):

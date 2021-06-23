@@ -1,3 +1,7 @@
+.vscode
+examples/*.vtu
+simfempy.egg-info
+
 # Apple
 .DS_store
 
