@@ -16,7 +16,7 @@ class NavierStokes(Stokes):
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
         self.convmethod = kwargs.pop('convmethod', 'lps')
-        self.lpsparam = kwargs.pop('lpsparam', 0.1)
+        self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
     def setMesh(self, mesh):
         super().setMesh(mesh)

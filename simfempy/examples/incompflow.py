@@ -21,7 +21,7 @@ def main(**kwargs):
     model = kwargs.pop('model', 'NavierStokes')
     bdryplot = kwargs.pop('bdryplot', False)
     plot = kwargs.pop('plot', False)
-    linearsolver = kwargs.pop('linearsolver', 'umf')
+    linearsolver = kwargs.pop('linearsolver', 'gcrotmk_1')
     # create mesh and data
     mesh, data = eval(testcase)(**kwargs)
     print(f"{mesh=}")
@@ -195,10 +195,10 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    # main(testcase='poiseuille', h=0.2, mu=1e-3)
+    main(testcase='poiseuille', h=0.2, mu=1e-3)
     # main(testcase='drivenCavity', mu=3e-4)
     # main(testcase='backwardFacingStep', mu=2e-3)
-    # main(testcase='schaeferTurek2d', linearsolver='umf')
-    main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)
+    # main(testcase='schaeferTurek2d')
+    # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)
