@@ -233,7 +233,7 @@ class Stokes(Application):
         if self.pmean: 
             C = Ain[2]
             BPCT = SP.solve(C.T.toarray())
-            # print(f"{C.dot(BPCT)=}")
+            print(f"{C.dot(BPCT)=}")
             # CP = splinalg.inv(C.dot(BPCT))
             CP = sparse.coo_matrix(1/C.dot(BPCT))
         if self.pmean: 
@@ -244,7 +244,8 @@ class Stokes(Application):
                 q = SP.solve(p-B.dot(w))
                 mu = CP.dot(lam-C.dot(q)).ravel()
                 # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
-                q -= BPCT.dot(mu)
+                # q -= BPCT.dot(mu)
+                q -= BPCT*mu
                 # print(f"{BPCT.shape=} {mu=}")
                 # q -= mu*BPCT
                 h = B.T.dot(q)
@@ -263,8 +264,8 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        # return solvers.cfd.VelcoitySolver(A, disp=0)
-        return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
+        return solvers.cfd.VelcoitySolver(A, disp=0)
+        # return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
         if self.precond_p == "schur":    

@@ -195,9 +195,9 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille', h=0.2, mu=1e-3)
-    # main(testcase='drivenCavity', mu=3e-4)
-    # main(testcase='backwardFacingStep', mu=2e-3)
+    # main(testcase='poiseuille', h=0.2, mu=1e-3)
+    # main(testcase='drivenCavity', mu=5e-4)
+    main(testcase='backwardFacingStep', mu=2e-3)
     # main(testcase='schaeferTurek2d')
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)

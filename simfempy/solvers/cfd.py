@@ -18,7 +18,8 @@ class VelcoitySolver():
         else:
             raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
-        solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
+        # solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
+        solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf'])
         if isinstance(solvernames, str):
             self.solver = self._selectsolver(solvernames, A, **kwargs)
             self.maxiter = kwargs.pop('maxiter', 1)
