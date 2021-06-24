@@ -264,14 +264,14 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, disp=0)
+        return solvers.cfd.VelcoitySolver(A, disp=1, counter="VelocitySolver")
         # return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
-        if self.precond_p == "schur":    
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=10, disp=20)
+        if self.precond_p == "schur":
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=10, disp=1)
         elif self.precond_p == "diag":    
-            return solvers.cfd.PressureSolverDiagonal(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=1, disp=20)
+            return solvers.cfd.PressureSolverDiagonal(A, B, accel='gmres', maxiter=10, disp=1, counter="PressureSolver")
         elif self.precond_p == "scale":    
             return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:
@@ -284,7 +284,7 @@ class Stokes(Application):
             self.timer.add("linearsolve")
             return uall, 1
         else:
-            # print(f"{atol=} {rtol=}")
+            print(f"{atol=} {rtol=}")
             ssolver = linearsolver.split('_')
             method=ssolver[0] if len(ssolver)>0 else 'lgmres'
             disp=int(ssolver[1]) if len(ssolver)>1 else 0

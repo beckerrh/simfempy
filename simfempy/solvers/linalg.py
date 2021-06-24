@@ -55,6 +55,8 @@ class ScipySpSolve():
 
 #=================================================================#
 class ScipySolve():
+    def __repr__(self):
+        return "scipy_"+self.method
     def __init__(self, **kwargs):
         self.method = kwargs.pop('method')
         if "matrix" in kwargs:
@@ -85,11 +87,13 @@ class ScipySolve():
             self.solver = splinalg.gcrotmk
             name += '_' + str(self.args['m'])
         if 'counter' in kwargs:
-            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+name, disp=disp)
+            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
             self.args['callback'] = self.counter
     def solve(self, b, maxiter, tol, x0=None):
-        # print(f"**** {maxiter=}")
-        if hasattr(self, 'counter'): self.counter.reset()
+        print(f"**** {self.method=} {maxiter=} {tol=}")
+        if hasattr(self, 'counter'):
+            self.counter.reset()
+            self.args['callback'] = self.counter
         self.args['b'] = b
         self.args['maxiter'] = maxiter
         self.args['x0'] = x0
@@ -111,20 +115,42 @@ class ScipySolve():
 
 #=================================================================#
 class Pyamg():
+    def __repr__(self):
+        return "pyamg_"+self.smoother
     def __init__(self, A, **kwargs):
-        self.nsmooth = kwargs.pop('nsmooth', 2)
+        nsmooth = kwargs.pop('nsmooth', 1)
         self.smoother = kwargs.pop('smoother', 'schwarz')
-        # self.smoother = kwargs.pop('smoother', 'strength_based_schwarz')
-        # self.smoother = kwargs.pop('smoother', 'block_gauss_seidel')
-        smooth = ('energy', {'krylov': 'fgmres'})
-        smoother = (self.smoother, {'sweep': 'symmetric', 'iterations': self.nsmooth})
-        pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B'], 'smooth': smooth, 'presmoother':smoother, 'postsmoother':smoother}
-        pyamgargs['symmetry'] = 'nonsymmetric'
+        symmetric = kwargs.pop('symmetric', False)
+        type = kwargs.pop('type', 'aggregation')
+        smoother = (self.smoother, {'sweep': 'symmetric', 'iterations': nsmooth})
+        pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B'], 'presmoother':smoother, 'postsmoother':smoother}
+        if symmetric:
+            smooth = ('energy', {'krylov': 'cg'})
+        else:
+            smooth = ('energy', {'krylov': 'fgmres'})
+            pyamgargs['symmetry'] = 'nonsymmetric'
+        pyamgargs['smooth'] = smooth
         pyamgargs['coarse_solver'] = 'splu'
-        self.solver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
+        if type == 'aggregation':
+            self.solver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
+        elif type == 'rootnode':
+            self.solver = pyamg.rootnode_solver(A, **pyamgargs)
+        else:
+            raise ValueError(f"unknown {type=}")
+        disp = kwargs.pop('disp', 0)
+        self.solveargs = {'cycle': 'V', 'accel': None}
+        if 'counter' in kwargs:
+            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
+            self.solveargs['callback'] = self.counter
+#        cycle : {'V','W','F','AMLI'}
+
     def testsolve(self, b, maxiter, tol):
-        res = []
-        self.solver.solve(b, maxiter=maxiter, tol=tol, residuals=res)
-        return np.asarray(res)
+        counter = tools.iterationcounter.IterationCounter(name=self, disp=0)
+        args = self.solveargs.copy()
+        args['callback'] = counter
+        self.solver.solve(b, maxiter=maxiter, tol=tol, **args)
+        return counter.history
     def solve(self, b, maxiter, tol):
-        return self.solver.solve(b, maxiter=maxiter, tol=tol)
+        if hasattr(self, 'counter'):
+            self.counter.reset()
+        return self.solver.solve(b, maxiter=maxiter, tol=tol, **self.solveargs)

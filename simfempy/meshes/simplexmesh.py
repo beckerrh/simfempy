@@ -41,17 +41,13 @@ class SimplexMesh(object):
     """
 
     def __repr__(self):
-        s = f"SimplexMesh({self.geometry}): "
-        s += f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
+        s = f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
         s += f"\nbdrylabels={list(self.bdrylabels.keys())}"
         s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
         return s
-    def __init__(self, **kwargs):
-        if 'mesh' in kwargs:
-            self.geometry = 'own'
-            mesh = kwargs.pop('mesh')
-        else:
-            raise KeyError("Needs a mesh (no longer geometry)")
+    def __init__(self, mesh, **kwargs):
+        if not isinstance(mesh, meshio.Mesh):
+            raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
         self.timer = timer.Timer(name="SimplexMesh")
         self._initMeshPyGmsh(mesh)
         self.check()
@@ -66,7 +62,6 @@ class SimplexMesh(object):
         faces = np.empty(pos[-1], dtype=np.uint32)
         for i,color in enumerate(colors): faces[pos[i]:pos[i+1]] = self.bdrylabels[color]
         return faces
-
     def _initMeshPyGmsh(self, mesh):
         self.pygmsh = mesh
         self.celltypes = [key for key, cellblock in mesh.cells]
