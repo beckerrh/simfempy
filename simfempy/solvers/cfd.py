@@ -20,10 +20,10 @@ class VelcoitySolver():
             raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
         # solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
-        defsolvers = ['lgmres']
+        defsolvers = ['lgmres', 'umf']
         defsolvers.append('pyamg@aggregation@none@gauss_seidel')
         defsolvers.append('pyamg@aggregation@none@schwarz')
-        defsolvers.append('pyamg@aggregation@gcrotmk@schwarz')
+        defsolvers.append('pyamg@aggregation@fgmres@schwarz')
         # defsolvers.append('pyamg@rootnode@gcrotmk@gauss_seidel')
         solvernames = kwargs.pop('solver',  defsolvers)
         if isinstance(solvernames, str):
@@ -36,11 +36,11 @@ class VelcoitySolver():
             for solvername in solvernames:
                 self.solvers[solvername] = self._selectsolver(solvername, A, **kwargs)
             b = np.random.random(A.shape[0])
-            solverbest, self.maxiter = linalg.selectBestSolver(self.solvers, self.reduction, b, maxiter=100, tol=1e-6, verbose=1)
+            solverbest, self.maxiter = linalg.selectBestSolver(self.solvers, self.reduction, b, maxiter=20, verbose=1)
             print(f"{solverbest=}")
             self.solver = self.solvers[solverbest]
     def solve(self, b):
-        return self.solver.solve(b, maxiter=self.maxiter, tol=1e-16)
+        return self.solver.solve(b, maxiter=self.maxiter, rtol=1e-16)
 
 
 
@@ -55,17 +55,10 @@ class PressureSolverDiagonal():
     def __init__(self, A, B, **kwargs):
         AD = sparse.diags(1/A.diagonal(), offsets=(0), shape=A.shape)
         self.mat = B@AD@B.T
-        # self.prec = pyamg.smoothed_aggregation_solver(self.mat)
         self.maxiter = kwargs.pop('maxiter',1)
         self.prec = linalg.Pyamg(self.mat, **kwargs)
-        # self.M = splinalg.LinearOperator(shape=self.mat.shape, matvec=lambda u: self.prec.solve(u))
-        # self.matvec = splinalg.LinearOperator(shape=self.mat.shape, matvec=lambda u: self.mat.dot(u))
-        # solvername = kwargs.pop('solver',0)
-        # assert solvername in linalg.scipysolvers
-        # self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, M=self.M, counter="pschur", n = self.mat.shape[0], **kwargs)
     def solve(self, b):
-        return self.prec.solve(b, maxiter=self.maxiter, tol=1e-16)
-        # return self.solver.solve(b, maxiter=self.maxiter, tol=1e-12)
+        return self.prec.solve(b, maxiter=self.maxiter, rtol=1e-16)
 #=================================================================#
 class PressureSolverSchur():
     def __init__(self, mesh, mu, A, B, AP, **kwargs):
@@ -81,10 +74,9 @@ class PressureSolverSchur():
             AD = sparse.diags(1/A.diagonal(), offsets=(0), shape=A.shape)
             self.mat = B@AD@B.T
             self.prec = linalg.Pyamg(self.mat, symmetric=True)
-            self.M = splinalg.LinearOperator(shape=(mesh.ncells, mesh.ncells), matvec=lambda u: self.prec.solve(u, maxiter=1, tol=1e-12))
+            self.M = splinalg.LinearOperator(shape=(mesh.ncells, mesh.ncells), matvec=lambda u: self.prec.solve(u, maxiter=1, rtol=1e-14))
         else:
             raise ValueError(f"unknown {prec=}")
-
         self.maxiter = kwargs.pop('maxiter',1)
         solvername = kwargs.pop('solver',0)
         assert solvername in linalg.scipysolvers
@@ -98,32 +90,6 @@ class PressureSolverSchur():
         return v3
     def solve(self, b):
         self.solver.counter.reset()
-        u = self.solver.solve(b, x0=None, maxiter=self.maxiter, tol=1e-12)
+        u = self.solver.solve(b, x0=None, maxiter=self.maxiter, rtol=1e-12)
         return u
-
-#=================================================================#
-class SystemSolver():
-    def __init__(self, n, matvec, matvecprec, **kwargs):
-        self.method = kwargs.pop('method','gmres')
-        self.atol = kwargs.pop('atol',1e-14)
-        self.rtol = kwargs.pop('rtol',1e-10)
-        self.disp = kwargs.pop('disp',0)
-        self.counter = tools.iterationcounter.IterationCounter(name=self.method, disp=self.disp)
-        self.Amult = splinalg.LinearOperator(shape=(n, n), matvec=matvec)
-        self.M = splinalg.LinearOperator(shape=(n, n), matvec=matvecprec)
-    def solve(self, b, x0):
-        if self.method=='lgmres':
-            u, info = splinalg.lgmres(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
-        elif self.method=='gmres':
-            u, info = splinalg.gmres(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
-        elif self.method=='gcrotmk':
-            u, info = splinalg.gcrotmk(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol, m=5, truncate='smallest')
-        elif self.method=='bicgstab':
-            u, info = splinalg.bicgstab(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
-        elif self.method=='cgs':
-            u, info = splinalg.cgs(self.Amult, b, x0=x0, M=self.M, callback=self.counter, atol=self.atol, tol=self.rtol)
-        else:
-            raise ValueError(f"unknown {self.method=}")
-        if info: raise ValueError(f"no convergence in {self.method=} {info=}")
-        return u, self.counter.niter
 

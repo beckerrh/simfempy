@@ -157,21 +157,18 @@ def backwardFacingStep2d(h=0.2, mu=0.02):
         X.append([3.0, 1.0])
         p = geom.add_polygon(points=np.insert(np.array(X), 2, 0, axis=1), mesh_size=h)
         geom.add_physical(p.surface, label="100")
-        for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
+        dirlines = [p for i,p in enumerate(p.lines) if i != 0 and i != 4]
+        geom.add_physical(dirlines, "1002")
+        geom.add_physical(p.lines[0], "1000")
+        geom.add_physical(p.lines[4], "1004")
         mesh = geom.generate_mesh()
     data = ProblemData()
     # boundary conditions
-    # data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003])
-    data.bdrycond.set("Dirichlet", [1000, 1001, 1002, 1003, 1005])
-    # data.bdrycond.set("Neumann", [1004])
+    data.bdrycond.set("Dirichlet", [1000, 1002])
     data.bdrycond.set("Pressure", [1004])
-    # data.bdrycond.set("Navier", [1005])
-    # data.bdrycond.fct[1000] = [lambda x, y, z: 1,  lambda x, y, z: 0]
     data.bdrycond.fct[1000] = [lambda x, y, z: y*(1-y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
-    data.params.scal_glob["navier"] = 0.1
-    #TODO pass ncomp with mesh ?!
     data.ncomp = 2
     return mesh, data
 # ================================================================ #
@@ -228,11 +225,11 @@ def schaeferTurek3d(h= 1, hcircle=None):
 #================================================================#
 if __name__ == '__main__':
     # main(testcase='poiseuille2d', h=0.2, mu=1e-3)
-    # main(testcase='drivenCavity2d', mu=5e-4, precond_p='schur')
+    main(testcase='drivenCavity2d', h=1, mu=3e-4, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='schaeferTurek2d')
     # main(testcase='poiseuille3d', h=0.2, mu=1e-3)
-    main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')
-    # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
+    # main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')
+    # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)

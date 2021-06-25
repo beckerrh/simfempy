@@ -50,10 +50,12 @@ class Baseopt:
         self.u[:] = self.u0[:]
         for i in range(self.nused):
             self.u += x[i]*self.du[self.ind[i]]
-        # print(f"{x=} {np.linalg.norm(self.u0)=} {np.linalg.norm(self.u)=}")
         self.r = self.f(self.u)
+        print(f"{x=} {np.linalg.norm(self.u0)=}  {np.linalg.norm(self.u)=} {np.linalg.norm(self.r)=}")
+        x0 = x*x*(1-x)*(1-x)
         return self.r.dot(self.r)
     def step(self, u0, du, resfirst):
+        print(f"+++++++ {np.linalg.norm(u0)=} {resfirst=}")
         from scipy import optimize
         self.u0[:] = u0[:]
         self.resfirst = resfirst
@@ -67,23 +69,28 @@ class Baseopt:
         else:
             self.nused += 1
         self.ind.append(self.last)
-        # print(f"{self.iter} {self.ind=}")
+        print(f"{self.iter} {self.ind=} {np.linalg.norm(self.u0)}")
         self.du[self.last] = du
         x0 = np.zeros(self.nused)
-        x0[-1] = 1
+        self.res(x0)
+        # x0[-1] = 1
         self.iter += 1
-        if self.iter==1:
-            resnorm = self.res(x0)
-            return self.u, self.r, resnorm, 1
+        x0[-1] = 1
+        # print(f"????????????? {self.iter=}")
+        # if self.iter==1:
+        #     resnorm = self.res(x0)
+        #     return self.u, self.r, resnorm, 1
         # method = 'COBYLA'
         method = 'TNC'
         # method = 'BFGS'
         # method = 'CG'
-        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-2}
+        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-8}
         out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
-        # print(f"{out=}")
-        # print(f"{self.resfirst=} {np.linalg.norm(self.r)=}")
-        return self.u, self.r, out.fun, out.x
+        if np.linalg.norm(self.r) > self.resfirst:
+            print(f"{np.linalg.norm(self.r)=} {self.resfirst=}")
+            print(f"{out=}")
+            assert 0
+        return self.u, self.r, np.linalg.norm(self.r), out.x
 
 #--------------------------------------------------------------------
 def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1):
@@ -105,6 +112,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     xnorm = np.linalg.norm(x)
     res = f(x)
     resnorm = np.linalg.norm(res)
+    print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
@@ -125,6 +133,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             dx, liniter = computedx(-res, x, iterdata)
         assert dx.shape == x0.shape
         resold[:] = res[:]
+        print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:

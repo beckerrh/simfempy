@@ -294,13 +294,15 @@ class Stokes(Application):
             disp=int(ssolver[1]) if len(ssolver)>1 else 0
             nall = ncomp*nfaces + ncells
             if self.pmean: nall += 1
-            matvec = partial(self.matrixVector, Ain)
             AP = self.getVelocitySolver(Ain[0])
             SP = self.getPressureSolver(Ain[0], Ain[1], AP)
-            matvecprec=self.getPrecMult(Ain, AP, SP)
-            S = solvers.cfd.SystemSolver(n=nall, matvec=matvec, matvecprec=matvecprec, method=method, disp=disp, atol=atol, rtol=rtol)
-            uall, it =  S.solve(b=bin, x0=uin)
+            matvec = partial(self.matrixVector, Ain)
+            matvecprec = self.getPrecMult(Ain, AP, SP)
+            S = solvers.linalg.ScipySolve(matvec=matvec, matvecprec=matvecprec, method=method, n=nall,
+                                            disp=disp, atol=atol, rtol=rtol, counter="sys")
+            uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
+            it = S.counter.niter
             return uall, it
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()

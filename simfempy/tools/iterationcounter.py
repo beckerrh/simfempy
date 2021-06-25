@@ -12,6 +12,8 @@ class IterationCounter(object):
     """
     Simple class for information on iterative solver
     """
+    def __repr__(self):
+        return f"{self.name=} {self.disp=} {self.niter=} {self.history=}"
     def __init__(self, disp=20, name=""):
         self.disp = disp
         self.name = name

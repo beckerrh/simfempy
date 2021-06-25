@@ -12,11 +12,11 @@ strangesolvers=['gmres']
 def selectBestSolver(solvers, reduction, b, **kwargs):
     maxiter = kwargs.pop('maxiter', 50)
     verbose = kwargs.pop('verbose', 0)
-    tol = kwargs.pop('tol') if not 'tol' in kwargs else 0.1*reduction
+    rtol = kwargs.pop('rtol') if 'rtol' in kwargs else 0.1*reduction
     analysis = {}
     for solvername, solver in solvers.items():
         t0 = time.time()
-        res = solver.testsolve(b=b, maxiter=maxiter, tol=tol)
+        res = solver.testsolve(b=b, maxiter=maxiter, rtol=rtol)
         t = time.time() - t0
         monotone = np.all(np.diff(res) < 0)
         if len(res)==1:
@@ -51,29 +51,62 @@ def selectBestSolver(solvers, reduction, b, **kwargs):
 class ScipySpSolve():
     def __init__(self, **kwargs):
         self.matrix = kwargs.pop('matrix')
-    def solve(self, b, maxiter, tol, x0=None):
+    def solve(self, b, maxiter, rtol, x0=None):
         return splinalg.spsolve(self.matrix, b)
-    def testsolve(self, b, maxiter, tol):
+    def testsolve(self, b, maxiter, rtol):
         splinalg.spsolve(self.matrix, b)
         return [0]
 
+
 #=================================================================#
-class ScipySolve():
+class IterativeSolver():
+    def __init__(self, **kwargs):
+        self.args = {}
+        self.atol = kwargs.pop('atol', 1e-14)
+        self.rtol = kwargs.pop('rtol', 1e-8)
+        self.maxiter = kwargs.pop('maxiter', 100)
+        if 'counter' in kwargs:
+            disp = kwargs.pop('disp', 0)
+            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
+            self.args['callback'] = self.counter
+    def solve(self, b, maxiter=None, rtol=None, x0=None):
+        if maxiter is None: maxiter = self.maxiter
+        if rtol is None: rtol = self.rtol
+        if hasattr(self, 'counter'):
+            self.counter.reset()
+            self.args['callback'] = self.counter
+        self.args['b'] = b
+        self.args['maxiter'] = maxiter
+        self.args['x0'] = x0
+        self.args['tol'] = rtol
+        res  = self.solver(**self.args)
+        return res[0] if isinstance(res, tuple) else res
+    def testsolve(self, b, maxiter, rtol):
+        counter = tools.iterationcounter.IterationCounterWithRes(name=str(self), callback_type='x', disp=0, b=b, A=self.matvec)
+        args = self.args.copy()
+        args['callback'] = counter
+        args['maxiter'] = maxiter
+        args['tol'] = rtol
+        args['b'] = b
+        res = self.solver(**args)
+        return counter.history
+
+#=================================================================#
+class ScipySolve(IterativeSolver):
     def __repr__(self):
         return "scipy_"+self.method
     def __init__(self, **kwargs):
         self.method = kwargs.pop('method')
+        super().__init__(**kwargs)
         if self.method in strangesolvers: raise ValueError(f"method '{self.method}' is i strange scipy solver")
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
             if not "matvecprec" in kwargs:
                 fill_factor = kwargs.pop("fill_factor", 2)
                 drop_tol = kwargs.pop("fill_factor", 0.01)
-                # spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=0.1, fill_factor=2)
                 spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=drop_tol, fill_factor=fill_factor)
                 self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
         else:
-            # self.matvec = kwargs.pop('matvec')
             if not 'n' in kwargs: raise ValueError(f"need 'n' if no matrix given")
             n = kwargs.get('n')
             self.matvec = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvec'))
@@ -82,10 +115,10 @@ class ScipySolve():
             self.M = splinalg.LinearOperator(shape=(n, n), matvec=kwargs.pop('matvecprec'))
         else:
             self.M = None
-        self.atol = 1e-14
-        disp = kwargs.pop('disp', 0)
-        # print(f"**** {disp=}")
-        self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
+        # self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
+        self.args['A'] = self.matvec
+        self.args['M'] = self.M
+        self.args['atol'] = self.atol
         self.solver = eval('splinalg.'+self.method)
         name = self.method
         if self.method=='gcrotmk':
@@ -93,38 +126,13 @@ class ScipySolve():
             self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
             name += '_' + str(self.args['m'])
-        if 'counter' in kwargs:
-            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
-            self.args['callback'] = self.counter
-    def solve(self, b, maxiter, tol, x0=None):
-        if hasattr(self, 'counter'):
-            self.counter.reset()
-            self.args['callback'] = self.counter
-        self.args['b'] = b
-        self.args['maxiter'] = maxiter
-        self.args['x0'] = x0
-        self.args['tol'] = tol
-        u, info = self.solver(**self.args)
-        # if info: raise ValueError(f"no convergence in {self.method=} {info=}")
-        return u
-    def testsolve(self, b, maxiter, tol):
-        # print(f"{np.linalg.norm(b)=} {maxiter=} {tol=}")
-        counter = tools.iterationcounter.IterationCounterWithRes(name=self.method, callback_type='x', disp=0, b=b, A=self.matvec)
-        args = self.args.copy()
-        args["callback"] = counter
-        args['b'] = b
-        args['maxiter'] = maxiter
-        args['tol'] = tol
-        u, info = self.solver(**args)
-        # print(f"{counter.res=}")
-        return counter.history
 
 #=================================================================#
-class Pyamg():
+class Pyamg(IterativeSolver):
     def __repr__(self):
         return "pyamg_"+self.type+self.smoother+str(self.accel)
     def __init__(self, A, **kwargs):
-        self.A = A
+        self.matvec = A
         nsmooth = kwargs.pop('nsmooth', 1)
         self.smoother = kwargs.pop('smoother', 'schwarz')
         symmetric = kwargs.pop('symmetric', False)
@@ -140,26 +148,31 @@ class Pyamg():
         # pyamgargs['smooth'] = smooth
         # pyamgargs['coarse_solver'] = 'splu'
         if self.type == 'aggregation':
-            self.solver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
+            self.mlsolver = pyamg.smoothed_aggregation_solver(A, **pyamgargs)
         elif self.type == 'rootnode':
-            self.solver = pyamg.rootnode_solver(A, **pyamgargs)
+            self.mlsolver = pyamg.rootnode_solver(A, **pyamgargs)
         else:
             raise ValueError(f"unknown {self.type=}")
-        disp = kwargs.pop('disp', 0)
-        self.solveargs = {'cycle': 'V', 'accel': self.accel}
-        if 'counter' in kwargs:
-            self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
-            self.solveargs['callback'] = self.counter
-#        cycle : {'V','W','F','AMLI'}
+        self.solver = self.mlsolver.solve
+        super().__init__(**kwargs)
+        #        cycle : {'V','W','F','AMLI'}
+        self.args['cycle'] = 'V'
+        self.args['accel'] = self.accel
 
-    def testsolve(self, b, maxiter, tol):
-        counter = tools.iterationcounter.IterationCounterWithRes(name=self, callback_type='x', disp=0, b=b, A=self.A)
-        # counter = tools.iterationcounter.IterationCounter(name=self, disp=0)
-        args = self.solveargs.copy()
-        args['callback'] = counter
-        self.solver.solve(b, maxiter=maxiter, tol=tol, **args)
-        return counter.history
-    def solve(self, b, maxiter, tol):
-        if hasattr(self, 'counter'):
-            self.counter.reset()
-        return self.solver.solve(b, maxiter=maxiter, tol=tol, **self.solveargs)
+    # def testsolve(self, b, maxiter, rtol):
+    #     return super(Pyamg, self).testsolve(b, maxiter, rtol)
+    #     counter = tools.iterationcounter.IterationCounterWithRes(name=self, callback_type='x', disp=0, b=b, A=self.matvec)
+    #     # counter = tools.iterationcounter.IterationCounter(name=self, disp=0)
+    #     args = self.args.copy()
+    #     args['callback'] = counter
+    #     args['maxiter'] = maxiter
+    #     args['tol'] = rtol
+    #     args['b'] = b
+    #     # self.mlsolver.solve(**args)
+    #     raise ValueError(f"{self.solver=} {args.keys()=}")
+    #     self.solver(**args)
+    #     return counter.history
+    # def solve(self, b, maxiter, rtol):
+    #     if hasattr(self, 'counter'):
+    #         self.counter.reset()
+    #     return self.mlsolver.solve(b, maxiter=maxiter, tol=rtol, **self.args)
