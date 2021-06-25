@@ -22,6 +22,7 @@ def main(**kwargs):
     bdryplot = kwargs.pop('bdryplot', False)
     plot = kwargs.pop('plot', False)
     linearsolver = kwargs.pop('linearsolver', 'gcrotmk_1')
+    precond_p = kwargs.pop('precond_p', 'diag')
     # create mesh and data
     t = timer.Timer("mesh")
     mesh, data = eval(testcase)(**kwargs)
@@ -36,9 +37,9 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, verbose=True)
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p=precond_p)
     else:
-        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, newtontol=1e-6)
+        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver=linearsolver, precond_p=precond_p, newtontol=1e-6)
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
@@ -227,11 +228,11 @@ def schaeferTurek3d(h= 1, hcircle=None):
 #================================================================#
 if __name__ == '__main__':
     # main(testcase='poiseuille2d', h=0.2, mu=1e-3)
-    # main(testcase='drivenCavity2d', mu=5e-4)
+    # main(testcase='drivenCavity2d', mu=5e-4, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='schaeferTurek2d')
     # main(testcase='poiseuille3d', h=0.2, mu=1e-3)
-    main(testcase='drivenCavity3d', mu=0.1)
+    main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)

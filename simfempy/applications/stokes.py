@@ -231,11 +231,14 @@ class Stokes(Application):
         A, B = Ain[0], Ain[1]
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if self.pmean: 
-            C = Ain[2]
-            BPCT = SP.solve(C.T.toarray())
-            print(f"{C.dot(BPCT)=}")
+            C = Ain[2].A.ravel()
+            BPCT = SP.solve(C)
+            # BPCT = SP.prec.solve(C.T.toarray(), maxiter=1, tol=1e-10)
+            # print(f"{BPCT=}")            
+            # print(f"{C.dot(BPCT)=}")
             # CP = splinalg.inv(C.dot(BPCT))
             CP = sparse.coo_matrix(1/C.dot(BPCT))
+            print(f"{CP.A=}")
         if self.pmean: 
             def pmult(x):
                 v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
@@ -264,14 +267,15 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, disp=1, counter="VelocitySolver")
+        return solvers.cfd.VelcoitySolver(A, disp=0, counter="VS")
         # return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
+        if self.pmean: assert self.precond_p == "schur"
         if self.precond_p == "schur":
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, self.ncomp, A, B, AP, solver='gmres', maxiter=10, disp=1)
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = 'diag', maxiter=1, disp=0)
         elif self.precond_p == "diag":    
-            return solvers.cfd.PressureSolverDiagonal(A, B, accel='gmres', maxiter=10, disp=1, counter="PressureSolver")
+            return solvers.cfd.PressureSolverDiagonal(A, B, accel='fgmres', maxiter=5, disp=0, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
             return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:

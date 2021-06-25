@@ -25,7 +25,7 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.5}Pressure mean}{9}{subsection.2.5}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {2.5.1}Iterative solution}{10}{subsubsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.6}Iterative solution}{10}{subsection.2.6}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {3}Beam problem}{11}{section.3}%
 \defcounter {refsection}{0}\relax 

@@ -71,8 +71,8 @@ class NavierStokes(Stokes):
         return flux
     def computeDx(self, b, u, info):
         # it,rhor,dx, step, y = info
-        if info.iter>2: rtol = 0.1*info.rhor
-        else: rtol = 0.01
+        if info.iter>1: rtol = min(0.1,info.rhor)
+        else: rtol = 0.1
         self.A = self.computeMatrix(u=u) 
         # if dx is not None and it>2:
         #     dv = self._split(dx)[0]
