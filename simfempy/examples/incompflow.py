@@ -224,8 +224,8 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    # main(testcase='poiseuille2d', h=0.2, mu=1e-3)
-    main(testcase='drivenCavity2d', h=1, mu=3e-4, precond_p='schur')
+    main(testcase='poiseuille2d', h=0.2, mu=1e-3)
+    # main(testcase='drivenCavity2d', h=1, mu=3e-2, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='schaeferTurek2d')
     # main(testcase='poiseuille3d', h=0.2, mu=1e-3)

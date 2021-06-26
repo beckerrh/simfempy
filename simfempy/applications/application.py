@@ -73,8 +73,8 @@ class Application(object):
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
     def solve(self, dirname="Run"): return self.static(dirname=dirname, mode=self.mode)
-    def setParameter(self, paramname, param):
-        assert 0
+    # def setParameter(self, paramname, param):
+    #     assert 0
     def dirichletfct(self):
         if self.ncomp > 1:
             # def _solexactdir(x, y, z):

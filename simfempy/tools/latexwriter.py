@@ -15,6 +15,26 @@ class TableData(object):
     n : first axis
     values : per method
     """
+    def __repr__(self):
+        s =  f"{self.nname=} {self.nformat=}\n{self.n=}"
+        for k in self.values:
+            s += f"\n{self.values[k]=}\n{self.valformat[k]=}"
+        return s
+    def _getformat(self,v):
+        assert len(v)
+        if isinstance(v[0], (int,np.integer)):
+            format = "{:15d}"
+        elif isinstance(v[0], str):
+            format = "{:15s}"
+        elif isinstance(v[0], float):
+            v = np.asarray(v)
+            if np.all(np.abs(v) < 100) and np.abs(v).min()>0.01:
+                format = "{:10.2f}"
+            else:
+                format = "{:10.2e}"
+        else:
+            raise ValueError(f"cannot find instance of {v=} {type(v[0])=}")
+        return format
     def __init__(self, **kwargs):
         values = kwargs.pop('values')
         if not isinstance(values, dict):
@@ -25,18 +45,24 @@ class TableData(object):
             if len(self.n) != len(v):
                 raise ValueError(f"wrong lengths: n({len(self.n)}) value({len(v)})\n{values=}")
         self.nname = kwargs.pop('nname')
-        self.nformat = "{:15d}"
         if 'nformat' in kwargs:
             self.nformat = "{{:{}}}".format(kwargs.pop('nformat'))
-        self.valformat = {k:"{:10.2e}" for k in values.keys()}
+        else:
+            self.nformat = self._getformat(self.n)
+        self.valformat = {}
         if 'valformat' in kwargs:
             valformat = kwargs.pop('valformat')
             if isinstance(valformat,str):
                 for k in values.keys():
                     self.valformat[k] = "{{:{}}}".format(valformat)
             else:
+                assert len(valformat)== len(self.values)
                 for k in values.keys():
                     self.valformat[k] = "{{:{}}}".format(valformat[k])
+        else:
+             for k,v in self.values.items():
+                    self.valformat[k] = self._getformat(v)
+
     def computePercentage(self):
         self.values = dict((k+"(\%)", v) for k, v in self.values.items())
         self.values['sum'] = np.zeros(len(self.n))
@@ -125,19 +151,20 @@ class LatexWriter(object):
         self.latexfile = open(self.latexfilename, "w")
         if len(self.data) < 4: self.rotatenames=False
         self.writePreamble()
-        if sorted:
+        if sort:
             for key,tabledata in sorted(self.data.items()):
                 self.writeTable(name=key, tabledata=tabledata)
         else:
             for key, tabledata in self.data.items():
+                # print(f"{key=} {tabledata=}")
                 self.writeTable(name=key, tabledata=tabledata)
         self.writePostamble()
         self.latexfile.close()
-    def writeTable(self, name, tabledata):
+    def writeTable(self, name, tabledata, sort=False):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
         nname = nname.replace('_', '')
         name = name.replace('_', '')
-        keys_to_write = sorted(values.keys())
+        keys_to_write = sorted(values.keys()) if sort else list(values.keys())
         size = len(keys_to_write)
         if size==0: return
         texta ='\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
@@ -216,9 +243,9 @@ if __name__ == '__main__':
     values2={}
     values2[1] = [1,2,3]
     values2[2] = [4,5,6]
-    latexwriter.append(n=['a','b','c'], nname='letter', nformat="10s", values=values2, percentage=True)
+    latexwriter.append(n=['a','b','c'], nname='letter', values=values2, percentage=True)
     values3={}
     values3['1'] = np.linspace(1,3,5)
-    latexwriter.append(n=np.arange(5), nname= 'toto', nformat="4d", values=values3)
+    latexwriter.append(n=np.arange(5), nname= 'toto', values=values3)
     latexwriter.write()
     latexwriter.compile()

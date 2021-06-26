@@ -24,7 +24,7 @@ def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
     it = 0
     if verbose:
         print("{} {:>3} {:^10} {:^10}  {:^9}".format("bt", "it", "resnorm", "resfirst", "step"))
-        print("{} {:3} {:10.3e} {:10.3e}  {:9.2e}".format("bt", it, resnorm, resfirst, step))
+        print(f"bt {it:3} {resnorm:10.3e} {resfirst:10.3e} {step:9.2e}")
     while resnorm > (1-c*step)*resfirst and it<maxiter:
         it += 1
         step *= omega
@@ -32,7 +32,7 @@ def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
         res = f(x)
         resnorm = np.linalg.norm(res)
         if verbose:
-            print("{} {:3} {:10.3e}  {:9.2e}".format("bt", it, resnorm, step))
+            print(f"bt {it:3} {resnorm:10.3e} {resfirst:10.3e} {step:9.2e}")
     return x, res, resnorm, step
 
 #----------------------------------------------------------------------
@@ -49,13 +49,14 @@ class Baseopt:
     def res(self, x):
         self.u[:] = self.u0[:]
         for i in range(self.nused):
+            # print(f"{i=} {np.linalg.norm(self.du[self.ind[i]])=}")
             self.u += x[i]*self.du[self.ind[i]]
         self.r = self.f(self.u)
-        print(f"{x=} {np.linalg.norm(self.u0)=}  {np.linalg.norm(self.u)=} {np.linalg.norm(self.r)=}")
-        x0 = x*x*(1-x)*(1-x)
+        # print(f"{x=} {np.linalg.norm(self.u0)=}  {np.linalg.norm(self.u)=} {np.linalg.norm(self.r)=}")
+        # x0 = x*x*(1-x)*(1-x)
         return self.r.dot(self.r)
     def step(self, u0, du, resfirst):
-        print(f"+++++++ {np.linalg.norm(u0)=} {resfirst=}")
+        # print(f"+++++++ {np.linalg.norm(u0)=} {np.linalg.norm(du)=} {resfirst=}")
         from scipy import optimize
         self.u0[:] = u0[:]
         self.resfirst = resfirst
@@ -69,7 +70,7 @@ class Baseopt:
         else:
             self.nused += 1
         self.ind.append(self.last)
-        print(f"{self.iter} {self.ind=} {np.linalg.norm(self.u0)}")
+        # print(f"{self.iter} {self.ind=} {np.linalg.norm(self.u0)}")
         self.du[self.last] = du
         x0 = np.zeros(self.nused)
         self.res(x0)
@@ -81,10 +82,10 @@ class Baseopt:
         #     resnorm = self.res(x0)
         #     return self.u, self.r, resnorm, 1
         # method = 'COBYLA'
-        method = 'TNC'
-        # method = 'BFGS'
+        # method = 'TNC'
+        method = 'BFGS'
         # method = 'CG'
-        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-8}
+        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-4}
         out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
         if np.linalg.norm(self.r) > self.resfirst:
             print(f"{np.linalg.norm(self.r)=} {self.resfirst=}")
@@ -138,6 +139,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:
             x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata, verbose=True)
+        res2 = f(x)
+        assert np.allclose(res, res2)
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:

@@ -48,6 +48,7 @@ class CompareMethods(object):
         self.mesh = kwargs.pop("mesh", None)
         self.postproc = kwargs.pop("postproc", None)
         self.h = kwargs.pop("h", None)
+        self.paramsdict = kwargs.pop("paramsdict")
         if self.paramname == "ncells":
             if 'h' in kwargs:
                 self.params = kwargs.pop("h")
@@ -68,16 +69,20 @@ class CompareMethods(object):
                 if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
                 self.params = [mesh.ncells*mesh.dimension**i for i in range(niter)]
         else:
-            self.params = kwargs.pop("params", None)
+            # self.params = kwargs.pop("params", None)
+            self.params = self.paramsdict[self.paramname]
+            self.gmshrefine = False
         self.methods = kwargs.pop("methods", None)
         if self.methods == None:
-            requiredargs = ['application', 'applicationargs', 'paramsdict']
+            requiredargs = ['application', 'applicationargs']
             for requiredarg in requiredargs:
                 if not requiredarg in kwargs:
                     raise ValueError("need 'application' (class) and 'applicationargs' (dict) and  'paramsdict' (dict)")
-            self._definemethods(kwargs.pop("application"), kwargs.pop("applicationargs"), kwargs.pop("paramsdict"))
-    def _definemethods(self, application, applicationargs, paramsdict):
+            self._definemethods(kwargs.pop("application"), kwargs.pop("applicationargs"))
+    def _definemethods(self, application, applicationargs):
         import itertools
+        paramsdict = self.paramsdict
+        if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
             if isinstance(params, str): paramsdict[pname] = [params]
         paramsprod = list(itertools.product(*paramsdict.values()))
@@ -88,7 +93,7 @@ class CompareMethods(object):
         for p in paramslist:
             name = ''
             for pname, param in p.items():
-                if len(paramsdict[pname])>1: name += param
+                if len(paramsdict[pname])>1: name += str(param)
                 applicationargs[pname] = param
             self.methods[name] = application(**applicationargs)
            
@@ -129,7 +134,9 @@ class CompareMethods(object):
                 if self.verbose: print(f"{method:-}")
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
-                if self.paramname != "ncells": method.setParameter(self.paramname, param)
+                if self.paramname != "ncells": 
+                    method.paramname = param
+                    # method.setParameter(self.paramname, param)
                 result = method.solve(self.dirname)
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh

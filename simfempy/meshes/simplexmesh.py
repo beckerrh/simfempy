@@ -62,6 +62,15 @@ class SimplexMesh(object):
         faces = np.empty(pos[-1], dtype=np.uint32)
         for i,color in enumerate(colors): faces[pos[i]:pos[i+1]] = self.bdrylabels[color]
         return faces
+    def constructInnerFaces(self):
+        self.innerfaces = self.cellsOfFaces[:,1]>=0
+        self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
+    def facesOfCellsNotOnFaces(self, faces, ci0, ci1):
+        ind = npext.positionin(faces, self.simplices[ci0])
+        fi0 =  np.take_along_axis(self.facesOfCells[ci0], ind, axis=1)
+        ind = npext.positionin(faces, self.simplices[ci1])
+        fi1 =  np.take_along_axis(self.facesOfCells[ci1], ind, axis=1)
+        return fi0, fi1
     def _initMeshPyGmsh(self, mesh):
         self.pygmsh = mesh
         self.celltypes = [key for key, cellblock in mesh.cells]
@@ -120,9 +129,6 @@ class SimplexMesh(object):
         self.timer.add("_constructBoundaryFaces7")
         # print(f"{self.bdrylabels.keys()=}")
         #TODO : remplacer -1 par nan dans les indices
-    def constructInnerFaces(self):
-        self.innerfaces = self.cellsOfFaces[:,1]>=0
-        self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
     def _initMeshPyGmsh7(self, cell_sets, cells_dict):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !

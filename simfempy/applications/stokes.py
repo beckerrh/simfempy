@@ -22,10 +22,14 @@ class Stokes(Application):
         self.dirichlet_nitsche = 10
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
-        self.precond_p = kwargs.pop('precond_p', 'diag')
         self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
+        self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
+        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'gcrotmk_0'
+        # self.precond_p = kwargs.pop('precond_p', 'scale')
+        self.precond_p = kwargs.pop('precond_p', 'diag')
+        self.precond_v = kwargs.pop('precond_v', 'pyamg@aggregation@none@gauss_seidel')
         super().__init__(**kwargs)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
@@ -53,12 +57,11 @@ class Stokes(Application):
             colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
             self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
     def _checkProblemData(self):
+        # TODO checkProblemData() incomplete
         for col, fct in self.problemdata.bdrycond.fct.items():
             type = self.problemdata.bdrycond.type[col]
             if type == "Dirichlet":
                 if len(fct) != self.mesh.dimension: raise ValueError(f"*** {type=} {len(fct)=} {self.mesh.dimension=}")
-        print("_checkProblemData() incomplete")
-
     def defineAnalyticalSolution(self, exactsolution, random=True):
         dim = self.mesh.dimension
         # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
@@ -267,7 +270,7 @@ class Stokes(Application):
                 return np.hstack([w, q])
         return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, disp=0, counter="VS")
+        return solvers.cfd.VelcoitySolver(A, disp=0, counter="VS", solver=self.precond_v)
         # return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
@@ -275,7 +278,7 @@ class Stokes(Application):
         if self.precond_p == "schur":
             return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = 'diag', maxiter=1, disp=0)
         elif self.precond_p == "diag":    
-            return solvers.cfd.PressureSolverDiagonal(A, B, accel='fgmres', maxiter=5, disp=0, counter="PS", symmetric=True)
+            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='fgmres', maxiter=1, disp=0, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
             return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:
@@ -288,7 +291,7 @@ class Stokes(Application):
             self.timer.add("linearsolve")
             return uall, 1
         else:
-            print(f"{atol=} {rtol=}")
+            # print(f"{atol=} {rtol=}")
             ssolver = linearsolver.split('_')
             method=ssolver[0] if len(ssolver)>0 else 'lgmres'
             disp=int(ssolver[1]) if len(ssolver)>1 else 0
@@ -416,6 +419,10 @@ class Stokes(Application):
             A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
             A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
+        print(f"@@@@ {self.hdivpenalty=}")
+        if self.hdivpenalty:
+            if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
+            A += self.femv.computeMatrixRtPenaly(self.hdivpenalty)
         if not self.pmean:
             return [A, B]
         ncells = self.mesh.ncells
