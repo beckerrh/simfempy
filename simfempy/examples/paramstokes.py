@@ -5,12 +5,7 @@ simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pa
 sys.path.insert(0,simfempypath)
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import pygmsh
-from simfempy.meshes.simplexmesh import SimplexMesh
 import simfempy.meshes.testmeshes as testmeshes
-from simfempy.meshes import plotmesh
 from simfempy.applications.stokes import Stokes
 from simfempy.applications.problemdata import ProblemData
 from simfempy.tools.comparemethods import CompareMethods

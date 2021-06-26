@@ -139,12 +139,15 @@ class Pyamg(IterativeSolver):
         self.type = kwargs.pop('type', 'aggregation')
         self.accel = kwargs.pop('accel', None)
         if self.accel == 'none': self.accel=None
-        pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B'], 'presmoother':self.smoother, 'postsmoother':self.smoother}
+        pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B']}
+        smoother = (self.smoother, {'sweep': 'symmetric', 'iterations': nsmooth})
         if symmetric:
             smooth = ('energy', {'krylov': 'cg'})
         else:
             smooth = ('energy', {'krylov': 'fgmres'})
             pyamgargs['symmetry'] = 'nonsymmetric'
+        pyamgargs['presmoother'] = smoother
+        pyamgargs['postsmoother'] = smoother
         # pyamgargs['smooth'] = smooth
         # pyamgargs['coarse_solver'] = 'splu'
         if self.type == 'aggregation':

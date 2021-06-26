@@ -319,7 +319,6 @@ class Application(object):
     def build_pyamg(self,A):
         import pyamg
         return pyamg.smoothed_aggregation_solver(A)
-        B = np.ones((A.shape[0], 1))
 
 
 # ------------------------------------- #

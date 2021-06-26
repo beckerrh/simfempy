@@ -56,10 +56,12 @@ class PressureSolverDiagonal():
         AD = sparse.diags(1/A.diagonal(), offsets=(0), shape=A.shape)
         self.mat = B@AD@B.T
         self.maxiter = kwargs.pop('maxiter',1)
+        kwargs['symmetric'] = True
         self.prec = linalg.Pyamg(self.mat, **kwargs)
     def solve(self, b):
         return self.prec.solve(b, maxiter=self.maxiter, rtol=1e-16)
 #=================================================================#
+prec_PressureSolverSchur = ['none', 'diag', 'scale']
 class PressureSolverSchur():
     def __init__(self, mesh, mu, A, B, AP, **kwargs):
         ncells, nfaces = mesh.ncells, mesh.nfaces

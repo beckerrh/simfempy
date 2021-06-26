@@ -27,8 +27,8 @@ class Stokes(Application):
         self.femp = fems.d0.D0()
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'gcrotmk_0'
-        # self.precond_p = kwargs.pop('precond_p', 'scale')
-        self.precond_p = kwargs.pop('precond_p', 'diag')
+        self.precond_p = kwargs.pop('precond_p', 'scale')
+        # self.precond_p = kwargs.pop('precond_p', 'schur@diag@1')
         self.precond_v = kwargs.pop('precond_v', 'pyamg@aggregation@none@gauss_seidel')
         super().__init__(**kwargs)
     def _zeros(self):
@@ -275,10 +275,13 @@ class Stokes(Application):
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
         if self.pmean: assert self.precond_p == "schur"
-        if self.precond_p == "schur":
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = 'diag', maxiter=1, disp=0)
+        if self.precond_p[:5] == "schur":
+            sp = self.precond_p.split('@')
+            if not len(sp)==3 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
+                raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot {self.precond_p}" )
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = sp[1], maxiter=int(sp[2]), disp=0)
         elif self.precond_p == "diag":    
-            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='fgmres', maxiter=1, disp=0, counter="PS", symmetric=True)
+            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=5, disp=1, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
             return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:
@@ -419,7 +422,6 @@ class Stokes(Application):
             A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
             A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
-        print(f"@@@@ {self.hdivpenalty=}")
         if self.hdivpenalty:
             if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
             A += self.femv.computeMatrixRtPenaly(self.hdivpenalty)
