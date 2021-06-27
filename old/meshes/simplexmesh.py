@@ -66,7 +66,6 @@ class SimplexMesh(object):
             # nnp = len(np.unique(self.simplices))
             # self.points = self.points[:nnp]
             # self.nnodes = self.points.shape[0]
-
     def _initMeshPyGmsh(self, mesh):
         # only 3d-coordinates
         assert mesh.points.shape[1] ==3
@@ -120,7 +119,6 @@ class SimplexMesh(object):
         #TODO : remplacer -1 par nan dans les indices
         self.innerfaces = self.cellsOfFaces[:,1]>=0
         self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
-
     def _initMeshPyGmsh7(self, cells, cell_sets, bdryfacesgmsh):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
@@ -238,26 +236,21 @@ class SimplexMesh(object):
             fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
         # print(f"{bp=}")
         # print(f"{fp=}")
-
-#https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
+        #https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
         indices = (bdryfacesgmsh[bp, None] == bdryfaces[fp]).all(-1).any(-1)
         # indices = np.isin(bdryfacesgmsh, bdryfaces)
         # print(f"{indices=}")
-
         # fp2 = np.searchsorted(bdryfacesgmsh, bdryfaces, sorter=bp)
         # print(f"{fp2=}")
-
         # print(f"{bp[indices]=}")
         # print(f"{bdryfacesgmsh[bp[indices]]=}")
         # print(f"{bdryfaces[fp]=}")
         if not np.all(bdryfaces[fp]==bdryfacesgmsh[bp[indices]]):
             raise ValueError(f"{bdryfaces.T=}\n{bdryfacesgmsh.T=}\n{indices=}\n{bdryfaces[fp].T=}\n{bdryfacesgmsh[bp[indices]].T=}")
-
         bp2 = bp[indices]
         for i in range(len(fp)):
             if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
                 raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
-
         bpi = np.argsort(bp)
         # bp2i = {bp2[i]:i for i in range(len(bp2))}
         # print(f"{bp=} \n{bp2=} \n{bpi=} \n{bp2i=} \n{indices=}")

@@ -528,7 +528,7 @@ class CR1(fems.fem.Fem):
         # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
         # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
         # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
-        fi0, fi1 = self.mesh.facesOfCellsNotOnFaces(faces, ci0, ci1)
+        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
         ifaces = np.arange(nfaces)[innerfaces]
         A = sparse.coo_matrix((ndofs, ndofs))
         rows0 = np.repeat(fi0, nloc-1).ravel()
@@ -570,7 +570,8 @@ class CR1(fems.fem.Fem):
         # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
         # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
         # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
-        fi0, fi1 = self.mesh.facesOfCellsNotOnFaces(faces, ci0, ci1)
+        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
+        # fi0, fi1 = self.mesh.facesOfCellsNotOnFaces(faces, ci0, ci1)
         # ifaces = np.arange(nfaces)[innerfaces]
         # A = sparse.coo_matrix((ndofs, ndofs))
         # rows0 = np.repeat(fi0, nloc-1).ravel()

@@ -113,7 +113,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     xnorm = np.linalg.norm(x)
     res = f(x)
     resnorm = np.linalg.norm(res)
-    print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
+    # print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
@@ -134,7 +134,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             dx, liniter = computedx(-res, x, iterdata)
         assert dx.shape == x0.shape
         resold[:] = res[:]
-        print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
+        # print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:

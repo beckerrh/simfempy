@@ -65,12 +65,35 @@ class SimplexMesh(object):
     def constructInnerFaces(self):
         self.innerfaces = self.cellsOfFaces[:,1]>=0
         self.cellsOfInteriorFaces= self.cellsOfFaces[self.innerfaces]
-    def facesOfCellsNotOnFaces(self, faces, ci0, ci1):
-        ind = npext.positionin(faces, self.simplices[ci0])
-        fi0 =  np.take_along_axis(self.facesOfCells[ci0], ind, axis=1)
-        ind = npext.positionin(faces, self.simplices[ci1])
-        fi1 =  np.take_along_axis(self.facesOfCells[ci1], ind, axis=1)
-        return fi0, fi1
+    def facesOfCellsNotOnInnerFaces(self, ci0, ci1):
+        """
+        assumption: faces are opposite to nodes
+        the order is important, so we need to go through 'faces'
+        """
+        faces = self.faces[self.innerfaces]
+        fi0_bis = np.empty_like(faces)
+        fi1_bis = np.empty_like(faces)
+        for i in range(faces.shape[1]):
+            fi0_bis[:,i] = self.facesOfCells[ci0][self.simplices[ci0] == faces[:,i][:,np.newaxis]]
+            fi1_bis[:,i] = self.facesOfCells[ci1][self.simplices[ci1] == faces[:,i][:,np.newaxis]]
+        return fi0_bis, fi1_bis
+        # print(f"{faces=}")
+        # print(f"{self.simplices[ci0]=}")
+        # ind = npext.positionin(faces, self.simplices[ci0])
+        # fi0 =  np.take_along_axis(self.facesOfCells[ci0], ind, axis=1)
+        # ind = npext.positionin(faces, self.simplices[ci1])
+        # fi1 =  np.take_along_axis(self.facesOfCells[ci1], ind, axis=1)
+        # return fi0, fi1
+        # if not np.all(fi0==fi0_bis):
+        #     diff = np.any(fi0 != fi0_bis, axis=1)
+        #     print(f"{fi0[diff]=}\n{fi0_bis[diff]=}")
+        #     print(f"\n{self.simplices[ci0][diff]=}\n{faces[diff]=}")
+        #     assert 0
+        # if not np.all(fi1==fi1_bis):
+        #     diff = np.any(fi1 != fi1_bis, axis=1)
+        #     print(f"{fi1[diff]=}\n{fi1_bis[diff]=}")
+        #     print(f"\n{self.simplices[ci0][diff]=}\n{faces[diff]=}")
+        #     assert 0
     def _initMeshPyGmsh(self, mesh):
         self.pygmsh = mesh
         self.celltypes = [key for key, cellblock in mesh.cells]

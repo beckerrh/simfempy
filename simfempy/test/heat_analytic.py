@@ -60,5 +60,6 @@ if __name__ == '__main__':
     # test(dim=2, exactsolution = 'Linear', fem=['cr1'], niter=4, h1=0.2, convection=["0.8","1.1"], convmethod=['upwalg','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='pyamg', plotsolution=True)
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk','lgmres','umf','pyamg'], plotsolution=False)
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False, uniformrefine=True)
-    test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
+    test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=7, h1=0.5, convection=["1-x","1+y"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
+    test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=5, h1=1, convection=["1-x","1+y", "x+y+1"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
     # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=6, convection=["0.8","1.1"], convmethod=['upw'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='pyamg')

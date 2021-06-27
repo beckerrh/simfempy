@@ -304,11 +304,18 @@ class Stokes(Application):
             SP = self.getPressureSolver(Ain[0], Ain[1], AP)
             matvec = partial(self.matrixVector, Ain)
             matvecprec = self.getPrecMult(Ain, AP, SP)
+            maxiter = 20
             S = solvers.linalg.ScipySolve(matvec=matvec, matvecprec=matvecprec, method=method, n=nall,
-                                            disp=disp, atol=atol, rtol=rtol, counter="sys")
+                                            disp=disp, atol=atol, rtol=rtol, counter="sys", maxiter=maxiter)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter
+            if it==maxiter: 
+                msg = f"*** linear system solver not converged in {maxiter=}"
+                msg += f"\n{self.precond_v=} {self.precond_p=}"
+                msg += f"\n{AP=} {SP=}"
+                msg += f"\n{S.counter=}"
+                raise ValueError(msg)
             return uall, it
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()

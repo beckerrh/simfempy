@@ -12,17 +12,25 @@ class NavierStokes(Stokes):
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
         self.convmethod = kwargs.pop('convmethod', 'lps')
         self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
+        if not 'precond_p' in kwargs: 
+            kwargs['precond_p'] = 'schur@diag@4'
+        if not 'precond_v' in kwargs: 
+            defsolvers = ['lgmres']
+            defsolvers.append('pyamg@aggregation@none@gauss_seidel')
+            defsolvers.append('pyamg@aggregation@none@schwarz')
+            defsolvers.append('pyamg@aggregation@fgmres@schwarz')
+            kwargs['precond_v'] = defsolvers
+        super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Astokes = super().computeMatrix()
     def solve(self, dirname="Run"):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rn', nbase=2, rtol=self.newtontol)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=2, rtol=self.newtontol)
         return self.static(dirname=dirname, mode='newton',sdata=sdata)
     def computeForm(self, u):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
