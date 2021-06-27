@@ -73,6 +73,7 @@ class SimplexMesh(object):
         faces = self.faces[self.innerfaces]
         fi0_bis = np.empty_like(faces)
         fi1_bis = np.empty_like(faces)
+        # can only serach on by one (and this keeps the order)
         for i in range(faces.shape[1]):
             fi0_bis[:,i] = self.facesOfCells[ci0][self.simplices[ci0] == faces[:,i][:,np.newaxis]]
             fi1_bis[:,i] = self.facesOfCells[ci1][self.simplices[ci1] == faces[:,i][:,np.newaxis]]
