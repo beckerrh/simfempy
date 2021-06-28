@@ -29,12 +29,13 @@ def test(exactsolution, **kwargs):
     data.bdrycond.set("Neumann", colorsneu)
     applicationargs = {'problemdata': data, 'exactsolution': exactsolution}
     paramsdict = {'hdivpenalty': np.linspace(0,100000,3)}
-    comp =  CompareMethods(niter=5, createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
+    niter = kwargs.pop('niter', 7)
+    comp =  CompareMethods(niter=niter, createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()
 
 
 
 #================================================================#
 if __name__ == '__main__':
-    test(exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"])
- 
+    # test(exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"])
+    test(niter=5, exactsolution=[["x**2-y+z**2","-2*x*y*z+x**2","x**2-y**2+z"],"x*y+x*z"])
