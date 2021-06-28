@@ -225,30 +225,48 @@ class SimplexMesh(object):
         i = -1*np.ones(self.nfaces, dtype=self.facesOfCells.dtype)
         i[unique[1:]] = i2
         self.cellsOfFaces =np.vstack([i0,i]).T
-
-    def _constructBoundaryFaces7(self, bdryfacesgmsh, bdrylabelsgmsh):
+    def _constructBoundaryFaces7(self, facesgmsh, physlabelsgmsh):
         # t = timer.Timer("_constructBoundaryFaces7")
         # bdries
-        # bdryfacesgmsh may contains interior edges for len(celllabels)>1
+        # facesgmsh may contains interior edges for len(celllabels)>1
         # sort along last axis
-        bdryfacesgmsh = np.sort(bdryfacesgmsh)
+        facesgmsh = np.sort(facesgmsh)
         bdryids = np.flatnonzero(self.cellsOfFaces[:,1] == -1)
         bdryfaces = np.sort(self.faces[bdryids],axis=1)
+        # print(f"{facesgmsh=}")
+        # print(f"{physlabelsgmsh=}")
+        # print(f"{bdryfaces=}")
         nnpc = self.simplices.shape[1]
         s = "{0}" + (nnpc-2)*", {0}"
-        dtb = s.format(bdryfacesgmsh.dtype)
+        dtb = s.format(facesgmsh.dtype)
         dtf = s.format(bdryfaces.dtype)
         order = ["f0"]+["f{:1d}".format(i) for i in range(1,nnpc-1)]
         # t.add("a")
         if self.dimension==1:
-            bp = np.argsort(bdryfacesgmsh.view(dtb), axis=0).ravel()
+            bp = np.argsort(facesgmsh.view(dtb), axis=0).ravel()
             fp = np.argsort(bdryfaces.view(dtf), axis=0).ravel()
         else:
-            bp = np.argsort(bdryfacesgmsh.view(dtb), order=order, axis=0).ravel()
+            bp = np.argsort(facesgmsh.view(dtb), order=order, axis=0).ravel()
             fp = np.argsort(bdryfaces.view(dtf), order=order, axis=0).ravel()
-        assert np.all(bdryfaces[fp]==bdryfacesgmsh[bp])
+        # if not np.all(bdryfaces[fp]==facesgmsh[bp][:len(fp)]):
+        #     raise ValueError(f"{bdryfaces[fp]=}\n{facesgmsh[bp][:len(fp)]=}")
         bpi = np.argsort(bp)
-        self.bdrylabels = {col:bdryids[fp[bpi[cb]]] for col, cb in bdrylabelsgmsh.items()}
+        # self.bdrylabels = {col:bdryids[fp[bpi[cb]]] for col, cb in physlabelsgmsh.items()}
+        indices = (facesgmsh[bp, None] == bdryfaces[fp]).all(axis=-1).any(axis=-1)
+        # bp2 = bp[indices]
+        binv = np.argsort(bp[indices])
+        # binv = np.empty_like(bp)
+        # binv[bp2] = np.arange(len(bp2))
+        # if not np.all(binv == np.argsort(bp[indices])):
+        #     print(f"{indices=}\n{binv=} {np.argsort(bp[indices])=}")
+        self.bdrylabels = {}        
+        for col, cb in physlabelsgmsh.items():
+            # if indices[bpi[cb[0]]]:
+            if np.all(indices[bpi[cb]]):
+                self.bdrylabels[int(col)] = bdryids[fp[binv[cb]]]
+            else:
+                assert not indices[bpi[cb[0]]]
+            # self.bdrylabels[col] = bdryids[fp[bpi[cb]]]
         # print(f"{bp=}")
         # print(f"{fp=}")
 #https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
