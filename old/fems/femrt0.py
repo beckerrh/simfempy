@@ -23,12 +23,10 @@ class FemRT0(object):
         if mesh is not None:
             self.setMesh(mesh)
         self.massproj=massproj
-
     def setMesh(self, mesh):
         self.mesh = mesh
         self.nloc = self.mesh.dimension+1
         self.Mtocell = self.toCellMatrix()
-
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
@@ -41,16 +39,12 @@ class FemRT0(object):
         cols = np.tile(facesofcells.ravel(), dim)
         mat = np.einsum('ni, jni, n->jni', dS, pd, 1/dV)
         return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
-
     def toCell(self, v):
         return self.Mtocell.dot(v)
-
     def constructMass(self, diffinvcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.nloc, self.mesh.simplices
         p, pc, pf = self.mesh.points, self.mesh.pointsc, self.mesh.pointsf
-
-
         if self.massproj is None:
             # RT
             scalea = 1 / dim / dim / (dim + 2) / (dim + 1)
@@ -237,14 +231,12 @@ class FemRT0(object):
 
         else:
             raise ValueError("unknown type self.massproj={}".format(self.massproj))
-
     def constructDiv(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         rows = np.repeat(np.arange(ncells), self.nloc)
         cols = facesofcells.ravel()
         mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).ravel()
         return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces)).tocsr()
-
     def reconstruct(self, p, vc, diffinv):
         nnodes, ncells, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension
         if len(diffinv.shape) != 1:
@@ -260,11 +252,8 @@ class FemRT0(object):
         pn2 += A*vc
         pn2 /= counts
         return pn2
-
-
     def rhsDirichlet(self, faces, ud):
         return linalg.norm(self.mesh.normals[faces],axis=1) * ud
-
     def constructRobin(self, bdrycond, type):
         nfaces = self.mesh.nfaces
         rows = np.empty(shape=(0), dtype=int)
@@ -280,7 +269,6 @@ class FemRT0(object):
             mat = np.append(mat, 1/bdrycond.param[color] * dS)
         A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
         return A
-
     def matrixNeumann(self, A, B, bdrycond):
         nfaces = self.mesh.nfaces
         bdrydata = simfempy.fems.bdrydata.BdryData()

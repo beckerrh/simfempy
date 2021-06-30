@@ -20,6 +20,7 @@ simfempy/examples/elasticity.py
 simfempy/examples/heat.py
 simfempy/examples/heat_oneline.py
 simfempy/examples/incompflow.py
+simfempy/examples/navier_bc.py
 simfempy/examples/paramstokes.py
 simfempy/examples/transport.py
 simfempy/fems/__init__.py
@@ -45,7 +46,6 @@ simfempy/meshes/testmeshes.py
 simfempy/solvers/__init__.py
 simfempy/solvers/cfd.py
 simfempy/solvers/linalg.py
-simfempy/solvers/navier_bc.py
 simfempy/solvers/newton.py
 simfempy/solvers/newtondata.py
 simfempy/solvers/optimize.py

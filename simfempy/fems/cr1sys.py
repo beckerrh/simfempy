@@ -207,8 +207,6 @@ class CR1sys(femsys.Femsys):
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp, nitsche_param):
         for icomp in range(ncomp):
             self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir, nitsche_param)
-
-
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
@@ -220,6 +218,17 @@ class CR1sys(femsys.Femsys):
                 mat[:, i::ncomp, i::ncomp] += (np.einsum('nk,nl->nkl', cellgrads[:, :, j], cellgrads[:, :, j]).T * dV * mucell).T
         A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
         A += self.computeMatrixKorn(mucell)
+        return A
+    def computeMatrixDivDiv(self, mucell, coeff=1):
+        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
+        nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads
+        mat = np.zeros(shape=rows.shape, dtype=float).reshape(ncells, ncomp * nloc, ncomp * nloc)
+        if not isinstance(coeff,(int,float)):
+            assert coeff.shape == (self.mesh.ncells)
+        for i in range(ncomp):
+            for j in range(self.ncomp):
+                mat[:, i::ncomp, j::ncomp] += np.einsum('n,nk,nl->nkl', coeff*dV, cellgrads[:, :, i], cellgrads[:, :, j])
+        A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(ncomp*nfaces, ncomp*nfaces)).tocsr()
         return A
     def computeMatrixKorn(self, mucell):
         ncomp = self.ncomp
@@ -252,16 +261,15 @@ class CR1sys(femsys.Femsys):
             A += sparse.coo_matrix((-mat, (rows1, cols0)), shape=(nall, nall))
             A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(nall, nall))
         return A
-    def computeMatrixRtPenaly(self, coef=1):
+    def computeMatrixHdivPenaly(self, coef=1):
         ncomp = self.ncomp
-        dim, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
-        nloc, dofspercell, nall = self.nlocal(), self.dofspercell(), ncomp*ndofs
+        dim, dV, ndofs, nloc = self.mesh.dimension, self.mesh.dV, self.nunknowns(), self.nlocal()
+        nall = ncomp*ndofs
         ci0 = self.mesh.cellsOfInteriorFaces[:,0]
         ci1 = self.mesh.cellsOfInteriorFaces[:,1]
         assert np.all(ci1>=0)
         normalsS = self.mesh.normals[self.mesh.innerfaces,:dim]
         dS = linalg.norm(normalsS, axis=1)
-        faces = self.mesh.faces[self.mesh.innerfaces]
         fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
         massloc = barycentric.crbdryothers(dim)
         if isinstance(coef,(int,float)):
@@ -272,7 +280,7 @@ class CR1sys(femsys.Femsys):
         A = sparse.coo_matrix((nall, nall))
         for icomp in range(ncomp):
             d0i = ncomp*fi0+icomp
-            d1i = ncomp*fi0+icomp
+            d1i = ncomp*fi1+icomp
             rows0i = d0i.repeat(nloc-1)
             rows1i = d1i.repeat(nloc-1)
             for jcomp in range(ncomp):
@@ -281,15 +289,16 @@ class CR1sys(femsys.Femsys):
                 cols0j = np.tile(d0j,nloc-1).ravel()
                 cols1j = np.tile(d1j,nloc-1).ravel()
                 mat = np.einsum('n,kl->nkl', normalsS[:,icomp]*normalsS[:,jcomp]*scale, massloc).ravel()
+                # print(f"{mat=}")
                 A += sparse.coo_matrix((mat, (rows0i, cols0j)), shape=(nall, nall))
                 A += sparse.coo_matrix((-mat, (rows0i, cols1j)), shape=(nall, nall))
                 A += sparse.coo_matrix((-mat, (rows1i, cols0j)), shape=(nall, nall))
                 A += sparse.coo_matrix((mat, (rows1i, cols1j)), shape=(nall, nall))
+        # print(f"{A.A=}")
         return A
-    def computeFormRtPenaly(self, du, u, coef=1):
+    def computeFormHdivPenaly(self, du, u, coef=1):
         ncomp = self.ncomp
         dim, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
-        nloc, dofspercell, nall = self.nlocal(), self.dofspercell(), ncomp*ndofs
         ci0 = self.mesh.cellsOfInteriorFaces[:,0]
         ci1 = self.mesh.cellsOfInteriorFaces[:,1]
         assert np.all(ci1>=0)
@@ -304,11 +313,17 @@ class CR1sys(femsys.Femsys):
             assert coef.shape == (self.mesh.ncells)
             scale = (coef[ci0] + coef[ci1]) / (dV[ci0] + dV[ci1])
         for icomp in range(ncomp):
-            for jcomp in range(ncomp):
-                uj = u[ncomp*fi0+jcomp]-u[ncomp*fi1+jcomp]
-                r = np.einsum('n,kl,nl->nk', normalsS[:,icomp]*normalsS[:,jcomp]*scale, massloc, uj)
-                np.add.at(du, ncomp*fi0+icomp, r)
-                np.add.at(du, ncomp*fi1+icomp, -r)
+            u = u.reshape((dim,ndofs), order='F')
+            # print(f"{normalsS.shape} {u[:,fi0].shape=}")
+            r = np.einsum('n,nj,kl,jnl->nk', normalsS[:,icomp]*scale, normalsS, massloc, u[:,fi0]-u[:,fi1])
+            np.add.at(du, ncomp*fi0+icomp, r)
+            np.add.at(du, ncomp*fi1+icomp, -r)
+        # for icomp in range(ncomp):
+        #     for jcomp in range(ncomp):
+        #         uj = u[ncomp*fi0+jcomp]-u[ncomp*fi1+jcomp]
+        #         r = np.einsum('n,kl,nl->nk', normalsS[:,icomp]*normalsS[:,jcomp]*scale, massloc, uj)
+        #         np.add.at(du, ncomp*fi0+icomp, r)
+        #         np.add.at(du, ncomp*fi1+icomp, -r)
     def computeBdryNormalFlux(self, u, colors, bdrydata):
         flux, omega = np.zeros(shape=(len(colors),self.ncomp)), np.zeros(len(colors))
         for i,color in enumerate(colors):

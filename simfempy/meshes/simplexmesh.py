@@ -128,7 +128,7 @@ class SimplexMesh(object):
         # eliminate drangling points
         nnp = len(np.unique(self.simplices))
         if not np.all(np.unique(self.simplices)==np.arange(nnp)):
-            msg = f"points in simplices {nnp} but {self.points.shape=}"
+            msg = f"*** points in simplices {nnp} but {mesh.points.shape=}"
             msg += f"\n{self.celltypes=}\n{mesh.cell_sets=}"
             msg += f"\n{np.unique(self.simplices)=}"
             msg += f"\n{mesh.cells_dict=}"

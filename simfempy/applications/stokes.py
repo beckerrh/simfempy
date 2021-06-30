@@ -26,6 +26,7 @@ class Stokes(Application):
         self.femv = fems.cr1sys.CR1sys(self.ncomp)
         self.femp = fems.d0.D0()
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
+        self.divdivparam = kwargs.pop('divdivparam', 0)
         if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'gcrotmk_0'
         self.precond_p = kwargs.pop('precond_p', 'scale')
         # self.precond_p = kwargs.pop('precond_p', 'schur@diag@1')
@@ -265,6 +266,7 @@ class Stokes(Application):
                 # print(f"{np.linalg.norm(w)=} {np.linalg.norm(p-B.dot(w))=}")
                 q = SP.solve(p-B.dot(w))
                 # print(f"{np.linalg.norm(q)=}")
+                # q += 0.1*B.dot(w)
                 h = B.T.dot(q)
                 w += AP.solve(h)
                 return np.hstack([w, q])
@@ -278,7 +280,7 @@ class Stokes(Application):
         if self.precond_p[:5] == "schur":
             sp = self.precond_p.split('@')
             if not len(sp)==3 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
-                raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot {self.precond_p}" )
+                raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
             return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = sp[1], maxiter=int(sp[2]), disp=0)
         elif self.precond_p == "diag":    
             return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=5, disp=1, counter="PS", symmetric=True)
@@ -431,7 +433,9 @@ class Stokes(Application):
             # print(f"{id(A)=} {id(B)=}")
         if self.hdivpenalty:
             if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
-            A += self.femv.computeMatrixRtPenaly(self.hdivpenalty)
+            A += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
+        if self.divdivparam:
+            A += self.femv.computeMatrixDivDiv(self.divdivparam)
         if not self.pmean:
             return [A, B]
         ncells = self.mesh.ncells

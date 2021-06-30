@@ -54,6 +54,7 @@ class Baseopt:
         self.r = self.f(self.u)
         # print(f"{x=} {np.linalg.norm(self.u0)=}  {np.linalg.norm(self.u)=} {np.linalg.norm(self.r)=}")
         # x0 = x*x*(1-x)*(1-x)
+        return np.linalg.norm(self.r)
         return self.r.dot(self.r)
     def step(self, u0, du, resfirst):
         # print(f"+++++++ {np.linalg.norm(u0)=} {np.linalg.norm(du)=} {resfirst=}")
@@ -76,21 +77,28 @@ class Baseopt:
         self.res(x0)
         # x0[-1] = 1
         self.iter += 1
-        x0[-1] = 1
+        x0[-1] = 0.9
         # print(f"????????????? {self.iter=}")
         # if self.iter==1:
         #     resnorm = self.res(x0)
         #     return self.u, self.r, resnorm, 1
-        # method = 'COBYLA'
+        method = 'COBYLA'
         # method = 'TNC'
-        method = 'BFGS'
+        # method = 'BFGS'
         # method = 'CG'
-        options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-4}
-        out = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
+        cons = ({'type': 'ineq', 'fun': lambda x:  self.res(x) - self.resfirst})
+        options={'disp':True, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-6}
+        out = optimize.minimize(fun=self.res, constraints=cons, x0=x0, method=method, options=options)
+        print(f"*************{out=}")
         if np.linalg.norm(self.r) > self.resfirst:
-            print(f"{np.linalg.norm(self.r)=} {self.resfirst=}")
+            print(f"*** nonmonotone {np.linalg.norm(self.r)=} {self.resfirst=} ** run again")
+            options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-4}
             print(f"{out=}")
-            assert 0
+            x0.fill(0)
+            x0[-1] = 0.5
+            out2 = optimize.minimize(fun=self.res, x0=x0, method=method, options=options)
+            print(f"{out2=}")
+            # assert 0
         return self.u, self.r, np.linalg.norm(self.r), out.x
 
 #--------------------------------------------------------------------
@@ -138,7 +146,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:
-            x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata, verbose=True)
+            x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata, verbose=False)
         res2 = f(x)
         assert np.allclose(res, res2)
         iterdata.newstep(dx, liniter, resnorm, step)

@@ -30,7 +30,7 @@ class NavierStokes(Stokes):
         super().setMesh(mesh)
         self.Astokes = super().computeMatrix()
     def solve(self, dirname="Run"):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='rb', nbase=2, rtol=self.newtontol)
+        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
         return self.static(dirname=dirname, mode='newton',sdata=sdata)
     def computeForm(self, u):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
@@ -39,7 +39,7 @@ class NavierStokes(Stokes):
         v = self._split(u)[0]
         dv = self._split(d)[0]
         self.computeFormConvection(dv, v)
-        # self.femv.computeFormRtPenaly(dv, v)
+        # self.femv.computeFormHdivPenaly(dv, v, self.hdivpenalty)
         self.timer.add('form')
         return d
     def computeMatrix(self, u=None):
@@ -49,7 +49,7 @@ class NavierStokes(Stokes):
         if u is None: return X
         v = self._split(u)[0]
         X[0] += self.computeMatrixConvection(v)
-        # X[0] += self.femv.computeMatrixRtPenaly()
+        # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         self.timer.add('matrix')
         return X
     def computeFormConvection(self, dv, v):

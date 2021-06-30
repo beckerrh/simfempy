@@ -1,5 +1,6 @@
 assert __name__ == '__main__'
 # in shell
+from operator import ge
 import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
@@ -33,7 +34,7 @@ def main(h):
     print(f"{meshWR=}")
     model = Stokes(mesh=meshWR, problemdata=data)
     resultWR = model.solve()
-    meshWT = channelWithTriBump(h)
+    meshWT = channelWithOscillation(h)
     data = problemData()
     print(f"{meshWT=}")
     model = Stokes(mesh=meshWT, problemdata=data)
@@ -78,7 +79,7 @@ def problemData(mu=0.1, navier=None):
     data.ncomp = 2
     return data
 #===============================================
-def channelWithNavier(h= 0.1, mu=0.1):
+def channelWithNavier(h= 0.2):
     x = [-5, 5, 5, 1.5, -1.5, -5]
     y = [-2, -2, 1, 1, 1, 1]
     ms = np.full_like(x, h)
@@ -97,7 +98,7 @@ def channelWithNavier(h= 0.1, mu=0.1):
     return SimplexMesh(mesh=mesh)
 
 #===============================================
-def channelWithRectBump(h= 0.1, mu=0.1):
+def channelWithRectBump(h= 0.2):
     x = [-5, 5, 5, 1.5, 1.5, -1.5, -1.5, -5]
     y = [-2, -2, 1, 1, 3, 3, 1, 1]
     ms = np.full_like(x, h)
@@ -120,7 +121,7 @@ def channelWithRectBump(h= 0.1, mu=0.1):
     return SimplexMesh(mesh=mesh)
 
 #===============================================
-def channelWithTriBump(h= 0.1, mu=0.1):
+def channelWithTriBump(h= 0.2):
     x = [-5, 5, 5, 1.5, 0, -1.5, -5]
     y = [-2, -2, 1, 1, 4, 1, 1]
     ms = np.full_like(x, h)
@@ -141,8 +142,62 @@ def channelWithTriBump(h= 0.1, mu=0.1):
         geom.add_physical(p.lines[-1], label="2005")                                       
         mesh = geom.generate_mesh()
     return SimplexMesh(mesh=mesh)
+#===============================================
+def channelWithOscillation(h= 0.2):
+    ncpoints = 10
+    xc = np.linspace(1.5, -1.5, ncpoints)
+    yc = 1 + 0.8*np.cos(np.pi*xc)
+    X = np.empty(shape=(ncpoints+4,3))
+    X[:,2] = 0
+    X[0,:2] = [-5, -2]
+    X[1,:2] = [5, -2]
+    X[2,:2] = [5, 1]
+    X[3:3+ncpoints,0] = xc
+    X[3:3+ncpoints,1] = yc
+    X[-1,:2] = [-5, 1]
+    ms = np.full(X.shape[0], h)
+    ms[3:3+ncpoints] *= 0.2
+    with pygmsh.geo.Geometry() as geom:
+        # create the polygon
+        # points, lines = [], []
+        # npoints = X.shape[0]
+        # for i in range(npoints):
+        #     points.append(geom.add_point(X[i], mesh_size=ms[i]))
+        # for i in range(npoints-1):
+        #     lines.append(geom.add_line(points[i], points[i+1]))
+        # lines.append(geom.add_line(points[-1], points[0]))
+
+        p = geom.add_polygon(X, mesh_size = list(ms) )
+        points, lines = p.points, p.lines
+
+        # lines.append(geom.add_line(points[0], points[1]))
+        # lines.append(geom.add_line(points[1], points[2]))
+        # lines.append(geom.add_line(points[2], points[3]))
+        # lines.append(geom.add_spline(points[3:3+ncpoints]))
+        # assert points[-2]==points[2+ncpoints]
+        # lines.append(geom.add_line(points[-2], points[-1]))
+        # lines.append(geom.add_line(points[-1], points[0]))
+        curve_loop = geom.add_curve_loop(lines)
+        surface = geom.add_plane_surface(curve_loop)
+        #------------------------------------------------
+        l6 = geom.add_line(points[3], points[-2])
+        l6 = geom.add_line(geom.add_point(X[3]), geom.add_point(X[-2]))
+        geom.in_surface(l6, surface)
+        geom.add_physical(l6, label="99999")
+        # ------------------------------------------------
+        geom.add_physical(surface, label="100")
+        dirlines = [lines[i] for i in range(len(lines)-1) if i != 1]
+        geom.add_physical(dirlines, label="2000")
+        geom.add_physical(lines[1], label="2003")                                       
+        geom.add_physical(lines[-1], label="2005")                                       
+        # geom.save_geometry('toto.msh')
+        mesh = geom.generate_mesh()
+    return SimplexMesh(mesh=mesh)
 
 #================================================================#
 if __name__ == '__main__':
-    main(h=0.2)
+    # main(h=1.2)
+    mesh = channelWithOscillation()
+    plotmesh.meshWithBoundaries(mesh)
+    plt.show()
 

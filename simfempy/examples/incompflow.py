@@ -16,6 +16,7 @@ from simfempy.tools import timer
 
 # ================================================================c#
 def main(**kwargs):
+    modelargs = kwargs.pop('modelargs', {})
     testcases = ['drivenCavity', 'backwardFacingStep', 'poiseuille', 'schaeferTurek']
     testcase = kwargs.pop('testcase', testcases[0])
     model = kwargs.pop('model', 'NavierStokes')
@@ -37,9 +38,10 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data)
+        model = Stokes(mesh=mesh, problemdata=data, **modelargs)
     else:
-        model = NavierStokes(mesh=mesh, problemdata=data, hdivpenalty=1, newtontol=1e-6)
+        # model = NavierStokes(mesh=mesh, problemdata=data, hdivpenalty=10)
+        model = NavierStokes(mesh=mesh, problemdata=data, **modelargs)
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
@@ -224,7 +226,7 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille2d', h=1, mu=1e-10)
+    main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'umf'})
     # main(testcase='drivenCavity2d', h=1, mu=3e-2, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='schaeferTurek2d')
