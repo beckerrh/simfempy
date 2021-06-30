@@ -1,5 +1,11 @@
 .vscode
-examples/*.vtu
+*.vtu
+*/*.vtu
+*.msh
+*/*.msh
+*.png
+*/*.png
+doc/latex/*/*.aux
 simfempy.egg-info
 
 # Apple

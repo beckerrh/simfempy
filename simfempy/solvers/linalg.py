@@ -9,6 +9,20 @@ scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs']
 strangesolvers=['gmres']
 
 #-------------------------------------------------------------------#
+def getSolverFromName(solvername, A, **kwargs):
+    if solvername in scipysolvers:
+        return ScipySolve(matrix=A, method=solvername, **kwargs)
+    elif solvername == "umf":
+        return ScipySpSolve(matrix=A)
+    elif solvername[:5] == "pyamg":
+        sp = solvername.split('@')
+        if len(sp) != 4:
+            raise ValueError(f"*** for pyamg need 'pyamg@type@accel@smoother'\ngot{solvername=}")
+        return Pyamg(A, type=sp[1], accel=sp[2], smoother=sp[3])
+    else:
+        raise ValueError(f"unknwown {solvername=}")
+
+#-------------------------------------------------------------------#
 def selectBestSolver(solvers, reduction, b, **kwargs):
     maxiter = kwargs.pop('maxiter', 50)
     verbose = kwargs.pop('verbose', 0)

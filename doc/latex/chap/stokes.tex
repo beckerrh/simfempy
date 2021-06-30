@@ -569,8 +569,63 @@ I  & 0\\
 \quad
 S = B A^{-1}\transpose{B}
 \end{align*}
+%
+This means that the solution of $\mathcal A (x_v,x_p) = (y_v,y_p)$ is given by
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+A {x_v'} =& y_v\\
+S {x_p'} =& y_p - B {x_v'}\\
+A x_v =& y_v + \transpose{B} x_p'\\
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{What is the effect of replacing $S$ by $K$?}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+Let
+%
+\begin{align*}
+\mathcal B^{-1} := 
+\begin{bmatrix}
+A^{-1}  & A^{-1}\transpose{B}K^{-1}\\
+0 & K^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+I  & 0\\
+-BA^{-1} & I
+\end{bmatrix}
+=
+\begin{bmatrix}
+A^{-1}(I-\transpose{B}K^{-1}BA^{-1})  & A^{-1}\transpose{B}K^{-1}\\
+-K^{-1}BA^{-1} & K^{-1}
+\end{bmatrix}
+\end{align*}
+%
+Then we have
+%
+\begin{align*}
+\mathcal A\mathcal B^{-1} = 
+\begin{bmatrix}
+I &  0\\
+(I-SK^{-1})BA^{-1}& SK^{-1}
+\end{bmatrix}
+\end{align*}
+%
 
-What is the effect of replacing $A$ by $X$? Let
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{What is the effect of replacing $A$ by $X$?}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+Let
 %
 \begin{align*}
 \mathcal M := \begin{bmatrix}

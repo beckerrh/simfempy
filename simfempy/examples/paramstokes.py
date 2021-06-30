@@ -40,5 +40,5 @@ def test(exactsolution, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(niter=8, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"])
+    test(niter=5, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], mu=1e-1)
     # test(niter=6, exactsolution=[["x**2-y+z**2","-2*x*y*z+x**2","x**2-y**2+z"],"x*y+x*z"])

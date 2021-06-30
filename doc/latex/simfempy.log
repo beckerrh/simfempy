@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  24 JUN 2021 19:59
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  30 JUN 2021 15:38
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1243,6 +1243,9 @@ LaTeX Warning: Label `subsec:' multiply defined.
 
 LaTeX Warning: Label `eq:' multiply defined.
 
+
+LaTeX Warning: Label `subsec:' multiply defined.
+
 ) (./chap/beam.aux
 
 LaTeX Warning: Label `sec:' multiply defined.
@@ -1508,16 +1511,16 @@ LaTeX Font Info:    Trying to load font information for U+stmry on input line 3
 1.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/stmaryrd/Ustmry.fd)
-(./simfempy.toc)
+(./simfempy.toc [1
+
+{/usr/local/texlive/2021/texmf-var/fonts/map/pdftex/updmap/pdftex.map}])
 \tf@toc=\write9
 \openout9 = `simfempy.toc'.
 
- [1
-
-{/usr/local/texlive/2021/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+ [2]
 \openout2 = `chap/heat.aux'.
 
- (./chap/heat.tex [2
+ (./chap/heat.tex [3
 
 ]
 Overfull \hbox (49.96819pt too wide) detected at line 110
@@ -1547,7 +1550,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 LaTeX Warning: Empty bibliography on input line 143.
 
-) [3]
+) [4]
 \openout2 = `chap/stokes.aux'.
 
  (./chap/stokes.tex
@@ -1556,7 +1559,7 @@ LaTeX Font Info:    Trying to load font information for T1+cmss on input line 9
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/base/t1cmss.fd
 File: t1cmss.fd 2019/12/16 v2.5j Standard LaTeX font definitions
-) [4
+) [5
 
 
 
@@ -1565,7 +1568,7 @@ Overfull \hbox (9.2529pt too wide) detected at line 118
 []
  []
 
-[5] [6] [7]
+[6] [7] [8]
 Overfull \hbox (59.84836pt too wide) detected at line 439
 [][] []
  []
@@ -1575,7 +1578,7 @@ Overfull \hbox (39.40414pt too wide) detected at line 454
 []
  []
 
-[8]
+[9]
 Overfull \hbox (50.50815pt too wide) detected at line 474
 []
  []
@@ -1585,8 +1588,41 @@ Overfull \hbox (4.05374pt too wide) detected at line 571
 []
  []
 
-[9]
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 677--681
+[10]
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 589.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 589.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 589.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 589.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 625.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 625.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 625.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 625.
+
+
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 732--736
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1594,21 +1630,22 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
 /zeus/m/n/10.95 © !
  []
 
+[11]
 
-LaTeX Warning: Empty bibliography on input line 701.
+LaTeX Warning: Empty bibliography on input line 756.
 
-) [10]
+) [12]
 \openout2 = `chap/beam.aux'.
 
- (./chap/beam.tex [11
+ (./chap/beam.tex [13
 
 
 
-] [12]
+] [14]
 
 LaTeX Warning: Empty bibliography on input line 172.
 
-) [13]
+) [15]
 \openout2 = `chap/python.aux'.
 
  (./chap/python.tex
@@ -1635,7 +1672,7 @@ Overfull \hbox (33.86285pt too wide) in paragraph at lines 16--17
 
 LaTeX Warning: Empty bibliography on input line 28.
 
-) [14
+) [16
 
 
 
@@ -1653,14 +1690,14 @@ m/n/10.95 x[]\U/zeus/m/n/10.95 ©$\T1/ppl/m/n/10.95 .
  []
 
 
-LaTeX Warning: Citation 'EisenbergMalvern73' on page 15 undefined on input line
+LaTeX Warning: Citation 'EisenbergMalvern73' on page 17 undefined on input line
  56.
 
 
-LaTeX Warning: Citation 'VermolenSegal18' on page 15 undefined on input line 56
+LaTeX Warning: Citation 'VermolenSegal18' on page 17 undefined on input line 56
 .
 
-[15
+[17
 
 
 
@@ -1714,7 +1751,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 133.
 
-[16]
+[18]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
@@ -1744,11 +1781,11 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
 
-[17]
+[19]
 
 LaTeX Warning: Empty bibliography on input line 268.
 
-) [18]
+) [20]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
@@ -1772,7 +1809,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 70.
 
-[19
+[21
 
 
 
@@ -1781,7 +1818,7 @@ Overfull \hbox (12.04153pt too wide) detected at line 155
 []
  []
 
-[20]
+[22]
 Overfull \hbox (8.64256pt too wide) detected at line 209
 []
  []
@@ -1829,7 +1866,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 LaTeX Warning: Empty bibliography on input line 269.
 
-) [21] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
+) [23] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
 (./chap/python.aux) (./chap/fem.aux) (./chap/transport.aux))
 
 LaTeX Warning: There were undefined references.
@@ -1837,14 +1874,8 @@ LaTeX Warning: There were undefined references.
 
 LaTeX Warning: There were multiply-defined labels.
 
-
-Package rerunfilecheck Warning: File `simfempy.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `simfempy.out':
-(rerunfilecheck)             Before: A39E3A64AB01B2EC24EEC472DFCDC54C;4658
-(rerunfilecheck)             After:  5BF3C648314AE2E83CE3AEA375E214A1;4648.
+Package rerunfilecheck Info: File `simfempy.out' has not changed.
+(rerunfilecheck)             Checksum: C44CB1ABF8AAC0F5BEDB12D38F2840B6;5222.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1855,49 +1886,46 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37096 strings out of 478994
- 698137 string characters out of 5858185
- 1459813 words of memory out of 5000000
- 53765 multiletter control sequences out of 15000+600000
+ 37101 strings out of 478994
+ 698207 string characters out of 5858185
+ 1467814 words of memory out of 5000000
+ 53767 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,23n,119p,1891b,1731s stack positions out of 5000i,500n,10000p,200000b,80000s
-pdfTeX warning (dest): name{subsubsection.2.5.1} has been referenced but does
- not exist, replaced by a fixed one
-
-{/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/tex
-live/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/texli
-ve/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texliv
-e/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive
-/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2
-021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/202
-1/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2021
-/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2021/t
-exmf-dist/fonts/type1/public/amsfonts/euler/euex10.pfb></usr/local/texlive/2021
-/texmf-dist/fonts/type1/public/amsfonts/euler/eufm10.pfb></usr/local/texlive/20
-21/texmf-dist/fonts/type1/public/amsfonts/euler/eufm7.pfb></usr/local/texlive/2
-021/texmf-dist/fonts/type1/public/amsfonts/euler/eurm10.pfb></usr/local/texlive
-/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eurm7.pfb></usr/local/texliv
-e/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eusm10.pfb></usr/local/texl
-ive/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eusm7.pfb></usr/local/tex
-live/2021/texmf-dist/fonts/type1/public/amsfonts/latxfont/line10.pfb></usr/loca
-l/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/
-local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msam7.pfb></u
-sr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb
-></usr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm0600.pfb><
-/usr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb></u
-sr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr
-/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfss0600.pfb></usr/l
-ocal/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfss0800.pfb></usr/loc
-al/texlive/2021/texmf-dist/fonts/type1/public/stmaryrd/stmary10.pfb></usr/local
-/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive
-/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021/t
-exmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-di
-st/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (21 pages, 322083 bytes).
+ 117i,23n,119p,1891b,2013s stack positions out of 5000i,500n,10000p,200000b,80000s
+{/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
+exlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
+live/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
+ive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texli
+ve/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive
+/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2
+021/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/20
+21/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2021
+/texmf-dist/fonts/type1/public/amsfonts/euler/euex10.pfb></usr/local/texlive/20
+21/texmf-dist/fonts/type1/public/amsfonts/euler/eufm10.pfb></usr/local/texlive/
+2021/texmf-dist/fonts/type1/public/amsfonts/euler/eufm7.pfb></usr/local/texlive
+/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eurm10.pfb></usr/local/texli
+ve/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eurm7.pfb></usr/local/texl
+ive/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eusm10.pfb></usr/local/te
+xlive/2021/texmf-dist/fonts/type1/public/amsfonts/euler/eusm7.pfb></usr/local/t
+exlive/2021/texmf-dist/fonts/type1/public/amsfonts/latxfont/line10.pfb></usr/lo
+cal/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></us
+r/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msam7.pfb><
+/usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.p
+fb></usr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm0600.pfb
+></usr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb><
+/usr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></u
+sr/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfss0600.pfb></usr
+/local/texlive/2021/texmf-dist/fonts/type1/public/cm-super/sfss0800.pfb></usr/l
+ocal/texlive/2021/texmf-dist/fonts/type1/public/stmaryrd/stmary10.pfb></usr/loc
+al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
+ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
+/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
+dist/fonts/type1/urw/palatino/uplri8a.pfb>
+Output written on simfempy.pdf (23 pages, 324075 bytes).
 PDF statistics:
- 485 PDF objects out of 1000 (max. 8388607)
- 430 compressed objects within 5 object streams
- 128 named destinations out of 1000 (max. 500000)
- 245 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 502 PDF objects out of 1000 (max. 8388607)
+ 445 compressed objects within 5 object streams
+ 131 named destinations out of 1000 (max. 500000)
+ 261 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -8,18 +8,17 @@ import simfempy.solvers.linalg as linalg
 
 #=================================================================#
 class VelcoitySolver():
-    def _selectsolver(self, solvername, A, **kwargs):
-        if solvername in linalg.scipysolvers:
-            return linalg.ScipySolve(matrix=A, method=solvername, **kwargs)
-        elif solvername == "umf":
-            return linalg.ScipySpSolve(matrix=A)
-        elif solvername[:5] == "pyamg":
-            sp = solvername.split('@')
-            return linalg.Pyamg(A, type=sp[1], accel=sp[2], smoother=sp[3])
-        else:
-            raise ValueError(f"unknwown {solvername=}")
+    # def _selectsolver(self, solvername, A, **kwargs):
+    #     if solvername in linalg.scipysolvers:
+    #         return linalg.ScipySolve(matrix=A, method=solvername, **kwargs)
+    #     elif solvername == "umf":
+    #         return linalg.ScipySpSolve(matrix=A)
+    #     elif solvername[:5] == "pyamg":
+    #         sp = solvername.split('@')
+    #         return linalg.Pyamg(A, type=sp[1], accel=sp[2], smoother=sp[3])
+    #     else:
+    #         raise ValueError(f"unknwown {solvername=}")
     def __init__(self, A, **kwargs):
-        # solvernames = kwargs.pop('solver',  ['pyamg','lgmres', 'umf', 'gcrotmk', 'bicgstab'])
         defsolvers = ['lgmres', 'umf']
         defsolvers.append('pyamg@aggregation@none@gauss_seidel')
         defsolvers.append('pyamg@aggregation@none@schwarz')
@@ -27,14 +26,15 @@ class VelcoitySolver():
         # defsolvers.append('pyamg@rootnode@gcrotmk@gauss_seidel')
         solvernames = kwargs.pop('solver',  defsolvers)
         if isinstance(solvernames, str):
-            self.solver = self._selectsolver(solvernames, A, **kwargs)
+            self.solver = linalg.getSolverFromName(solvernames, A, **kwargs)
             self.maxiter = kwargs.pop('maxiter', 1)
         else:
             if 'maxiter' in kwargs: print(f"??? maxiter unused")
             self.reduction = kwargs.pop('reduction', 0.1)
             self.solvers = {}
             for solvername in solvernames:
-                self.solvers[solvername] = self._selectsolver(solvername, A, **kwargs)
+                self.solvers[solvername] = linalg.getSolverFromName(solvername, A, **kwargs)
+                # self.solvers[solvername] = self._selectsolver(solvername, A, **kwargs)
             b = np.random.random(A.shape[0])
             solverbest, self.maxiter = linalg.selectBestSolver(self.solvers, self.reduction, b, maxiter=20, verbose=1)
             print(f"{solverbest=}")
@@ -47,7 +47,7 @@ class VelcoitySolver():
 #=================================================================#
 class PressureSolverScale():
     def __init__(self, mesh, mu):
-        self.BP = sparse.diags(1/mesh.dV*mu, offsets=(0), shape=(mesh.ncells, mesh.ncells))
+        self.BP = sparse.diags(mu/mesh.dV, offsets=(0), shape=(mesh.ncells, mesh.ncells))
     def solve(self, b):
         return self.BP.dot(b)
 #=================================================================#
