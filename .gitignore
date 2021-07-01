@@ -6,7 +6,12 @@
 *.png
 */*.png
 doc/latex/*/*.aux
+doc/latex/*.aux
+doc/latex/*/*.log
+doc/latex/*.log
 simfempy.egg-info
+Results
+Resultslatextest
 
 # Apple
 .DS_store

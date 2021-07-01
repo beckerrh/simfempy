@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  30 JUN 2021 15:38
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  1 JUL 2021 18:06
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1621,8 +1621,8 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 625.
 
-
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 732--736
+[11]
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 743--747
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1630,9 +1630,8 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
 /zeus/m/n/10.95 © !
  []
 
-[11]
 
-LaTeX Warning: Empty bibliography on input line 756.
+LaTeX Warning: Empty bibliography on input line 767.
 
 ) [12]
 \openout2 = `chap/beam.aux'.
@@ -1875,7 +1874,7 @@ LaTeX Warning: There were undefined references.
 LaTeX Warning: There were multiply-defined labels.
 
 Package rerunfilecheck Info: File `simfempy.out' has not changed.
-(rerunfilecheck)             Checksum: C44CB1ABF8AAC0F5BEDB12D38F2840B6;5222.
+(rerunfilecheck)             Checksum: B10FF1ECEE01322530BA4CA2303884FA;5472.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1886,10 +1885,10 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37101 strings out of 478994
- 698207 string characters out of 5858185
- 1467814 words of memory out of 5000000
- 53767 multiletter control sequences out of 15000+600000
+ 37103 strings out of 478994
+ 698247 string characters out of 5858185
+ 1462814 words of memory out of 5000000
+ 53768 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  117i,23n,119p,1891b,2013s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -1922,10 +1921,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (23 pages, 324075 bytes).
+Output written on simfempy.pdf (23 pages, 324512 bytes).
 PDF statistics:
- 502 PDF objects out of 1000 (max. 8388607)
- 445 compressed objects within 5 object streams
- 131 named destinations out of 1000 (max. 500000)
- 261 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 507 PDF objects out of 1000 (max. 8388607)
+ 450 compressed objects within 5 object streams
+ 132 named destinations out of 1000 (max. 500000)
+ 269 words of extra memory for PDF output out of 10000 (max. 10000000)
 
