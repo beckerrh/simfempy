@@ -20,7 +20,7 @@ Resultslatextest
 *.pyc
 dist
 build
-OLD/simfempy.egg-info
+simfempy.egg-info
 venv
 
 # PyCharm
