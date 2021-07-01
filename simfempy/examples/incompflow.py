@@ -76,13 +76,6 @@ def poiseuille2d(h= 0.1, mu=0.1):
     data.bdrycond.set("Navier", [])
     data.bdrycond.set("Pressure", [1001])
     data.bdrycond.fct[1003] = [lambda x, y, z:  4*y*(1-y), lambda x, y, z: 0]
-    # data.bdrycond.fct[1002] = [lambda x, y, z:  1, lambda x, y, z: 0]
-    # data.bdrycond.fct[1003] = {'p': lambda x, y, z:  1}
-    # data.bdrycond.fct[1003] = [lambda x, y, z, nx, ny, nz:  1, lambda x, y, z, nx, ny, nz:  0]
-    #--------------------------------------------------------------------------
-    #navier_slip_boundary
-    # data.bdrycond.fct[1000] = { 'g': [lambda x, y, z:  1, lambda x, y, z:  0]}
-    #---------------------------------------------------------------------------
     # parameters
     data.params.scal_glob["mu"] = mu
     data.params.scal_glob["navier"] = 1.01
@@ -174,6 +167,37 @@ def backwardFacingStep2d(h=0.2, mu=0.02):
     data.ncomp = 2
     return mesh, data
 # ================================================================ #
+def backwardFacingStep3d(h=0.2, mu=0.02):
+    with pygmsh.geo.Geometry() as geom:
+        X = []
+        X.append([-1.0, 1.0])
+        X.append([-1.0, 0.0])
+        X.append([0.0, 0.0])
+        X.append([0.0, -1.0])
+        X.append([3.0, -1.0])
+        X.append([3.0, 1.0])
+        p = geom.add_polygon(points=np.insert(np.array(X), 2, 0, axis=1), mesh_size=h)
+        axis = [0, 0, 2]
+        top, vol, lat = geom.extrude(p.surface, axis)
+        geom.add_physical(top, label="102")
+        geom.add_physical([p.surface, lat[0], lat[1], lat[2], lat[3]], label="100")
+        geom.add_physical(vol, label="10")
+        # geom.add_physical(p.surface, label="100")
+        # dirlines = [p for i,p in enumerate(p.lines) if i != 0 and i != 4]
+        # geom.add_physical(dirlines, "1002")
+        # geom.add_physical(p.lines[0], "1000")
+        # geom.add_physical(p.lines[4], "1004")
+        mesh = geom.generate_mesh()
+    data = ProblemData()
+    # boundary conditions
+    data.bdrycond.set("Dirichlet", [100, 102])
+    data.bdrycond.set("Pressure", [104])
+    data.bdrycond.fct[102] = [lambda x, y, z: y*(1-y)*(z-1)*(2-z), lambda x, y, z: 0, lambda x, y, z: 0]
+    # parameters
+    data.params.scal_glob["mu"] = mu
+    data.ncomp = 3
+    return mesh, data
+# ================================================================ #
 def schaeferTurek2d(h= 0.5, hcircle=None):
     if hcircle is None: hcircle = 0.2*h
     with pygmsh.geo.Geometry() as geom:
@@ -226,7 +250,7 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'umf'})
+    main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'spsolve'})
     # main(testcase='drivenCavity2d', h=1, mu=3e-2, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='schaeferTurek2d')
@@ -234,4 +258,4 @@ if __name__ == '__main__':
     # main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, model='Stokes', plot=False)
     # main(testcase='schaeferTurek3d', h=0.5, bdryplot=False, linearsolver='gcrotmk_1', model='Stokes', plot=False)
-    # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='umf', model='Stokes', plot=False)
+    # main(testcase='schaeferTurek3d', h=0.95, bdryplot=False, linearsolver='spsolve', model='Stokes', plot=False)

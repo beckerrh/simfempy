@@ -97,7 +97,7 @@ class Heat(simfempy.applications.heat.Heat):
         kwargs['plotk'] = True
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
-        # self.linearsolver = "umf"
+        # self.linearsolver = "spsolve"
         self.kheat = np.vectorize(self.kparam)
         self.dkheat = np.vectorize(self.dkparam)
         self.diffglobal = kwargs.pop('diffglobal')

@@ -471,8 +471,8 @@ class Stokes(solvers.solver.Application):
 
         return Aall.tocsr()
 
-    def linearSolver(self, Ain, bin, u=None, linearsolver='umf'):
-        if solver == 'umf':
+    def linearSolver(self, Ain, bin, u=None, linearsolver='spsolve'):
+        if solver == 'spsolve':
             Aall = self._to_single_matrix(Ain)
             u =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             return u, 1

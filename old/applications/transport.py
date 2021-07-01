@@ -32,7 +32,7 @@ class Transport(Application):
             raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
         elif isinstance(beta_given[0],str):
             self.problemdata.params.fct_glob['beta'] = [AnalyticalFunction(expr=e) for e in beta_given]
-        self.linearsolver = kwargs.pop('linearsolver','umf')
+        self.linearsolver = kwargs.pop('linearsolver','spsolve')
         fem = kwargs.pop('fem','p1')
         if fem == 'p1':
             self.fem = fems.p1.P1()

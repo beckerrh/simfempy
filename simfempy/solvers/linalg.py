@@ -5,28 +5,36 @@ import scipy.sparse as sparse
 from simfempy import tools
 import time
 
-scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs']
+scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs', 'cg']
 strangesolvers=['gmres']
 
 #-------------------------------------------------------------------#
-def getSolverFromName(solvername, A, **kwargs):
+def getSolverFromName(solvername, **kwargs):
+    matrix = kwargs.pop('matrix', None)
     if solvername in scipysolvers:
-        return ScipySolve(matrix=A, method=solvername, **kwargs)
-    elif solvername == "umf":
-        return ScipySpSolve(matrix=A)
+        if matrix:
+            return ScipySolve(matrix=matrix, method=solvername, **kwargs)
+        else:
+            return ScipySolve(method=solvername, **kwargs)
+    elif solvername == "spsolve":
+        return ScipySpSolve(matrix=matrix)
     elif solvername[:5] == "pyamg":
         sp = solvername.split('@')
         if len(sp) != 4:
             raise ValueError(f"*** for pyamg need 'pyamg@type@accel@smoother'\ngot{solvername=}")
-        return Pyamg(A, type=sp[1], accel=sp[2], smoother=sp[3])
+        return Pyamg(matrix, type=sp[1], accel=sp[2], smoother=sp[3], **kwargs)
     else:
         raise ValueError(f"unknwown {solvername=}")
-
 #-------------------------------------------------------------------#
-def selectBestSolver(solvers, reduction, b, **kwargs):
+def selectBestSolver(solvernames, reduction, A, **kwargs):
     maxiter = kwargs.pop('maxiter', 50)
     verbose = kwargs.pop('verbose', 0)
     rtol = kwargs.pop('rtol') if 'rtol' in kwargs else 0.1*reduction
+    solvers = {}
+    for solvername in solvernames:
+        solvers[solvername] = getSolverFromName(solvername, matrix=A, **kwargs)
+    b = np.random.random(A.shape[0])
+    b /= np.linalg.norm(b)
     analysis = {}
     for solvername, solver in solvers.items():
         t0 = time.time()
@@ -34,7 +42,7 @@ def selectBestSolver(solvers, reduction, b, **kwargs):
         t = time.time() - t0
         monotone = np.all(np.diff(res) < 0)
         if len(res)==1:
-            if res[0] > 1e-6: 
+            if res[0] > rtol:
                 print(f"no convergence in {solvername=} {res=}")
                 continue
             iterused = 1
@@ -43,7 +51,7 @@ def selectBestSolver(solvers, reduction, b, **kwargs):
             if not monotone:
                 print(f"***VelcoitySolver {solvername} not monotone {rho=}")
                 continue
-            if rho > 0.8: 
+            if rho > 0.8:
                 print(f"***VelcoitySolver {solvername} bad {rho=}")
                 continue
             iterused = int(np.log(reduction)/np.log(rho))+1
@@ -56,22 +64,18 @@ def selectBestSolver(solvers, reduction, b, **kwargs):
     if len(analysis)==0: raise ValueError('*** no working solver found')
     ibest = np.argmin([v[1] for v in analysis.values()])
     solverbest = list(analysis.keys())[ibest]
-    # print(f"{solverbest=}")
-    # self.solver = self.solvers[solverbest]
-    return solverbest, analysis[solverbest][0]
-
-
+    if verbose:
+        print(f"{solverbest=}")
+    return solvers[solverbest], analysis[solverbest][0]
 #=================================================================#
 class ScipySpSolve():
     def __init__(self, **kwargs):
         self.matrix = kwargs.pop('matrix')
-    def solve(self, b, maxiter, rtol, x0=None):
+    def solve(self, b, maxiter=None, rtol=None, x0=None):
         return splinalg.spsolve(self.matrix, b)
     def testsolve(self, b, maxiter, rtol):
         splinalg.spsolve(self.matrix, b)
         return [0]
-
-
 #=================================================================#
 class IterativeSolver():
     def __init__(self, **kwargs):
@@ -84,6 +88,7 @@ class IterativeSolver():
             self.counter = tools.iterationcounter.IterationCounter(name=kwargs.pop('counter')+str(self), disp=disp)
             self.args['callback'] = self.counter
     def solve(self, b, maxiter=None, rtol=None, x0=None):
+        # print(f"{maxiter=} {self.maxiter=}")
         if maxiter is None: maxiter = self.maxiter
         if rtol is None: rtol = self.rtol
         if hasattr(self, 'counter'):
@@ -104,7 +109,6 @@ class IterativeSolver():
         args['b'] = b
         res = self.solver(**args)
         return counter.history
-
 #=================================================================#
 class ScipySolve(IterativeSolver):
     def __repr__(self):
@@ -140,7 +144,6 @@ class ScipySolve(IterativeSolver):
             self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
             name += '_' + str(self.args['m'])
-
 #=================================================================#
 class Pyamg(IterativeSolver):
     def __repr__(self):
@@ -171,25 +174,84 @@ class Pyamg(IterativeSolver):
         else:
             raise ValueError(f"unknown {self.type=}")
         self.solver = self.mlsolver.solve
-        super().__init__(**kwargs)
         #        cycle : {'V','W','F','AMLI'}
+        super().__init__(**kwargs)
         self.args['cycle'] = 'V'
         self.args['accel'] = self.accel
+#=================================================================#
+class SaddlePointSystem():
+    """
+    A -B.T
+    B  0
+    """
+    def __init__(self, AS, BS, **kwargs):
+        if not isinstance(AS,dict) or not isinstance(BS,dict) or AS.keys()!=BS.keys():
+            raise ValueError(f"*** need dictionaries for AS and BS with keys='A','B', ('M')\ngot {AS=} {BS=}")
+        self.AS = AS
+        self.BS = BS
+        self.nv = AS['A'].shape[0]
+        self.np = self.nv+ AS['B'].shape[0]
+        constr = 'M' in AS
+        self.nall = self.np + AS['M'].shape[0] if constr else self.np
+        prec = kwargs.pop('prec','diag')
+        if prec == 'diag':
+            self.matvecprec = self.pmatvec3_diag if constr else self.pmatvec2_diag
+        elif prec == 'triup':
+            self.matvecprec = self.pmatvec3_triup if constr else self.pmatvec2_triup
+        elif prec == 'tridown':
+            self.matvecprec = self.pmatvec3_tridown if constr else self.pmatvec2_tridown
+        elif prec == 'full':
+            self.matvecprec = self.pmatvec3_full if constr else self.pmatvec2_full
+        else:
+            raise ValueError(f"*** unknwon {prec=}")
+        self.matvec = self.matvec3 if constr else self.matvec2
+        # method = kwargs.pop('method', 'lgmres')
+        # self.solver = getSolverFromName(solvername=method, matvec=matvec, matvecprec=matvecprec, n=nall, **kwargs)
 
-    # def testsolve(self, b, maxiter, rtol):
-    #     return super(Pyamg, self).testsolve(b, maxiter, rtol)
-    #     counter = tools.iterationcounter.IterationCounterWithRes(name=self, callback_type='x', disp=0, b=b, A=self.matvec)
-    #     # counter = tools.iterationcounter.IterationCounter(name=self, disp=0)
-    #     args = self.args.copy()
-    #     args['callback'] = counter
-    #     args['maxiter'] = maxiter
-    #     args['tol'] = rtol
-    #     args['b'] = b
-    #     # self.mlsolver.solve(**args)
-    #     raise ValueError(f"{self.solver=} {args.keys()=}")
-    #     self.solver(**args)
-    #     return counter.history
-    # def solve(self, b, maxiter, rtol):
-    #     if hasattr(self, 'counter'):
-    #         self.counter.reset()
-    #     return self.mlsolver.solve(b, maxiter=maxiter, tol=rtol, **self.args)
+    # def solve(self, b, x0):
+    #     return self.solver.solve(b=b, x0=x0)
+    def matvec3(self, x):
+        A, B, M = self.AS['A'], self.AS['B'], self.AS['M']
+        v, p, lam = x[:self.nv], x[self.nv:self.np], x[self.np:]
+        w = A.dot(v) - B.T.dot(p)
+        q = B.dot(v)+ M.T.dot(lam)
+        return np.hstack([w, q, M.dot(p)])
+    def matvec2(self, x):
+        A, B = self.AS['A'], self.AS['B']
+        v, p = x[:self.nv], x[self.nv:]
+        w = A.dot(v) - B.T.dot(p)
+        q = B.dot(v)
+        return np.hstack([w, q])
+    def pmatvec2_diag(self, x):
+        v, p = x[:self.nv], x[self.nv:]
+        A, B = self.BS['A'], self.BS['B']
+        w = A.solve(v)
+        q = B.solve(p)
+        return np.hstack([w, q])
+    def pmatvec3_diag(self, x):
+        v, p, lam = x[:self.nv], x[self.nv:self.np], x[self.np:]
+        AP, BP, MP = self.BS['A'], self.BS['B'], self.BS['M']
+        w = AP.solve(v)
+        q = BP.solve(p)
+        mu = MP.solve(lam)
+        return np.hstack([w, q, mu])
+    def pmatvec2_triup(self, x):
+        v, p = x[:self.nv], x[self.nv:]
+        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
+        q = BP.solve(p)
+        w = AP.solve(v+B.T.dot(q))
+        return np.hstack([w, q])
+    def pmatvec2_tridown(self, x):
+        v, p = x[:self.nv], x[self.nv:]
+        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
+        w = AP.solve(v)
+        q = BP.solve(p-B.dot(w))
+        return np.hstack([w, q])
+    def pmatvec2_full(self, x):
+        v, p = x[:self.nv], x[self.nv:]
+        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
+        w = AP.solve(v)
+        q = BP.solve(p - B.dot(w))
+        h = B.T.dot(q)
+        w += AP.solve(h)
+        return np.hstack([w, q])

@@ -22,16 +22,18 @@ class TableData(object):
         return s
     def _getformat(self,v):
         assert len(v)
-        if isinstance(v[0], (int,np.integer)):
+        isint = (isinstance(v,list) and isinstance(v[0], (int, np.integer))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.integer))
+        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.float))
+        if isint:
             format = "{:15d}"
-        elif isinstance(v[0], str):
-            format = "{:15s}"
-        elif isinstance(v[0], float):
+        elif isfloat:
             v = np.asarray(v)
             if np.all(np.abs(v) < 100) and np.abs(v).min()>0.01:
                 format = "{:10.2f}"
             else:
                 format = "{:10.2e}"
+        elif isinstance(v[0], str):
+            format = "{:15s}"
         else:
             raise ValueError(f"cannot find instance of {v=} {type(v[0])=}")
         return format

@@ -50,7 +50,7 @@ class Membrane(simfempy.applications.heat.Heat):
         kwargs['fem'] = 'p1'
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
-        # self.linearsolver = "umf"
+        # self.linearsolver = "spsolve"
         self.kheat = np.vectorize(lambda i: 1)
         self.reaction = np.vectorize(lambda i: 1)
         self.plotk=True

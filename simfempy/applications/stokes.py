@@ -5,7 +5,7 @@ import scipy.sparse.linalg as splinalg
 from simfempy import fems, tools, solvers
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import analyticalSolution
-from simfempy.tools import npext
+from simfempy.solvers import linalg
 from functools import partial
 
 #=================================================================#
@@ -31,6 +31,7 @@ class Stokes(Application):
         self.precond_p = kwargs.pop('precond_p', 'scale')
         # self.precond_p = kwargs.pop('precond_p', 'schur@diag@1')
         self.precond_v = kwargs.pop('precond_v', 'pyamg@aggregation@none@gauss_seidel')
+        # self.precond_v = kwargs.pop('precond_v', None)
         super().__init__(**kwargs)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
@@ -214,66 +215,78 @@ class Stokes(Application):
         Cbig = sparse.hstack([CL,nullL])
         Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
-    def matrixVector(self, Ain, x):
-        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        if self.pmean:
-            A, B, C = Ain
-            v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-            w = A.dot(v) - B.T.dot(p)
-            q = B.dot(v)+C.T.dot(lam)
-            return np.hstack([w, q, C.dot(p)])
-        else:
-            try:
-                A, B = Ain
-                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
-                w = A.dot(v) - B.T.dot(p)
-                q = B.dot(v)
-            except:
-                raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
-            return np.hstack([w, q])
-    def getPrecMult(self, Ain, AP, SP):
-        A, B = Ain[0], Ain[1]
-        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        if self.pmean: 
-            C = Ain[2].A.ravel()
-            BPCT = SP.solve(C)
-            # BPCT = SP.prec.solve(C.T.toarray(), maxiter=1, tol=1e-10)
-            # print(f"{BPCT=}")            
-            # print(f"{C.dot(BPCT)=}")
-            # CP = splinalg.inv(C.dot(BPCT))
-            CP = sparse.coo_matrix(1/C.dot(BPCT))
-            print(f"{CP.A=}")
-        if self.pmean: 
-            def pmult(x):
-                v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-                # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
-                w = AP.solve(v)
-                q = SP.solve(p-B.dot(w))
-                mu = CP.dot(lam-C.dot(q)).ravel()
-                # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
-                # q -= BPCT.dot(mu)
-                q -= BPCT*mu
-                # print(f"{BPCT.shape=} {mu=}")
-                # q -= mu*BPCT
-                h = B.T.dot(q)
-                w += AP.solve(h)
-                return np.hstack([w, q, mu])
-        else:
-            def pmult(x):
-                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
-                w = AP.solve(v)
-                # print(f"{np.linalg.norm(v)=} {np.linalg.norm(p)=}")
-                # print(f"{np.linalg.norm(w)=} {np.linalg.norm(p-B.dot(w))=}")
-                q = SP.solve(p-B.dot(w))
-                # print(f"{np.linalg.norm(q)=}")
-                # q += 0.1*B.dot(w)
-                h = B.T.dot(q)
-                w += AP.solve(h)
-                return np.hstack([w, q])
-        return pmult
+    # def matrixVector(self, Ain, x):
+    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+    #     if self.pmean:
+    #         A, B, C = Ain
+    #         v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+    #         w = A.dot(v) - B.T.dot(p)
+    #         q = B.dot(v)+C.T.dot(lam)
+    #         return np.hstack([w, q, C.dot(p)])
+    #     else:
+    #         try:
+    #             A, B = Ain
+    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
+    #             w = A.dot(v) - B.T.dot(p)
+    #             q = B.dot(v)
+    #         except:
+    #             raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
+    #         return np.hstack([w, q])
+    # def getPrecMult(self, Ain, AP, SP):
+    #     A, B = Ain[0], Ain[1]
+    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+    #     if self.pmean:
+    #         C = Ain[2].A.ravel()
+    #         BPCT = SP.solve(C)
+    #         # BPCT = SP.prec.solve(C.T.toarray(), maxiter=1, tol=1e-10)
+    #         # print(f"{BPCT=}")
+    #         # print(f"{C.dot(BPCT)=}")
+    #         # CP = splinalg.inv(C.dot(BPCT))
+    #         CP = sparse.coo_matrix(1/C.dot(BPCT))
+    #         print(f"{CP.A=}")
+    #     if self.pmean:
+    #         def pmult(x):
+    #             v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+    #             # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
+    #             w = AP.solve(v)
+    #             q = SP.solve(p-B.dot(w))
+    #             mu = CP.dot(lam-C.dot(q)).ravel()
+    #             # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
+    #             # q -= BPCT.dot(mu)
+    #             q -= BPCT*mu
+    #             # print(f"{BPCT.shape=} {mu=}")
+    #             # q -= mu*BPCT
+    #             h = B.T.dot(q)
+    #             w += AP.solve(h)
+    #             return np.hstack([w, q, mu])
+    #     else:
+    #         def pmult(x):
+    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
+    #             w = AP.solve(v)
+    #             # print(f"{np.linalg.norm(v)=} {np.linalg.norm(p)=}")
+    #             # print(f"{np.linalg.norm(w)=} {np.linalg.norm(p-B.dot(w))=}")
+    #             q = SP.solve(p-B.dot(w))
+    #             # print(f"{np.linalg.norm(q)=}")
+    #             # q += 0.1*B.dot(w)
+    #             h = B.T.dot(q)
+    #             w += AP.solve(h)
+    #             return np.hstack([w, q])
+    #     return pmult
     def getVelocitySolver(self, A):
-        return solvers.cfd.VelcoitySolver(A, disp=0, counter="VS", solver=self.precond_v)
-        # return solvers.cfd.VelcoitySolver(A, solver='pyamg', maxiter=1)
+        defsolvers = ['lgmres', 'spsolve']
+        defsolvers.append('pyamg@aggregation@none@gauss_seidel')
+        defsolvers.append('pyamg@aggregation@none@schwarz')
+        defsolvers.append('pyamg@aggregation@fgmres@schwarz')
+        # defsolvers.append('pyamg@rootnode@gcrotmk@gauss_seidel')
+        solvernames = self.precond_v
+        if solvernames is None: solvernames = defsolvers
+        if isinstance(solvernames, str):
+            solver = linalg.getSolverFromName(solvernames, matrix=A, maxiter=1, rtol=1e-16)
+        else:
+            reduction = 0.1
+            solver, maxiter = linalg.selectBestSolver(solvernames, reduction, A, maxiter=20, verbose=1)
+            solver.maxiter = maxiter
+        return solver
     def getPressureSolver(self, A, B, AP):
         mu = self.problemdata.params.scal_glob['mu']
         if self.pmean: assert self.precond_p == "schur"
@@ -281,34 +294,42 @@ class Stokes(Application):
             sp = self.precond_p.split('@')
             if not len(sp)==3 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
                 raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='lgmres', prec = sp[1], maxiter=int(sp[2]), disp=0)
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='cg', prec = sp[1], maxiter=int(sp[2]), disp=0)
         elif self.precond_p == "diag":    
-            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=5, disp=1, counter="PS", symmetric=True)
+            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
             return solvers.cfd.PressureSolverScale(self.mesh, mu)
         else:
             raise ValueError(f"unknown {self.precond_p=}")   
-    def linearSolver(self, Ain, bin, uin=None, linearsolver='umf', verbose=0, atol=1e-14, rtol=1e-10):
+    def linearSolver(self, Ain, bin, uin=None, linearsolver='spsolve', verbose=0, atol=1e-16, rtol=1e-10):
         ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        if linearsolver == 'umf':
+        if linearsolver == 'spsolve':
             Aall = self._to_single_matrix(Ain)
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             self.timer.add("linearsolve")
             return uall, 1
         else:
-            # print(f"{atol=} {rtol=}")
+            AP = self.getVelocitySolver(Ain[0])
+            SP = self.getPressureSolver(Ain[0], Ain[1], AP)
+            AS = {'A':Ain[0], 'B': Ain[1]}
+            if len(Ain) == 3: AS['M'] = Ain[2]
+            BS = {'A':AP, 'B': SP}
             ssolver = linearsolver.split('_')
             method=ssolver[0] if len(ssolver)>0 else 'lgmres'
             disp=int(ssolver[1]) if len(ssolver)>1 else 0
-            nall = ncomp*nfaces + ncells
-            if self.pmean: nall += 1
-            AP = self.getVelocitySolver(Ain[0])
-            SP = self.getPressureSolver(Ain[0], Ain[1], AP)
-            matvec = partial(self.matrixVector, Ain)
-            matvecprec = self.getPrecMult(Ain, AP, SP)
             maxiter = 20
-            S = solvers.linalg.ScipySolve(matvec=matvec, matvecprec=matvecprec, method=method, n=nall,
-                                            disp=disp, atol=atol, rtol=rtol, counter="sys", maxiter=maxiter)
+            sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec='full')
+            S = linalg.getSolverFromName(solvername=method, matvec=sp.matvec, matvecprec=sp.matvecprec, n=sp.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
+            # print(f"{atol=} {rtol=}")
+            # ssolver = linearsolver.split('_')
+            # method=ssolver[0] if len(ssolver)>0 else 'lgmres'
+            # disp=int(ssolver[1]) if len(ssolver)>1 else 0
+            # nall = ncomp*nfaces + ncells
+            # if self.pmean: nall += 1
+            # matvec = partial(self.matrixVector, Ain)
+            # matvecprec = self.getPrecMult(Ain, AP, SP)
+            # S = solvers.linalg.ScipySolve(matvec=matvec, matvecprec=matvecprec, method=method, n=nall,
+            #                                 disp=disp, atol=atol, rtol=rtol, counter="sys", maxiter=maxiter)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter
@@ -317,7 +338,9 @@ class Stokes(Application):
                 msg += f"\n{self.precond_v=} {self.precond_p=}"
                 msg += f"\n{AP=} {SP=}"
                 msg += f"\n{S.counter=}"
-                raise ValueError(msg)
+                # raise ValueError(msg)
+                print(msg)
+                it = -1
             return uall, it
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()

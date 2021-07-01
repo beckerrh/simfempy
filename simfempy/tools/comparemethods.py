@@ -72,13 +72,16 @@ class CompareMethods(object):
             # self.params = kwargs.pop("params", None)
             self.params = self.paramsdict[self.paramname]
             self.gmshrefine = False
-        self.methods = kwargs.pop("methods", None)
-        if self.methods == None:
+        if 'methods' in kwargs:
+            self.methods = kwargs.pop("methods")
+        else:
             requiredargs = ['application', 'applicationargs']
             for requiredarg in requiredargs:
                 if not requiredarg in kwargs:
                     raise ValueError("need 'application' (class) and 'applicationargs' (dict) and  'paramsdict' (dict)")
             self._definemethods(kwargs.pop("application"), kwargs.pop("applicationargs"))
+        if len(kwargs.keys()):
+            raise ValueError(f"*** unused arguments {kwargs=}")
     def _definemethods(self, application, applicationargs):
         import itertools
         paramsdict = self.paramsdict
@@ -90,12 +93,18 @@ class CompareMethods(object):
         if not 'problemdata' in applicationargs:
             raise KeyError(f"'problemdata' should be set in 'applicationargs'")
         self.methods = {}
+        import copy
         for p in paramslist:
             name = ''
+            applicationargs2 = copy.deepcopy(applicationargs)
             for pname, param in p.items():
+                ps = pname.split('@')
                 if len(paramsdict[pname])>1: name += str(param)
-                applicationargs[pname] = param
-            self.methods[name] = application(**applicationargs)
+                if len(ps)>1:
+                    exec(f"applicationargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
+                else:
+                    applicationargs2[pname] = param
+            self.methods[name] = application(**applicationargs2)
            
     def _mesh_from_geom_or_fct(self, h=None):
         if h is None:
@@ -199,20 +208,12 @@ class CompareMethods(object):
             keysplit = key.split('_')
             if key == 'iter':
                 newdict={}
-                valformat={}
                 for key2, val2 in val.items():
                     for name in names:
                         keyname = "{}-{}".format(key2, name)
-                        # print(f"{keyname=} {val2[name]=}")
                         newdict[keyname] = val2[name]
-                        if np.issubdtype(val2[name].dtype, np.integer): valformat[keyname]='3d'
-                        elif np.issubdtype(val2[name].dtype, np.float): valformat[keyname]='5.1f'
-                        else:  raise ValueError(f"{val2[name].dtype=}")
-                # print(f"{valformat=}")                
                 kwargs['name'] = '{}'.format(key)
                 kwargs['values'] = newdict
-                kwargs['valformat'] = valformat
-                # print(f"{kwargs=}")
                 latexwriter.append(**kwargs)
             elif key == 'timer':
                 for name in names:

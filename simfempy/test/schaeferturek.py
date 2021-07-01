@@ -28,6 +28,6 @@ def run(paramsdict, applicationargs={}, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    # paramsdict = {'convmethod': ['lps','supg'], 'linearsolver': ['umf', 'gcrotmk', 'bicgstab'], 'precond_p': 'schur'}
-    paramsdict = {'convmethod': ['lps'], 'linearsolver': ['gcrotmk','umf'], 'precond_p': 'diag'}
+    # paramsdict = {'convmethod': ['lps','supg'], 'linearsolver': ['spsolve', 'gcrotmk', 'bicgstab'], 'precond_p': 'schur'}
+    paramsdict = {'convmethod': ['lps'], 'linearsolver': ['gcrotmk','spsolve'], 'precond_p': 'diag'}
     run(paramsdict, niter=4, h1=0.5)

@@ -97,7 +97,7 @@ class Elasticity(simfempy.applications.elasticity.Elasticity):
         kwargs['plotk'] = True
         super().__init__(**kwargs)
         self.linearsolver = "pyamg"
-        self.linearsolver = "umf"
+        self.linearsolver = "spsolve"
         self.nparam = 2
 
     def plot(self, **kwargs):

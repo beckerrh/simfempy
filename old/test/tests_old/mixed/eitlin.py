@@ -47,7 +47,7 @@ class EIT(simfempy.applications.laplacemixed.LaplaceMixed):
         kwargs['plotdiff'] = True
         super().__init__(**kwargs)
         # self.plotter = Plotter(self)
-        self.linearsolver = "umf"
+        self.linearsolver = "spsolve"
         self.linearsolver = "gmres"
         self.measure_labels = kwargs.pop('measure_labels')
         self.measure_labels_inv = {}

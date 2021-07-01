@@ -34,16 +34,16 @@ class Application(object):
         repr += f"\n{self.timer}"
         return repr
     def __init__(self, **kwargs):
-        self.linearsolvers=['umf', 'lgmres', 'bicgstab']
+        self.linearsolvers=['spsolve', 'lgmres', 'bicgstab']
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
         except:
             import warnings
-            warnings.warn("*** pyamg not found (umf used instead)***")
+            warnings.warn("*** pyamg not found (spsolve used instead)***")
         self.mode = kwargs.pop('mode', 'linear')
         self.verbose = kwargs.pop('verbose', 0)
-        self.linearsolver = kwargs.pop('linearsolver', 'umf')
+        self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.timer = simfempy.tools.timer.Timer(verbose=self.verbose)
         if 'problemdata' in kwargs:
             self.problemdata = kwargs.get('problemdata')
@@ -64,6 +64,8 @@ class Application(object):
             self.setMesh(kwargs.pop('mesh'))
         else:
             self._setMeshCalled = False
+        if len(kwargs.keys()):
+            raise ValueError(f"*** unused arguments {kwargs=}")
     def setMesh(self, mesh):
         self.problemdata.check(mesh)
         self.mesh = mesh
@@ -276,8 +278,8 @@ class Application(object):
                 raise ValueError(f"{A.shape=} {b.shape=}")
         if linearsolver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
-        if linearsolver not in self.linearsolvers: solver = "umf"
-        if linearsolver == 'umf':
+        if linearsolver not in self.linearsolvers: solver = "spsolve"
+        if linearsolver == 'spsolve':
             return splinalg.spsolve(A, b), 1
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
         elif linearsolver in ['gmres','lgmres','bicgstab','cg','gcrotmk']:

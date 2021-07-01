@@ -57,7 +57,7 @@ def test_solvers():
         # solvers = ['pyamg']
         timer = simfempy.tools.timer.Timer(name="elasticity n={}".format(n))
         for solver in solvers:
-            if solver=='umf' and n > 140000: continue
+            if solver=='spsolve' and n > 140000: continue
             if not solver in times.keys(): times[solver] = []
             u, niter = elasticity.linearSolver(A, b, u, solver=solver)
             timer.add(solver)

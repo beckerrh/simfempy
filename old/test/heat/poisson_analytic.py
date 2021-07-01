@@ -76,7 +76,7 @@ def test_flux(geomname = "unitcube"):
     methods = {}
     for method in ['p1-trad', 'p1-new', 'cr1-trad', 'cr1-new']:
         fem, meth  = method.split('-')
-        methods[method] = Heat(problemdata=data, fem=fem, method=meth, linearsolver='umf')
+        methods[method] = Heat(problemdata=data, fem=fem, method=meth, linearsolver='spsolve')
     comp = simfempy.tools.comparemethods.CompareMethods(methods, verbose=2)
     h = [2, 1, 0.5, 0.25, 0.125]
     result = comp.compare(geometry=geometry, h=h)

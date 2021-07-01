@@ -96,7 +96,7 @@ class EIT(simfempy.applications.heat.Heat):
         kwargs['fem'] = 'p1'
         kwargs['plotk'] = True
         self.linearsolver = "pyamg"
-        # self.linearsolver = "umf"
+        # self.linearsolver = "spsolve"
         self.kheat = np.vectorize(self.kparam)
         self.dkheat = np.vectorize(self.dkparam)
         self.diffglobal = kwargs.pop('diffglobal')

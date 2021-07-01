@@ -237,7 +237,7 @@ class LaplaceMixed(solvers.solver.Application):
 
     def linearSolver(self, Ain, bin, u=None, solver = None, verbose=0):
         if solver is None: solver = self.linearsolver
-        if solver == 'umf':
+        if solver == 'spsolve':
             # print("bin", bin)
             Aall = self._to_single_matrix(Ain)
             u =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD'), 1

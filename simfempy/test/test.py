@@ -13,27 +13,27 @@ class TestAnalytical(unittest.TestCase):
 #---------------------------
     def test_poisson1d(self):
         from heat_analytic import test
-        self._check(test(dim=1, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
+        self._check(test(dim=1, exactsolution = 'Linear', verbose=0, linearsolver='spsolve'))
     def test_poisson2d(self):
         from heat_analytic import test
-        self._check(test(dim=2, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
+        self._check(test(dim=2, exactsolution = 'Linear', verbose=0, linearsolver='spsolve'))
     def test_poisson3d(self):
         from heat_analytic import test
-        self._check(test(dim=3, exactsolution = 'Linear', verbose=0, linearsolver='umf'))
+        self._check(test(dim=3, exactsolution = 'Linear', verbose=0, linearsolver='spsolve'))
     # ---------------------------
     def test_elasticity2d(self):
         from elasticity_analytic import test
-        self._check(test(dim=2, exactsolution = 'Linear', linearsolver='umf', verbose=0))
+        self._check(test(dim=2, exactsolution = 'Linear', linearsolver='spsolve', verbose=0))
     def test_elasticity3d(self):
         from elasticity_analytic import test
-        self._check(test(dim=3, exactsolution = 'Linear', linearsolver='umf', verbose=0, niter=2))
+        self._check(test(dim=3, exactsolution = 'Linear', linearsolver='spsolve', verbose=0, niter=2))
     # ---------------------------
     def test_stokes2d(self):
         from stokes_analytic import test
-        self._check(test(dim=2, exactsolution='Linear', linearsolver='umf', verbose=0))
+        self._check(test(dim=2, exactsolution='Linear', linearsolver='spsolve', verbose=0))
     def test_stokes3d(self):
         from stokes_analytic import test
-        self._check(test(dim=3, exactsolution='Linear', linearsolver='umf', verbose=0))
+        self._check(test(dim=3, exactsolution='Linear', linearsolver='spsolve', verbose=0))
 
 
 #     # ---------------------------
