@@ -23,6 +23,7 @@ class NavierStokes(Stokes):
             defsolvers = ['lgmres']
             defsolvers.append('pyamg@aggregation@none@gauss_seidel')
             defsolvers.append('pyamg@aggregation@none@schwarz')
+            # defsolvers.append('pyamg@aggregation@fgmres@gauss_seidel')
             defsolvers.append('pyamg@aggregation@fgmres@schwarz')
             kwargs['precond_v'] = defsolvers
         super().__init__(**kwargs)

@@ -12,7 +12,7 @@ strangesolvers=['gmres']
 def getSolverFromName(solvername, **kwargs):
     matrix = kwargs.pop('matrix', None)
     if solvername in scipysolvers:
-        if matrix:
+        if matrix is not None:
             return ScipySolve(matrix=matrix, method=solvername, **kwargs)
         else:
             return ScipySolve(method=solvername, **kwargs)

@@ -215,63 +215,23 @@ class Stokes(Application):
         Cbig = sparse.hstack([CL,nullL])
         Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
-    # def matrixVector(self, Ain, x):
-    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-    #     if self.pmean:
-    #         A, B, C = Ain
-    #         v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-    #         w = A.dot(v) - B.T.dot(p)
-    #         q = B.dot(v)+C.T.dot(lam)
-    #         return np.hstack([w, q, C.dot(p)])
-    #     else:
-    #         try:
-    #             A, B = Ain
-    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
-    #             w = A.dot(v) - B.T.dot(p)
-    #             q = B.dot(v)
-    #         except:
-    #             raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
-    #         return np.hstack([w, q])
-    # def getPrecMult(self, Ain, AP, SP):
-    #     A, B = Ain[0], Ain[1]
-    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-    #     if self.pmean:
-    #         C = Ain[2].A.ravel()
-    #         BPCT = SP.solve(C)
-    #         # BPCT = SP.prec.solve(C.T.toarray(), maxiter=1, tol=1e-10)
-    #         # print(f"{BPCT=}")
-    #         # print(f"{C.dot(BPCT)=}")
-    #         # CP = splinalg.inv(C.dot(BPCT))
-    #         CP = sparse.coo_matrix(1/C.dot(BPCT))
-    #         print(f"{CP.A=}")
-    #     if self.pmean:
-    #         def pmult(x):
-    #             v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-    #             # return np.hstack([API.solve(v, maxiter=1, tol=1e-16), BP.dot(p), CP.dot(lam)])
-    #             w = AP.solve(v)
-    #             q = SP.solve(p-B.dot(w))
-    #             mu = CP.dot(lam-C.dot(q)).ravel()
-    #             # print(f"{mu.shape=} {lam.shape=} {BPCT.shape=}")
-    #             # q -= BPCT.dot(mu)
-    #             q -= BPCT*mu
-    #             # print(f"{BPCT.shape=} {mu=}")
-    #             # q -= mu*BPCT
-    #             h = B.T.dot(q)
-    #             w += AP.solve(h)
-    #             return np.hstack([w, q, mu])
-    #     else:
-    #         def pmult(x):
-    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells]
-    #             w = AP.solve(v)
-    #             # print(f"{np.linalg.norm(v)=} {np.linalg.norm(p)=}")
-    #             # print(f"{np.linalg.norm(w)=} {np.linalg.norm(p-B.dot(w))=}")
-    #             q = SP.solve(p-B.dot(w))
-    #             # print(f"{np.linalg.norm(q)=}")
-    #             # q += 0.1*B.dot(w)
-    #             h = B.T.dot(q)
-    #             w += AP.solve(h)
-    #             return np.hstack([w, q])
-    #     return pmult
+    def matrixVector(self, Ain, x):
+        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+        if self.pmean:
+            A, B, C = Ain
+            v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+            w = A.dot(v) - B.T.dot(p)
+            q = B.dot(v)+C.T.dot(lam)
+            return np.hstack([w, q, C.dot(p)])
+        else:
+            try:
+                A, B = Ain
+                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
+                w = A.dot(v) - B.T.dot(p)
+                q = B.dot(v)
+            except:
+                raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
+            return np.hstack([w, q])
     def getVelocitySolver(self, A):
         defsolvers = ['lgmres', 'spsolve']
         defsolvers.append('pyamg@aggregation@none@gauss_seidel')
@@ -302,7 +262,6 @@ class Stokes(Application):
         else:
             raise ValueError(f"unknown {self.precond_p=}")   
     def linearSolver(self, Ain, bin, uin=None, linearsolver='spsolve', verbose=0, atol=1e-16, rtol=1e-10):
-        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
         if linearsolver == 'spsolve':
             Aall = self._to_single_matrix(Ain)
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
@@ -320,16 +279,6 @@ class Stokes(Application):
             maxiter = 20
             sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec='full')
             S = linalg.getSolverFromName(solvername=method, matvec=sp.matvec, matvecprec=sp.matvecprec, n=sp.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
-            # print(f"{atol=} {rtol=}")
-            # ssolver = linearsolver.split('_')
-            # method=ssolver[0] if len(ssolver)>0 else 'lgmres'
-            # disp=int(ssolver[1]) if len(ssolver)>1 else 0
-            # nall = ncomp*nfaces + ncells
-            # if self.pmean: nall += 1
-            # matvec = partial(self.matrixVector, Ain)
-            # matvecprec = self.getPrecMult(Ain, AP, SP)
-            # S = solvers.linalg.ScipySolve(matvec=matvec, matvecprec=matvecprec, method=method, n=nall,
-            #                                 disp=disp, atol=atol, rtol=rtol, counter="sys", maxiter=maxiter)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter

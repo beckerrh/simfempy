@@ -177,10 +177,15 @@ def backwardFacingStep3d(h=0.2, mu=0.02):
         X.append([3.0, -1.0])
         X.append([3.0, 1.0])
         p = geom.add_polygon(points=np.insert(np.array(X), 2, 0, axis=1), mesh_size=h)
-        axis = [0, 0, 2]
+        axis = [0, 0, 1]
         top, vol, lat = geom.extrude(p.surface, axis)
-        geom.add_physical(top, label="102")
-        geom.add_physical([p.surface, lat[0], lat[1], lat[2], lat[3]], label="100")
+        dirf = [lat[i] for i in range(1,6) if i!=4 ]
+        dirf.extend([p.surface, top])
+        geom.add_physical(dirf, label="100")
+        geom.add_physical(lat[0], label="102")
+        geom.add_physical(lat[4], label="104")
+        # for i in range(len(lat)):
+        #     geom.add_physical(lat[i], label=f"{101+i}")
         geom.add_physical(vol, label="10")
         # geom.add_physical(p.surface, label="100")
         # dirlines = [p for i,p in enumerate(p.lines) if i != 0 and i != 4]
@@ -192,7 +197,7 @@ def backwardFacingStep3d(h=0.2, mu=0.02):
     # boundary conditions
     data.bdrycond.set("Dirichlet", [100, 102])
     data.bdrycond.set("Pressure", [104])
-    data.bdrycond.fct[102] = [lambda x, y, z: y*(1-y)*(z-1)*(2-z), lambda x, y, z: 0, lambda x, y, z: 0]
+    data.bdrycond.fct[102] = [lambda x, y, z: y*(1-y)*z*(1-z), lambda x, y, z: 0, lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
     data.ncomp = 3
@@ -250,9 +255,10 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'spsolve'})
+    # main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'spsolve'})
     # main(testcase='drivenCavity2d', h=1, mu=3e-2, precond_p='schur')
     # main(testcase='backwardFacingStep2d', mu=2e-3)
+    main(testcase='backwardFacingStep3d', mu=2e-2)
     # main(testcase='schaeferTurek2d')
     # main(testcase='poiseuille3d', h=0.2, mu=1e-3)
     # main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')
