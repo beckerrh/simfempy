@@ -73,28 +73,11 @@ class SimplexMesh(object):
         faces = self.faces[self.innerfaces]
         fi0_bis = np.empty_like(faces)
         fi1_bis = np.empty_like(faces)
-        # can only serach on by one (and this keeps the order)
+        # can only search on by one (and this keeps the order)
         for i in range(faces.shape[1]):
             fi0_bis[:,i] = self.facesOfCells[ci0][self.simplices[ci0] == faces[:,i][:,np.newaxis]]
             fi1_bis[:,i] = self.facesOfCells[ci1][self.simplices[ci1] == faces[:,i][:,np.newaxis]]
         return fi0_bis, fi1_bis
-        # print(f"{faces=}")
-        # print(f"{self.simplices[ci0]=}")
-        # ind = npext.positionin(faces, self.simplices[ci0])
-        # fi0 =  np.take_along_axis(self.facesOfCells[ci0], ind, axis=1)
-        # ind = npext.positionin(faces, self.simplices[ci1])
-        # fi1 =  np.take_along_axis(self.facesOfCells[ci1], ind, axis=1)
-        # return fi0, fi1
-        # if not np.all(fi0==fi0_bis):
-        #     diff = np.any(fi0 != fi0_bis, axis=1)
-        #     print(f"{fi0[diff]=}\n{fi0_bis[diff]=}")
-        #     print(f"\n{self.simplices[ci0][diff]=}\n{faces[diff]=}")
-        #     assert 0
-        # if not np.all(fi1==fi1_bis):
-        #     diff = np.any(fi1 != fi1_bis, axis=1)
-        #     print(f"{fi1[diff]=}\n{fi1_bis[diff]=}")
-        #     print(f"\n{self.simplices[ci0][diff]=}\n{faces[diff]=}")
-        #     assert 0
     def _initMeshPyGmsh(self, mesh):
         self.pygmsh = mesh
         self.celltypes = [key for key, cellblock in mesh.cells]
@@ -371,18 +354,8 @@ class SimplexMesh(object):
     # ----------------------------------------------------------------#
     def write(self, filename, dirname = None, data=None):
         filename = self._getfilename(filename, dirname)
-        if self.dimension == 1:
-            cells = {'lines': self.simplices}
-            cells['vertex'] = self.facesdata
-        elif self.dimension ==2:
-            # cells = {'triangle': self.simplices}
-            # cells['line'] = self.facesdata
-            cells = [('triangle', self.simplices), ('line', self.facesdata)]
-            # cells = [('triangle', self.simplices)]
-        else:
-            cells = [('tetra', self.simplices)]
-            # cells = [('tetra', self.simplices), ('triangle', self.facesdata)]
-        # meshio.write_points_cells(filename, self.points, cells, file_format="gmsh")
+        cells = {self.simplicesname: self.simplices}
+        # cells = {self.simplicesname: self.simplices, self.facesname: self.facesdata}
         args = {'points': self.points, 'cells':cells}
         if data is not None:
             if 'point' in data:

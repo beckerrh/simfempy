@@ -72,17 +72,15 @@ def opt(h=0.1):
 #===============================================
 def main(h):
     tests = {"WithNavier": (channelWithNavier, 1.0), "WithOscillation": (channelWithOscillation, None)}
-    tests = {"WithNavier": (channelWithNavier, 2)}
+    tests = {"WithNavier": (channelWithNavier, 0.1)}
     results, meshs = {}, {}
     for t in tests:
         meshs[t] = tests[t][0](h)
         data = problemData(navier=tests[t][1])
         model = Stokes(mesh=meshs[t], problemdata=data)
         results[t] = model.solve()
-        filename = f"{t[0]}_{t[1]}"+'.vtu'
+        filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'
         meshs[t].write(filename, data=results[t].data)
-
-
     fig = plt.figure(figsize=(10, 8))
     ntests = len(tests)
     gs = gridspec.GridSpec(ntests, 3, wspace=0.2, hspace=0.2)
@@ -106,7 +104,7 @@ def problemData(mu=0.1, navier=None):
     data.bdrycond.set("Neumann", [2003])  
     if navier is not None:  data.bdrycond.set("Navier", [2002])  
     #dirichlet
-    data.bdrycond.fct[2005] = [lambda x, y, z:  1,  lambda x, y, z: 0]
+    data.bdrycond.fct[2005] = [lambda x, y, z:  (1-y)*(2+y),  lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
     if navier is not None: data.params.scal_glob["navier"] = navier
