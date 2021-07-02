@@ -12,7 +12,9 @@ import pygmsh
 from simfempy.meshes import plotmesh 
 from simfempy.applications.stokes import Stokes
 from simfempy.applications.problemdata import ProblemData
-from simfempy.meshes.simplexmesh import SimplexMesh 
+from simfempy.meshes.simplexmesh import SimplexMesh
+from scipy.interpolate import interp1d 
+from scipy.optimize import least_squares
 
 #===============================================
 def plotcurve(mesh, result, linecolor, label):
@@ -23,33 +25,71 @@ def plotcurve(mesh, result, linecolor, label):
     plt.plot(x[i], vt[i], label=label)
 
 
-def res(lam):
-    tests = {"WithNavier": (channelWithNavier, lam), "WithOscillation": (channelWithOscillation, None)}
-    results, meshs = {}, {}
-    for t in tests:
-        meshs[t] = tests[t][0](h)
-        data = problemData(navier=tests[t][1])
-        model = Stokes(mesh=meshs[t], problemdata=data)
-        results[t] = model.solve()
+#===============================================
+def getvt(test, linecolor, h=0.1):
+    mesh = test[0](h)
+    data = problemData(navier=test[1])
+    model = Stokes(mesh=mesh, problemdata=data)
+    result = model.solve()
+    lines = mesh.linesoflabel[linecolor]
+    nodes = np.unique(mesh.linesoflabel[linecolor])
+    # print(f"{mesh.points[lines].shape}")
+    return result.data['point']['V_0'][nodes], mesh.points[nodes,0]
     
+#===============================================
+def getres(lam, f0, h=0.1):
+    if isinstance(lam, np.ndarray):
+        assert lam.shape == (1,)
+        lam = lam[0]
+    # print("lam ", lam)
+    test = channelWithNavier, lam
+    vt, x = getvt(test, linecolor=2002, h=h)
+    f = interp1d(x, vt)
+    r = f(x)-f0(x)
+    return np.linalg.norm(r)
+
+def plot(h=0.1):
+    test = channelWithOscillation, None
+    vt0, x0 = getvt(test, linecolor=99999, h=h)
+    f0 = interp1d(x0, vt0)
+    lams = np.linspace(0.1, 2, 41)
+    ress = np.empty_like(lams)
+    for i,lam in enumerate(lams):
+        ress[i] = getres(lam, f0, h=h)
+    i = np.argmin(ress)
+    print(f"{lams[i]=} {ress[i]=}")
+    plt.plot(lams, ress)
+    plt.show()
+
+def opt(h=0.1):
+    test = channelWithOscillation, None
+    vt0, x0 = getvt(test, linecolor=99999, h=h)
+    f0 = interp1d(x0, vt0)
+    res = least_squares(getres, x0=10, kwargs={'f0':f0, 'h':h}, bounds=(0,np.inf))
+    print(f"{res=}")
 
 
 #===============================================
 def main(h):
-    tests = {"WithNavier": (channelWithNavier, 1.05), "WithOscillation": (channelWithOscillation, None)}
+    tests = {"WithNavier": (channelWithNavier, 1.0), "WithOscillation": (channelWithOscillation, None)}
+    tests = {"WithNavier": (channelWithNavier, 2)}
     results, meshs = {}, {}
     for t in tests:
         meshs[t] = tests[t][0](h)
         data = problemData(navier=tests[t][1])
         model = Stokes(mesh=meshs[t], problemdata=data)
         results[t] = model.solve()
+        filename = f"{t[0]}_{t[1]}"+'.vtu'
+        meshs[t].write(filename, data=results[t].data)
+
+
     fig = plt.figure(figsize=(10, 8))
     ntests = len(tests)
     gs = gridspec.GridSpec(ntests, 3, wspace=0.2, hspace=0.2)
     for i,t in enumerate(tests):
         plotmesh.meshWithData(meshs[t], data=results[t].data, title=t, fig=fig, outer=gs[i,0])
         plotmesh.meshWithData(meshs[t], title=t, fig=fig, outer=gs[i,1],quiver_data={"V":list(results[t].data['point'].values())}) 
-    ax = fig.add_subplot(gs[1, 2])
+    ax = fig.add_subplot(gs[ntests//2, 2])
     plt.sca(ax)
     for i,t in enumerate(tests):
         linecolor = 99999 if tests[t][1]==None else 2002
@@ -191,7 +231,6 @@ def channelWithOscillation(h= 0.2):
 #================================================================#
 if __name__ == '__main__':
     main(h=0.2)
-    # mesh = channelWithOscillation(h=2)
-    # plotmesh.meshWithBoundaries(mesh)
-    # plt.show()
+    # plot(h=0.2)
+    # opt(h=0.2)
 
