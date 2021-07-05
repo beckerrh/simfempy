@@ -20,10 +20,11 @@ def getSolverFromName(solvername, **kwargs):
     elif solvername == "spsolve":
         return ScipySpSolve(matrix=matrix)
     elif solvername[:5] == "pyamg":
-        sp = solvername.split('@')
-        if len(sp) != 4:
-            raise ValueError(f"*** for pyamg need 'pyamg@type@accel@smoother'\ngot{solvername=}")
-        return Pyamg(matrix, type=sp[1], accel=sp[2], smoother=sp[3], **kwargs)
+        # sp = solvername.split('@')
+        # if len(sp) != 4:
+        #     raise ValueError(f"*** for pyamg need 'pyamg@type@accel@smoother'\ngot{solvername=}")
+        # return Pyamg(matrix, type=sp[1], accel=sp[2], smoother=sp[3], **kwargs)
+        return Pyamg(matrix, **kwargs)
     else:
         raise ValueError(f"unknwown {solvername=}")
 #-------------------------------------------------------------------#
@@ -190,45 +191,85 @@ class SaddlePointSystem():
     """
     A -B.T
     B  0
+     or
+    A -B.T 0
+    B  0   M^T
+    0  M   0
     """
-    def __init__(self, AS, BS, **kwargs):
-        if not isinstance(AS,dict) or not isinstance(BS,dict) or AS.keys()!=BS.keys():
-            raise ValueError(f"*** need dictionaries for AS and BS with keys='A','B', ('M')\ngot {AS=} {BS=}")
+    def __init__(self, A, B, M=None):
+        self.A, self.B = A, B
+        if M is not None: self.M = M
+        self.na, self.nb, self.nm = A.shape[0], B.shape[0], M.shape[0]
+        constr = hasattr(self, 'M')
+        self.matvec = self.matvec3 if constr else self.matvec2
+    def matvec3(self, x):
+        v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
+        w = self.A.dot(v) - self.B.T.dot(p)
+        q = self.B.dot(v)+ self.M.T.dot(lam)
+        return np.hstack([w, q, self.M.dot(p)])
+    def matvec2(self, x):
+        v, p = x[:self.na], x[self.na:]
+        w = self.A.dot(v) - self.B.T.dot(p)
+        q = self.B.dot(v)
+        return np.hstack([w, q])
+    def to_single_matrix(self):
+        nullP = sparse.dia_matrix((np.zeros(self.nb), 0), shape=(self.nb, self.nb))
+        A1 = sparse.hstack([self.A, -self.B.T])
+        A2 = sparse.hstack([self.B, nullP])
+        Aall = sparse.vstack([A1, A2])
+        if not hasattr(self, 'M'):
+            return Aall.tocsr()
+        nullV = sparse.coo_matrix((1, self.na)).tocsr()
+        ML = sparse.hstack([nullV, self.M])
+        Abig = sparse.hstack([Aall, ML.T])
+        nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
+        Cbig = sparse.hstack([ML, nullL])
+        Aall = sparse.vstack([Abig, Cbig])
+        return Aall.tocsr()
+#=================================================================#
+class SaddlePointPreconditioner():
+    """
+    A -B.T
+    B  0
+    """
+    def __init__(self, AS, **kwargs):
         self.AS = AS
-        self.BS = BS
-        self.nv = AS['A'].shape[0]
-        self.np = self.nv+ AS['B'].shape[0]
-        constr = 'M' in AS
-        self.nall = self.np + AS['M'].shape[0] if constr else self.np
-        prec = kwargs.pop('prec','diag')
-        if prec == 'diag':
+        solver_p = kwargs.pop('solver_p', None)
+        solver_v = kwargs.pop('solver_v', None)
+        if not isinstance(AS, SaddlePointSystem) or not isinstance(solver_p, (list,dict)) or not isinstance(solver_v,(list,dict)):
+            raise ValueError(f"*** resuired arguments: AS (SaddlePointSystem), solver_p, solver_v (dicts of arguments ")
+
+        SV = getSolverFromName(solver_v, matrix=AS.A)
+        SP = getSolverFromName(solver_v, matrix=AS.A)
+        mu = self.problemdata.params.scal_glob['mu']
+        if self.pmean: assert self.precond_p == "schur"
+        if self.precond_p[:5] == "schur":
+            sp = self.precond_p.split('@')
+            if not len(sp)==4 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
+                raise ValueError(f"need 'schur@prec@maxiter@method' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver=sp[3], prec = sp[1], maxiter=int(sp[2]), disp=0)
+        elif self.precond_p == "diag":
+            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
+        elif self.precond_p == "scale":
+            return solvers.cfd.PressureSolverScale(self.mesh, mu)
+        else:
+            raise ValueError(f"unknown {self.precond_p=}")
+
+        constr = hasattr(AS, 'M')
+        self.nall = AS.na + AS.nb
+        if constr: self.nall += AS.m
+        method = kwargs.pop('method','diag')
+        if method == 'diag':
             self.matvecprec = self.pmatvec3_diag if constr else self.pmatvec2_diag
-        elif prec == 'triup':
+        elif method == 'triup':
             self.matvecprec = self.pmatvec3_triup if constr else self.pmatvec2_triup
-        elif prec == 'tridown':
+        elif method == 'tridown':
             self.matvecprec = self.pmatvec3_tridown if constr else self.pmatvec2_tridown
-        elif prec == 'full':
+        elif method == 'full':
             self.matvecprec = self.pmatvec3_full if constr else self.pmatvec2_full
         else:
-            raise ValueError(f"*** unknwon {prec=}\npossible values: 'diag', 'triup', 'tridown', 'full'")
-        self.matvec = self.matvec3 if constr else self.matvec2
-        # method = kwargs.pop('method', 'lgmres')
-        # self.solver = getSolverFromName(solvername=method, matvec=matvec, matvecprec=matvecprec, n=nall, **kwargs)
+            raise ValueError(f"*** unknwon {method=}\npossible values: 'diag', 'triup', 'tridown', 'full'")
 
-    # def solve(self, b, x0):
-    #     return self.solver.solve(b=b, x0=x0)
-    def matvec3(self, x):
-        A, B, M = self.AS['A'], self.AS['B'], self.AS['M']
-        v, p, lam = x[:self.nv], x[self.nv:self.np], x[self.np:]
-        w = A.dot(v) - B.T.dot(p)
-        q = B.dot(v)+ M.T.dot(lam)
-        return np.hstack([w, q, M.dot(p)])
-    def matvec2(self, x):
-        A, B = self.AS['A'], self.AS['B']
-        v, p = x[:self.nv], x[self.nv:]
-        w = A.dot(v) - B.T.dot(p)
-        q = B.dot(v)
-        return np.hstack([w, q])
     def pmatvec2_diag(self, x):
         v, p = x[:self.nv], x[self.nv:]
         A, B = self.BS['A'], self.BS['B']

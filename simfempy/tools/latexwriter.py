@@ -23,7 +23,7 @@ class TableData(object):
     def _getformat(self,v):
         assert len(v)
         isint = (isinstance(v,list) and isinstance(v[0], (int, np.integer))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.integer))
-        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.float))
+        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v[0], np.float))
         if isint:
             format = "{:15d}"
         elif isfloat:
@@ -35,7 +35,7 @@ class TableData(object):
         elif isinstance(v[0], str):
             format = "{:15s}"
         else:
-            raise ValueError(f"cannot find instance of {v=} {type(v[0])=}")
+            raise ValueError(f"cannot find instance of {v=} {type(v[0])=} {isinstance(v,np.ndarray)=} {np.issubdtype(v.dtype,np.float)=}")
         return format
     def __init__(self, **kwargs):
         values = kwargs.pop('values')
@@ -87,8 +87,7 @@ class TableData(object):
             for i in range(1,len(n)):
                 valorder[i] = abs(values[key][i]-values[key][i-1])
             values[key2] = valorder
-            self.valformat[key2] = self.valformat[key]
-            self.valformat[key2] = self.valformat[key]
+            self.valformat[key2] = "{:8.2f}"
     def computeReductionRate(self, dim, diff=False):
         n, values, keys = self.n, self.values, list(self.values.keys())
         if not isinstance(n[0],(int,float)): raise ValueError("n must be int or float")
@@ -187,7 +186,10 @@ class LatexWriter(object):
             itemformated = nformat.format(n[texline])
             for i in range(size):
                 key = keys_to_write[i]
-                itemformated += '&'+valformat[key].format(values[key][texline])
+                try:
+                    itemformated += '&'+valformat[key].format(values[key][texline])
+                except:
+                    raise ValueError(f"{key=} {values[key]=} {valformat[key]=}")
             itemformated += "\\\\\\hline\n"
             self.latexfile.write(itemformated)
         # texte = '\\end{tabular}\n\\caption{%s}' %(name)

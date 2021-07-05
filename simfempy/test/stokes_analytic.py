@@ -31,6 +31,7 @@ def test(dim, **kwargs):
         colorsneu = [103]
         colorsnav = [105]
         colorsp = [101]
+        # colorsneu = colorsp = []
     colorsdir = [col for col in colors if col not in colorsnav and col not in colorsp and col not in colorsneu]
     if 'strong' in paramsdict['dirichletmethod']:
         colorsdir.append(*colorsnav)

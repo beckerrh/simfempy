@@ -28,10 +28,10 @@ class Stokes(Application):
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         self.divdivparam = kwargs.pop('divdivparam', 0)
         if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'pyamg_gmres@0@100@full'
-        self.precond_p = kwargs.pop('precond_p', 'scale')
-        # self.precond_p = kwargs.pop('precond_p', 'schur@diag@1')
-        self.precond_v = kwargs.pop('precond_v', 'pyamg@aggregation@none@gauss_seidel')
-        # self.precond_v = kwargs.pop('precond_v', None)
+        solver_p_def = {'method': 'scale'}
+        self.solver_p = kwargs.pop('solver_p', solver_p_def)
+        solver_v_def = {'method': 'pyamg', 'type':'aggregation', 'accel':'none', 'smoother': 'gauss_seidel'}
+        self.solver_v = kwargs.pop('solver_v', solver_v_def)
         super().__init__(**kwargs)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
@@ -191,47 +191,47 @@ class Stokes(Application):
         if hasattr(self.problemdata.postproc, "changepostproc"):
             self.problemdata.postproc.changepostproc(data['global'])
         return data
-    def _to_single_matrix(self, Ain):
-        ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
-        # print("Ain", Ain)
-        if self.pmean:
-            A, B, C = Ain
-        else:
-            A, B = Ain
-        nullP = sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
-        A1 = sparse.hstack([A, -B.T])
-        A2 = sparse.hstack([B, nullP])
-        Aall = sparse.vstack([A1, A2])
-        if not self.pmean:
-            return Aall.tocsr()
-        ncomp = self.ncomp
-        nullV = sparse.coo_matrix((1, ncomp*nfaces)).tocsr()
-        # rows = np.zeros(ncomp*nfaces, dtype=int)
-        # cols = np.arange(0, ncomp*nfaces)
-        # nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
-        CL = sparse.hstack([nullV, C])
-        Abig = sparse.hstack([Aall,CL.T])
-        nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
-        Cbig = sparse.hstack([CL,nullL])
-        Aall = sparse.vstack([Abig, Cbig])
-        return Aall.tocsr()
-    def matrixVector(self, Ain, x):
-        ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-        if self.pmean:
-            A, B, C = Ain
-            v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-            w = A.dot(v) - B.T.dot(p)
-            q = B.dot(v)+C.T.dot(lam)
-            return np.hstack([w, q, C.dot(p)])
-        else:
-            try:
-                A, B = Ain
-                v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
-                w = A.dot(v) - B.T.dot(p)
-                q = B.dot(v)
-            except:
-                raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
-            return np.hstack([w, q])
+    # def _to_single_matrix(self, Ain):
+    #     ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
+    #     # print("Ain", Ain)
+    #     if self.pmean:
+    #         A, B, C = Ain
+    #     else:
+    #         A, B = Ain
+    #     nullP = sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
+    #     A1 = sparse.hstack([A, -B.T])
+    #     A2 = sparse.hstack([B, nullP])
+    #     Aall = sparse.vstack([A1, A2])
+    #     if not self.pmean:
+    #         return Aall.tocsr()
+    #     ncomp = self.ncomp
+    #     nullV = sparse.coo_matrix((1, ncomp*nfaces)).tocsr()
+    #     # rows = np.zeros(ncomp*nfaces, dtype=int)
+    #     # cols = np.arange(0, ncomp*nfaces)
+    #     # nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
+    #     CL = sparse.hstack([nullV, C])
+    #     Abig = sparse.hstack([Aall,CL.T])
+    #     nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
+    #     Cbig = sparse.hstack([CL,nullL])
+    #     Aall = sparse.vstack([Abig, Cbig])
+    #     return Aall.tocsr()
+    # def matrixVector(self, Ain, x):
+    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
+    #     if self.pmean:
+    #         A, B, C = Ain
+    #         v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
+    #         w = A.dot(v) - B.T.dot(p)
+    #         q = B.dot(v)+C.T.dot(lam)
+    #         return np.hstack([w, q, C.dot(p)])
+    #     else:
+    #         try:
+    #             A, B = Ain
+    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
+    #             w = A.dot(v) - B.T.dot(p)
+    #             q = B.dot(v)
+    #         except:
+    #             raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
+    #         return np.hstack([w, q])
     def getVelocitySolver(self, A):
         defsolvers = ['lgmres', 'spsolve']
         defsolvers.append('pyamg@aggregation@none@gauss_seidel')
@@ -263,24 +263,32 @@ class Stokes(Application):
             raise ValueError(f"unknown {self.precond_p=}")   
     def linearSolver(self, Ain, bin, uin=None, linearsolver='spsolve', verbose=0, atol=1e-16, rtol=1e-10):
         if linearsolver == 'spsolve':
-            Aall = self._to_single_matrix(Ain)
+            Aall = Ain.to_single_matrix()
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
             self.timer.add("linearsolve")
             return uall, 1
         else:
-            AP = self.getVelocitySolver(Ain[0])
-            SP = self.getPressureSolver(Ain[0], Ain[1], AP)
-            AS = {'A':Ain[0], 'B': Ain[1]}
-            if len(Ain) == 3: AS['M'] = Ain[2]
-            BS = {'A':AP, 'B': SP}
-            ssolver = linearsolver.split('@')
-            method=ssolver[0] if len(ssolver)>0 else 'lgmres'
-            disp=int(ssolver[1]) if len(ssolver)>1 else 0
-            maxiter=int(ssolver[2]) if len(ssolver)>2 else 20
-            prec=ssolver[3] if len(ssolver)>3 else 'full'
-            sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec=prec)
-            print(f"{rtol=} {maxiter=}")
-            S = linalg.getSolverFromName(solvername=method, matvec=sp.matvec, matvecprec=sp.matvecprec, n=sp.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
+
+            AP = linalg.SaddlePointPreconditioner(Ain, self.solver_v, self.solver_p)
+
+            # AP = self.getVelocitySolver(Ain[0])
+            # SP = self.getPressureSolver(Ain[0], Ain[1], AP)
+            # AS = {'A':Ain[0], 'B': Ain[1]}
+            # if len(Ain) == 3: AS['M'] = Ain[2]
+            # BS = {'A':AP, 'B': SP}
+            # ssolver = linearsolver.split('@')
+            # method=ssolver[0] if len(ssolver)>0 else 'lgmres'
+            # disp=int(ssolver[1]) if len(ssolver)>1 else 0
+            # maxiter=int(ssolver[2]) if len(ssolver)>2 else 20
+            # prec=ssolver[3] if len(ssolver)>3 else 'full'
+            # sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec=prec)
+            # print(f"{rtol=} {maxiter=}")
+            #
+            assert isinstance(linearsolver, dict)
+            linearsolver['counter'] = 'sys'
+            maxiter = linearsolver['maxiter']
+            S = linalg.getSolverFromName(**linearsolver)
+            # S = linalg.getSolverFromName(solvername=method, matvec=Ain.matvec, matvecprec=AP.matvecprec, n=AP.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter
@@ -412,12 +420,12 @@ class Stokes(Application):
         if self.divdivparam:
             A += self.femv.computeMatrixDivDiv(self.divdivparam)
         if not self.pmean:
-            return [A, B]
+            return linalg.SaddlePointSystem(A, B)
         ncells = self.mesh.ncells
         rows = np.zeros(ncells, dtype=int)
         cols = np.arange(0, ncells)
         C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
-        return [A,B,C]
+        return linalg.SaddlePointSystem(A, B, C)
     def computeFormMeanPressure(self,dp, dlam, p, lam):
         dlam += self.mesh.dV.dot(p)
         dp += lam*self.mesh.dV
