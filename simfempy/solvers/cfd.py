@@ -68,7 +68,7 @@ class PressureSolverSchur():
             raise ValueError(f"unknown {prec=}")
         self.maxiter = kwargs.pop('maxiter',1)
         solvername = kwargs.pop('solver',0)
-        assert solvername in linalg.scipysolvers
+        assert solvername in linalg.scipysolvers or solvername in linalg.pyamgsolvers
         self.solver =  linalg.ScipySolve(matvec=self.matvec, method=solvername, M=self.M, counter="pschur", n = ncells, **kwargs)
 
     def matvec(self, x):

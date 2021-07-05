@@ -90,6 +90,7 @@ class IterativeSolver():
             self.args['callback'] = self.counter
     def solve(self, b, maxiter=None, rtol=None, x0=None):
         # print(f"{maxiter=} {self.maxiter=}")
+        # print(f"{rtol=} {self.args=}")
         if maxiter is None: maxiter = self.maxiter
         if rtol is None: rtol = self.rtol
         if hasattr(self, 'counter'):
@@ -113,7 +114,7 @@ class IterativeSolver():
 #=================================================================#
 class ScipySolve(IterativeSolver):
     def __repr__(self):
-        return "scipy_"+self.method
+        return self.method
     def __init__(self, **kwargs):
         self.method = kwargs.pop('method')
         super().__init__(**kwargs)

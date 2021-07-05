@@ -252,9 +252,9 @@ class Stokes(Application):
         if self.pmean: assert self.precond_p == "schur"
         if self.precond_p[:5] == "schur":
             sp = self.precond_p.split('@')
-            if not len(sp)==3 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
-                raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='scipy_cg', prec = sp[1], maxiter=int(sp[2]), disp=0)
+            if not len(sp)==4 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
+                raise ValueError(f"need 'schur@prec@maxiter@method' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver=sp[3], prec = sp[1], maxiter=int(sp[2]), disp=0)
         elif self.precond_p == "diag":    
             return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
@@ -279,14 +279,16 @@ class Stokes(Application):
             maxiter=int(ssolver[2]) if len(ssolver)>2 else 20
             prec=ssolver[3] if len(ssolver)>3 else 'full'
             sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec=prec)
+            print(f"{rtol=} {maxiter=}")
             S = linalg.getSolverFromName(solvername=method, matvec=sp.matvec, matvecprec=sp.matvecprec, n=sp.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter
-            if it==maxiter: 
+            if it==maxiter or np.linalg.norm(uall)<atol:
                 msg = f"*** linear system solver not converged in {maxiter=}"
+                msg += f"\n{np.linalg.norm(uall)=} {np.linalg.norm(bin)=}"
                 msg += f"\n{self.precond_v=} {self.precond_p=}"
-                msg += f"\n{AP=} {SP=}"
+                msg += f"\n{S=} {AP=} {SP=}"
                 msg += f"\n{S.counter=}"
                 # raise ValueError(msg)
                 print(msg)

@@ -17,9 +17,9 @@ class NavierStokes(Stokes):
         self.convmethod = kwargs.pop('convmethod', 'lps')
         self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
-        if not 'precond_p' in kwargs: 
-            kwargs['precond_p'] = 'schur@diag@4'
-        if not 'precond_v' in kwargs: 
+        if not 'precond_p' in kwargs:
+            kwargs['precond_p'] = 'schur@diag@3@scipy_gmres'
+        if not 'precond_v' in kwargs:
             defsolvers = ['scipy_lgmres', 'pyamg_gmres']
             defsolvers.append('pyamg@aggregation@none@gauss_seidel')
             defsolvers.append('pyamg@aggregation@none@schwarz')

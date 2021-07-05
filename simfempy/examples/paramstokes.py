@@ -31,7 +31,7 @@ def test(exactsolution, **kwargs):
     # applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'precond_p':'schur@none@1'}
     # applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'precond_p':'scale'}
     # paramsdict = {'hdivpenalty': np.linspace(0,2,3)}
-    paramsdict = {'mu@scal_glob': [1, 1e-6], 'precond_p':['scale', 'schur@none@1', 'schur@none@3']}
+    paramsdict = {'mu@scal_glob': [1, 1e-6], 'precond_p':['scale', 'schur@none@1@pyamg_cg', 'schur@none@3@pyamg_cg']}
     niter = kwargs.pop('niter', 3)
     comp =  CompareMethods(niter=niter, createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()

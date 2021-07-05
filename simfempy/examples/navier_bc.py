@@ -77,9 +77,10 @@ def main(h):
     results, meshs = {}, {}
     for t in tests:
         meshs[t] = tests[t][0](h)
-        data = problemData(navier=tests[t][1],mu=1)
+        data = problemData(mu=0.01, navier=tests[t][1])
         # model = Stokes(mesh=meshs[t], problemdata=data)
-        model = NavierStokes(mesh=meshs[t], problemdata=data)
+        model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='scipy_gcrotmk@1@100@full', precond_v='pyamg@aggregation@none@schwarz' )
+        # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='spsolve')
         results[t] = model.solve()
         filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'
         meshs[t].write(filename, data=results[t].data)
@@ -130,7 +131,6 @@ def channelWithNavier(h= 0.2):
         geom.add_physical(p.lines[-1], label="2005")                                       
         mesh = geom.generate_mesh()
     return SimplexMesh(mesh=mesh)
-
 #===============================================
 def channelWithRectBump(h= 0.2):
     x = [-5, 5, 5, 1.5, 1.5, -1.5, -1.5, -5]
@@ -153,7 +153,6 @@ def channelWithRectBump(h= 0.2):
         geom.add_physical(p.lines[-1], label="2005")                                       
         mesh = geom.generate_mesh()
     return SimplexMesh(mesh=mesh)
-
 #===============================================
 def channelWithTriBump(h= 0.2):
     x = [-5, 5, 5, 1.5, 0, -1.5, -5]

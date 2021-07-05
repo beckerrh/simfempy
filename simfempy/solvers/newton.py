@@ -141,6 +141,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         else:
             dx, liniter = computedx(-res, x, iterdata)
         assert dx.shape == x0.shape
+        if np.linalg.norm(dx) < sdata.atoldx:
+            raise ValueError(f"*** correction too small: {liniter=} {np.linalg.norm(dx)=}")
         resold[:] = res[:]
         # print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
         if sdata.steptype == 'rb':
