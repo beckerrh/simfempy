@@ -125,14 +125,14 @@ class Beam(Application):
         assert np.allclose(Aall.data, Aall.T.data)
         print(f"A=\n{Aall.toarray()}")
         return Aall
-    def linearSolver(self, Ain, bin, uin=None, linearsolver='spsolve', verbose=0):
+    def linearSolver(self, Ain, bin, uin=None, verbose=0):
         n = self.fem.nunknowns()
-        if solver == 'spsolve':
+        if self.linearsolver == 'spsolve':
             Aall = self._to_single_matrix(Ain)
             ball = np.hstack((bin[0], bin[1], bin[2]))
             uall =  splinalg.spsolve(Aall, ball, permc_spec='COLAMD')
             return (uall[:n], uall[n:2*n], uall[2*n:]), 1
-        elif solver == 'gmres':
+        else:
             raise NotImplemented()
 
 

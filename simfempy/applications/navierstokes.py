@@ -98,7 +98,7 @@ class NavierStokes(Stokes):
     def computePrec(self, b, u=None):
         self.A = self.computeMatrix(u=u) 
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=u, linearsolver=self.linearsolver, rtol=0.1)
+            u, niter = self.linearSolver(self.A, bin=b, uin=u, rtol=0.1)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')

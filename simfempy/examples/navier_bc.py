@@ -78,8 +78,8 @@ def main(h):
     for t in tests:
         meshs[t] = tests[t][0](h)
         data = problemData(mu=0.01, navier=tests[t][1])
-        # model = Stokes(mesh=meshs[t], problemdata=data)
-        model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='scipy_gcrotmk@1@100@full', precond_v='pyamg@aggregation@none@schwarz' )
+        model = Stokes(mesh=meshs[t], problemdata=data)
+        # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='scipy_gcrotmk@1@100@full', precond_v='pyamg@aggregation@none@schwarz' )
         # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='spsolve')
         results[t] = model.solve()
         filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'

@@ -10,32 +10,37 @@ pyamgsolvers=['pyamg_gmres','pyamg_fgmres','pyamg_bicgstab', 'pyamg_cg']
 strangesolvers=['gmres']
 
 #-------------------------------------------------------------------#
-def getSolverFromName(solvername, **kwargs):
-    matrix = kwargs.pop('matrix', None)
-    if solvername in scipysolvers or solvername in pyamgsolvers:
+def _getSolver(args):
+    if not isinstance(args, dict): raise ValueError(f"*** args must be a dict")
+    if not 'method' in args: raise ValueError(f"*** needs 'method' in args\ngiven: {args}")
+    method = args.pop('method')
+    matrix = args.pop('matrix', None)
+    if method in scipysolvers or method in pyamgsolvers:
         if matrix is not None:
-            return ScipySolve(matrix=matrix, method=solvername, **kwargs)
+            return ScipySolve(matrix=matrix, method=method, **args)
         else:
-            return ScipySolve(method=solvername, **kwargs)
-    elif solvername == "spsolve":
+            return ScipySolve(method=method, **args)
+    elif method == "spsolve":
         return ScipySpSolve(matrix=matrix)
-    elif solvername[:5] == "pyamg":
-        # sp = solvername.split('@')
-        # if len(sp) != 4:
-        #     raise ValueError(f"*** for pyamg need 'pyamg@type@accel@smoother'\ngot{solvername=}")
-        # return Pyamg(matrix, type=sp[1], accel=sp[2], smoother=sp[3], **kwargs)
-        return Pyamg(matrix, **kwargs)
+    elif method == "pyamg":
+        return Pyamg(matrix, **args)
     else:
-        raise ValueError(f"unknwown {solvername=}")
+        raise ValueError(f"unknwown {method=}")
+
+
 #-------------------------------------------------------------------#
-def selectBestSolver(solvernames, reduction, A, **kwargs):
-    maxiter = kwargs.pop('maxiter', 50)
-    verbose = kwargs.pop('verbose', 0)
-    rtol = kwargs.pop('rtol') if 'rtol' in kwargs else 0.1*reduction
+def getSolver(**kwargs):
+    args = kwargs.pop('args', 50)
+    if isinstance(args, dict): return _getSolver(args)
+    maxiter = args.pop('maxiter', 50)
+    verbose = args.pop('verbose', 0)
+    reduction = args.pop('reduction', 0.01)
+    rtol = args.pop('rtol') if 'rtol' in args else 0.1*reduction
     solvers = {}
-    for solvername in solvernames:
-        solvers[solvername] = getSolverFromName(solvername, matrix=A, **kwargs)
-    b = np.random.random(A.shape[0])
+    for arg in args:
+        solvers[arg] = _getSolver(arg)
+        n = solvers[arg].shape[0]
+    b = np.random.random(n)
     b /= np.linalg.norm(b)
     analysis = {}
     for solvername, solver in solvers.items():
@@ -80,6 +85,8 @@ class ScipySpSolve():
         return [0]
 #=================================================================#
 class IterativeSolver():
+    def __repr__(self):
+        return f"{self.method}_{self.maxiter}_{self.rtol}"
     def __init__(self, **kwargs):
         self.args = {}
         self.atol = kwargs.pop('atol', 1e-14)
@@ -114,8 +121,6 @@ class IterativeSolver():
         return counter.history
 #=================================================================#
 class ScipySolve(IterativeSolver):
-    def __repr__(self):
-        return self.method
     def __init__(self, **kwargs):
         self.method = kwargs.pop('method')
         super().__init__(**kwargs)
@@ -155,13 +160,15 @@ class ScipySolve(IterativeSolver):
 #=================================================================#
 class Pyamg(IterativeSolver):
     def __repr__(self):
-        return "pyamg_"+self.type+self.smoother+str(self.accel)
+        s = super().__repr__()
+        return s + f"pyamg_{self.type}_{self.smoother}_{str(self.accel)}"
     def __init__(self, A, **kwargs):
+        self.method = 'pyamg'
         self.matvec = A
         nsmooth = kwargs.pop('nsmooth', 1)
         self.smoother = kwargs.pop('smoother', 'schwarz')
         symmetric = kwargs.pop('symmetric', False)
-        self.type = kwargs.pop('type', 'aggregation')
+        self.type = kwargs.pop('pyamgtype', 'aggregation')
         self.accel = kwargs.pop('accel', None)
         if self.accel == 'none': self.accel=None
         pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B']}
@@ -198,8 +205,12 @@ class SaddlePointSystem():
     """
     def __init__(self, A, B, M=None):
         self.A, self.B = A, B
-        if M is not None: self.M = M
-        self.na, self.nb, self.nm = A.shape[0], B.shape[0], M.shape[0]
+        self.na, self.nb = A.shape[0], B.shape[0]
+        self.nall = self.na + self.nb
+        if M is not None:
+            self.M = M
+            self.nm = M.shape[0]
+            self.nall += self.nm
         constr = hasattr(self, 'M')
         self.matvec = self.matvec3 if constr else self.matvec2
     def matvec3(self, x):
@@ -227,38 +238,51 @@ class SaddlePointSystem():
         Aall = sparse.vstack([Abig, Cbig])
         return Aall.tocsr()
 #=================================================================#
+class PressureSolverScale():
+    def __repr__(self):
+        return f"pressurescale"
+    def __init__(self, coeff):
+        n = len(coeff)
+        self.BP = sparse.diags(1/coeff, offsets=(0), shape=(n,n))
+    def solve(self, b):
+        return self.BP.dot(b)
+#=================================================================#
 class SaddlePointPreconditioner():
     """
-    A -B.T
-    B  0
     """
+    def __repr__(self):
+        return f"{self.method=}\n{self.SV=}\n{self.SP=}"
     def __init__(self, AS, **kwargs):
         self.AS = AS
         solver_p = kwargs.pop('solver_p', None)
         solver_v = kwargs.pop('solver_v', None)
         if not isinstance(AS, SaddlePointSystem) or not isinstance(solver_p, (list,dict)) or not isinstance(solver_v,(list,dict)):
             raise ValueError(f"*** resuired arguments: AS (SaddlePointSystem), solver_p, solver_v (dicts of arguments ")
-
-        SV = getSolverFromName(solver_v, matrix=AS.A)
-        SP = getSolverFromName(solver_v, matrix=AS.A)
-        mu = self.problemdata.params.scal_glob['mu']
-        if self.pmean: assert self.precond_p == "schur"
-        if self.precond_p[:5] == "schur":
-            sp = self.precond_p.split('@')
-            if not len(sp)==4 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
-                raise ValueError(f"need 'schur@prec@maxiter@method' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver=sp[3], prec = sp[1], maxiter=int(sp[2]), disp=0)
-        elif self.precond_p == "diag":
-            return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
-        elif self.precond_p == "scale":
-            return solvers.cfd.PressureSolverScale(self.mesh, mu)
+        if isinstance(solver_v,dict):
+            solver_v['matrix'] = AS.A
         else:
-            raise ValueError(f"unknown {self.precond_p=}")
+            for s in solver_v:
+                s['matrix'] = AS.A
+        self.SV = getSolver(args=solver_v)
+        type = solver_p['type']
+        if type == 'scale':
+            self.SP = PressureSolverScale(coeff = solver_p['coeff'])
+        elif type =='diag':
+            AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
+            solver_p['matrix'] = AS.B @ AD @ AS.B.T
+            self.SP = getSolver(solver_p)
+        elif type == 'schur':
+            solver_p['matvec'] = self.schurmatvec()
+            self.SP = getSolver(solver_p)
+        self.type = type
 
         constr = hasattr(AS, 'M')
-        self.nall = AS.na + AS.nb
+        self.nv = self.AS.na
+        self.nvp = self.AS.na + AS.nb
+        self.nall = self.nvp
         if constr: self.nall += AS.m
-        method = kwargs.pop('method','diag')
+        method = kwargs.pop('method','full')
+        self.method = method
         if method == 'diag':
             self.matvecprec = self.pmatvec3_diag if constr else self.pmatvec2_diag
         elif method == 'triup':
@@ -269,37 +293,35 @@ class SaddlePointPreconditioner():
             self.matvecprec = self.pmatvec3_full if constr else self.pmatvec2_full
         else:
             raise ValueError(f"*** unknwon {method=}\npossible values: 'diag', 'triup', 'tridown', 'full'")
-
+    def schurmatvec(self, x):
+        v = self.AS.B.T.dot(x)
+        v2 = self.SV.solve(v)
+        return self.AS.B.dot(v2)
     def pmatvec2_diag(self, x):
         v, p = x[:self.nv], x[self.nv:]
-        A, B = self.BS['A'], self.BS['B']
-        w = A.solve(v)
-        q = B.solve(p)
+        w = self.SV.solve(v)
+        q = self.SP.solve(p)
         return np.hstack([w, q])
     def pmatvec3_diag(self, x):
-        v, p, lam = x[:self.nv], x[self.nv:self.np], x[self.np:]
-        AP, BP, MP = self.BS['A'], self.BS['B'], self.BS['M']
-        w = AP.solve(v)
-        q = BP.solve(p)
-        mu = MP.solve(lam)
+        v, p, lam = x[:self.nv], x[self.nv:self.nvp], x[self.nvp:]
+        w = self.SV.solve(v)
+        q = self.SP.solve(p)
+        mu = self.MP.solve(lam)
         return np.hstack([w, q, mu])
     def pmatvec2_triup(self, x):
         v, p = x[:self.nv], x[self.nv:]
-        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
-        q = BP.solve(p)
-        w = AP.solve(v+B.T.dot(q))
+        q = self.SP.solve(p)
+        w = self.SV.solve(v+self.AS.B.T.dot(q))
         return np.hstack([w, q])
     def pmatvec2_tridown(self, x):
         v, p = x[:self.nv], x[self.nv:]
-        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
-        w = AP.solve(v)
-        q = BP.solve(p-B.dot(w))
+        w = self.SV.solve(v)
+        q = self.SP.solve(p-self.AS.B.dot(w))
         return np.hstack([w, q])
     def pmatvec2_full(self, x):
         v, p = x[:self.nv], x[self.nv:]
-        AP, BP, B = self.BS['A'], self.BS['B'], self.AS['B']
-        w = AP.solve(v)
-        q = BP.solve(p - B.dot(w))
-        h = B.T.dot(q)
-        w += AP.solve(h)
+        w = self.SV.solve(v)
+        q = self.SP.solve(p-self.AS.B.dot(w))
+        h = self.AS.B.T.dot(q)
+        w += self.SV.solve(h)
         return np.hstack([w, q])

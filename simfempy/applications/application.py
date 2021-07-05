@@ -147,7 +147,7 @@ class Application(object):
         self.timer.add('rhs')
         if mode == 'linear':
             try:
-                u, niterlin = self.linearSolver(self.A, self.b, u, linearsolver=self.linearsolver)
+                u, niterlin = self.linearSolver(self.A, self.b, u)
             except Warning:
                 raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
             self.timer.add('solve')
@@ -185,7 +185,7 @@ class Application(object):
         # if it>1:
         self.A = self.computeMatrix(u=u)           
         try:
-            u, niter = self.linearSolver(self.A, b, u, solver=self.linearsolver)
+            u, niter = self.linearSolver(self.A, b, u)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
@@ -272,18 +272,18 @@ class Application(object):
             if callback: callback(self.time, u)
         return result
 
-    def linearSolver(self, A, b, u=None, linearsolver = None, verbose=0, disp=0):
+    def linearSolver(self, A, b, u=None, verbose=0, disp=0):
         if spsp.issparse(A):
             if len(b.shape)!=1 or len(A.shape)!=2 or b.shape[0] != A.shape[0]:
                 raise ValueError(f"{A.shape=} {b.shape=}")
-        if linearsolver is None: solver = self.linearsolver
+        if self.linearsolver is None: solver = self.linearsolver
         if not hasattr(self, 'info'): self.info={}
-        if linearsolver not in self.linearsolvers: solver = "spsolve"
-        if linearsolver == 'spsolve':
+        if self.linearsolver not in self.linearsolvers: solver = "spsolve"
+        if self.linearsolver == 'spsolve':
             return splinalg.spsolve(A, b), 1
             return splinalg.spsolve(A, b, permc_spec='COLAMD'), 1
-        elif linearsolver in ['gmres','lgmres','bicgstab','cg','gcrotmk']:
-            if linearsolver == 'cg':
+        elif self.linearsolver in ['gmres','lgmres','bicgstab','cg','gcrotmk']:
+            if self.linearsolver == 'cg':
                 def gaussSeidel(A):
                     dd = A.diagonal()
                     D = spsp.dia_matrix(A.shape)
@@ -302,7 +302,7 @@ class Application(object):
             u, info = eval(cmd)
             # print(f"{u=}")
             return u, counter.niter
-        elif linearsolver == 'pyamg':
+        elif self.linearsolver == 'pyamg':
             ml = self.build_pyamg(A)
             maxiter = 100
             u, res = self.solve_pyamg(ml, b, u, maxiter)
