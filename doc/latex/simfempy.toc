@@ -25,13 +25,19 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.5}Pressure mean}{10}{subsection.2.5}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6}Iterative solution}{11}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.6}Iterative solution}{10}{subsection.2.6}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {2.6.1}What is the effect of replacing $S$ by $K$?}{11}{subsubsection.2.6.1}%
+\contentsline {subsubsection}{\numberline {2.6.1}ABCD}{10}{subsubsection.2.6.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {2.6.2}What is the effect of replacing $A$ by $X$?}{11}{subsubsection.2.6.2}%
+\contentsline {subsubsection}{\numberline {2.6.2}Stokes}{11}{subsubsection.2.6.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {2.6.3}System with constraint on pressure}{11}{subsubsection.2.6.3}%
+\contentsline {subsubsection}{\numberline {2.6.3}What is the effect of replacing $S$ by $K$?}{11}{subsubsection.2.6.3}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsubsection}{\numberline {2.6.4}What is the effect of replacing $A$ by $X$?}{11}{subsubsection.2.6.4}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsubsection}{\numberline {2.6.5}HSS preconditioning}{12}{subsubsection.2.6.5}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsubsection}{\numberline {2.6.6}System with constraint on pressure}{12}{subsubsection.2.6.6}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {3}Beam problem}{13}{section.3}%
 \defcounter {refsection}{0}\relax 

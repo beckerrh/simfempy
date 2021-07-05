@@ -27,7 +27,7 @@ class Stokes(Application):
         self.femp = fems.d0.D0()
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         self.divdivparam = kwargs.pop('divdivparam', 0)
-        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'gcrotmk_0'
+        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = 'pyamg_gmres@0@100@full'
         self.precond_p = kwargs.pop('precond_p', 'scale')
         # self.precond_p = kwargs.pop('precond_p', 'schur@diag@1')
         self.precond_v = kwargs.pop('precond_v', 'pyamg@aggregation@none@gauss_seidel')
@@ -254,7 +254,7 @@ class Stokes(Application):
             sp = self.precond_p.split('@')
             if not len(sp)==3 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
                 raise ValueError(f"need 'schur@prec@maxiter' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
-            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='cg', prec = sp[1], maxiter=int(sp[2]), disp=0)
+            return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver='scipy_cg', prec = sp[1], maxiter=int(sp[2]), disp=0)
         elif self.precond_p == "diag":    
             return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
         elif self.precond_p == "scale":    
@@ -273,11 +273,12 @@ class Stokes(Application):
             AS = {'A':Ain[0], 'B': Ain[1]}
             if len(Ain) == 3: AS['M'] = Ain[2]
             BS = {'A':AP, 'B': SP}
-            ssolver = linearsolver.split('_')
+            ssolver = linearsolver.split('@')
             method=ssolver[0] if len(ssolver)>0 else 'lgmres'
             disp=int(ssolver[1]) if len(ssolver)>1 else 0
-            maxiter = 20
-            sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec='full')
+            maxiter=int(ssolver[2]) if len(ssolver)>2 else 20
+            prec=ssolver[3] if len(ssolver)>3 else 'full'
+            sp = linalg.SaddlePointSystem(AS=AS, BS=BS, method=method, prec=prec)
             S = linalg.getSolverFromName(solvername=method, matvec=sp.matvec, matvecprec=sp.matvecprec, n=sp.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")

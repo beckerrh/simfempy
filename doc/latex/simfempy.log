@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  1 JUL 2021 18:06
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  2 JUL 2021 21:42
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1241,10 +1241,10 @@ LaTeX Warning: Label `eq:' multiply defined.
 LaTeX Warning: Label `subsec:' multiply defined.
 
 
-LaTeX Warning: Label `eq:' multiply defined.
-
-
 LaTeX Warning: Label `subsec:' multiply defined.
+
+
+LaTeX Warning: Label `eq:' multiply defined.
 
 ) (./chap/beam.aux
 
@@ -1583,46 +1583,50 @@ Overfull \hbox (50.50815pt too wide) detected at line 474
 []
  []
 
-
-Overfull \hbox (4.05374pt too wide) detected at line 571
+[10]
+Overfull \hbox (4.05374pt too wide) detected at line 618
 []
  []
 
-[10]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 589.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 589.
+(hyperref)                removing `math shift' on input line 636.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 589.
+(hyperref)                removing `math shift' on input line 636.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 589.
+(hyperref)                removing `math shift' on input line 636.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 625.
+(hyperref)                removing `math shift' on input line 636.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 625.
+(hyperref)                removing `math shift' on input line 672.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 625.
+(hyperref)                removing `math shift' on input line 672.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 625.
+(hyperref)                removing `math shift' on input line 672.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 672.
 
 [11]
-Overfull \hbox (3.97491pt too wide) in paragraph at lines 743--747
+
+LaTeX Warning: Reference `eq:StokesDirPmean' on page 12 undefined on input line
+ 800.
+
+
+Overfull \hbox (3.97491pt too wide) in paragraph at lines 846--850
 \T1/ppl/m/n/10.95 We con-struct our pre-con-di-tioner by ap-prox-i-ma-tions of 
 $\U/zeur/m/n/10.95 A$\T1/ppl/m/n/10.95 , $\U/zeur/m/n/10.95 S$\T1/ppl/m/n/10.95
  , and $\U/zeur/m/n/10.95 T$\T1/ppl/m/n/10.95 . The pre-con-di-tioner $\U/zeus/
@@ -1631,7 +1635,7 @@ m/n/10.95 ¨\U/zeur/m/n/10.95 y[]\T1/cmr/m/n/10.95 ,[] , \U/zeur/m/n/10.95 y[]\U
  []
 
 
-LaTeX Warning: Empty bibliography on input line 767.
+LaTeX Warning: Empty bibliography on input line 870.
 
 ) [12]
 \openout2 = `chap/beam.aux'.
@@ -1874,7 +1878,7 @@ LaTeX Warning: There were undefined references.
 LaTeX Warning: There were multiply-defined labels.
 
 Package rerunfilecheck Info: File `simfempy.out' has not changed.
-(rerunfilecheck)             Checksum: B10FF1ECEE01322530BA4CA2303884FA;5472.
+(rerunfilecheck)             Checksum: 8BD48F9652366AE0BCF94FD44CE811C2;5824.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1885,13 +1889,13 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37103 strings out of 478994
- 698247 string characters out of 5858185
- 1462814 words of memory out of 5000000
- 53768 multiletter control sequences out of 15000+600000
+ 37108 strings out of 478994
+ 698354 string characters out of 5858185
+ 1466770 words of memory out of 5000000
+ 53771 multiletter control sequences out of 15000+600000
  452417 words of font info for 141 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,23n,119p,1891b,2013s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 117i,23n,119p,1891b,1995s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
 exlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
 live/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
@@ -1921,10 +1925,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (23 pages, 324512 bytes).
+Output written on simfempy.pdf (23 pages, 325908 bytes).
 PDF statistics:
- 507 PDF objects out of 1000 (max. 8388607)
- 450 compressed objects within 5 object streams
- 132 named destinations out of 1000 (max. 500000)
- 269 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 520 PDF objects out of 1000 (max. 8388607)
+ 463 compressed objects within 5 object streams
+ 134 named destinations out of 1000 (max. 500000)
+ 293 words of extra memory for PDF output out of 10000 (max. 10000000)
 

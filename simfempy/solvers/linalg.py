@@ -5,13 +5,14 @@ import scipy.sparse as sparse
 from simfempy import tools
 import time
 
-scipysolvers=['gmres','lgmres','gcrotmk','bicgstab','cgs', 'cg']
+scipysolvers=['scipy_gmres','scipy_lgmres','scipy_gcrotmk','scipy_bicgstab','scipy_cgs', 'scipy_cg']
+pyamgsolvers=['pyamg_gmres','pyamg_fgmres','pyamg_bicgstab', 'pyamg_cg']
 strangesolvers=['gmres']
 
 #-------------------------------------------------------------------#
 def getSolverFromName(solvername, **kwargs):
     matrix = kwargs.pop('matrix', None)
-    if solvername in scipysolvers:
+    if solvername in scipysolvers or solvername in pyamgsolvers:
         if matrix is not None:
             return ScipySolve(matrix=matrix, method=solvername, **kwargs)
         else:
@@ -116,7 +117,7 @@ class ScipySolve(IterativeSolver):
     def __init__(self, **kwargs):
         self.method = kwargs.pop('method')
         super().__init__(**kwargs)
-        if self.method in strangesolvers: raise ValueError(f"method '{self.method}' is i strange scipy solver")
+        # if self.method in strangesolvers: raise ValueError(f"method '{self.method}' is i strange scipy solver")
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
             if not "matvecprec" in kwargs:
@@ -136,10 +137,15 @@ class ScipySolve(IterativeSolver):
         # self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
         self.args['A'] = self.matvec
         self.args['M'] = self.M
-        self.args['atol'] = self.atol
-        self.solver = eval('splinalg.'+self.method)
+        if self.method in scipysolvers:
+            self.solver = eval('splinalg.'+self.method[6:])
+            self.args['atol'] = self.atol
+        elif self.method in pyamgsolvers:
+            self.solver = eval('pyamg.krylov.' + self.method[6:])
+        else:
+            raise ValueError("*** unknown {self.method=}")
         name = self.method
-        if self.method=='gcrotmk':
+        if self.method=='scipy_gcrotmk':
             self.args['m'] = kwargs.pop('m', 5)
             self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
@@ -203,7 +209,7 @@ class SaddlePointSystem():
         elif prec == 'full':
             self.matvecprec = self.pmatvec3_full if constr else self.pmatvec2_full
         else:
-            raise ValueError(f"*** unknwon {prec=}")
+            raise ValueError(f"*** unknwon {prec=}\npossible values: 'diag', 'triup', 'tridown', 'full'")
         self.matvec = self.matvec3 if constr else self.matvec2
         # method = kwargs.pop('method', 'lgmres')
         # self.solver = getSolverFromName(solvername=method, matvec=matvec, matvecprec=matvecprec, n=nall, **kwargs)

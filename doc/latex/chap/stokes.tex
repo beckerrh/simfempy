@@ -498,47 +498,94 @@ Fo the weak implementation we have, since $\psi$ is now an admissible test funct
 \subsection{Pressure mean}\label{subsec:}
 %-------------------------------------------------------------------------
 %
-If no boundary conditions is of Neumann or Pressure type, the pressure is only determined up to a constant. In order to impose the zero mean on the pressure, let $C$ the matrix of size $(1,nc)$
+If no boundary conditions is of Neumann or Pressure type, the pressure is only determined up to a constant. In order to impose the zero mean on the pressure, let $C$ the matrix of size $(1,nc)$ with 
+$C_{1j} = \int_{\Omega} \xi_j$.
 %
-\begin{equation}\label{eq:StokesDirPmean}
-\begin{bmatrix}
-A  & -\transpose{B}& 0\\
-B & 0 & \transpose{C}\\
-0 & C & 0
-\end{bmatrix}
-\begin{bmatrix}
-v\\
-p\\
-\lambda
-\end{bmatrix}
-=
-\begin{bmatrix}
-f\\
-g\\
-0
-\end{bmatrix}.
-\end{equation}
-%
-Let us considered solution of (\ref{eq:StokesDirPmean}) with $S=BA^{-1}\transpose{B}$, $T=CS^{-1}\transpose{C}$
-%
-\begin{equation}\label{eq:}
-%
-\left\{
-\begin{aligned}
-&A \tilde v &&= f\\
-&S \tilde p &&= g-B\tilde v\\
-&T \lambda &&= -C\tilde p\\
-&S (p-\tilde p) &&= \transpose{C} \lambda\\
-&A(v-\tilde v) &&=  \transpose{B} p
-\end{aligned}
-\right.
-%
-\end{equation}
 %
 %
 %-------------------------------------------------------------------------
 \subsection{Iterative solution}\label{subsec:}
 %-------------------------------------------------------------------------
+%
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{ABCD}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+A general two-by tow system can be factorized, $A$ is inverible as well as $S = D - C A^{-1}B$ as
+%
+\begin{align*}
+\mathcal A = 
+\begin{bmatrix}
+A & B\\
+C & D 
+\end{bmatrix}
+=
+\begin{bmatrix}
+I  & 0\\
+CA^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+A  & B\\
+0 & S
+\end{bmatrix}
+\end{align*}
+%
+so
+%
+\begin{align*}
+\mathcal A 
+\begin{bmatrix}
+x\\y
+\end{bmatrix}
+= 
+\begin{bmatrix}
+b\\c
+\end{bmatrix}
+\quad\Leftrightarrow\quad 
+\begin{bmatrix}
+x\\y
+\end{bmatrix}
+=
+\begin{bmatrix}
+A^{-1}(b-By)\\S^{-1}(c-CA^{-1}b)
+\end{bmatrix} 
+\end{align*}
+%
+since
+%
+\begin{align*}
+\begin{bmatrix}
+A  & B\\
+0 & S
+\end{bmatrix}
+\begin{bmatrix}
+A^{-1}(b-By)\\S^{-1}(c-CA^{-1}b)
+\end{bmatrix} 
+=
+\begin{bmatrix}
+b \\c-CA^{-1}b
+\end{bmatrix} 
+\quad\Rightarrow\quad 
+\begin{bmatrix}
+I  & 0\\
+CA^{-1} & I
+\end{bmatrix}
+\begin{bmatrix}
+b \\c-CA^{-1}b
+\end{bmatrix} 
+=
+\begin{bmatrix}
+b \\c
+\end{bmatrix} 
+\end{align*}
+%
+
+
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{Stokes}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %
 %
 \begin{align*}
@@ -592,7 +639,7 @@ A x_v =& y_v + \transpose{B} x_p'\\
 Let
 %
 \begin{align*}
-\mathcal B^{-1} := 
+\mathcal M^{-1} := 
 \begin{bmatrix}
 A^{-1}  & A^{-1}\transpose{B}K^{-1}\\
 0 & K^{-1}
@@ -611,7 +658,7 @@ A^{-1}(I-\transpose{B}K^{-1}BA^{-1})  & A^{-1}\transpose{B}K^{-1}\\
 Then we have
 %
 \begin{align*}
-\mathcal A\mathcal B^{-1} = 
+\mathcal A\mathcal M^{-1} = 
 \begin{bmatrix}
 I &  0\\
 (I-SK^{-1})BA^{-1}& SK^{-1}
@@ -686,6 +733,62 @@ We have
 BX^{-1}\left(A + \transpose{B}T^{-1}B(I-X^{-1}A)\right) = B
 \end{align*}
 %
+%
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsubsection{HSS preconditioning}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%
+%
+\begin{align*}
+\mathcal A = \mathcal B + \mathcal C,\quad 
+\mathcal B  = 
+\begin{bmatrix}
+A  & 0\\
+0 &0
+\end{bmatrix},\quad
+\mathcal C  = 
+\begin{bmatrix}
+0 & -\transpose{B}\\
+B &0
+\end{bmatrix},\quad
+\mathcal M = (\mathcal B + \alpha \mathcal I )(\mathcal C + \alpha \mathcal I )
+\end{align*}
+%
+Then 
+%
+\begin{equation}\label{eq:}
+\begin{bmatrix}
+A+\alpha I& 0\\
+0 &\alpha I
+\end{bmatrix}
+\begin{bmatrix}
+\alpha I& -\transpose{B}\\
+B &\alpha I
+\end{bmatrix}
+\begin{bmatrix}
+w \\ q
+\end{bmatrix}
+=
+\begin{bmatrix}
+v \\ p
+\end{bmatrix}
+\end{equation}
+%
+%
+\begin{align*}
+%
+\left\{
+\begin{aligned}
+(A+\alpha I) w' =& v\\
+q' =& \frac{1}{\alpha} p\\
+(\alpha I + \alpha^{-1}B\transpose{B}) p =& q' - \alpha^{-1}B w'\\
+\alpha w =& w' + \transpose{B}p
+\end{aligned}
+\right.
+%
+\end{align*}
+%
+
 
 %
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

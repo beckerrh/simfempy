@@ -27,11 +27,11 @@ def test(exactsolution, **kwargs):
         colorsneu = [103]
     data.bdrycond.set("Dirichlet", colorsdir)
     data.bdrycond.set("Neumann", colorsneu)
-    applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'precond_p':'schur@diag@1'}
+    applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver':'pyamg_gmres@0@100@full'}
     # applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'precond_p':'schur@none@1'}
     # applicationargs = {'problemdata': data, 'exactsolution': exactsolution, 'precond_p':'scale'}
     # paramsdict = {'hdivpenalty': np.linspace(0,2,3)}
-    paramsdict = {'mu@scal_glob': [1, 1e-2], 'precond_p':['scale','diag', 'schur@scale@3', 'schur@none@3', 'schur@diag@3']}
+    paramsdict = {'mu@scal_glob': [1, 1e-6], 'precond_p':['scale', 'schur@none@1', 'schur@none@3']}
     niter = kwargs.pop('niter', 3)
     comp =  CompareMethods(niter=niter, createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()
@@ -40,5 +40,5 @@ def test(exactsolution, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
-    test(niter=8, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], mu=0.001)
+    test(niter=6, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], mu=0.001)
     # test(niter=4, exactsolution=[["x**2-y+z**2","-2*x*y*z+x**2","x**2-y**2+z"],"x*y+x*z"])
