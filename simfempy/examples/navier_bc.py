@@ -11,6 +11,7 @@ import matplotlib.gridspec as gridspec
 import pygmsh
 from simfempy.meshes import plotmesh 
 from simfempy.applications.stokes import Stokes
+from simfempy.applications.navierstokes import NavierStokes
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from scipy.interpolate import interp1d 
@@ -76,8 +77,9 @@ def main(h):
     results, meshs = {}, {}
     for t in tests:
         meshs[t] = tests[t][0](h)
-        data = problemData(navier=tests[t][1])
-        model = Stokes(mesh=meshs[t], problemdata=data)
+        data = problemData(navier=tests[t][1],mu=1)
+        # model = Stokes(mesh=meshs[t], problemdata=data)
+        model = NavierStokes(mesh=meshs[t], problemdata=data)
         results[t] = model.solve()
         filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'
         meshs[t].write(filename, data=results[t].data)

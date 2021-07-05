@@ -20,7 +20,7 @@ class NavierStokes(Stokes):
         if not 'precond_p' in kwargs: 
             kwargs['precond_p'] = 'schur@diag@4'
         if not 'precond_v' in kwargs: 
-            defsolvers = ['lgmres']
+            defsolvers = ['scipy_lgmres', 'pyamg_gmres']
             defsolvers.append('pyamg@aggregation@none@gauss_seidel')
             defsolvers.append('pyamg@aggregation@none@schwarz')
             # defsolvers.append('pyamg@aggregation@fgmres@gauss_seidel')
