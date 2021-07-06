@@ -23,7 +23,7 @@ class TableData(object):
     def _getformat(self,v):
         assert len(v)
         isint = (isinstance(v,list) and isinstance(v[0], (int, np.integer))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.integer))
-        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v[0], np.float))
+        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v[0], float))
         if isint:
             format = "{:15d}"
         elif isfloat:
@@ -124,8 +124,8 @@ class LatexWriter(object):
         if not os.path.isdir(self.dirname): os.makedirs(self.dirname)
         self.latexfilename = os.path.join(self.dirname, filename)
         self.author, self.title = self.__class__.__name__, "No title given"
-        if "title" in kwargs: self.title = kwargs.pop("title")
-        if "author" in kwargs: self.author = kwargs.pop("author")
+        if "title" in kwargs: self.title = kwargs.pop("title").replace('_','\_')
+        if "author" in kwargs: self.author = kwargs.pop("author").replace('_','\_')
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
@@ -163,8 +163,8 @@ class LatexWriter(object):
         self.latexfile.close()
     def writeTable(self, name, tabledata, sort=False):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
-        nname = nname.replace('_', '')
-        name = name.replace('_', '')
+        nname = nname.replace('_', '\_')
+        name = name.replace('_', '\_')
         keys_to_write = sorted(values.keys()) if sort else list(values.keys())
         size = len(keys_to_write)
         if size==0: return
@@ -174,16 +174,16 @@ class LatexWriter(object):
         if self.rotatenames:
             itemformated = "\sw{%s} &" %nname
             for i in range(size-1):
-                itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','')
-            itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','')
+                itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','\_')
+            itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','\_')
         else:
             itemformated = "%15s " %nname
             for i in range(size):
-                itemformated += " & %15s " %keys_to_write[i].replace('_','')
+                itemformated += " & %15s " %keys_to_write[i].replace('_','\_')
             itemformated += "\\\\\\hline\hline\n"
         self.latexfile.write(itemformated)
         for texline in range(len(n)):
-            itemformated = nformat.format(n[texline])
+            itemformated = nformat.format(n[texline]).replace('_','\_')
             for i in range(size):
                 key = keys_to_write[i]
                 try:
@@ -219,10 +219,9 @@ class LatexWriter(object):
         command = "pdflatex " + filename
         try:
             result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            if result: raise ValueError("command pdflatex not found")
+            if result: raise ValueError("*** command pdflatex not found")
         except:
-            raise ValueError("no pdflatex found") 
-            pass
+            raise ValueError("*** no pdflatex found")
         if platform.system() == "Linux":
             command = "xdg-open "
         elif platform.system() == "Darwin":
@@ -247,7 +246,7 @@ if __name__ == '__main__':
     values2={}
     values2[1] = [1,2,3]
     values2[2] = [4,5,6]
-    latexwriter.append(n=['a','b','c'], nname='letter', values=values2, percentage=True)
+    latexwriter.append(n=['a_a','b','c'], nname='letter', values=values2, percentage=True)
     values3={}
     values3['1'] = np.linspace(1,3,5)
     latexwriter.append(n=np.arange(5), nname= 'toto', values=values3)

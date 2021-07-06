@@ -44,8 +44,8 @@ def test(dim, **kwargs):
     data.bdrycond.set("Pressure", colorsp)
     data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
-    linearsolver = kwargs.pop('linearsolver', 'iter')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
+    if 'linearsolver' in kwargs: applicationargs['linearsolver'] = kwargs.pop('linearsolver')
     # applicationargs['mode'] = 'newton'
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()
@@ -59,5 +59,5 @@ if __name__ == '__main__':
     # test(dim=2, exactsolution="Linear", niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution=[["1.0","0.0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
-    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False, linearsolver='spsolve')
+    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False)
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='spsolve')

@@ -17,7 +17,10 @@ class Stokes(Application):
     def __format__(self, spec):
         if spec=='-':
             repr = f"{self.femv=} {self.femp=}"
-            repr += f"\tlinearsolver={self.linearsolver}"
+            ls = '@'.join([str(v) for v in self.linearsolver.values()])
+            vs = '@'.join([str(v) for v in self.solver_v.values()])
+            ps = '@'.join([str(v) for v in self.solver_p.values()])
+            repr += f"\tlinearsolver={ls} V:{vs} P:{ps}"
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
@@ -30,13 +33,22 @@ class Stokes(Application):
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         self.divdivparam = kwargs.pop('divdivparam', 0)
         if not 'linearsolver' in kwargs:
-            linearsolver_def = {'method': 'pyamg_gmres', 'maxiter': 100}
+            linearsolver_def = {'method': 'pyamg_gmres', 'prec':'full', 'maxiter': 100, 'disp':0}
             kwargs['linearsolver'] = linearsolver_def
+        else:
+            linearsolver = kwargs['linearsolver']
+            if isinstance(linearsolver, str):
+                lsp = linearsolver.split('@')
+                if len(lsp) != 4:
+                    raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
+                kwargs['linearsolver'] = {'method':lsp[0], 'prec':lsp[1], 'maxiter':int(lsp[2]), 'disp':int(lsp[3])}
+            else:
+                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
+
         solver_p_def = {'type': 'scale'}
         self.solver_p = kwargs.pop('solver_p', solver_p_def)
         solver_v_def = {'method': 'pyamg', 'pyamgtype':'aggregation', 'accel':'none', 'smoother': 'gauss_seidel'}
         self.solver_v = kwargs.pop('solver_v', solver_v_def)
-        self.precmethod = kwargs.pop('precmethod', 'full')
         super().__init__(**kwargs)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
@@ -56,7 +68,6 @@ class Stokes(Application):
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        # self.pmean = list(self.problemdata.bdrycond.type.values()) == len(self.problemdata.bdrycond.type)*['Dirichlet']
         self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
@@ -196,76 +207,6 @@ class Stokes(Application):
         if hasattr(self.problemdata.postproc, "changepostproc"):
             self.problemdata.postproc.changepostproc(data['global'])
         return data
-    # def _to_single_matrix(self, Ain):
-    #     ncells, nfaces = self.mesh.ncells, self.mesh.nfaces
-    #     # print("Ain", Ain)
-    #     if self.pmean:
-    #         A, B, C = Ain
-    #     else:
-    #         A, B = Ain
-    #     nullP = sparse.dia_matrix((np.zeros(ncells), 0), shape=(ncells, ncells))
-    #     A1 = sparse.hstack([A, -B.T])
-    #     A2 = sparse.hstack([B, nullP])
-    #     Aall = sparse.vstack([A1, A2])
-    #     if not self.pmean:
-    #         return Aall.tocsr()
-    #     ncomp = self.ncomp
-    #     nullV = sparse.coo_matrix((1, ncomp*nfaces)).tocsr()
-    #     # rows = np.zeros(ncomp*nfaces, dtype=int)
-    #     # cols = np.arange(0, ncomp*nfaces)
-    #     # nullV = sparse.coo_matrix((np.zeros(ncomp*nfaces), (rows, cols)), shape=(1, ncomp*nfaces)).tocsr()
-    #     CL = sparse.hstack([nullV, C])
-    #     Abig = sparse.hstack([Aall,CL.T])
-    #     nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
-    #     Cbig = sparse.hstack([CL,nullL])
-    #     Aall = sparse.vstack([Abig, Cbig])
-    #     return Aall.tocsr()
-    # def matrixVector(self, Ain, x):
-    #     ncells, nfaces, ncomp = self.mesh.ncells, self.mesh.nfaces, self.ncomp
-    #     if self.pmean:
-    #         A, B, C = Ain
-    #         v, p, lam = x[:ncomp*nfaces], x[ncomp*nfaces:ncomp*nfaces+ncells], x[-1]*np.ones(1)
-    #         w = A.dot(v) - B.T.dot(p)
-    #         q = B.dot(v)+C.T.dot(lam)
-    #         return np.hstack([w, q, C.dot(p)])
-    #     else:
-    #         try:
-    #             A, B = Ain
-    #             v, p = x[:ncomp*nfaces], x[ncomp*nfaces:]
-    #             w = A.dot(v) - B.T.dot(p)
-    #             q = B.dot(v)
-    #         except:
-    #             raise ValueError(f" {v.shape=} {p.shape=}  {A.shape=} {B.shape=}")
-    #         return np.hstack([w, q])
-    # def getVelocitySolver(self, A):
-    #     defsolvers = ['lgmres', 'spsolve']
-    #     defsolvers.append('pyamg@aggregation@none@gauss_seidel')
-    #     defsolvers.append('pyamg@aggregation@none@schwarz')
-    #     defsolvers.append('pyamg@aggregation@fgmres@schwarz')
-    #     # defsolvers.append('pyamg@rootnode@gcrotmk@gauss_seidel')
-    #     solvernames = self.precond_v
-    #     if solvernames is None: solvernames = defsolvers
-    #     if isinstance(solvernames, str):
-    #         solver = linalg.getSolverFromName(solvernames, matrix=A, maxiter=1, rtol=1e-16)
-    #     else:
-    #         reduction = 0.1
-    #         solver, maxiter = linalg.selectBestSolver(solvernames, reduction, A, maxiter=20, verbose=1)
-    #         solver.maxiter = maxiter
-    #     return solver
-    # def getPressureSolver(self, A, B, AP):
-    #     mu = self.problemdata.params.scal_glob['mu']
-    #     if self.pmean: assert self.precond_p == "schur"
-    #     if self.precond_p[:5] == "schur":
-    #         sp = self.precond_p.split('@')
-    #         if not len(sp)==4 or not(0 < int(sp[2]) < 20) or not sp[1] in solvers.cfd.prec_PressureSolverSchur:
-    #             raise ValueError(f"need 'schur@prec@maxiter@method' with prec in {solvers.cfd.prec_PressureSolverSchur}\ngot: {self.precond_p}" )
-    #         return solvers.cfd.PressureSolverSchur(self.mesh, mu, A, B, AP, solver=sp[3], prec = sp[1], maxiter=int(sp[2]), disp=0)
-    #     elif self.precond_p == "diag":
-    #         return solvers.cfd.PressureSolverDiagonal(A, B, prec='scale', accel='cg', maxiter=3, disp=0, counter="PS", symmetric=True)
-    #     elif self.precond_p == "scale":
-    #         return solvers.cfd.PressureSolverScale(self.mesh, mu)
-    #     else:
-    #         raise ValueError(f"unknown {self.precond_p=}")
     def linearSolver(self, Ain, bin, uin=None, verbose=0, atol=1e-16, rtol=1e-10):
         if self.linearsolver == 'spsolve':
             Aall = Ain.to_single_matrix()
@@ -276,9 +217,10 @@ class Stokes(Application):
             linearsolver = copy.deepcopy(self.linearsolver)
             solver_p = copy.deepcopy(self.solver_p)
             solver_v = copy.deepcopy(self.solver_v)
+            prec = linearsolver.pop("prec", "full")
             if self.solver_p['type']=='scale':
                 solver_p['coeff'] = self.mesh.dV/self.mucell
-            P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=self.precmethod)
+            P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
             assert isinstance(self.linearsolver, dict)
             linearsolver['counter'] = 'sys'
             linearsolver['matvec'] = Ain.matvec
@@ -286,7 +228,6 @@ class Stokes(Application):
             linearsolver['n'] = Ain.nall
             S = linalg.getSolver(args=linearsolver)
             maxiter = S.maxiter
-            # S = linalg.getSolverFromName(solvername=method, matvec=Ain.matvec, matvecprec=AP.matvecprec, n=AP.nall, counter="sys", disp=disp, maxiter=maxiter, rtol=rtol, atol=atol)
             uall =  S.solve(b=bin, x0=uin)
             self.timer.add("linearsolve")
             it = S.counter.niter
