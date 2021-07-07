@@ -1,1 +1,1 @@
-from . import newton, optimize, newtondata, cfd
+from . import newton, optimize, newtondata

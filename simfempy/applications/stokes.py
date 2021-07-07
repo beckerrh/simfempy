@@ -19,10 +19,42 @@ class Stokes(Application):
             repr = f"{self.femv=} {self.femp=}"
             ls = '@'.join([str(v) for v in self.linearsolver.values()])
             vs = '@'.join([str(v) for v in self.solver_v.values()])
+            print(f"{self.solver_p=}")
             ps = '@'.join([str(v) for v in self.solver_p.values()])
             repr += f"\tlinearsolver={ls} V:{vs} P:{ps}"
             return repr
         return self.__repr__()
+    def _solvername_to_dict(self, name, type=None):
+        nsp = name.split('@')
+        if type == 'linearsolver':
+            if len(nsp) != 4:
+                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
+            return {'method': nsp[0], 'prec': nsp[1], 'maxiter': int(nsp[2]), 'disp': int(nsp[3])}
+        elif type == 'solver_v':
+            if nsp[0]=='pyamg':
+                if len(nsp)!=6:
+                    raise ValueError(f"*** need 'solver_v' in the form 'pyamg@pyamgtype@accel@smoother@maxiter@disp'")
+                return {'method':nsp[0], 'pyamgtype':nsp[1], 'accel':nsp[2], 'smoother':nsp[3],
+                            'maxiter':int(nsp[4]), 'disp':int(nsp[5])}
+            else:
+                return {'method': nsp[0], 'prec': nsp[1], 'maxiter': int(nsp[2]), 'disp': int(nsp[3])}
+        elif type == 'solver_p':
+            if nsp[0] == 'scale': return {'type': 'scale'}
+            if len(nsp)<2:
+                raise ValueError(f"*** need 'solver_p' in the form 'tye@method@...@disp'")
+            elif nsp[1]=='pyamg':
+                if len(nsp) != 7:
+                    raise ValueError(
+                        f"*** need 'solver_p' in the form 'type@pyamg@pyamgtype@accel@smoother@maxiter@disp'")
+                return {'type':nsp[0], 'method':nsp[1], 'pyamgtype':nsp[2], 'accel':nsp[3], 'smoother':nsp[4],
+                        'maxiter':int(nsp[5]), 'disp':int(nsp[6])}
+            else:
+                if len(nsp) != 5:
+                    raise ValueError(
+                        f"*** need 'solver_p' in the form 'type@method@prec@maxiter@disp'")
+                return {'type':nsp[0], 'method': nsp[1], 'prec': nsp[2], 'maxiter': int(nsp[3]), 'disp': int(nsp[4])}
+        else: raise ValueError(f"*** unknown {type=}")
+
     def __init__(self, **kwargs):
         self.dirichlet_nitsche = 10
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
@@ -38,17 +70,28 @@ class Stokes(Application):
         else:
             linearsolver = kwargs['linearsolver']
             if isinstance(linearsolver, str):
-                lsp = linearsolver.split('@')
-                if len(lsp) != 4:
-                    raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
-                kwargs['linearsolver'] = {'method':lsp[0], 'prec':lsp[1], 'maxiter':int(lsp[2]), 'disp':int(lsp[3])}
+                kwargs['linearsolver'] = self._solvername_to_dict(linearsolver, type='linearsolver')
             else:
-                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
-
-        solver_p_def = {'type': 'scale'}
-        self.solver_p = kwargs.pop('solver_p', solver_p_def)
-        solver_v_def = {'method': 'pyamg', 'pyamgtype':'aggregation', 'accel':'none', 'smoother': 'gauss_seidel'}
-        self.solver_v = kwargs.pop('solver_v', solver_v_def)
+                raise ValueError(f"*** need 'linearsolver' as str")
+        if not 'solver_p' in kwargs:
+            self.solver_p = {'type': 'scale'}
+        else:
+            solver_p = kwargs.pop('solver_p')
+            if isinstance(solver_p, str):
+                self.solver_p = self._solvername_to_dict(solver_p, type='solver_p')
+                # print(f"???? {self.solver_p=}")
+            else:
+                raise ValueError(f"*** need 'solver_p' as str")
+        if not 'solver_v' in kwargs:
+            solver_v_def = {'method': 'pyamg', 'pyamgtype': 'aggregation', 'accel': 'none', 'smoother': 'gauss_seidel',
+                            'maxiter': 1, 'disp': 0}
+            self.solver_v = solver_v_def
+        else:
+            solver_v = kwargs.pop('solver_v')
+            if isinstance(solver_v, str):
+                self.solver_v = self._solvername_to_dict(solver_v, type='solver_v')
+            else:
+                raise ValueError(f"*** need 'solver_v' in the form 'method@prec@maxiter@disp'")
         super().__init__(**kwargs)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
@@ -216,9 +259,10 @@ class Stokes(Application):
         else:
             linearsolver = copy.deepcopy(self.linearsolver)
             solver_p = copy.deepcopy(self.solver_p)
+            print(f"{self.solver_p=}")
             solver_v = copy.deepcopy(self.solver_v)
             prec = linearsolver.pop("prec", "full")
-            if self.solver_p['type']=='scale':
+            if solver_p['type']=='scale':
                 solver_p['coeff'] = self.mesh.dV/self.mucell
             P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
             assert isinstance(self.linearsolver, dict)

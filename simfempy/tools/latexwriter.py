@@ -23,7 +23,7 @@ class TableData(object):
     def _getformat(self,v):
         assert len(v)
         isint = (isinstance(v,list) and isinstance(v[0], (int, np.integer))) or (isinstance(v,np.ndarray) and np.issubdtype(v.dtype, np.integer))
-        isfloat = (isinstance(v,list) and isinstance(v[0], (float, np.float))) or (isinstance(v,np.ndarray) and np.issubdtype(v[0], float))
+        isfloat = (isinstance(v,list) and isinstance(v[0], (float, float))) or (isinstance(v,np.ndarray) and np.issubdtype(v[0], float))
         if isint:
             format = "{:15d}"
         elif isfloat:
@@ -164,7 +164,7 @@ class LatexWriter(object):
     def writeTable(self, name, tabledata, sort=False):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
         nname = nname.replace('_', '\_')
-        name = name.replace('_', '\_')
+        name = name.replace('_', '')
         keys_to_write = sorted(values.keys()) if sort else list(values.keys())
         size = len(keys_to_write)
         if size==0: return
@@ -172,18 +172,26 @@ class LatexWriter(object):
         texta += 'r|' + size*'|r' + '}\n'
         self.latexfile.write(texta)
         if self.rotatenames:
-            itemformated = "\sw{%s} &" %nname
+            # itemformated = "\sw{%s} &" %nname
+            itemformated = f"\sw{{{nname}}} &"
             for i in range(size-1):
-                itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','\_')
-            itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','\_')
+                # itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','\_')
+                k = keys_to_write[i].replace('_', '\_')
+                itemformated += f"\sw{{{k}}} &"
+            # itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','\_')
+            k = keys_to_write[size-1].replace('_', '\_')
+            itemformated += f"\sw{{{k}}}\\\\\\hline\hline\n"
         else:
-            itemformated = "%15s " %nname
+            itemformated = f"{nname:15} "
             for i in range(size):
-                itemformated += " & %15s " %keys_to_write[i].replace('_','\_')
+                k = keys_to_write[i].replace('_', '\_')
+                itemformated += f" & {k:15} "
             itemformated += "\\\\\\hline\hline\n"
         self.latexfile.write(itemformated)
         for texline in range(len(n)):
-            itemformated = nformat.format(n[texline]).replace('_','\_')
+            nt = n[texline]
+            if isinstance(nt,str): nt=nt.replace('_','\_')
+            itemformated = nformat.format(nt)
             for i in range(size):
                 key = keys_to_write[i]
                 try:

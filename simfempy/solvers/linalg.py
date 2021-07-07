@@ -21,8 +21,10 @@ def _getSolver(args):
         else:
             return ScipySolve(method=method, **args)
     elif method == "spsolve":
+        assert matrix is not None
         return ScipySpSolve(matrix=matrix)
     elif method == "pyamg":
+        assert matrix is not None
         return Pyamg(matrix, **args)
     else:
         raise ValueError(f"unknwown {method=}")
@@ -31,7 +33,9 @@ def _getSolver(args):
 #-------------------------------------------------------------------#
 def getSolver(**kwargs):
     args = kwargs.pop('args', 50)
-    if isinstance(args, dict): return _getSolver(args)
+    if isinstance(args, dict):
+        if len(kwargs): raise ValueError(f"*** unused keys {kwargs}")
+        return _getSolver(args)
     maxiter = args.pop('maxiter', 50)
     verbose = args.pop('verbose', 0)
     reduction = args.pop('reduction', 0.01)
@@ -125,6 +129,8 @@ class ScipySolve(IterativeSolver):
         self.method = kwargs.pop('method')
         super().__init__(**kwargs)
         # if self.method in strangesolvers: raise ValueError(f"method '{self.method}' is i strange scipy solver")
+        if "prec" in kwargs:
+            self.M = kwargs.pop("prec")
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
             if not "matvecprec" in kwargs:
@@ -254,35 +260,15 @@ class SaddlePointPreconditioner():
         return f"{self.method=}\n{self.SV=}\n{self.SP=}"
     def __init__(self, AS, **kwargs):
         self.AS = AS
+        method = kwargs.pop('method','full')
+        self.method = method
         solver_p = kwargs.pop('solver_p', None)
         solver_v = kwargs.pop('solver_v', None)
-        if not isinstance(AS, SaddlePointSystem) or not isinstance(solver_p, (list,dict)) or not isinstance(solver_v,(list,dict)):
-            raise ValueError(f"*** resuired arguments: AS (SaddlePointSystem), solver_p, solver_v (dicts of arguments ")
-        if isinstance(solver_v,dict):
-            solver_v['matrix'] = AS.A
-        else:
-            for s in solver_v:
-                s['matrix'] = AS.A
-        self.SV = getSolver(args=solver_v)
-        type = solver_p['type']
-        if type == 'scale':
-            self.SP = PressureSolverScale(coeff = solver_p['coeff'])
-        elif type =='diag':
-            AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
-            solver_p['matrix'] = AS.B @ AD @ AS.B.T
-            self.SP = getSolver(solver_p)
-        elif type == 'schur':
-            solver_p['matvec'] = self.schurmatvec()
-            self.SP = getSolver(solver_p)
-        self.type = type
-
         constr = hasattr(AS, 'M')
         self.nv = self.AS.na
         self.nvp = self.AS.na + AS.nb
         self.nall = self.nvp
         if constr: self.nall += AS.m
-        method = kwargs.pop('method','full')
-        self.method = method
         if method == 'diag':
             self.matvecprec = self.pmatvec3_diag if constr else self.pmatvec2_diag
         elif method == 'triup':
@@ -291,8 +277,56 @@ class SaddlePointPreconditioner():
             self.matvecprec = self.pmatvec3_tridown if constr else self.pmatvec2_tridown
         elif method == 'full':
             self.matvecprec = self.pmatvec3_full if constr else self.pmatvec2_full
+        elif method[:3] == 'hss':
+            ms = method.split('_')
+            if len(ms) != 2: raise ValueError(f"*** needs 'hass_alpha'")
+            self.alpha = float(ms[1])
+            # solver_p['type'] = f"diag_{self.alpha**2}"
+            # solver_p['method'] = f"pyamg"
+            self.matvecprec = self.pmatvec3_hss if constr else self.pmatvec2_hss
         else:
             raise ValueError(f"*** unknwon {method=}\npossible values: 'diag', 'triup', 'tridown', 'full'")
+        if not isinstance(AS, SaddlePointSystem) or not isinstance(solver_p, (list,dict)) or not isinstance(solver_v,(list,dict)):
+            raise ValueError(f"*** resuired arguments: AS (SaddlePointSystem), solver_p, solver_v (dicts of arguments ")
+        if isinstance(solver_v,dict):
+            alpha = self.alpha if hasattr(self,'alpha') else 0
+            # solver_v['matrix'] = AS.A + alpha*sparse.identity(AS.A.shape[0])
+            solver_v['matrix'] = AS.A
+        else:
+            for s in solver_v:
+                s['matrix'] = AS.A
+        self.SV = getSolver(args=solver_v)
+        type = solver_p['type']
+        if type == 'scale':
+            self.SP = PressureSolverScale(coeff = solver_p['coeff'])
+        elif type[:4] =='diag':
+            ts = type.split('_')
+            if len(ts)>1:
+                alpha = float(ts[1])
+                solver_p['matrix'] = AS.B@ AS.B.T + alpha*sparse.identity(AS.B.shape[0])
+            else:
+                AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
+                solver_p['matrix'] = AS.B @ AD @ AS.B.T
+            self.SP = getSolver(args=solver_p)
+        elif type[:5] == 'schur':
+            ts = type.split('_')
+            if len(ts)>1:
+                prec = ts[1]
+                if prec == 'diag':
+                    AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
+                    args = {'method':'pyamg', 'maxiter':1}
+                    args['matrix'] = AS.B @ AD @ AS.B.T
+                    solver_p['prec'] = getSolver(args=args)
+                elif prec == 'scale':
+                    AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
+                    solver_p['prec'] = PressureSolverScale(coeff = AD.diagonal())
+                else:
+                    raise ValueError(f"unknwon {prec=} {solver_p=}")
+            solver_p['matvec'] = self.schurmatvec
+            solver_p['n'] = AS.B.shape[0]
+            self.SP = getSolver(args=solver_p)
+        self.type = type
+
     def schurmatvec(self, x):
         v = self.AS.B.T.dot(x)
         v2 = self.SV.solve(v)
@@ -324,4 +358,10 @@ class SaddlePointPreconditioner():
         q = self.SP.solve(p-self.AS.B.dot(w))
         h = self.AS.B.T.dot(q)
         w += self.SV.solve(h)
+        return np.hstack([w, q])
+    def pmatvec2_hss(self, x):
+        alpha = 0.1
+        v, p = x[:self.nv], x[self.nv:]
+        q = self.SP.solve(p-1/self.alpha*self.AS.B.dot(v))
+        w = self.SV.solve(1/self.alpha*v + self.AS.B.T.dot(q))
         return np.hstack([w, q])
