@@ -22,7 +22,7 @@ def test(testcase, **kwargs):
     # paramsdict['linearsolver'] = ['pyamg_gmres@hss_1@100@0','pyamg_gmres@hss_0.1@100@0','pyamg_gmres@hss_0.5@100@0']
     paramsdict['solver_v'] = ['pyamg@aggregation@none@gauss_seidel@1@0']
     # paramsdict['solver_p'] = ['scale', 'diag@pyamg@aggregation@none@gauss_seidel@1@0', 'schur@pyamg_cg@@3@0', 'schur_scale@pyamg_cg@@3@0', 'schur_diag@pyamg_cg@@3@0']
-    paramsdict['solver_p'] = ['diag@pyamg@aggregation@none@gauss_seidel@1@0']
+    paramsdict['solver_p'] = ['diag@pyamg@aggregation@none@gauss_seidel@5@1']
     niter = kwargs.pop('niter', 3)
     comp =  CompareMethods(niter=niter, createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()

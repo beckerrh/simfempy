@@ -217,8 +217,34 @@ class SaddlePointSystem():
             self.M = M
             self.nm = M.shape[0]
             self.nall += self.nm
-        constr = hasattr(self, 'M')
-        self.matvec = self.matvec3 if constr else self.matvec2
+        self.constr = hasattr(self, 'M')
+        self.matvec = self.matvec3 if self.constr else self.matvec2
+    def scaleAb(self, b):
+        assert not self.constr
+        DA = self.A.diagonal()
+        assert np.all(DA>0)
+        AD = sparse.diags(1/DA, offsets=(0), shape=self.A.shape)
+        DS = (self.B@AD@self.B.T).diagonal()
+        print(f"{DA.max()=} {DA.min()=} {DS.max()=} {DS.min()=}")
+        assert np.all(DS>0)
+        nb = self.B.shape[0]
+        # SD = sparse.diags(DS, offsets=(0), shape=(nb,nb))
+        self.vs = sparse.diags(np.power(DA, -0.5), offsets=(0), shape=self.A.shape)
+        # self.ps = sparse.identity(self.A.shape[0])
+        self.ps = sparse.diags(np.power(DS, -0.5), offsets=(0), shape=(nb,nb))
+        # self.ps = sparse.identity(nb)
+        # self.vsi = sparse.diags(np.power(DA, 0.5), offsets=(0), shape=self.A.shape)
+        # self.psi = sparse.diags(np.power(DS, 0.5), offsets=(0), shape=(nb,nb))
+        self.A = self.vs@self.A@self.vs
+        self.B = self.ps@self.B@self.vs
+        bv, bp = b[:self.na], b[self.na:]
+        b[:self.na] = self.vs@bv
+        b[self.na:] = self.ps@bp
+    def scaleu(self, u):
+        v, p = u[:self.na], u[self.na:]
+        u[:self.na] = self.vs@v
+        u[self.na:] = self.ps@p
+
     def matvec3(self, x):
         v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
         w = self.A.dot(v) - self.B.T.dot(p)

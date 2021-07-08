@@ -65,7 +65,7 @@ class Stokes(Application):
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         self.divdivparam = kwargs.pop('divdivparam', 0)
         if not 'linearsolver' in kwargs:
-            linearsolver_def = {'method': 'pyamg_gmres', 'prec':'full', 'maxiter': 100, 'disp':0}
+            linearsolver_def = {'method': 'pyamg_gmres', 'prec':'full', 'maxiter': 200, 'disp':0}
             kwargs['linearsolver'] = linearsolver_def
         else:
             linearsolver = kwargs['linearsolver']
@@ -264,6 +264,7 @@ class Stokes(Application):
             prec = linearsolver.pop("prec", "full")
             if solver_p['type']=='scale':
                 solver_p['coeff'] = self.mesh.dV/self.mucell
+            Ain.scaleAb(bin)
             P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
             assert isinstance(self.linearsolver, dict)
             linearsolver['counter'] = 'sys'
@@ -273,6 +274,7 @@ class Stokes(Application):
             S = linalg.getSolver(args=linearsolver)
             maxiter = S.maxiter
             uall =  S.solve(b=bin, x0=uin)
+            Ain.scaleu(uall)
             self.timer.add("linearsolve")
             it = S.counter.niter
             if it==maxiter or np.linalg.norm(uall)<atol:
