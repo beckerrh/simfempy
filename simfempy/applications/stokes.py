@@ -17,6 +17,7 @@ class Stokes(Application):
     def __format__(self, spec):
         if spec=='-':
             repr = f"{self.femv=} {self.femp=}"
+            if self.linearsolver=='spsolve': return repr + self.linearsolver
             ls = '@'.join([str(v) for v in self.linearsolver.values()])
             vs = '@'.join([str(v) for v in self.solver_v.values()])
             print(f"{self.solver_p=}")
@@ -69,10 +70,10 @@ class Stokes(Application):
             kwargs['linearsolver'] = linearsolver_def
         else:
             linearsolver = kwargs['linearsolver']
-            if isinstance(linearsolver, str):
-                kwargs['linearsolver'] = self._solvername_to_dict(linearsolver, type='linearsolver')
-            else:
+            if not isinstance(linearsolver, str):
                 raise ValueError(f"*** need 'linearsolver' as str")
+            if not kwargs['linearsolver'] == 'spsolve':
+                kwargs['linearsolver'] = self._solvername_to_dict(linearsolver, type='linearsolver')
         if not 'solver_p' in kwargs:
             self.solver_p = {'type': 'scale'}
         else:
@@ -267,7 +268,7 @@ class Stokes(Application):
             Ain.scaleAb(bin)
             P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
             assert isinstance(self.linearsolver, dict)
-            linearsolver['counter'] = 'sys'
+            linearsolver['counter'] = 'sys '
             linearsolver['matvec'] = Ain.matvec
             linearsolver['matvecprec'] = P.matvecprec
             linearsolver['n'] = Ain.nall

@@ -46,7 +46,7 @@ class Application(object):
         self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.timer = simfempy.tools.timer.Timer(verbose=self.verbose)
         if 'problemdata' in kwargs:
-            self.problemdata = kwargs.get('problemdata')
+            self.problemdata = kwargs.pop('problemdata')
             self.ncomp = self.problemdata.ncomp
         if 'exactsolution' in kwargs:
             self.exactsolution = kwargs.pop('exactsolution')

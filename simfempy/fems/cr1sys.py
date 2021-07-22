@@ -240,7 +240,8 @@ class CR1sys(femsys.Femsys):
         normalsS = self.mesh.normals[self.mesh.innerfaces]
         dS = linalg.norm(normalsS, axis=1)
         faces = self.mesh.faces[self.mesh.innerfaces]
-        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(faces, ci0, ci1)
+        # fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(faces, ci0, ci1)
+        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
         massloc = barycentric.crbdryothers(dimension)
         if isinstance(mucell,(int,float)):
             scale = mucell*dS/(dV[ci0]+ dV[ci1])

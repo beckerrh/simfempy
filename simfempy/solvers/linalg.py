@@ -32,10 +32,16 @@ def _getSolver(args):
 
 #-------------------------------------------------------------------#
 def getSolver(**kwargs):
+    """
+    :param kwargs: if args is dict build the correspong solver
+    otherwise if args is list, choose the best solver in the list
+    :return:
+    """
     args = kwargs.pop('args', 50)
     if isinstance(args, dict):
         if len(kwargs): raise ValueError(f"*** unused keys {kwargs}")
         return _getSolver(args)
+    assert isinstance(args, list)
     maxiter = args.pop('maxiter', 50)
     verbose = args.pop('verbose', 0)
     reduction = args.pop('reduction', 0.01)
@@ -227,7 +233,10 @@ class SaddlePointSystem():
         DS = (self.B@AD@self.B.T).diagonal()
         print(f"{DA.max()=} {DA.min()=} {DS.max()=} {DS.min()=}")
         assert np.all(DS>0)
+        na = self.A.shape[0]
         nb = self.B.shape[0]
+        DA = np.ones(na)
+        DS = np.ones(nb)
         # SD = sparse.diags(DS, offsets=(0), shape=(nb,nb))
         self.vs = sparse.diags(np.power(DA, -0.5), offsets=(0), shape=self.A.shape)
         # self.ps = sparse.identity(self.A.shape[0])
@@ -244,7 +253,6 @@ class SaddlePointSystem():
         v, p = u[:self.na], u[self.na:]
         u[:self.na] = self.vs@v
         u[self.na:] = self.ps@p
-
     def matvec3(self, x):
         v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
         w = self.A.dot(v) - self.B.T.dot(p)
@@ -283,13 +291,17 @@ class SaddlePointPreconditioner():
     """
     """
     def __repr__(self):
-        return f"{self.method=}\n{self.SV=}\n{self.SP=}"
+        s =  f"{self.method=}\n{self.type=}"
+        if hasattr(self,'SV'): s += f"\n{self.SV=}"
+        if hasattr(self,'SP'): s += f"\n{self.SP=}"
+        return s
     def __init__(self, AS, **kwargs):
         self.AS = AS
         method = kwargs.pop('method','full')
         self.method = method
         solver_p = kwargs.pop('solver_p', None)
         solver_v = kwargs.pop('solver_v', None)
+        print(f"{method=} {solver_p=}")
         constr = hasattr(AS, 'M')
         self.nv = self.AS.na
         self.nvp = self.AS.na + AS.nb
@@ -322,20 +334,21 @@ class SaddlePointPreconditioner():
             for s in solver_v:
                 s['matrix'] = AS.A
         self.SV = getSolver(args=solver_v)
-        type = solver_p['type']
-        if type == 'scale':
+        self.type = solver_p['type']
+        if self.type == 'scale':
             self.SP = PressureSolverScale(coeff = solver_p['coeff'])
-        elif type[:4] =='diag':
-            ts = type.split('_')
+            return
+        solver_p['counter'] = '\tP '
+        if self.type[:4] =='diag':
+            ts = self.type.split('_')
             if len(ts)>1:
                 alpha = float(ts[1])
                 solver_p['matrix'] = AS.B@ AS.B.T + alpha*sparse.identity(AS.B.shape[0])
             else:
                 AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
                 solver_p['matrix'] = AS.B @ AD @ AS.B.T
-            self.SP = getSolver(args=solver_p)
-        elif type[:5] == 'schur':
-            ts = type.split('_')
+        elif self.type[:5] == 'schur':
+            ts = self.type.split('_')
             if len(ts)>1:
                 prec = ts[1]
                 if prec == 'diag':
@@ -350,8 +363,10 @@ class SaddlePointPreconditioner():
                     raise ValueError(f"unknwon {prec=} {solver_p=}")
             solver_p['matvec'] = self.schurmatvec
             solver_p['n'] = AS.B.shape[0]
-            self.SP = getSolver(args=solver_p)
-        self.type = type
+            print(f"## {solver_p=}")
+        else:
+            raise ValueError(f"*** unknown {self.type=}")
+        self.SP = getSolver(args=solver_p)
 
     def schurmatvec(self, x):
         v = self.AS.B.T.dot(x)

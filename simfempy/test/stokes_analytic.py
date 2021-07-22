@@ -45,11 +45,16 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
-    applicationargs['linearsolver'] = 'scipy_gmres@full@200@0'
-    applicationargs['linearsolver'] = 'pyamg_gmres@full@200@0'
-    applicationargs['solver_p'] = 'schur@pyamg_cg@@3@0'
+    if 'linearsolver' in kwargs:
+        applicationargs['linearsolver'] = kwargs.pop('linearsolver')
+    else:
+        applicationargs['linearsolver'] = 'scipy_gcrotmk@full@200@1'
+        applicationargs['linearsolver'] = 'scipy_lgmres@full@200@1'
+        # applicationargs['linearsolver'] = 'scipy_gmres@full@200@1'
+        # applicationargs['linearsolver'] = 'pyamg_gmres@full@200@1'
+        applicationargs['solver_p'] = 'schur@pyamg_cg@@9@0'
+        # applicationargs['solver_p'] = 'diag@pyamg_cg@@10@0'
 
-    if 'linearsolver' in kwargs: applicationargs['linearsolver'] = kwargs.pop('linearsolver')
     # applicationargs['mode'] = 'newton'
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()
@@ -63,5 +68,6 @@ if __name__ == '__main__':
     # test(dim=2, exactsolution="Linear", niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution=[["1.0","0.0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
-    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=4, dirichletmethod=['nitsche'], plotsolution=False)
+    # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], linearsolver='spsolve', plotsolution=False)
+    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=5, dirichletmethod=['nitsche'], plotsolution=False)
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='spsolve')
