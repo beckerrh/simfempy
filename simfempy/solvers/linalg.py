@@ -235,8 +235,8 @@ class SaddlePointSystem():
         assert np.all(DS>0)
         na = self.A.shape[0]
         nb = self.B.shape[0]
-        DA = np.ones(na)
-        DS = np.ones(nb)
+        # DA = np.ones(na)
+        # DS = np.ones(nb)
         # SD = sparse.diags(DS, offsets=(0), shape=(nb,nb))
         self.vs = sparse.diags(np.power(DA, -0.5), offsets=(0), shape=self.A.shape)
         # self.ps = sparse.identity(self.A.shape[0])
@@ -348,7 +348,7 @@ class SaddlePointPreconditioner():
                 AD = sparse.diags(1 / AS.A.diagonal(), offsets=(0), shape=AS.A.shape)
                 solver_p['matrix'] = AS.B @ AD @ AS.B.T
         elif self.type[:5] == 'schur':
-            ts = self.type.split('_')
+            ts = self.type.split('|')
             if len(ts)>1:
                 prec = ts[1]
                 if prec == 'diag':

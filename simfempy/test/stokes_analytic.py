@@ -45,6 +45,7 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
+    applicationargs['scalels'] = True
     if 'linearsolver' in kwargs:
         applicationargs['linearsolver'] = kwargs.pop('linearsolver')
     else:
@@ -52,7 +53,7 @@ def test(dim, **kwargs):
         applicationargs['linearsolver'] = 'scipy_lgmres@full@200@1'
         # applicationargs['linearsolver'] = 'scipy_gmres@full@200@1'
         # applicationargs['linearsolver'] = 'pyamg_gmres@full@200@1'
-        applicationargs['solver_p'] = 'schur@pyamg_cg@@9@0'
+        applicationargs['solver_p'] = 'schur|diag@pyamg_cg@@9@0'
         # applicationargs['solver_p'] = 'diag@pyamg_cg@@10@0'
 
     # applicationargs['mode'] = 'newton'
