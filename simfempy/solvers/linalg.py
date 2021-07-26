@@ -301,7 +301,7 @@ class SaddlePointPreconditioner():
         self.method = method
         solver_p = kwargs.pop('solver_p', None)
         solver_v = kwargs.pop('solver_v', None)
-        print(f"{method=} {solver_p=}")
+        # print(f"{method=} {solver_p=}")
         constr = hasattr(AS, 'M')
         self.nv = self.AS.na
         self.nvp = self.AS.na + AS.nb
@@ -363,7 +363,7 @@ class SaddlePointPreconditioner():
                     raise ValueError(f"unknwon {prec=} {solver_p=}")
             solver_p['matvec'] = self.schurmatvec
             solver_p['n'] = AS.B.shape[0]
-            print(f"## {solver_p=}")
+            # print(f"## {solver_p=}")
         else:
             raise ValueError(f"*** unknown {self.type=}")
         self.SP = getSolver(args=solver_p)

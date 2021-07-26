@@ -1,6 +1,8 @@
 import unittest
 import numpy as np
 
+import warnings
+warnings.simplefilter(action="error", category=DeprecationWarning)
 #================================================================#
 class TestAnalytical(unittest.TestCase):
     def _check(self, results, eps=1e-10):

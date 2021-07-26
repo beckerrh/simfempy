@@ -67,6 +67,7 @@ class Application(object):
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
     def setMesh(self, mesh):
+        self.timer.reset_all()
         self.problemdata.check(mesh)
         self.mesh = mesh
         if self.verbose: print(f"{self.mesh=}")
@@ -174,6 +175,8 @@ class Application(object):
             else:
                 raise ValueError(f"unknwon {mode=}")
         pp = self.postProcess(u)
+        if hasattr(self.problemdata.postproc, "changepostproc"):
+            self.problemdata.postproc.changepostproc(pp['global'])
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter=iter)
         return result

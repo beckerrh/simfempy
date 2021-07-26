@@ -105,7 +105,6 @@ class CompareMethods(object):
                 else:
                     applicationargs2[pname] = param
             self.methods[name] = application(**applicationargs2)
-           
     def _mesh_from_geom_or_fct(self, h=None):
         if h is None:
             if self.createMesh is not None: return self.createMesh()
@@ -122,7 +121,6 @@ class CompareMethods(object):
     def compare(self, **kwargs):
         if (self.gmshrefine or self.paramname != "ncells") and self.mesh is None:
             mesh = self._mesh_from_geom_or_fct()
-
         if self.plotsolution:
             import matplotlib.gridspec as gridspec
             fig = plt.figure(figsize=(10, 8))
@@ -195,12 +193,13 @@ class CompareMethods(object):
             else:
                 self.infos[key2][name][iter] = np.sum(info2)
 
-    def generateLatex(self, names, paramname, parameters, infos):
-        mesh = self.createMesh.__name__
-        title = f"mesh({mesh})\\\\"
-        for name, method in self.methods.items():
-            title += f"{name}\\\\"
-        title = title[:-2]
+    def generateLatex(self, names, paramname, parameters, infos, title=None):
+        if title is None:
+            title = self.createMesh.__name__
+            # title = f"mesh({mesh})\\\\"
+            # for name, method in self.methods.items():
+            #     title += f"{name}\\\\"
+            # title = title[:-2]
         # print("title = ", title)
         latexwriter = LatexWriter(dirname=self.dirname, title=title, author=self.__class__.__name__)
         for key, val in infos.items():
@@ -216,14 +215,14 @@ class CompareMethods(object):
                 kwargs['values'] = newdict
                 latexwriter.append(**kwargs)
             elif key == 'timer':
+                sumdict = {name:np.zeros(len(parameters)) for name in names}
                 for name in names:
                     newdict={}
                     for key2, val2 in val.items():
-                        newdict["{}".format(key2)] = val2[name]
-                    kwargs['name'] = '{}-{}'.format(key, name)
-                    kwargs['values'] = newdict
-                    kwargs['percentage'] = True
-                    latexwriter.append(**kwargs)
+                        sumdict[name] += val2[name]
+                        newdict[key2] = val2[name]
+                    latexwriter.append(**kwargs, name = f"{key}-{name}", values=newdict, percentage=True)
+                latexwriter.append(**kwargs, name=key, values=sumdict)
             else:
                 iserr = len(keysplit) >= 2 and keysplit[0] == 'err'
                 kwargs['redrate'] = iserr and (paramname=="ncells")

@@ -115,17 +115,14 @@ class TableData(object):
 class LatexWriter(object):
     # def __init__(self, dirname="Resultslatextest", filename=None):
     def __init__(self, **kwargs):
-        self.dirname = "Resultslatextest"
-        if "dirname" in kwargs: self.dirname = kwargs.pop("dirname")
-        filename = self.dirname + ".tex"
-        if "filename" in kwargs: filename = kwargs.pop("filename")
+        self.author = kwargs.pop("author".replace('_',r'\_'), self.__class__.__name__)
+        self.title = kwargs.pop("title".replace('_',r'\_'), "No title given")
+        self.dirname = kwargs.pop("dirname", "Resultslatextest")
+        filename = kwargs.pop("filename", self.title.replace(' ',r'\_'))
         if filename[-4:] != '.tex': filename += '.tex'
         self.dirname += os.sep + "tex"
         if not os.path.isdir(self.dirname): os.makedirs(self.dirname)
         self.latexfilename = os.path.join(self.dirname, filename)
-        self.author, self.title = self.__class__.__name__, "No title given"
-        if "title" in kwargs: self.title = kwargs.pop("title").replace('_','\_')
-        if "author" in kwargs: self.author = kwargs.pop("author").replace('_','\_')
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
@@ -163,7 +160,7 @@ class LatexWriter(object):
         self.latexfile.close()
     def writeTable(self, name, tabledata, sort=False):
         n, nname, nformat, values, valformat = tabledata.n, tabledata.nname, tabledata.nformat, tabledata.values, tabledata.valformat
-        nname = nname.replace('_', '\_')
+        nname = nname.replace('_', r'\_')
         name = name.replace('_', '')
         keys_to_write = sorted(values.keys()) if sort else list(values.keys())
         size = len(keys_to_write)
@@ -176,7 +173,7 @@ class LatexWriter(object):
             itemformated = f"\sw{{{nname}}} &"
             for i in range(size-1):
                 # itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','\_')
-                k = keys_to_write[i].replace('_', '\_')
+                k = keys_to_write[i].replace('_', r'\_')
                 itemformated += f"\sw{{{k}}} &"
             # itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','\_')
             k = keys_to_write[size-1].replace('_', '\_')
@@ -184,13 +181,13 @@ class LatexWriter(object):
         else:
             itemformated = f"{nname:15} "
             for i in range(size):
-                k = keys_to_write[i].replace('_', '\_')
+                k = keys_to_write[i].replace('_', r'\_')
                 itemformated += f" & {k:15} "
             itemformated += "\\\\\\hline\hline\n"
         self.latexfile.write(itemformated)
         for texline in range(len(n)):
             nt = n[texline]
-            if isinstance(nt,str): nt=nt.replace('_','\_')
+            if isinstance(nt,str): nt=nt.replace('_',r'\_')
             itemformated = nformat.format(nt)
             for i in range(size):
                 key = keys_to_write[i]

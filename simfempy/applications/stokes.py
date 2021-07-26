@@ -20,7 +20,7 @@ class Stokes(Application):
             if self.linearsolver=='spsolve': return repr + self.linearsolver
             ls = '@'.join([str(v) for v in self.linearsolver.values()])
             vs = '@'.join([str(v) for v in self.solver_v.values()])
-            print(f"{self.solver_p=}")
+            # print(f"{self.solver_p=}")
             ps = '@'.join([str(v) for v in self.solver_p.values()])
             repr += f"\tlinearsolver={ls} V:{vs} P:{ps}"
             return repr
@@ -249,8 +249,6 @@ class Stokes(Application):
                         data['global'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-        if hasattr(self.problemdata.postproc, "changepostproc"):
-            self.problemdata.postproc.changepostproc(data['global'])
         return data
     def linearSolver(self, Ain, bin, uin=None, verbose=0, atol=1e-16, rtol=1e-10):
         if self.linearsolver == 'spsolve':
@@ -261,7 +259,7 @@ class Stokes(Application):
         else:
             linearsolver = copy.deepcopy(self.linearsolver)
             solver_p = copy.deepcopy(self.solver_p)
-            print(f"{self.solver_p=}")
+            # print(f"{self.solver_p=}")
             solver_v = copy.deepcopy(self.solver_v)
             prec = linearsolver.pop("prec", "full")
             if solver_p['type']=='scale':
