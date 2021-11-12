@@ -236,10 +236,10 @@ class SimplexMesh(object):
         bpi = np.argsort(bp)
         # self.bdrylabels = {col:bdryids[fp[bpi[cb]]] for col, cb in physlabelsgmsh.items()}
         indices = (facesgmsh[bp, None] == bdryfaces[fp]).all(axis=-1).any(axis=-1)
-        # bp2 = bp[indices]
         binv = np.argsort(bp[indices])
-        # binv = np.empty_like(bp)
-        # binv[bp2] = np.arange(len(bp2))
+        bp2 = bp[indices]
+        binv = np.empty_like(bp)
+        binv[bp2] = np.arange(len(bp2))
         # if not np.all(binv == np.argsort(bp[indices])):
         #     print(f"{indices=}\n{binv=} {np.argsort(bp[indices])=}")
         self.bdrylabels = {}        
