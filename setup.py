@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     platforms="any",
-    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'pyamg', 'matplotlib'],
+    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'matplotlib'],
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",
