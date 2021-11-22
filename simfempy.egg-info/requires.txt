@@ -3,5 +3,4 @@ pygmsh
 meshio
 scipy
 sympy
-pyamg
 matplotlib
