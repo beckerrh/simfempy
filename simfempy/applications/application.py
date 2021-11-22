@@ -207,7 +207,7 @@ class Application(object):
         self.fem.massDot(b, fp1)
         u, niter = self.linearSolver(self.Mass, b, u=fp1)
         return u
-    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='CN', verbose=1):
+    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='BE', verbose=1):
         if mode=='linear': return self.dynamic_linear(u0, t_span, nframes, dt, callback, method, verbose)
         raise NotImplementedError()
     def dynamic_linear(self, u0, t_span, nframes, dt=None, callback=None, method='CN', verbose=1):
@@ -238,7 +238,7 @@ class Application(object):
         if nframes > nitertotal:
             raise ValueError(f"Maximum valiue for nframes is {nitertotal=}")
         niter = nitertotal//nframes
-        result = simfempy.applications.problemdata.Results()
+        result = simfempy.applications.problemdata.Results(nframes)
         self.timer.add('init')
         if not hasattr(self, 'Mass'):
             self.Mass = self.fem.computeMassMatrix()
@@ -271,7 +271,7 @@ class Application(object):
                 u, niterslinsol[iter] = u, len(res)
                 # print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('solve')
-            result.addData(self.postProcess(u), time=self.time, iter=niterslinsol.mean())
+            result.addData(iframe, self.postProcess(u), time=self.time, iter=niterslinsol.mean())
             if callback: callback(self.time, u)
         return result
 

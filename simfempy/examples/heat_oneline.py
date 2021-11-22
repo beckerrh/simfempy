@@ -1,8 +1,8 @@
-assert __name__ == '__main__'
-# in shell
 import os, sys
-simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
-sys.path.insert(0,simfempypath)
+path = os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir, 'simfempy')
+simfempypath = os.path.abspath(path)
+sys.path.insert(0, simfempypath)
+assert __name__ == '__main__'
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -10,7 +10,7 @@ import pygmsh
 from simfempy.applications.heat import Heat
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
-from simfempy.meshes import plotmesh
+from simfempy.meshes import plotmesh, animdata
 
 # create mesh
 h=0.1
@@ -46,13 +46,33 @@ data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
 heat = Heat(mesh=mesh, problemdata=data, fem='p1')
-result = heat.static()
-print(f"{result.info['timer']}")
-print(f"postproc:")
-for p, v in result.data['global'].items(): print(f"{p}: {v}")
-fig = plt.figure(figsize=(10, 8))
-fig.suptitle("Heat static", fontsize=16)
-outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
-plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
-plotmesh.meshWithData(heat.mesh, data=result.data, alpha=0.5, fig=fig, outer=outer[1])
-plt.show()
+static = False
+if static:
+    # run static
+    result = heat.static()
+    print(f"{result=}")
+    # for p, v in result.data['global'].items(): print(f"{p}: {v}")
+    fig = plt.figure(figsize=(10, 8))
+    fig.suptitle("Heat static", fontsize=16)
+    outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
+    plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
+    plotmesh.meshWithData(heat.mesh, data=result.data, alpha=0.5, fig=fig, outer=outer[1])
+    plt.show()
+else:
+    # run dynamic
+    data.params.fct_glob["initial_condition"] = "200"
+    u0 = heat.initialCondition()
+    t_final, dt = 2000, 10
+    nframes = int(t_final / dt / 4)
+    result = heat.dynamic(u0, t_span=(0, t_final), nframes=nframes, dt=dt)
+    print(f"{result=}")
+    u = result.data['point']['U']
+    fig = plt.figure(figsize=(10, 8))
+    outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
+    plotmesh.meshWithData(heat.mesh, point_data={'u0': u0}, fig=fig, outer=outer[0])
+    nhalf = int(nframes/2)
+    plotmesh.meshWithData(heat.mesh, point_data={f'u{nhalf}': u[nhalf]}, fig=fig, outer=outer[1])
+    plotmesh.meshWithData(heat.mesh, point_data={'uN': u[-1]}, fig=fig, outer=outer[2])
+    plt.show()
+    anim = animdata.AnimData(mesh, u)
+    plt.show()

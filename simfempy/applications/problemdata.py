@@ -1,3 +1,5 @@
+import numpy as np
+
 def _check1setinother_(set1, set2, name1="set1", name2="set2"):
     notin2 = set1.difference(set2)
     if notin2:
@@ -144,9 +146,6 @@ class ProblemData(object):
         else: self.bdrycond = bdrycond
         if postproc is None: self.postproc = PostProcess()
         else: self.postproc = postproc
-        # self.rhs = None
-        # self.rhscell = rhscell
-        # self.rhspoint = rhspoint
         self.solexact = None
         self.params = Params()
 
@@ -197,38 +196,35 @@ class Results(object):
     - info on iteration
     """
     # TODO: data per physical identity
-    def __init__(self):
+    def __init__(self, nframes=None):
         # self.data = {"point":{}, "side":{}, "cell":{}, "global":{}}
         self.data = {}
         self.info = {}
+        if nframes: self.time = np.zeros(nframes)
     def __repr__(self):
-        return f"{self.data=}\n {self.info=}"
+        repr = f"Results info: {self.info}\n"
+        repr += f"Results data:\n"
+        for k, d in self.data.items():
+            repr += f"type({k})\n"
+            for p, v in d.items():
+                repr += f"{p}: {v}\n"
+        return repr
     def setData(self, data, timer=None, iter=None):
-        self.data = data
+        self.data.update(data)
         if timer is not None: self.info['timer'] = timer
         if iter is not None: self.info['iter'] = iter
-        # if len(data) != 4:
-        #     raise ValueError("expect four data (point, side, cell, global)")
-        # self.data["point"] = data[0]
-        # self.data["side"] = data[1]
-        # self.data["cell"] = data[2]
-        # self.data["global"] = data[3]
-    def addData(self, data, time=None, iter=None):
+    def addData(self, iframe, data, time, iter=None):
+        self.time[iframe] = time
         if not len(self.data.keys()):
-            for k,v in data.items():
-                # print(f"{k=} {type(v)=}")
-                if isinstance(v,dict):
-                    self.data[k] = {}
-                    for k2,v2 in v.items():
-                        # print(f"{k2=} {type(v2)=}")
-                        if not isinstance(v2, dict):
-                            self.data[k][k2] = []
-                        else:
-                            assert 0
-                else:
-                    assert 0
+            for k, v in data.items():
+                assert isinstance(v, dict)
+                self.data[k] = {}
+                for k2, v2 in v.items():
+                    assert not isinstance(v2, dict)
+                    self.data[k][k2] = []
         for k,v in data.items():
-            if isinstance(v,dict):
-                for k2,v2 in v.items():
-                    if not isinstance(v2, dict):
-                        self.data[k][k2].append(v2)
+            assert isinstance(v,dict)
+            assert k in self.data.keys()
+            for k2,v2 in v.items():
+                assert not isinstance(v2, dict)
+                self.data[k][k2].append(v2)
