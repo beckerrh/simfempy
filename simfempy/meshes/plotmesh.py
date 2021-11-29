@@ -198,6 +198,7 @@ def meshWithData(meshdata, **kwargs):
                 plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
             else: raise NotImplementedError("3d...")
         ax.set_aspect(aspect='equal')
+        if 'title' in kwargs: ax.set_title(kwargs['title'])
         fig.add_subplot(ax)
         count += 1
     for cdn, cd in cell_data.items():

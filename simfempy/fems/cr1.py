@@ -58,7 +58,7 @@ class CR1(fems.fem.Fem):
             # print(f"{self.md.mus=}")
             # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upw':
-            md = move.move_midpoints(self.mesh, beta, bound=1/d)
+            md = move.move_midpoints(self.mesh, beta, bound=1/dim)
             # self.md = move.move_midpoint_to_neighbour(self.mesh, betart)
             # self.md = move.move_midpoints(self.mesh, -beta, bound=1/d)
             # self.md = move.move_midpoints(self.mesh, -beta, candidates='all')
@@ -409,9 +409,9 @@ class CR1(fems.fem.Fem):
         A += sparse.coo_matrix((mat, (rows0,cols)), shape=(nfaces, nfaces))
         A += self.computeMatrixJump(betart, mode='primal')
         A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
-        B = self.computeMatrixTransportSupg(bdrylumped=False, method='supg')
-        if not np.allclose(A.tocsr().A,B.tocsr().A):
-            raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
+        # B = self.computeMatrixTransportSupg(bdrylumped=False, method='supg')
+        # if not np.allclose(A.tocsr().A,B.tocsr().A):
+        #     raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
 
         # A += self.computeMatrixJump(betart, mode='primal')
         #upwind

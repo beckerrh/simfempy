@@ -27,12 +27,12 @@ def test(dim, **kwargs):
     elif dim==2:
         createMesh = testmeshes.unitsquare
         colors = [1000, 1001, 1002, 1003]
-        colorsrob = []
+        colorsrob = [1003]
         colorsneu = [1001]
     else:
         createMesh = testmeshes.unitcube
         colors = [100, 101, 102, 103, 104, 105]
-        colorsrob = []
+        colorsrob = [105]
         colorsneu = [103]
     colorsdir = [col for col in colors if col not in colorsrob and col not in colorsneu]
     data.bdrycond.set("Dirichlet", colorsdir)

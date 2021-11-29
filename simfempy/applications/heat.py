@@ -53,7 +53,7 @@ class Heat(Application):
         self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
         fem = kwargs.pop('fem','p1')
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
-        self.convmethod = kwargs.pop('convmethod', 'supg')
+        self.convmethod = kwargs.pop('convmethod', 'upw')
         femargs = {'dirichletmethod':self.dirichletmethod, 'stab': self.convmethod}
         if fem == 'p1': self.fem = fems.p1.P1(**femargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
@@ -278,9 +278,6 @@ class Heat(Application):
                     data['global'][name] = self.fem.computeLineValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-        if self.kheatcell.shape[0] != self.mesh.ncells:
-            raise ValueError(f"self.kheatcell.shape[0]={self.kheatcell.shape[0]} but self.mesh.ncells={self.mesh.ncells}")
-        data['cell']['k'] = self.kheatcell
         return data
     # def pyamg_solver_args(self, maxiter):
     #     return {'cycle': 'W', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}

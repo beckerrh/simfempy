@@ -46,7 +46,7 @@ data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
 heat = Heat(mesh=mesh, problemdata=data, fem='p1')
-static = False
+static = True
 if static:
     # run static
     result = heat.static()
@@ -56,23 +56,30 @@ if static:
     fig.suptitle("Heat static", fontsize=16)
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
+    result.data.update({'cell': {'k': heat.kheatcell}})
     plotmesh.meshWithData(heat.mesh, data=result.data, alpha=0.5, fig=fig, outer=outer[1])
     plt.show()
 else:
     # run dynamic
     data.params.fct_glob["initial_condition"] = "200"
-    u0 = heat.initialCondition()
-    t_final, dt = 2000, 10
+    t_final, dt = 2500, 10
     nframes = int(t_final / dt / 4)
-    result = heat.dynamic(u0, t_span=(0, t_final), nframes=nframes, dt=dt)
-    print(f"{result=}")
+    result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
+    # print(f"{result=}")
+    nhalf = int(nframes/2)
     u = result.data['point']['U']
     fig = plt.figure(figsize=(10, 8))
+    fig.suptitle("Heat dynamic", fontsize=16)
     outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
-    plotmesh.meshWithData(heat.mesh, point_data={'u0': u0}, fig=fig, outer=outer[0])
-    nhalf = int(nframes/2)
-    plotmesh.meshWithData(heat.mesh, point_data={f'u{nhalf}': u[nhalf]}, fig=fig, outer=outer[1])
-    plotmesh.meshWithData(heat.mesh, point_data={'uN': u[-1]}, fig=fig, outer=outer[2])
+    plotmesh.meshWithData(heat.mesh, title=f't={result.time[0]}', point_data={'u': u[0]}, fig=fig, outer=outer[0])
+    plotmesh.meshWithData(heat.mesh, title=f't={result.time[nhalf]}', point_data={'u': u[nhalf]}, fig=fig, outer=outer[1])
+    plotmesh.meshWithData(heat.mesh, title=f't={result.time[-1]}', point_data={'u': u[-1]}, fig=fig, outer=outer[2])
+    plt.show()
+    postprocs = result.data['global']
+    for i,k in enumerate(postprocs):
+        plt.plot(result.time, postprocs[k], label=k)
+    plt.legend()
+    plt.grid()
     plt.show()
     anim = animdata.AnimData(mesh, u)
     plt.show()

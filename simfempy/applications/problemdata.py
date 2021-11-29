@@ -216,15 +216,19 @@ class Results(object):
     def addData(self, iframe, data, time, iter=None):
         self.time[iframe] = time
         if not len(self.data.keys()):
+            nframes = len(self.time)
             for k, v in data.items():
                 assert isinstance(v, dict)
                 self.data[k] = {}
                 for k2, v2 in v.items():
-                    assert not isinstance(v2, dict)
-                    self.data[k][k2] = []
+                    assert isinstance(v2, np.ndarray)
+                    if sum(v2.shape)==1:
+                        self.data[k][k2] = np.zeros(nframes)
+                    else:
+                        self.data[k][k2] = np.zeros(shape=(nframes,*v2.shape))
         for k,v in data.items():
             assert isinstance(v,dict)
             assert k in self.data.keys()
             for k2,v2 in v.items():
-                assert not isinstance(v2, dict)
-                self.data[k][k2].append(v2)
+                assert isinstance(v2, np.ndarray)
+                self.data[k][k2][iframe,...] = v2

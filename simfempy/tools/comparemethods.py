@@ -31,6 +31,7 @@ class CompareMethods(object):
       verb: in [0,5]
     """
     def __init__(self, **kwargs):
+        self.fullmethodsname = kwargs.pop("fullmethodsname", True)
         self.dirname = "Results"
         if 'clean' in kwargs and kwargs.pop("clean")==True:
             import os, shutil
@@ -83,6 +84,8 @@ class CompareMethods(object):
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
     def _definemethods(self, application, applicationargs):
+        if not 'problemdata' in applicationargs:
+            raise KeyError(f"'problemdata' should be set in 'applicationargs'")
         import itertools
         paramsdict = self.paramsdict
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
@@ -90,8 +93,9 @@ class CompareMethods(object):
             if isinstance(params, str): paramsdict[pname] = [params]
         paramsprod = list(itertools.product(*paramsdict.values()))
         paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
-        if not 'problemdata' in applicationargs:
-            raise KeyError(f"'problemdata' should be set in 'applicationargs'")
+        from simfempy.tools import tools
+        assert paramslist == tools.dictproduct(paramsdict)
+        #TODO virer itertools ici
         self.methods = {}
         import copy
         for p in paramslist:
@@ -99,7 +103,7 @@ class CompareMethods(object):
             applicationargs2 = copy.deepcopy(applicationargs)
             for pname, param in p.items():
                 ps = pname.split('@')
-                if len(paramsdict[pname])>1: name += str(param)
+                if self.fullmethodsname or len(paramsdict[pname])>1: name += str(param)
                 if len(ps)>1:
                     exec(f"applicationargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
                 else:

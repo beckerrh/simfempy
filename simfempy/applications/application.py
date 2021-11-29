@@ -29,7 +29,11 @@ class Application(object):
             return repr
         return self.__repr__()
     def __repr__(self):
-        repr = f"problemdata={self.problemdata}"
+        if hasattr(self, 'mesh'):
+            repr = f"mesh={self.mesh}"
+        else:
+            repr = "no mesh\n"
+        repr += f"problemdata={self.problemdata}"
         repr += f"\nlinearsolver={self.linearsolver}"
         repr += f"\n{self.timer}"
         return repr
@@ -96,7 +100,7 @@ class Application(object):
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
         self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.exactsolution, random=self.random_exactsolution)
-        print("self.problemdata.solexact", self.problemdata.solexact)
+        # print("self.problemdata.solexact", self.problemdata.solexact)
         solexact = self.problemdata.solexact
         self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         for color in self.mesh.bdrylabels:
@@ -299,9 +303,9 @@ class Application(object):
                 # defaults: drop_tol=0.0001, fill_factor=10
                 M2 = splinalg.spilu(A.tocsc(), drop_tol=0.1, fill_factor=3)
             M = splinalg.LinearOperator(A.shape, lambda x: M2.solve(x))
-            counter = simfempy.tools.iterationcounter.IterationCounter(name=linearsolver, disp=disp)
+            counter = simfempy.tools.iterationcounter.IterationCounter(name=self.linearsolver, disp=disp)
             args=""
-            cmd = "splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(linearsolver,args)
+            cmd = "splinalg.{}(A, b, M=M, tol=1e-14, callback=counter {})".format(self.linearsolver,args)
             u, info = eval(cmd)
             # print(f"{u=}")
             return u, counter.niter
@@ -313,7 +317,7 @@ class Application(object):
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
         else:
-            raise NotImplementedError("unknown solve '{}'".format(linearsolver))
+            raise NotImplementedError("unknown solve '{}'".format(self.linearsolver))
     def pyamg_solver_args(self, maxiter):
         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'gmres'}
     def solve_pyamg(self, ml, b, u, maxiter):
