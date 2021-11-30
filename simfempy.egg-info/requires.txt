@@ -1,6 +1,0 @@
-gmsh
-pygmsh
-meshio
-scipy
-sympy
-matplotlib
