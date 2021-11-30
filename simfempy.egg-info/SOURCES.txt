@@ -1,5 +1,4 @@
 .gitignore
-INSTALL
 LICENSE
 Makefile
 README.md

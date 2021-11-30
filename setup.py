@@ -2,21 +2,19 @@
 #
 from setuptools import setup, find_packages
 
+VERSION = "2.0.24"
+
 with open("simfempy/examples/heat.py", "r") as heat:
     example = heat.read()
 with open("README.md", "w") as readme:
     readme.write("SIMple Finite Element Methods in PYthon\n\n```python\n")
     readme.write(example)
     readme.write("\n```\n")
-
-
 with open("README.md", "r") as readme:
     long_description = readme.read()
-
-print(f"{find_packages()=}")
 setup(
     name="simfempy",
-    version="2.0.23",
+    version=VERSION,
     author="Roland Becker",
     author_email="beckerrolandh@gmail.com",
     packages=find_packages(),

@@ -1,11 +1,8 @@
 KAPUTT:
-
     * p1 Robin (09/04/20)
-
 
 MYSTERE
     * elasticity 2d sym mais 3d non
-    * pourquoi deux instanciations pour exact solution ?
 
 PERF
     * ravel -> reshape ??? (09/04/20)
