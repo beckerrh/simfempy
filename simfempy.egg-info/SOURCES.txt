@@ -53,7 +53,6 @@ simfempy/applications/stokes.py
 simfempy/examples/__init__.py
 simfempy/examples/elasticity.py
 simfempy/examples/heat.py
-simfempy/examples/heat_oneline.py
 simfempy/examples/incompflow.py
 simfempy/examples/navier_bc.py
 simfempy/examples/solverstokes.py
@@ -92,6 +91,7 @@ simfempy/test/heat_analytic.py
 simfempy/test/schaeferturek.py
 simfempy/test/stokes_analytic.py
 simfempy/test/test.py
+simfempy/test/test_heat.py
 simfempy/tools/__init__.py
 simfempy/tools/analyticalfunction.py
 simfempy/tools/barycentric.py
@@ -102,3 +102,4 @@ simfempy/tools/latexwriter.py
 simfempy/tools/matrix.py
 simfempy/tools/npext.py
 simfempy/tools/timer.py
+simfempy/tools/tools.py
