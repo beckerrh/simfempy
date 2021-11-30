@@ -45,28 +45,36 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {3.2}Lowest order approximation}{14}{subsection.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {A}Python implementation}{16}{appendix.A}%
+\contentsline {section}{\numberline {A}Linear Algebra}{16}{appendix.A}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {B}Finite elements on simplices}{17}{appendix.B}%
+\contentsline {subsection}{\numberline {A.1}Saddle-point systems}{16}{subsection.A.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.1}Simplices}{17}{subsection.B.1}%
+\contentsline {subsubsection}{\numberline {A.1.1}Solution by the kernel method}{16}{subsubsection.A.1.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{17}{subsection.B.2}%
+\contentsline {subsubsection}{\numberline {A.1.2}Penalty and augmented Lagrangian method}{16}{subsubsection.A.1.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {B.3}Finite elements}{18}{subsection.B.3}%
+\contentsline {section}{\numberline {B}Finite elements on simplices}{18}{appendix.B}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{18}{subsubsection.B.3.1}%
+\contentsline {subsection}{\numberline {B.1}Simplices}{18}{subsection.B.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\!R}^1_h(\Omega )$}{19}{subsubsection.B.3.2}%
+\contentsline {subsection}{\numberline {B.2}Barycentric coordinates}{18}{subsection.B.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\!T}^0_h(\Omega )$}{19}{subsubsection.B.3.3}%
+\contentsline {subsection}{\numberline {B.3}Finite elements}{19}{subsection.B.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{19}{subsubsection.B.3.4}%
+\contentsline {subsubsection}{\numberline {B.3.1}$\mathcal {P}^1_h(\Omega )$}{19}{subsubsection.B.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {C}Discreization of the transport equation}{21}{appendix.C}%
+\contentsline {subsubsection}{\numberline {B.3.2}$\mathcal {C\!R}^1_h(\Omega )$}{20}{subsubsection.B.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.1}$\mathcal {D}^k_h(\Omega )$}{21}{subsection.C.1}%
+\contentsline {subsubsection}{\numberline {B.3.3}$\mathcal {R\!T}^0_h(\Omega )$}{20}{subsubsection.B.3.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.2}$\mathcal {D}^1_h(\Omega )$}{23}{subsection.C.2}%
+\contentsline {subsubsection}{\numberline {B.3.4}Moving a point to the boundary}{20}{subsubsection.B.3.4}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {C.3}$\mathcal {P}^1_h(\Omega )$}{23}{subsection.C.3}%
+\contentsline {section}{\numberline {C}Discreization of the transport equation}{22}{appendix.C}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {C.1}$\mathcal {D}^k_h(\Omega )$}{22}{subsection.C.1}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {C.2}$\mathcal {D}^1_h(\Omega )$}{24}{subsection.C.2}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {C.3}$\mathcal {P}^1_h(\Omega )$}{24}{subsection.C.3}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {D}Python implementation}{25}{appendix.D}%

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  2 JUL 2021 21:42
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.5.6)  30 NOV 2021 17:48
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1206,7 +1206,7 @@ Package biblatex Warning: 'babel/polyglossia' detected but 'csquotes' missing.
 
 \@quotelevel=\count480
 \@quotereset=\count481
-LaTeX Font Info:    Trying to load font information for T1+ppl on input line 27
+LaTeX Font Info:    Trying to load font information for T1+ppl on input line 28
 .
 (/usr/local/texlive/2021/texmf-dist/tex/latex/psnfss/t1ppl.fd
 File: t1ppl.fd 2001/06/04 font definitions for T1/ppl.
@@ -1265,9 +1265,18 @@ LaTeX Warning: Label `eq:' multiply defined.
 
 LaTeX Warning: Label `eq:' multiply defined.
 
-) (./chap/python.aux
+) (./chap/linearalgebra.aux
 
 LaTeX Warning: Label `sec:' multiply defined.
+
+
+LaTeX Warning: Label `subsec:' multiply defined.
+
+
+LaTeX Warning: Label `eq:' multiply defined.
+
+
+LaTeX Warning: Label `eq:SaddlePointKernel' multiply defined.
 
 ) (./chap/fem.aux
 
@@ -1352,27 +1361,31 @@ LaTeX Warning: Label `eq:' multiply defined.
 
 LaTeX Warning: Label `eq:' multiply defined.
 
+) (./chap/python.aux
+
+LaTeX Warning: Label `sec:' multiply defined.
+
 ))
 \openout1 = `simfempy.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 27.
-LaTeX Font Info:    ... okay on input line 27.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -1408,7 +1421,7 @@ LaTeX Font Info:    ... okay on input line 27.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-Package hyperref Info: Link coloring OFF on input line 27.
+Package hyperref Info: Link coloring OFF on input line 28.
 (/usr/local/texlive/2021/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
 
@@ -1421,9 +1434,9 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count482
 )
-LaTeX Info: Redefining \ref on input line 27.
-LaTeX Info: Redefining \pageref on input line 27.
-LaTeX Info: Redefining \nameref on input line 27.
+LaTeX Info: Redefining \ref on input line 28.
+LaTeX Info: Redefining \pageref on input line 28.
+LaTeX Info: Redefining \nameref on input line 28.
  (./simfempy.out) (./simfempy.out)
 \@outlinefile=\write8
 \openout8 = `simfempy.out'.
@@ -1483,32 +1496,32 @@ d 3.1.
 
 Package biblatex Info: ... file 'simfempy.bbl' found.
 (./simfempy.bbl)
-Package biblatex Info: Reference section=0 on input line 27.
-Package biblatex Info: Reference segment=0 on input line 27.
-LaTeX Font Info:    Trying to load font information for U+zeur on input line 31
+Package biblatex Info: Reference section=0 on input line 28.
+Package biblatex Info: Reference segment=0 on input line 28.
+LaTeX Font Info:    Trying to load font information for U+zeur on input line 32
 .
  (/usr/local/texlive/2021/texmf-dist/tex/latex/eulervm/uzeur.fd
 File: uzeur.fd 2005/01/11 v4.0 (WaS)
 )
-LaTeX Font Info:    Trying to load font information for U+zeus on input line 31
+LaTeX Font Info:    Trying to load font information for U+zeus on input line 32
 .
  (/usr/local/texlive/2021/texmf-dist/tex/latex/eulervm/uzeus.fd
 File: uzeus.fd 2005/01/11 v4.0 (WaS)
 )
 LaTeX Font Info:    Trying to load font information for U+zeuex on input line 3
-1.
+2.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/eulervm/uzeuex.fd
 File: uzeuex.fd 2005/01/11 v4.0 (WaS)
 )
-LaTeX Font Info:    Trying to load font information for U+lasy on input line 31
+LaTeX Font Info:    Trying to load font information for U+lasy on input line 32
 .
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
 LaTeX Font Info:    Trying to load font information for U+stmry on input line 3
-1.
+2.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/stmaryrd/Ustmry.fd)
 (./simfempy.toc [1
@@ -1649,40 +1662,34 @@ LaTeX Warning: Empty bibliography on input line 870.
 LaTeX Warning: Empty bibliography on input line 172.
 
 ) [15]
-\openout2 = `chap/python.aux'.
+\openout2 = `chap/linearalgebra.aux'.
 
- (./chap/python.tex
-LaTeX Font Info:    Trying to load font information for T1+pcr on input line 7.
-
-
-(/usr/local/texlive/2021/texmf-dist/tex/latex/psnfss/t1pcr.fd
-File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
-)
-Overfull \hbox (138.9837pt too wide) in paragraph at lines 13--14
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+ (./chap/linearalgebra.tex
+Overfull \hbox (11.48378pt too wide) in paragraph at lines 107--111
+\T1/ppl/m/n/10.95 The aug-mented La-grangian method uses the La-grangian $\U/ze
+ur/m/n/10.95 L[]\U/zeus/m/n/10.95 ¨\U/zeur/m/n/10.95 x\T1/cmr/m/n/10.95 , \U/ze
+ur/m/n/10.95 y\U/zeus/m/n/10.95 © º½ \U/zeur/m/n/10.95 J\U/zeus/m/n/10.95 ¨\U/z
+eur/m/n/10.95 x\U/zeus/m/n/10.95 © « [] [][] « []$
  []
 
-
-Overfull \hbox (66.71312pt too wide) in paragraph at lines 14--15
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (33.86285pt too wide) in paragraph at lines 16--17
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-LaTeX Warning: Empty bibliography on input line 28.
-
-) [16
+[16
 
 
 
 ]
+
+LaTeX Warning: Empty bibliography on input line 167.
+
+) [17]
 \openout2 = `chap/fem.aux'.
 
  (./chap/fem.tex
+LaTeX Font Info:    Trying to load font information for T1+pcr on input line 15
+.
+
+(/usr/local/texlive/2021/texmf-dist/tex/latex/psnfss/t1pcr.fd
+File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
+)
 Overfull \hbox (13.2184pt too wide) in paragraph at lines 16--21
 \T1/ppl/m/n/10.95 The $\U/zeur/m/n/10.95 d \U/zeus/m/n/10.95 « \T1/cmr/m/n/10.9
 5 1$ \T1/ppl/m/n/10.95 sides $\U/zeur/m/n/10.95 S[]$ \T1/ppl/m/n/10.95 (co-dime
@@ -1693,14 +1700,14 @@ m/n/10.95 x[]\U/zeus/m/n/10.95 ©$\T1/ppl/m/n/10.95 .
  []
 
 
-LaTeX Warning: Citation 'EisenbergMalvern73' on page 17 undefined on input line
+LaTeX Warning: Citation 'EisenbergMalvern73' on page 18 undefined on input line
  56.
 
 
-LaTeX Warning: Citation 'VermolenSegal18' on page 17 undefined on input line 56
+LaTeX Warning: Citation 'VermolenSegal18' on page 18 undefined on input line 56
 .
 
-[17
+[18
 
 
 
@@ -1754,7 +1761,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 133.
 
-[18]
+[19]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
@@ -1784,11 +1791,11 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
 
-[19]
+[20]
 
 LaTeX Warning: Empty bibliography on input line 268.
 
-) [20]
+) [21]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
@@ -1812,7 +1819,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 70.
 
-[21
+[22
 
 
 
@@ -1821,7 +1828,7 @@ Overfull \hbox (12.04153pt too wide) detected at line 155
 []
  []
 
-[22]
+[23]
 Overfull \hbox (8.64256pt too wide) detected at line 209
 []
  []
@@ -1869,8 +1876,34 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 LaTeX Warning: Empty bibliography on input line 269.
 
-) [23] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
-(./chap/python.aux) (./chap/fem.aux) (./chap/transport.aux))
+) [24]
+\openout2 = `chap/python.aux'.
+
+ (./chap/python.tex
+Overfull \hbox (138.9837pt too wide) in paragraph at lines 13--14
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+ []
+
+
+Overfull \hbox (66.71312pt too wide) in paragraph at lines 14--15
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+ []
+
+
+Overfull \hbox (33.86285pt too wide) in paragraph at lines 16--17
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+ []
+
+
+LaTeX Warning: Empty bibliography on input line 28.
+
+) [25
+
+
+
+] (./simfempy.aux (./chap/heat.aux) (./chap/stokes.aux) (./chap/beam.aux)
+(./chap/linearalgebra.aux) (./chap/fem.aux) (./chap/transport.aux)
+(./chap/python.aux))
 
 LaTeX Warning: There were undefined references.
 
@@ -1878,7 +1911,7 @@ LaTeX Warning: There were undefined references.
 LaTeX Warning: There were multiply-defined labels.
 
 Package rerunfilecheck Info: File `simfempy.out' has not changed.
-(rerunfilecheck)             Checksum: 8BD48F9652366AE0BCF94FD44CE811C2;5824.
+(rerunfilecheck)             Checksum: 8CA5D56B307A4A7366BEBEA0233F781D;6604.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1889,13 +1922,13 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37108 strings out of 478994
- 698354 string characters out of 5858185
- 1466770 words of memory out of 5000000
- 53771 multiletter control sequences out of 15000+600000
- 452417 words of font info for 141 fonts, out of 8000000 for 9000
+ 37132 strings out of 478994
+ 698797 string characters out of 5858185
+ 1469619 words of memory out of 5000000
+ 53779 multiletter control sequences out of 15000+600000
+ 450859 words of font info for 139 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,23n,119p,1891b,1995s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 117i,23n,119p,1891b,2013s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
 exlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
 live/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texl
@@ -1925,10 +1958,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (23 pages, 325908 bytes).
+Output written on simfempy.pdf (25 pages, 333379 bytes).
 PDF statistics:
- 520 PDF objects out of 1000 (max. 8388607)
- 463 compressed objects within 5 object streams
- 134 named destinations out of 1000 (max. 500000)
- 293 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 558 PDF objects out of 1000 (max. 8388607)
+ 499 compressed objects within 5 object streams
+ 145 named destinations out of 1000 (max. 500000)
+ 325 words of extra memory for PDF output out of 10000 (max. 10000000)
 
