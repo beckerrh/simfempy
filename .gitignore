@@ -26,7 +26,6 @@ venv
 # PyCharm
 *.bak
 *.idea
-.vscode
 
 # others
 *.msh
