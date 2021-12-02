@@ -12,7 +12,7 @@ from simfempy.tools.comparemethods import CompareMethods
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramsdict = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','new'])
+    paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     data = simfempy.applications.problemdata.ProblemData()
     if dim==2:
         data.ncomp=2
@@ -42,5 +42,5 @@ def test(dim, **kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(dim=2, exactsolution=["1", "y"], fem=['p1','cr1'], niter=4)
-    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['strong','new'], niter=3, linearsolver='pyamg')
+    test(dim=2, exactsolution='Linear', fem=['p1','cr1'], dirichletmethod=['strong'], niter=3, linearsolver='spsolve')
     # test(dim=2, exactsolution='Quadratic', fem=['p1','cr1'], niter=6)

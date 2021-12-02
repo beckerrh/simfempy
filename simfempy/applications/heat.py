@@ -43,13 +43,11 @@ class Heat(Application):
         repr += f"\nfem={self.fem}"
         return repr
     def __init__(self, **kwargs):
-        print(f"in Heat {len(kwargs)=} {kwargs.keys()=}")
         fem = kwargs.pop('fem','p1')
         if fem == 'p1': self.fem = fems.p1.P1(kwargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(kwargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
         self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
-        print(f"in Heat after {len(kwargs)=} {kwargs.keys()=}")
         super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)

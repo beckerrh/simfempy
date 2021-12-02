@@ -14,10 +14,8 @@ class P1(fems.fem.Fem):
     def __init__(self, kwargs={}, mesh=None):
         super().__init__(mesh=mesh)
         for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
-            if p in kwargs: print(f"taking bool {p} {v}")
             self.params_bool[p] = kwargs.pop(p, v)
         for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
-            if p in kwargs: print(f"taking str {p} {v}")
             self.params_str[p] = kwargs.pop(p, v)
         if self.params_str['dirichletmethod'] == 'nitsche':
             self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)

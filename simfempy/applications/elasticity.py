@@ -36,6 +36,8 @@ class Elasticity(Application):
         fem = kwargs.pop('fem', 'p1')
         ncomp = kwargs['problemdata'].ncomp
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
+        if self.dirichletmethod != 'strong':
+            raise NotImplementedError(f"only strong implemented but {self.dirichletmethod=}")
         if fem == 'p1':
             self.fem = fems.p1sys.P1sys(ncomp=ncomp)
         elif fem == 'cr1':
@@ -136,7 +138,10 @@ class Elasticity(Application):
     def pyamg_solver_args(self, maxiter):
         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
     def build_pyamg(self,A):
-        import pyamg
+        try:
+            import pyamg
+        except:
+            raise ImportError(f"*** pyamg not found {self.linearsolver=} ***")
         B = pyamg.solver_configuration(A, verb=False)['B']
         symmetry = 'nonsymmetric'
         smoother = 'gauss_seidel_nr'

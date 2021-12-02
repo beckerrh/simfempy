@@ -39,16 +39,17 @@ class Application(object):
         return repr
     def __init__(self, **kwargs):
         #TODO separate parameters in physical/numerical
+        self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.linearsolvers=['spsolve', 'lgmres', 'bicgstab']
         try:
             import pyamg
             self.linearsolvers.append('pyamg')
         except:
-            import warnings
-            warnings.warn("*** pyamg not found (spsolve used instead)***")
+            if self.linearsolver=='pyamg':
+                import warnings
+                warnings.warn("*** pyamg not found (spsolve used instead)***")
         self.mode = kwargs.pop('mode', 'linear')
         self.verbose = kwargs.pop('verbose', 0)
-        self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.timer = simfempy.tools.timer.Timer(verbose=self.verbose)
         if 'problemdata' in kwargs:
             self.problemdata = kwargs.pop('problemdata')
