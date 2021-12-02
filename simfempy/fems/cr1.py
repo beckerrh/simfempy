@@ -71,7 +71,7 @@ class CR1(fems.fem.Fem):
             # self.md = move.move_midpoints(self.mesh, -beta, candidates='all')
             # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upw2':
-            md = move.move_midpoints(self.mesh, -beta, bound=1/d)
+            md = move.move_midpoints(self.mesh, -beta, bound=1/dim)
         else:
             raise ValueError(f"don't know {method=}")
         convdata.md = md
@@ -262,9 +262,10 @@ class CR1(fems.fem.Fem):
             mass = coeff/(dim+1)*dV.repeat(dim+1)
             rows = self.mesh.facesOfCells.ravel()
             return sparse.coo_matrix((mass, (rows, rows)), shape=(nfaces, nfaces)).tocsr()
-        scalemass = (2-dim) / (dim+1) / (dim+2)
+        scalemass = coeff*(2-dim) / (dim+1) / (dim+2)
         massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = (2-dim + dim*dim) / (dim+1) / (dim+2)
+        scale = coeff*(2-dim + dim*dim) / (dim+1) / (dim+2)
+        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = scale
         mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
@@ -332,7 +333,10 @@ class CR1(fems.fem.Fem):
             else: dS *= coeff
             if b is None: bsum = np.sum(dS*f[faces])
             else: b[faces] += dS*f[faces]
-            if not lumped:
+            if lumped:
+                if b is None: return bsum
+                else: return b
+            else:
                 ci = self.mesh.cellsOfFaces[faces][:, 0]
                 foc = self.mesh.facesOfCells[ci]
                 mask = foc!=faces[:,np.newaxis]
@@ -341,8 +345,7 @@ class CR1(fems.fem.Fem):
                 if b is None: return bsum+np.sum(r)
                 # print(f"{np.linalg.norm(f[fi])=}")
                 np.add.at(b, fi, r)
-            return b
-
+                return b
         assert(isinstance(coeff, dict))
         for color in colors:
             faces = self.mesh.bdrylabels[color]

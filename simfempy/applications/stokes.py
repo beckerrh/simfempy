@@ -57,11 +57,13 @@ class Stokes(Application):
         else: raise ValueError(f"*** unknown {type=}")
 
     def __init__(self, **kwargs):
-        self.dirichlet_nitsche = 10
-        self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
+        if 'dirichletmethod' in kwargs and kwargs['dirichletmethod']=='nitsche':
+            # correct value ?!
+            kwargs['nitscheparam'] = 10
+        self.dirichletmethod = kwargs.get('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
         self.ncomp = self.problemdata.ncomp
-        self.femv = fems.cr1sys.CR1sys(self.ncomp)
+        self.femv = fems.cr1sys.CR1sys(self.ncomp, kwargs)
         self.femp = fems.d0.D0()
         self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
         self.divdivparam = kwargs.pop('divdivparam', 0)
@@ -420,7 +422,7 @@ class Stokes(Application):
         flux = np.zeros(shape=(ncomp,len(colors)))
         vdir = self.femv.interpolateBoundary(colors, bdryfct).ravel()
         for icomp in range(ncomp):
-            flux[icomp] = self.femv.fem.computeBdryNormalFluxNitsche(v[icomp::ncomp], colors, vdir[icomp::ncomp], self.mucell, nitsche_param=self.dirichlet_nitsche)
+            flux[icomp] = self.femv.fem.computeBdryNormalFluxNitsche(v[icomp::ncomp], colors, vdir[icomp::ncomp], self.mucell)
             for i,color in enumerate(colors):
                 faces = self.mesh.bdrylabels[color]
                 cells = self.mesh.cellsOfFaces[faces,0]
@@ -435,7 +437,7 @@ class Stokes(Application):
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:ncomp]
         np.add.at(bp, cells, -np.einsum('nk,nk->n', coeff*vdir[faces], normalsS))
-        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp, nitsche_param=self.dirichlet_nitsche)
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, vdir, ncomp)
     def computeRhsBdryNitscheNavierNormal(self, b, colors, mucell, vn):
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
@@ -446,7 +448,7 @@ class Stokes(Application):
         # normals = normalsS/dS[:,np.newaxis]
         # foc = self.mesh.facesOfCells[cells]
         np.add.at(bp, cells, -dS*vn[faces])
-        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, vn, ncomp, nitsche_param=self.dirichlet_nitsche)
+        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, vn, ncomp)
     def computeRhsBdryNitscheNavierTangent(self, b, colors, mucell, gt):
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
@@ -458,11 +460,11 @@ class Stokes(Application):
     def computeRhsBdryNitschePressureTangent(self, b, colors, mucell, v):
         bv, bp = b
         ncomp, dim  = self.ncomp, self.mesh.dimension
-        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, v, ncomp, nitsche_param=self.dirichlet_nitsche)
-        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, -v.ravel(), ncomp, nitsche_param=self.dirichlet_nitsche)
+        self.femv.computeRhsNitscheDiffusion(bv, mucell, colors, v, ncomp)
+        self.femv.computeRhsNitscheDiffusionNormal(bv, mucell, colors, -v.ravel(), ncomp)
     def computeFormBdryNitscheDirichlet(self, dv, dp, v, p, colorsdir, mu):
         ncomp, dim  = self.femv.ncomp, self.mesh.dimension
-        self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp, nitsche_param=self.dirichlet_nitsche)
+        self.femv.computeFormNitscheDiffusion(dv, v, mu, colorsdir, ncomp)
         faces = self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces][:, :self.ncomp]
@@ -476,7 +478,7 @@ class Stokes(Application):
         raise NotImplementedError()
     def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
-        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, ncomp, nitsche_param=self.dirichlet_nitsche)
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, ncomp)
         #grad-div
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -500,13 +502,13 @@ class Stokes(Application):
         rows = cells.repeat(ncomp).ravel()
         B -= sparse.coo_matrix((normalsS.ravel(), (rows, cols)), shape=(ncells, ncomp*nfaces))
         #vitesses
-        A += self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, ncomp, nitsche_param=self.dirichlet_nitsche)
+        A += self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, ncomp)
         A += self.femv.computeMassMatrixBoundary(colors, ncomp, coeff=lambdaR)-self.femv.computeMassMatrixBoundaryNormal(colors, ncomp, coeff=lambdaR)
         return A,B
     def computeMatrixBdryNitschePressure(self, A, B, colors, mucell):
         #vitesses
-        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, self.ncomp, nitsche_param=self.dirichlet_nitsche)
-        A -= self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, self.ncomp, nitsche_param=self.dirichlet_nitsche)
+        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, self.ncomp)
+        A -= self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, self.ncomp)
         return A,B
     def vectorBoundaryStrong(self, b, bdryfctv, bdrydata, method):
         bv, bp = b

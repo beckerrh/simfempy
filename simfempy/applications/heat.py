@@ -273,7 +273,7 @@ class Heat(Application):
         try:
             import pyamg
         except:
-            raise ImportError("*** pyamg not found ***")
+            raise ImportError(f"*** pyamg not found {self.linearsolver=} ***")
         # return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
         B = pyamg.solver_configuration(A, verb=False)['B']

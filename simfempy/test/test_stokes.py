@@ -1,19 +1,19 @@
 import testcaseanalytical
 import numpy as np
-import heat_analytic
+import stokes_analytic
 
 #================================================================#
-class TestAnalyticalHeat(testcaseanalytical.TestCaseAnalytical):
+class TestAnalyticalStokes(testcaseanalytical.TestCaseAnalytical):
     def __init__(self, args):
         args['exactsolution'] = 'Linear'
         args['verbose'] = 0
         args['linearsolver'] = 'spsolve'
         super().__init__(args)
     def runTest(self):
-        errors = heat_analytic.test(**self.args).errors
+        errors = stokes_analytic.test(**self.args).errors
         self.checkerrors(errors)
 
 #================================================================#
 from simfempy.tools import tools
-paramsdicts = {'dim':[1,2,3], 'fem':['p1','cr1'], 'dirichletmethod':['nitsche','strong']}
-testcaseanalytical.run(testcase=TestAnalyticalHeat, argss=tools.dictproduct(paramsdicts))
+paramsdicts = {'dim':[2,3], 'dirichletmethod':['nitsche','strong']}
+testcaseanalytical.run(testcase=TestAnalyticalStokes, argss=tools.dictproduct(paramsdicts))

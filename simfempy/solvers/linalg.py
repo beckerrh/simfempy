@@ -174,6 +174,10 @@ class Pyamg(IterativeSolver):
         s = super().__repr__()
         return s + f"pyamg_{self.type}_{self.smoother}_{str(self.accel)}"
     def __init__(self, A, **kwargs):
+        try:
+            import pyamg
+        except:
+            raise ImportError(f"*** pyamg not found ***")
         self.method = 'pyamg'
         self.matvec = A
         nsmooth = kwargs.pop('nsmooth', 1)

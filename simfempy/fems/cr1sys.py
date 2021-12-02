@@ -13,8 +13,8 @@ from simfempy.tools import barycentric, npext
 
 #=================================================================#
 class CR1sys(femsys.Femsys):
-    def __init__(self, ncomp, mesh=None):
-        super().__init__(cr1.CR1(mesh=mesh), ncomp, mesh)
+    def __init__(self, ncomp, kwargs={}, mesh=None):
+        super().__init__(cr1.CR1(kwargs=kwargs, mesh=mesh), ncomp, mesh)
     def setMesh(self, mesh):
         super().setMesh(mesh)
     def tonode(self, u):
@@ -138,10 +138,10 @@ class CR1sys(femsys.Femsys):
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
             np.add.at(dv[icomp::ncomp], foc, r)
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp, nitsche_param):
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp):
         for icomp in range(ncomp):
-            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[:,icomp], nitsche_param)
-    def computeRhsNitscheDiffusionNormal(self, b, diffcoff, colors, udir, ncomp, nitsche_param):
+            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[:,icomp])
+    def computeRhsNitscheDiffusionNormal(self, b, diffcoff, colors, udir, ncomp):
         faces = self.mesh.bdryFaces(colors)
         normalsS = self.mesh.normals[faces][:,:ncomp]
         dS = np.linalg.norm(normalsS, axis=1)
@@ -149,11 +149,11 @@ class CR1sys(femsys.Femsys):
         if udir.shape[0] == self.mesh.nfaces*ncomp:
             for icomp in range(ncomp):
                 for jcomp in range(ncomp):
-                    self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[jcomp::ncomp], nitsche_param, coeff=normals[:,icomp]*normals[:,jcomp])
+                    self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[jcomp::ncomp], coeff=normals[:,icomp]*normals[:,jcomp])
         else:
             assert udir.shape[0] == self.mesh.nfaces
             for icomp in range(ncomp):
-                self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir, nitsche_param, coeff=normals[:,icomp])
+                self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir, coeff=normals[:,icomp])
     def massDotBoundary(self, b, f, colors, ncomp, coeff=1):
         for icomp in range(ncomp):
             self.fem.massDotBoundary(b[icomp::ncomp], f[icomp::ncomp], colors=colors, coeff=coeff)
@@ -187,10 +187,10 @@ class CR1sys(femsys.Femsys):
                 A += self.matrix2system(Aij, ncomp, i, j)
                 if i!=j: A += self.matrix2system(Aij, ncomp, j, i)
         return A
-    def computeMatrixNitscheDiffusion(self, diffcoff, colors, ncomp, nitsche_param):
-        A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors, nitsche_param)
+    def computeMatrixNitscheDiffusion(self, diffcoff, colors, ncomp):
+        A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors)
         return self.matrix2systemdiagonal(A, ncomp)
-    def computeMatrixNitscheDiffusionNormal(self, diffcoff, colors, ncomp, nitsche_param):
+    def computeMatrixNitscheDiffusionNormal(self, diffcoff, colors, ncomp):
         nfaces, ncells, dim  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension
         assert dim == ncomp
         faces = self.mesh.bdryFaces(colors)
@@ -200,13 +200,13 @@ class CR1sys(femsys.Femsys):
         A = sparse.coo_matrix((ncomp*nfaces, ncomp*nfaces))
         for i in range(ncomp):
             for j in range(i,ncomp):
-                Aij = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors, nitsche_param=nitsche_param, coeff=normalsS[:,i]*normalsS[:,j]/dS**2)
+                Aij = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors, coeff=normalsS[:,i]*normalsS[:,j]/dS**2)
                 A += self.matrix2system(Aij, ncomp, i, j)
                 if i!=j: A += self.matrix2system(Aij, ncomp, j, i)
         return A
-    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp, nitsche_param):
+    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, ncomp):
         for icomp in range(ncomp):
-            self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir, nitsche_param)
+            self.fem.computeFormNitscheDiffusion(du[icomp::ncomp], u[icomp::ncomp], diffcoff, colorsdir)
     def computeMatrixElasticity(self, mucell, lamcell):
         nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
         nloc, rows, cols, cellgrads = self.fem.nloc, self.rowssys, self.colssys, self.fem.cellgrads

@@ -29,12 +29,13 @@ class TestCaseAnalytical(unittest.TestCase):
 
 #================================================================#
 def run(testcase, argss=None):
-    import json
+    import os, json
     filename = f"{testcase.__name__}_Failed.txt"
-    suite = unittest.TestSuite()
-    if not argss:
+    if os.path.exists(filename) and os.path.getsize(filename) > 2:
+        # check if log-file exists and contains more than empty list
         with open(filename, 'r') as f:
             argss = json.loads(f.read())
+    suite = unittest.TestSuite()
     for args in argss:
         suite.addTest(testcase(args))
     # unittest.TextTestRunner(resultclass=TestResult).run(suite)

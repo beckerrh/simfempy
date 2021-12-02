@@ -46,15 +46,8 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
     applicationargs['scalels'] = True
-    if 'linearsolver' in kwargs:
-        applicationargs['linearsolver'] = kwargs.pop('linearsolver')
-    else:
-        applicationargs['linearsolver'] = 'scipy_gcrotmk@full@200@1'
-        applicationargs['linearsolver'] = 'scipy_lgmres@full@200@1'
-        # applicationargs['linearsolver'] = 'scipy_gmres@full@200@1'
-        # applicationargs['linearsolver'] = 'pyamg_gmres@full@200@1'
-        applicationargs['solver_p'] = 'schur|diag@pyamg_cg@@9@0'
-        # applicationargs['solver_p'] = 'diag@pyamg_cg@@10@0'
+    solvers=['spsolve', 'scipy_gcrotmk@full@200@1', 'scipy_lgmres@full@200@1', 'schur|diag@pyamg_cg@@9@0']
+    applicationargs['linearsolver'] = kwargs.pop('linearsolver', solvers[0])
 
     # applicationargs['mode'] = 'newton'
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
@@ -66,9 +59,9 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, plotsolution=False, linearsolver='iter_gcrotmk')
     # test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
-    # test(dim=2, exactsolution="Linear", niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
+    test(dim=2, exactsolution="Linear", niter=3, dirichletmethod=['nitsche','strong'], plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution=[["1.0","0.0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], linearsolver='spsolve', plotsolution=False)
-    test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False)
+    # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], plotsolution=False)
     # test(dim=2, exactsolution=[["-y","x"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=False, linearsolver='spsolve')

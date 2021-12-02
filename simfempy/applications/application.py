@@ -38,6 +38,7 @@ class Application(object):
         repr += f"\n{self.timer}"
         return repr
     def __init__(self, **kwargs):
+        #TODO separate parameters in physical/numerical
         self.linearsolvers=['spsolve', 'lgmres', 'bicgstab']
         try:
             import pyamg
@@ -248,14 +249,15 @@ class Application(object):
             self.Mass = self.fem.computeMassMatrix()
         if not hasattr(self, 'A'):
             self.Aimp = self.computeMatrix(coeffmass=1/dt/a)
-            self.ml = self.build_pyamg(self.Aimp)
+            if self.linearsolver=="pyamg":
+                self.pyamgml = self.build_pyamg(self.Aimp)
         self.timer.add('matrix')
         u = u0
         self.time = t_span[0]
         # rhs=None
         rhs = np.empty_like(u, dtype=float)
         # will be create by computeRhs()
-        niterslinsol = np.zeros(niter)
+        niterslinsol = np.zeros(niter, dtype=int)
         expl = (a-1)/a
         for iframe in range(nframes):
             if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=} {a=}")
@@ -271,8 +273,10 @@ class Application(object):
                 self.timer.add('rhs')
                 # u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
                 #TODO organiser solveur linéaire
-                u, res = self.solve_pyamg(self.ml, rhs, u=u, maxiter = 100)
-                u, niterslinsol[iter] = u, len(res)
+                u, niterslinsol[iter] = self.linearSolver(self.Aimp, b=rhs, u=u)
+                # print(f"{niterslinsol=} {np.linalg.norm(u)=}")
+                # u, res = self.solve_pyamg(self.pyamgml, rhs, u=u, maxiter = 100)
+                # u, niterslinsol[iter] = u, len(res)
                 # print(f"@3@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 self.timer.add('solve')
             result.addData(iframe, self.postProcess(u), time=self.time, iter=niterslinsol.mean())
@@ -310,9 +314,10 @@ class Application(object):
             # print(f"{u=}")
             return u, counter.niter
         elif self.linearsolver == 'pyamg':
-            ml = self.build_pyamg(A)
+            if not hasattr(self, 'pyamgml'):
+                self.pyamgml = self.build_pyamg(A)
             maxiter = 100
-            u, res = self.solve_pyamg(ml, b, u, maxiter)
+            u, res = self.solve_pyamg(self.pyamgml, b, u, maxiter)
             if len(res) >= maxiter: raise ValueError(f"***no convergence {res=}")
             if(verbose): print('niter ({}) {:4d} ({:7.1e})'.format(solver, len(res),res[-1]/res[0]))
             return u, len(res)
@@ -326,7 +331,10 @@ class Application(object):
         u = ml.solve(b=b, x0=u, residuals=res, **solver_args)
         return u, res
     def build_pyamg(self,A):
-        import pyamg
+        try:
+            import pyamg
+        except:
+            raise ImportError(f"*** pyamg not found {self.linearsolver=} ***")
         return pyamg.smoothed_aggregation_solver(A)
 
 

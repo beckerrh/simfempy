@@ -12,8 +12,8 @@ from simfempy.fems import femsys, p1
 
 #=================================================================#
 class P1sys(femsys.Femsys):
-    def __init__(self, ncomp, mesh=None):
-        super().__init__(p1.P1(mesh=mesh), ncomp, mesh)
+    def __init__(self, ncomp, kwargs={}, mesh=None):
+        super().__init__(p1.P1(kwargs=kwargs, mesh=mesh), ncomp, mesh)
     def matrixBoundaryStrong(self, A, bdrydata, method):
         nnodes, ncomp = self.mesh.nnodes, self.ncomp
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
