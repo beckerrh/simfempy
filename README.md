@@ -48,8 +48,8 @@ data.params.set_scal_cells("kheat", [100], 0.001)
 data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
-heat = Heat(mesh=mesh, problemdata=data, fem='p1')
-static = True
+heat = Heat(mesh=mesh, problemdata=data, fem='cr1')
+static = False
 if static:
     # run static
     result = heat.static()
@@ -65,8 +65,7 @@ if static:
 else:
     # run dynamic
     data.params.fct_glob["initial_condition"] = "200"
-    t_final, dt = 2500, 10
-    nframes = int(t_final / dt / 4)
+    t_final, dt, nframes = 2500, 10, 50
     result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
     # print(f"{result=}")
     nhalf = int(nframes/2)
