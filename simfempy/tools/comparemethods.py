@@ -91,10 +91,10 @@ class CompareMethods(object):
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
             if isinstance(params, str): paramsdict[pname] = [params]
-        paramsprod = list(itertools.product(*paramsdict.values()))
-        paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
+        # paramsprod = list(itertools.product(*paramsdict.values()))
+        # paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
         from simfempy.tools import tools
-        assert paramslist == tools.dictproduct(paramsdict)
+        paramslist = tools.dictproduct(paramsdict)
         #TODO virer itertools ici
         self.methods = {}
         import copy

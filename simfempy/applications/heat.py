@@ -35,32 +35,22 @@ class Heat(Application):
     def __format__(self, spec):
         if spec=='-':
             repr = super(Heat, self).__format__(spec)
-            if self.convection: repr += f"\tstab={self.convmethod}"
-            repr += f"\tdirichletmethod={self.dirichletmethod}"
-            repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
-            repr += f"\tmasslumpedvol={self.masslumpedvol}"
+            repr += f"\nfem={self.fem}"
             return repr
         return self.__repr__()
     def __repr__(self):
         repr = super(Heat, self).__repr__()
         repr += f"\nfem={self.fem}"
-        repr += f"\tstab={self.convmethod}"
-        repr += f"\tdirichletmethod={self.dirichletmethod}"
-        repr += f"\tmasslumpedbdry={self.masslumpedbdry}"
         return repr
     def __init__(self, **kwargs):
-        self.masslumpedvol = kwargs.pop('masslumpedvol', True)
-        self.masslumpedbdry = kwargs.pop('masslumpedbdry', True)
+        print(f"in Heat {len(kwargs)=} {kwargs.keys()=}")
         fem = kwargs.pop('fem','p1')
-        self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
-        self.convmethod = kwargs.pop('convmethod', 'upw')
-        femargs = {'dirichletmethod':self.dirichletmethod, 'stab': self.convmethod}
-        if fem == 'p1': self.fem = fems.p1.P1(**femargs)
-        elif fem == 'cr1': self.fem = fems.cr1.CR1(**femargs)
+        if fem == 'p1': self.fem = fems.p1.P1(kwargs)
+        elif fem == 'cr1': self.fem = fems.cr1.CR1(kwargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
         self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
+        print(f"in Heat after {len(kwargs)=} {kwargs.keys()=}")
         super().__init__(**kwargs)
-        #fct_glob
     def setMesh(self, mesh):
         super().setMesh(mesh)
         # if mesh is not None: self.mesh = mesh
@@ -68,7 +58,7 @@ class Heat(Application):
         self.fem.setMesh(self.mesh)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        if self.dirichletmethod != 'nitsche':
+        if self.fem.params_str['dirichletmethod'] != 'nitsche':
             self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
         self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
@@ -76,11 +66,11 @@ class Heat(Application):
         rhocp = self.problemdata.params.scal_glob.setdefault('rhocp', 1)
         if self.convection:
             convectionfct = self.problemdata.params.fct_glob['convection']
-            self.convdata = self.fem.prepareAdvection(convectionfct, rhocp, self.convmethod)
+            self.convdata = self.fem.prepareAdvection(convectionfct, rhocp)
             colorsinflow = self.findInflowColors()
             colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             if not set(colorsinflow).issubset(set(colorsdir)):
-                raise ValueError(f"Inflow boundaries nees to be subset of Dirichlet boundaries {colorsinflow=} {colorsdir=}")
+                raise ValueError(f"Inflow boundaries need to be subset of Dirichlet boundaries {colorsinflow=} {colorsdir=}")
     def findInflowColors(self):
         colors=[]
         for color in self.mesh.bdrylabels.keys():
@@ -164,17 +154,17 @@ class Heat(Application):
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.fem.computeFormDiffusion(du, u, self.kheatcell)
-        if self.dirichletmethod=="new":
-            self.fem.formBoundary(du, u, self.bdrydata, self.dirichletmethod)
-        elif self.dirichletmethod=="nitsche":
+        if self.fem.params_str['dirichletmethod']=="new":
+            self.fem.formBoundary(du, u, self.bdrydata, self.fem.params_str['dirichletmethod'])
+        elif self.fem.params_str['dirichletmethod']=="nitsche":
             self.fem.computeFormNitscheDiffusion(du, u, self.kheatcell, colorsdir)
-        # elif self.dirichletmethod=="strong":
-        #     self.fem.vectorBoundaryStrongEqual(u, self.b, self.bdrydata, self.dirichletmethod)
+        # elif self.fem.params_str['dirichletmethod']=="strong":
+        #     self.fem.vectorBoundaryStrongEqual(u, self.b, self.bdrydata, self.fem.params_str['dirichletmethod'])
         if self.convection:
-            self.fem.computeFormConvection(du, u, self.convdata, self.convmethod)
+            self.fem.computeFormConvection(du, u, self.convdata)
         if coeffmass is not None:
             self.fem.massDot(du, u, coeff=coeffmass)
-        if self.dirichletmethod=="strong":
+        if self.fem.params_str['dirichletmethod']=="strong":
             self.fem.vectorBoundaryStrongEqual(du, u, self.bdrydata)
         if not np.allclose(du,du2):
             # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
@@ -185,18 +175,14 @@ class Heat(Application):
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         A = self.fem.computeMatrixDiffusion(self.kheatcell)
-        if self.dirichletmethod=="new":
-            A = self.fem.matrixBoundaryStrong(A, self.bdrydata, self.dirichletmethod)
-        elif self.dirichletmethod=="nitsche":
-            A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colors=colorsdir)
-        if self.verbose: print(f"{A.diagonal()=}")
+        A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colors=colorsdir)
         A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         if self.convection:
-            A += self.fem.computeMatrixConvection(self.convdata, self.convmethod)
+            A += self.fem.computeMatrixConvection(self.convdata)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
-        if self.dirichletmethod=="strong":
-            A = self.fem.matrixBoundaryStrong(A, self.bdrydata, self.dirichletmethod)
+        if hasattr(self, 'bdrydata'):
+            A = self.fem.matrixBoundaryStrong(A, self.bdrydata)
         return A
     def computeRhs(self, b=None, coeffmass=None, u=None):
         if b is None:
@@ -210,40 +196,33 @@ class Heat(Application):
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.fem.massDot(b, fp1)
-            if self.convection and self.convmethod[:4] == 'supg':
-                self.fem.massDotSupg(b, fp1, self.convdata)
+            if hasattr(self, 'convdata'): self.fem.massDotSupg(b, fp1, self.convdata)
         if 'rhscell' in self.problemdata.params.fct_glob:
             fp1 = self.fem.interpolateCell(self.problemdata.params.fct_glob['rhscell'])
             self.fem.massDotCell(b, fp1)
         if 'rhspoint' in self.problemdata.params.fct_glob:
             self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'])
-        if self.dirichletmethod in ['strong','new'] and not hasattr(self.bdrydata,"A_inner_dir"):
+        if self.fem.params_str['dirichletmethod'] in ['strong','new'] and not hasattr(self.bdrydata,"A_inner_dir"):
             raise ValueError("matrix() has to be called befor computeRhs()")
-        if self.dirichletmethod=="new":
-            self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata, self.dirichletmethod)
-        elif self.dirichletmethod=="nitsche":
+        if self.fem.params_str['dirichletmethod']=="new":
+            self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata, self.fem.params_str['dirichletmethod'])
+        elif self.fem.params_str['dirichletmethod']=="nitsche":
             fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, fp1)
         if self.convection:
             fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
-            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0), lumped=self.masslumpedbdry)
+            self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0))
         #Fourier-Robin
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
         self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
         #Neumann
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
-        if self.dirichletmethod == "new":
-            b2 = np.zeros_like(b)
-            self.fem.massDotBoundary(b2, fp1, colorsneu)
-            self.fem.vectorBoundaryStrongZero(b2, self.bdrydata)
-            b += b2
-        else:
-            self.fem.massDotBoundary(b, fp1, colorsneu)
+        self.fem.massDotBoundary(b, fp1, colorsneu)
         if coeffmass is not None:
             assert u is not None
             self.fem.massDot(b, u, coeff=coeffmass)
-        if self.dirichletmethod == "strong" or self.dirichletmethod == "new":
-            self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata, self.dirichletmethod)
+        if hasattr(self, 'bdrydata'):
+            self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         return b
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
@@ -265,7 +244,7 @@ class Heat(Application):
                 elif type == types[1]:
                     data['global'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
-                    if self.dirichletmethod == 'nitsche':
+                    if self.fem.params_str['dirichletmethod'] == 'nitsche':
                         udir = self.fem.interpolateBoundary(colors, self.problemdata.bdrycond.fct)
                         data['global'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
                     else:
@@ -291,7 +270,10 @@ class Heat(Application):
             return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'bicgstab'}
         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'cg'}
     def build_pyamg(self, A):
-        import pyamg
+        try:
+            import pyamg
+        except:
+            raise ImportError("*** pyamg not found ***")
         # return pyamg.smoothed_aggregation_solver(A)
         B = np.ones((A.shape[0], 1))
         B = pyamg.solver_configuration(A, verb=False)['B']

@@ -1,6 +1,6 @@
 import scipy.sparse as sparse
 
-def diffudsionForMMatrix(A):
+def diffusionForMMatrix(A):
     A = A.tocsr()
     Am = A.maximum(0)
     Am -= sparse.dia_matrix((Am.diagonal(),0),A.shape)

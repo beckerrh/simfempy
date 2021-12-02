@@ -14,11 +14,11 @@ import scipy.sparse as sparse
 #=================================================================#
 class Fem(object):
     def __repr__(self):
-        repr = f"{self.__class__.__name__}"
+        repr = f"{self.__class__.__name__} {self.params_bool=} {self.params_str=} {self.params_float=}"
         return repr
-    def __init__(self, **kwargs):
-        mesh = kwargs.get('mesh', None)
+    def __init__(self, mesh=None):
         if mesh is not None: self.setMesh(mesh)
+        self.params_bool, self.params_str, self.params_float = {}, {}, {}
     def setMesh(self, mesh, innersides=False):
         self.mesh = mesh
         self.nloc = self.nlocal()
@@ -128,7 +128,8 @@ class Fem(object):
         # mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci1,:]])
         # np.add.at(du, dofspercell[ci1,:], mat11)
 
-    def computeFormConvection(self, du, u, data, method, **kwargs):
+    def computeFormConvection(self, du, u, data, **kwargs):
+        method = self.params_str['convmethod']
         if method[:4] == 'supg':
             self.computeFormTransportSupg(du, u, data, method)
         elif method == 'upwalg':
@@ -139,7 +140,8 @@ class Fem(object):
             self.computeFormTransportLps(du, u, data, **kwargs)
         else:
             raise NotImplementedError(f"{method=}")
-    def computeMatrixConvection(self, data, method, **kwargs):
+    def computeMatrixConvection(self, data, **kwargs):
+        method = self.params_str['convmethod']
         if method[:4] == 'supg':
             return self.computeMatrixTransportSupg(data, method)
         elif method == 'upwalg':
@@ -150,6 +152,18 @@ class Fem(object):
             return self.computeMatrixTransportLps(data, **kwargs)
         else:
             raise NotImplementedError(f"{method=}")
+    #------------------------------
+    def test(self):
+        import scipy.sparse.linalg as splinalg
+        colors = self.mesh.bdrylabels.keys()
+        bdrydata = self.prepareBoundary(colorsdir=colors)
+        A = self.computeMatrixDiffusion(coeff=1)
+        A = self.matrixBoundaryStrong(A, bdrydata=bdrydata)
+        b = np.zeros(self.nunknowns())
+        rhs = np.vectorize(lambda x,y,z: 1)
+        b = self.computeRhsCell(b, rhs)
+        self.vectorBoundaryStrongZero(b, bdrydata)
+        return self.tonode(splinalg.spsolve(A, b))
 
 # ------------------------------------- #
 

@@ -11,15 +11,22 @@ from simfempy import fems, tools, meshes
 
 #=================================================================#
 class P1(fems.fem.Fem):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.dirichlet_strong = 1
-        self.dirichlet_nitsche = 4
+    def __init__(self, kwargs={}, mesh=None):
+        super().__init__(mesh=mesh)
+        for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
+            if p in kwargs: print(f"taking bool {p} {v}")
+            self.params_bool[p] = kwargs.pop(p, v)
+        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
+            if p in kwargs: print(f"taking str {p} {v}")
+            self.params_str[p] = kwargs.pop(p, v)
+        if self.params_str['dirichletmethod'] == 'nitsche':
+            self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
-    def prepareAdvection(self, beta, scale, method):
+    def prepareAdvection(self, beta, scale):
+        method = self.params_str['convmethod']
         rt = fems.rt0.RT0(self.mesh)
         betart = scale*rt.interpolate(beta)
         beta = rt.toCell(betart)
@@ -67,15 +74,15 @@ class P1(fems.fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdir[color] = np.unique(self.mesh.faces[facesdir].flat[:])
             bdrydata.nodedirall = np.unique(np.union1d(bdrydata.nodedirall, bdrydata.nodesdir[color]))
-        # bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=np.int),bdrydata.nodedirall)
         bdrydata.nodesinner = np.setdiff1d(np.arange(self.mesh.nnodes, dtype=self.mesh.faces.dtype),bdrydata.nodedirall)
         bdrydata.nodesdirflux={}
         for color in colorsflux:
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.nodesdirflux[color] = np.unique(self.mesh.faces[facesdir].ravel())
         return bdrydata
-    def matrixBoundaryStrong(self, A, bdrydata, method):
-        assert method != 'nitsche'
+    def matrixBoundaryStrong(self, A, bdrydata):
+        method = self.params_str['dirichletmethod']
+        if method not in ['strong','new']: return
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         nnodes = self.mesh.nnodes
         for color, nodes in nodesdirflux.items():
@@ -93,15 +100,17 @@ class P1(fems.fem.Fem):
             diag[nodedirall] = 1.0
             diag = sparse.dia_matrix((diag, 0), shape=(nnodes, nnodes))
         else:
-            bdrydata.A_dir_dir = self.dirichlet_strong*A[nodedirall, :][:, nodedirall]
-            diag[nodedirall] = np.sqrt(self.dirichlet_strong)
+            dirparam = self.params_float['nitscheparam']
+            bdrydata.A_dir_dir = dirparam*A[nodedirall, :][:, nodedirall]
+            diag[nodedirall] = np.sqrt(dirparam)
             diag = sparse.dia_matrix((diag, 0), shape=(nnodes, nnodes))
             diag = diag.dot(A.dot(diag))
         A = help.dot(A)
         A += diag
         return A
-    def vectorBoundaryStrong(self, b, bdrycond, bdrydata, method):
-        assert method != 'nitsche'
+    def vectorBoundaryStrong(self, b, bdrycond, bdrydata):
+        method = self.params_str['dirichletmethod']
+        if method not in ['strong','new']: return
         nodesdir, nodedirall, nodesinner, nodesdirflux = bdrydata.nodesdir, bdrydata.nodedirall, bdrydata.nodesinner, bdrydata.nodesdirflux
         x, y, z = self.mesh.points.T
         for color, nodes in nodesdirflux.items():
@@ -134,6 +143,8 @@ class P1(fems.fem.Fem):
         # du[nodedirall] += bdrydata.A_dir_dir.dot(u[nodedirall])
         du[nodedirall] += bdrydata.A_dir_dir*u[nodedirall]
     def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, fp1, coeff=1):
+        if self.params_str['dirichletmethod'] != 'nitsche': return
+        nitsche_param=self.params_float['nitscheparam']
         assert fp1.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
         massloc = tools.barycentric.tensor(d=dim - 1, k=2)
@@ -142,7 +153,7 @@ class P1(fems.fem.Fem):
         nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
         dS = linalg.norm(normalsS, axis=1)
         simp, dV = self.mesh.simplices[cells], self.mesh.dV[cells]
-        dS *= self.dirichlet_nitsche * coeff * diffcoff[cells] * dS / dV
+        dS *= nitsche_param * coeff * diffcoff[cells] * dS / dV
         r = np.einsum('n,kl,nl->nk', dS, massloc, fp1[nodes])
         np.add.at(b, nodes, r)
         cellgrads = self.cellgrads[cells, :, :dim]
@@ -150,6 +161,7 @@ class P1(fems.fem.Fem):
         mat = np.einsum('f,fk,fik->fi', coeff*u*diffcoff[cells], normalsS, cellgrads)
         np.add.at(b, simp, -mat)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
+        if self.params_str['dirichletmethod'] != 'nitsche': return
         assert u.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
         massloc = tools.barycentric.tensor(d=dim - 1, k=2)
@@ -167,9 +179,10 @@ class P1(fems.fem.Fem):
         np.add.at(du, simp, -mat)
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells]/dim, normalsS, cellgrads,u[simp]).repeat(dim).reshape(faces.shape[0],dim)
         np.add.at(du, nodes, -mat)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colors, nitsche_param=None, lumped=True):
-        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
+    def computeMatrixNitscheDiffusion(self, diffcoff, colors, lumped=True):
         nnodes, ncells, dim, nlocal  = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.nlocal()
+        if self.params_str['dirichletmethod'] != 'nitsche': return sparse.coo_matrix((nnodes,nnodes))
+        nitsche_param=self.params_float['nitscheparam']
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
         normalsS = self.mesh.normals[faces, :dim]
@@ -178,10 +191,6 @@ class P1(fems.fem.Fem):
         cellgrads = self.cellgrads[cells, :, :dim]
         simp = self.mesh.simplices[cells]
         facenodes = self.mesh.faces[faces]
-        # ind = npext.positionin(facenodes, simp).astype(int)
-        # fnind = np.take_along_axis(simp,ind,axis=1)
-        # if not np.all(facenodes == fnind):
-        #     raise ValueError(f"***not found***\n{facenodes=}\n{fnind=} {ind=}")
         cols = np.tile(simp,dim)
         rows = facenodes.repeat(dim+1)
         mat = np.einsum('f,fk,fjk,i->fij', diffcoff[cells]/dim, normalsS, cellgrads, np.ones(dim))
@@ -198,6 +207,7 @@ class P1(fems.fem.Fem):
         AD = sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(nnodes, nnodes)).tocsr()
         return  - AN - AN.T + AD
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
+        nitsche_param=self.params_float['nitscheparam']
         flux= np.zeros(len(colors))
         nnodes, dim  = self.mesh.nnodes, self.mesh.dimension
         massloc = tools.barycentric.tensor(d=dim - 1, k=2)
@@ -214,7 +224,7 @@ class P1(fems.fem.Fem):
             flux[i] = np.einsum('nj,n,ni,nji->', u[simp], diffcoff[cells], normalsS, cellgrads)
             uD = u[nodes]-udir[nodes]
             dV = self.mesh.dV[cells]
-            flux[i] -= np.einsum('n,kl,nl->', self.dirichlet_nitsche * diffcoff[cells] * dS**2 / dV, massloc, uD)
+            flux[i] -= np.einsum('n,kl,nl->', nitsche_param * diffcoff[cells] * dS**2 / dV, massloc, uD)
             # flux[i] /= np.sum(dS)
         return flux
     # interpolate
@@ -278,17 +288,16 @@ class P1(fems.fem.Fem):
                 nloc = self.mesh.dimension
                 rows = np.append(rows, np.repeat(nodes, nloc).ravel())
                 cols = np.append(cols, np.tile(nodes, nloc).ravel())
-                massloc = simfempy.tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
+                massloc = tools.barycentric.tensor(d=self.mesh.dimension-1, k=2)
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nnodes, nnodes)).tocsr()
     def computeMatrixTransportUpwindAlg(self, data):
         A =  self.computeMatrixTransportCellWise(data, type='centered')
-        return tools.checkmmatrix.makeMMatrix(A)
-    def computeMatrixTransportUpwindSides(self, betart):
+        return tools.checkmmatrix.diffusionForMMatrix(A)
+    def computeMatrixTransportUpwindSides(self, data):
         nnodes, nfaces, ncells, dim, dV = self.mesh.nnodes, self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.mesh.dV
         normalsS, cof, simp = self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.simplices
-        dbS = linalg.norm(normalsS, axis=1)*betart/dim/(dim+1)
-
+        dbS = linalg.norm(normalsS, axis=1)*data.betart/dim/(dim+1)
         innerfaces = self.mesh.innerfaces
         infaces = np.arange(nfaces)[innerfaces]
         ci0 = self.mesh.cellsOfInteriorFaces[:, 0]
@@ -300,26 +309,21 @@ class P1(fems.fem.Fem):
         mat = np.einsum('n,kl->nkl', dbS[infaces], matloc).ravel()
         A = sparse.coo_matrix((mat, (rows1, cols)), shape=(nnodes, nnodes))
         A -= sparse.coo_matrix((mat, (rows0, cols)), shape=(nnodes, nnodes))
-
         faces = self.mesh.bdryFaces()
         ci0 = self.mesh.cellsOfFaces[faces, 0]
         rows0 = np.repeat(simp[ci0],dim).ravel()
         cols = np.tile(self.mesh.faces[infaces], dim + 1).ravel()
         mat = np.einsum('n,kl->nkl', dbS[faces], matloc).ravel()
         A -= sparse.coo_matrix((mat, (rows0,cols)), shape=(nnodes, nnodes))
-
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=True)
-
-        B = self.computeMatrixTransportCellWise(type='centered')
-
+        A -= self.computeBdryMassMatrix(coeff=np.minimum(data.betart, 0), lumped=True)
+        B = self.computeMatrixTransportCellWise(data, type='centered')
         A = A.tocsr()
         B = B.tocsr()
-        if not np.allclose(A.A,B.A):
-            raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}\n{A.todense()=}\n{B.todense()=}")
-
+        # if not np.allclose(A.A,B.A):
+        #     raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}\n{A.todense()=}\n{B.todense()=}")
         return A.tocsr()
     def computeMatrixTransportUpwind(self, data, method):
-        if method=='upwsides': return self.computeMatrixTransportUpwindSides()
+        if method=='upwsides': return self.computeMatrixTransportUpwindSides(data)
         self.masslumped = self.computeMassMatrix(coeff=1, lumped=True)
         beta, mus, cells, deltas = data.beta, data.md.mus, data.md.cells, data.md.deltas
         nnodes, simp= self.mesh.nnodes, self.mesh.simplices
@@ -407,11 +411,13 @@ class P1(fems.fem.Fem):
         np.add.at(b, simplices, r)
         return b
     def massDotSupg(self, b, f, data, coeff=1):
+        if self.params_str['convmethod'][:4] != 'supg': return
         dim, simplices, dV = self.mesh.dimension, self.mesh.simplices, self.mesh.dV
         r = np.einsum('n,nk,n->nk', coeff*dV, data.md.mus-1/(dim+1), f[simplices].mean(axis=1))
         np.add.at(b, simplices, r)
         return b
-    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=True):
+    def massDotBoundary(self, b, f, colors=None, coeff=1, lumped=None):
+        if lumped is None: lumped=self.params_bool['masslumpedbdry']
         if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
@@ -439,14 +445,19 @@ class P1(fems.fem.Fem):
         return b
     def computeRhsCell(self, b, rhscell):
         if rhscell is None: return b
-        scale = 1 / (self.mesh.dimension + 1)
-        for label, fct in rhscell.items():
-            if fct is None: continue
-            cells = self.mesh.cellsoflabel[label]
-            xc, yc, zc = self.mesh.pointsc[cells].T
-            bC = scale * fct(xc, yc, zc) * self.mesh.dV[cells]
-            # print("bC", bC)
-            np.add.at(b, self.mesh.simplices[cells].T, bC)
+        if isinstance(rhscell,dict):
+            assert set(rhscell.keys())==set(self.mesh.cellsoflabel.keys())
+            scale = 1 / (self.mesh.dimension + 1)
+            for label, fct in rhscell.items():
+                if fct is None: continue
+                cells = self.mesh.cellsoflabel[label]
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                bC = scale * fct(xc, yc, zc) * self.mesh.dV[cells]
+                # print("bC", bC)
+                np.add.at(b, self.mesh.simplices[cells].T, bC)
+        else:
+            fp1 = self.interpolateCell(rhscell)
+            self.massDotCell(b, fp1, coeff=1)
         return b
     def computeRhsPoint(self, b, rhspoint):
         if rhspoint is None: return b
@@ -571,7 +582,6 @@ class P1(fems.fem.Fem):
             # print(f"{np.unique(lines)=}")
             # print(f"{self.mesh.points[lines]=}")
         return up
-
     def computeMeanValues(self, u, colors):
         up = np.empty(len(colors))
         for i, color in enumerate(colors):
@@ -579,30 +589,14 @@ class P1(fems.fem.Fem):
             up[i] = np.sum(np.mean(u[self.mesh.simplices[cells]],axis=1)*self.mesh.dV[cells])
         return up
 
-    #------------------------------
-    def test(self):
-        import scipy.sparse.linalg as splinalg
-        colors = mesh.bdrylabels.keys()
-        bdrydata = self.prepareBoundary(colorsdir=colors)
-        A = self.computeMatrixDiffusion(coeff=1)
-        A = self.matrixBoundaryStrong(A, bdrydata=bdrydata, method='strong')
-        b = np.zeros(self.nunknowns())
-        rhs = np.vectorize(lambda x,y,z: 1)
-        fp1 = self.interpolateCell(rhs)
-        self.massDotCell(b, fp1, coeff=1)
-        b = self.vectorBoundaryStrongZero(b, bdrydata)
-        return splinalg.spsolve(A, b)
-
-
 # ------------------------------------- #
-
 if __name__ == '__main__':
     from simfempy.meshes import testmeshes
     from simfempy.meshes import plotmesh
     import matplotlib.pyplot as plt
-
     mesh = testmeshes.backwardfacingstep(h=0.2)
     fem = P1(mesh=mesh)
+    print(f"{fem=}")
     u = fem.test()
     plotmesh.meshWithBoundaries(mesh)
     plotmesh.meshWithData(mesh, point_data={'u':u}, title="P1 Test", alpha=1)

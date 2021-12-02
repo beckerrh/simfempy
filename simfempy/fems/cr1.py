@@ -15,10 +15,16 @@ from simfempy.meshes import move, plotmesh
 
 #=================================================================#
 class CR1(fems.fem.Fem):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.dirichlet_strong = 1
-        self.dirichlet_nitsche = 2
+    def __init__(self, kwargs={}, mesh=None):
+        super().__init__(mesh=mesh)
+        for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
+            if p in kwargs: print(f"taking bool {p} {v}")
+            self.params_bool[p] = kwargs.pop(p, v)
+        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
+            if p in kwargs: print(f"taking str {p} {v}")
+            self.params_str[p] = kwargs.pop(p, v)
+        if self.params_str['dirichletmethod'] == 'nitsche':
+            self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 2)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
@@ -38,7 +44,8 @@ class CR1(fems.fem.Fem):
         unodes /= countnodes
         # print(f"{unodes=}")
         return unodes
-    def prepareAdvection(self, beta, scale, method):
+    def prepareAdvection(self, beta, scale):
+        method = self.params_str['convmethod']
         rt = fems.rt0.RT0(self.mesh)
         betart = scale*rt.interpolate(beta)
         beta = rt.toCell(betart)
@@ -86,8 +93,9 @@ class CR1(fems.fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, nitsche_param=None, coeff=1, lumped=False):
-        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, coeff=1, lumped=False):
+        if self.params_str['dirichletmethod'] != 'nitsche': return
+        nitsche_param=self.params_float['nitscheparam']
         assert udir.shape[0] == self.mesh.nfaces
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces,0]
@@ -96,8 +104,9 @@ class CR1(fems.fem.Fem):
         mat = np.einsum('f,fi,fji->fj', coeff*udir[faces]*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
         np.add.at(b, self.mesh.facesOfCells[cells], -mat)
         self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=coeff*nitsche_param*diffcoff[cells] * dS/dV, lumped=lumped)
-    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir, nitsche_param=None):
-        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
+    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
+        if self.params_str['dirichletmethod'] != 'nitsche': return
+        nitsche_param=self.dirichlet_nitsche
         assert u.shape[0] == self.mesh.nfaces
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces,0]
@@ -108,9 +117,10 @@ class CR1(fems.fem.Fem):
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells], normalsS, cellgrads, u[foc])
         np.add.at(du, faces, -mat)
         self.massDotBoundary(du, f=u, colors=colorsdir, coeff=nitsche_param*diffcoff[cells]* dS/dV)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colors, nitsche_param=None, coeff=1, lumped=False):
-        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
+    def computeMatrixNitscheDiffusion(self, diffcoff, colors, coeff=1, lumped=False):
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
+        if self.params_str['dirichletmethod'] != 'nitsche': return sparse.coo_matrix((nfaces,nfaces))
+        nitsche_param=self.params_float['nitscheparam']
         faces = self.mesh.bdryFaces(colors)
         if not isinstance(coeff, (float,int)): assert coeff.shape[0]==faces.shape[0]
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -125,8 +135,8 @@ class CR1(fems.fem.Fem):
         # AD = sparse.coo_matrix((dS**2/dV,(faces,faces)), shape=(nfaces, nfaces))
         AD = self.computeBdryMassMatrix(colors=colors, coeff=coeff*diffcoff[cells]*nitsche_param*dS/dV, lumped=lumped)
         return AD - AN -AN.T 
-    def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff, nitsche_param=None):
-        if nitsche_param==None: nitsche_param=self.dirichlet_nitsche
+    def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
+        nitsche_param=self.params_float['nitscheparam']
         #TODO correct flux computation Nitsche
         flux= np.zeros(len(colors))
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
@@ -148,7 +158,9 @@ class CR1(fems.fem.Fem):
         du[facesdirall] = u[facesdirall]
     def vectorBoundaryStrongZero(self, du, bdrydata):
         du[bdrydata.facesdirall] = 0
-    def vectorBoundaryStrong(self, b, bdrycond, bdrydata, method):
+    def vectorBoundaryStrong(self, b, bdrycond, bdrydata):
+        method = self.params_str['dirichletmethod']
+        if method not in ['strong','new']: return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         for color, faces in facesdirflux.items():
@@ -164,8 +176,9 @@ class CR1(fems.fem.Fem):
             b[facesdirall] = help[facesdirall]
         else:
             b[facesdirall] = bdrydata.A_dir_dir * help[facesdirall]
-    def matrixBoundaryStrong(self, A, bdrydata, method):
-        assert method != 'nitsche'
+    def matrixBoundaryStrong(self, A, bdrydata):
+        method = self.params_str['dirichletmethod']
+        if method not in ['strong','new']: return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():
@@ -304,12 +317,12 @@ class CR1(fems.fem.Fem):
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         # print(f"{mat=}")
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-    def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=False):
+    def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=None):
         #TODO CR1 boundary integrals: can do at ones since last index in facesOfCells is the bdry side:
         # assert np.all(faces == foc[:,-1])
+        if lumped is None: lumped=self.params_bool['masslumpedbdry']
         if colors is None: colors = self.mesh.bdrylabels.keys()
         massloc = barycentric.crbdryothers(self.mesh.dimension)
-        # lumped==False
         if not isinstance(coeff, dict):
             faces = self.mesh.bdryFaces(colors)
             normalsS = self.mesh.normals[faces]
@@ -614,6 +627,7 @@ class CR1(fems.fem.Fem):
         self.computeFormJump(du, u, data.betart)
         self.computeFormLps(du, u, data.betart, **kwargs)
     def massDotSupg(self, b, f, data, coeff=1):
+        if self.params_str['convmethod'][:4] != 'supg': return
         dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
         # beta, mus, deltas = beta, self.md.mus, self.md.deltas
         # cellgrads = self.cellgrads[:,:,:dim]
@@ -638,6 +652,24 @@ class CR1(fems.fem.Fem):
         np.add.at(b, facesOfCells, r)
         return b
     # rhs
+    def computeRhsCell(self, b, rhscell):
+        if rhscell is None: return b
+        if isinstance(rhscell,dict):
+            assert set(rhscell.keys())==set(self.mesh.cellsoflabel.keys())
+            dimension, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
+            scale = 1 / (dimension + 1)
+            return b
+            scale = 1 / (self.mesh.dimension + 1)
+            for label, fct in rhscell.items():
+                if fct is None: continue
+                cells = self.mesh.cellsoflabel[label]
+                xc, yc, zc = self.mesh.pointsc[cells].T
+                bC = scale * fct(xc, yc, zc) * dV[cells]
+                np.add.at(b, facesOfCells, bC)
+        else:
+            fp1 = self.interpolateCell(rhscell)
+            self.massDotCell(b, fp1, coeff=1)
+        return b
     # postprocess
     def computeErrorL2Cell(self, solexact, uh):
         xc, yc, zc = self.mesh.pointsc.T
@@ -690,31 +722,15 @@ class CR1(fems.fem.Fem):
             else:
                 flux[i] = self.comuteFluxOnRobin(u, faces, dS, bdrycond.fct[color], bdrycond.param[color])
         return flux
-    #------------------------------
-    def test(self):
-        import scipy.sparse.linalg as splinalg
-        colors = mesh.bdrylabels.keys()
-        bdrydata = self.prepareBoundary(colorsdir=colors)
-        A = self.computeMatrixDiffusion(coeff=1)
-        A = self.matrixBoundaryStrong(A, bdrydata=bdrydata, method='strong')
-        b = np.zeros(self.nunknowns())
-        rhs = np.vectorize(lambda x,y,z: 1)
-        fp1 = self.interpolateCell(rhs)
-        self.massDotCell(b, fp1, coeff=1)
-        b = self.vectorBoundaryStrongZero(b, bdrydata)
-        return self.tonode(splinalg.spsolve(A, b))
-
 
 # ------------------------------------- #
-
 if __name__ == '__main__':
     from simfempy.meshes import testmeshes
     from simfempy.meshes import plotmesh
     import matplotlib.pyplot as plt
-
     mesh = testmeshes.backwardfacingstep(h=0.2)
     fem = CR1(mesh=mesh)
     u = fem.test()
     plotmesh.meshWithBoundaries(mesh)
-    plotmesh.meshWithData(mesh, point_data={'u':u}, title="P1 Test", alpha=1)
+    plotmesh.meshWithData(mesh, point_data={'u':u}, title="CR1 Test", alpha=1)
     plt.show()

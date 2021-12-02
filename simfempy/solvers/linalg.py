@@ -1,5 +1,4 @@
 import numpy as np
-import pyamg
 import scipy.sparse.linalg as splinalg
 import scipy.sparse as sparse
 from simfempy import tools
