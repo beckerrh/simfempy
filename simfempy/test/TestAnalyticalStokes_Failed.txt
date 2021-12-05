@@ -1,1 +1,1 @@
-[{"dim": 2, "dirichletmethod": "nitsche", "exactsolution": "Linear", "verbose": 0, "linearsolver": "spsolve"}, {"dim": 3, "dirichletmethod": "nitsche", "exactsolution": "Linear", "verbose": 0, "linearsolver": "spsolve"}]
+[]

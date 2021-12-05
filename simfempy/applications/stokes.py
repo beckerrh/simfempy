@@ -29,7 +29,7 @@ class Stokes(Application):
         nsp = name.split('@')
         if type == 'linearsolver':
             if len(nsp) != 4:
-                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp'")
+                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp' got '{name}'")
             return {'method': nsp[0], 'prec': nsp[1], 'maxiter': int(nsp[2]), 'disp': int(nsp[3])}
         elif type == 'solver_v':
             if nsp[0]=='pyamg':
@@ -55,7 +55,6 @@ class Stokes(Application):
                         f"*** need 'solver_p' in the form 'type@method@prec@maxiter@disp'")
                 return {'type':nsp[0], 'method': nsp[1], 'prec': nsp[2], 'maxiter': int(nsp[3]), 'disp': int(nsp[4])}
         else: raise ValueError(f"*** unknown {type=}")
-
     def __init__(self, **kwargs):
         if 'dirichletmethod' in kwargs and kwargs['dirichletmethod']=='nitsche':
             # correct value ?!
@@ -309,15 +308,16 @@ class Stokes(Application):
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
             bdryfct = self.problemdata.bdrycond.fct
-            colorspres = set(bdryfct.keys()).intersection(colorsnav)
-            if len(colorspres):
-                if not isinstance(bdryfct[next(iter(colorspres))],dict):
+            # Navier condition
+            colors = set(bdryfct.keys()).intersection(colorsnav)
+            if len(colors):
+                if not isinstance(bdryfct[next(iter(colors))],dict):
                     msg = """
                     For Navier b.c. please give a dictionary {vn:fct_scal, g:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
                     """
-                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
+                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colors))]=}")
                 vnfct, gfct = {}, {}
-                for col in colorspres:
+                for col in colors:
                     if 'vn' in bdryfct[col].keys() : 
                         if not callable(bdryfct[col]['vn']):
                             raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['vn']=}")
@@ -332,15 +332,16 @@ class Stokes(Application):
                 if len(gfct): 
                     gt = self.femv.interpolateBoundary(colorsnav, gfct)
                     self.computeRhsBdryNitscheNavierTangent((bv,bp), colorsnav, self.mucell, gt)
-            colorspres = set(bdryfct.keys()).intersection(colorsp)
-            if len(colorspres):
-                if not isinstance(bdryfct[next(iter(colorspres))],dict):
+            # Pressure condition
+            colors = set(bdryfct.keys()).intersection(colorsp)
+            if len(colors):
+                if not isinstance(bdryfct[next(iter(colors))],dict):
                     msg = """
                     For Pressure b.c. please give a dictionary {p:fct_scal, v:fvt_vec} with fct_scal scalar and fvt_vec a list of dim functions
                     """
-                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colorspres))]=}")
+                    raise ValueError(msg+f"\ngiven: {bdryfct[next(iter(colors))]=}")
                 pfct, vfct = {}, {}
-                for col in colorspres:
+                for col in colors:
                     if 'p' in bdryfct[col].keys() : 
                         if not callable(bdryfct[col]['p']):
                             raise ValueError(f"'vn' must be a function. Given:{bdryfct[col]['p']=}")

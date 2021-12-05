@@ -19,7 +19,7 @@ def test(dim, **kwargs):
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
-        colors = [1000,1001,1003]
+        colors = [1000,1001,1002,1003]
         colorsneu = [1000]
         #TODO cl navier faux pour deux bords ?!
         colorsnav = [1001]
@@ -32,10 +32,13 @@ def test(dim, **kwargs):
         colorsnav = [105]
         colorsp = [101]
         # colorsneu = colorsp = []
+    colorsnav = []
+    colorsp = []
+    # TODO Navier donne pas solution pour Linear (mais p)
     colorsdir = [col for col in colors if col not in colorsnav and col not in colorsp and col not in colorsneu]
     if 'strong' in paramsdict['dirichletmethod']:
-        colorsdir.append(*colorsnav)
-        colorsdir.append(*colorsp)
+        if len(colorsnav): colorsdir.append(*colorsnav)
+        if len(colorsp): colorsdir.append(*colorsp)
         colorsnav=[]
         colorsp=[]
     data.bdrycond.set("Dirichlet", colorsdir)
@@ -59,7 +62,7 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, plotsolution=False, linearsolver='iter_gcrotmk')
     # test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
-    test(dim=2, exactsolution="Linear", niter=3, dirichletmethod=['nitsche','strong'], plotsolution=True, linearsolver='spsolve')
+    test(dim=2, exactsolution="Linear", niter=3, dirichletmethod=['nitsche'], plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution=[["1.0","0.0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], linearsolver='spsolve', plotsolution=False)

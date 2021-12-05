@@ -23,7 +23,7 @@ class TestCaseAnalytical(unittest.TestCase):
 def run(testcase, argss=None):
     import os, json
     filename = f"{testcase.__name__}_Failed.txt"
-    print(f"$$$$$$$$$$$$$$$ {filename=}")
+    # print(f"$$$$$$$$$$$$$$$ {filename=}")
     if os.path.exists(filename) and os.path.getsize(filename) > 2:
         # check if log-file exists and contains more than empty list
         with open(filename, 'r') as f:
