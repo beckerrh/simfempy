@@ -4,7 +4,7 @@ Created on Sun Dec  4 18:14:29 2016
 
 @author: becker
 """
-import os, sys, importlib
+import os
 import meshio
 import numpy as np
 from numpy.lib.shape_base import take_along_axis
@@ -49,7 +49,14 @@ class SimplexMesh(object):
         if not isinstance(mesh, meshio.Mesh):
             raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
         self.timer = timer.Timer(name="SimplexMesh")
-        self._initMeshPyGmsh(mesh)
+        import importlib
+        from distutils.version import StrictVersion
+        newmeshio = StrictVersion(importlib.metadata.version('meshio')) > StrictVersion('5.0.0')
+        if newmeshio:
+            celltypes = [c.type for c in mesh.cells]
+        else:
+            celltypes = [key for key, cellblock in mesh.cells]
+        self._initMeshPyGmsh(mesh, celltypes)
         self.check()
         # print(self.timer)
     def check(self):
@@ -78,30 +85,40 @@ class SimplexMesh(object):
             fi0_bis[:,i] = self.facesOfCells[ci0][self.simplices[ci0] == faces[:,i][:,np.newaxis]]
             fi1_bis[:,i] = self.facesOfCells[ci1][self.simplices[ci1] == faces[:,i][:,np.newaxis]]
         return fi0_bis, fi1_bis
-    def _initMeshPyGmsh(self, mesh):
+    def _initMeshPyGmsh(self, mesh, celltypes):
         self.pygmsh = mesh
-        self.celltypes = [key for key, cellblock in mesh.cells]
-        assert self.celltypes==list(mesh.cells_dict.keys())
+        assert celltypes==list(mesh.cells_dict.keys())
         # for key, cellblock in cells: keys.append(key)
-        # print("self.celltypes", self.celltypes)
-        if 'tetra' in self.celltypes:
+        # print("celltypes", celltypes)
+        if 'tetra' in celltypes:
             self.dimension = 3
             self.simplicesname, self.facesname = 'tetra', 'triangle'
-        elif 'triangle' in self.celltypes:
+        elif 'triangle' in celltypes:
             self.dimension = 2
             self.simplicesname, self.facesname = 'triangle', 'line'
-        elif 'line' in self.celltypes:
+        elif 'line' in celltypes:
             self.dimension = 1
             self.simplicesname, self.facesname = 'line', 'vertex'
         else:
-            raise ValueError(f"something wrong {self.celltypes=} {mesh=}")
-        for key, cellblock in mesh.cells:
-            # print(f"{key=} {cellblock=}")
-            if key == self.simplicesname: self.simplices = cellblock
-            elif key == self.facesname:
-                self.facesdata = cellblock
-            else:
-                continue
+            raise ValueError(f"something wrong {celltypes=} {mesh=}")
+        if isinstance(mesh.cells, dict):
+            for key, cellblock in mesh.cells:
+                # print(f"{key=} {cellblock=}")
+                if key == self.simplicesname:
+                    self.simplices = cellblock
+                elif key == self.facesname:
+                    self.facesdata = cellblock
+                else:
+                    continue
+        else:
+            for cells in mesh.cells:
+                # print(f"{key=} {cellblock=}")
+                if cells.type == self.simplicesname:
+                    self.simplices = cells.data
+                elif cells.type == self.facesname:
+                    self.facesdata = cells.data
+                else:
+                    continue
         if not hasattr(self,"simplices") or not hasattr(self,"facesdata"):
             raise ValueError(f"something wrong {self=}")
         assert np.all(self.facesdata==mesh.cells_dict[self.facesname])
@@ -112,7 +129,7 @@ class SimplexMesh(object):
         nnp = len(np.unique(self.simplices))
         if not np.all(np.unique(self.simplices)==np.arange(nnp)):
             msg = f"*** points in simplices {nnp} but {mesh.points.shape=}"
-            msg += f"\n{self.celltypes=}\n{mesh.cell_sets=}"
+            msg += f"\n{celltypes=}\n{mesh.cell_sets=}"
             msg += f"\n{np.unique(self.simplices)=}"
             msg += f"\n{mesh.cells_dict=}"
             raise ValueError(msg)
@@ -128,7 +145,7 @@ class SimplexMesh(object):
         self.timer.add("_constructNormalsAndAreas")
         # self.cell_sets = mesh.cell_sets
         # print(f"{mesh.cell_sets_dict=}")
-        bdrylabelsgmsh = self._initMeshPyGmsh7(mesh.cell_sets, mesh.cells_dict)
+        bdrylabelsgmsh = self._initMeshPyGmsh7(mesh.cell_sets, mesh.cells_dict, celltypes)
         self.timer.add("_initMeshPyGmsh7")
         # boundaries
         # self._constructBoundaryFaces7(bdryfacesgmshlist, bdrylabelsgmsh)
@@ -136,20 +153,20 @@ class SimplexMesh(object):
         self.timer.add("_constructBoundaryFaces7")
         # print(f"{self.bdrylabels.keys()=}")
         #TODO : remplacer -1 par nan dans les indices
-    def _initMeshPyGmsh7(self, cell_sets, cells_dict):
+    def _initMeshPyGmsh7(self, cell_sets, cells_dict, celltypes):
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
         # ???
         # print(f"{cell_sets=}")
         typesoflabel = {}
-        sizes = {key:0 for key in self.celltypes}
-        cellsoflabel = {key:{} for key in self.celltypes}
+        sizes = {key:0 for key in celltypes}
+        cellsoflabel = {key:{} for key in celltypes}
         ctorderd = []
         for label, cb in cell_sets.items():
             if label=='gmsh:bounding_entities': continue
             # print(f"{label=} {cb=}")
-            if len(cb) != len(self.celltypes): raise KeyError(f"mismatch {label=}")
-            for celltype, info in zip(self.celltypes, cb):
+            if len(cb) != len(celltypes): raise KeyError(f"mismatch {label=}")
+            for celltype, info in zip(celltypes, cb):
                 # only one is supposed to be not None
                 if info is not None:
                     try: ilabel=int(label)
@@ -159,7 +176,7 @@ class SimplexMesh(object):
                     sizes[celltype] += info.shape[0]
                     typesoflabel[ilabel] = celltype
                     ctorderd.append(celltype)
-        # print(f"{self.celltypes=}\n{cellsoflabel=}")
+        # print(f"{celltypes=}\n{cellsoflabel=}")
         #correcting the numbering in cell_sets
         n = 0
         for ct in list(dict.fromkeys(ctorderd)):

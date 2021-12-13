@@ -1,9 +1,3 @@
-import os, sys
-path = os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir, 'simfempy')
-simfempypath = os.path.abspath(path)
-sys.path.insert(0, simfempypath)
-assert __name__ == '__main__'
-
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
@@ -46,7 +40,7 @@ data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
 heat = Heat(mesh=mesh, problemdata=data, fem='cr1')
-static = False
+static = True
 if static:
     # run static
     result = heat.static()

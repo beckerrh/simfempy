@@ -32,5 +32,6 @@ def test(testcase, **kwargs):
 if __name__ == '__main__':
     # test(testcase='poiseuille2d', niter=6)
     # test(testcase='poiseuille3d', niter=5)
-    test(testcase='backwardFacingStep3d', niter=4)
+    test(testcase='backwardFacingStep2d', niter=6)
+    # test(testcase='backwardFacingStep3d', niter=4)
     # test(niter=4, exactsolution=[["x**2-y+z**2","-2*x*y*z+x**2","x**2-y**2+z"],"x*y+x*z"])

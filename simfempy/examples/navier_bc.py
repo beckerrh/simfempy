@@ -71,35 +71,6 @@ def opt(h=0.1):
 
 
 #===============================================
-def main(h):
-    tests = {"WithNavier": (channelWithNavier, 1.0), "WithOscillation": (channelWithOscillation, None)}
-    tests = {"WithNavier": (channelWithNavier, 0.1)}
-    results, meshs = {}, {}
-    for t in tests:
-        meshs[t] = tests[t][0](h)
-        data = problemData(mu=0.01, navier=tests[t][1])
-        model = Stokes(mesh=meshs[t], problemdata=data)
-        # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='scipy_gcrotmk@1@100@full', precond_v='pyamg@aggregation@none@schwarz' )
-        # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='spsolve')
-        results[t] = model.solve()
-        filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'
-        meshs[t].write(filename, data=results[t].data)
-    fig = plt.figure(figsize=(10, 8))
-    ntests = len(tests)
-    gs = gridspec.GridSpec(ntests, 3, wspace=0.2, hspace=0.2)
-    for i,t in enumerate(tests):
-        plotmesh.meshWithData(meshs[t], data=results[t].data, title=t, fig=fig, outer=gs[i,0])
-        plotmesh.meshWithData(meshs[t], title=t, fig=fig, outer=gs[i,1],quiver_data={"V":list(results[t].data['point'].values())}) 
-    ax = fig.add_subplot(gs[ntests//2, 2])
-    plt.sca(ax)
-    for i,t in enumerate(tests):
-        linecolor = 99999 if tests[t][1]==None else 2002
-        plotcurve(mesh=meshs[t], result=results[t], linecolor=linecolor, label=t)
-    plt.legend()
-    plt.grid()
-    plt.show()
- 
-#===============================================
 def problemData(mu=0.1, navier=None):
     data = ProblemData()
    # boundary conditions  
@@ -226,6 +197,35 @@ def channelWithOscillation(h= 0.2):
         # plotmesh.plotmesh(mesh)
         plt.show()
     return SimplexMesh(mesh=mesh)
+
+#===============================================
+def main(h):
+    # tests = {"WithNavier": (channelWithNavier, 1.0), "WithOscillation": (channelWithOscillation, None)}
+    tests = {"WithNavier": (channelWithNavier, 0.1)}
+    results, meshs = {}, {}
+    for t in tests:
+        meshs[t] = tests[t][0](h)
+        data = problemData(mu=0.01, navier=tests[t][1])
+        model = Stokes(mesh=meshs[t], problemdata=data)
+        # model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='scipy_gcrotmk@1@100@full', precond_v='pyamg@aggregation@none@schwarz' )
+        model = NavierStokes(mesh=meshs[t], problemdata=data, linearsolver='spsolve')
+        results[t] = model.solve()
+        filename = f"{tests[t][0].__name__}_{tests[t][1]}"+'.vtu'
+        meshs[t].write(filename, data=results[t].data)
+    fig = plt.figure(figsize=(10, 8))
+    ntests = len(tests)
+    gs = gridspec.GridSpec(ntests, 3, wspace=0.2, hspace=0.2)
+    for i,t in enumerate(tests):
+        plotmesh.meshWithData(meshs[t], data=results[t].data, title=t, fig=fig, outer=gs[i,0])
+        plotmesh.meshWithData(meshs[t], title=t, fig=fig, outer=gs[i,1],quiver_data={"V":list(results[t].data['point'].values())})
+    ax = fig.add_subplot(gs[ntests//2, 2])
+    plt.sca(ax)
+    for i,t in enumerate(tests):
+        linecolor = 99999 if tests[t][1]==None else 2002
+        plotcurve(mesh=meshs[t], result=results[t], linecolor=linecolor, label=t)
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 #================================================================#
 if __name__ == '__main__':

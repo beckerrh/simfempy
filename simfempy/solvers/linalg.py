@@ -159,6 +159,7 @@ class ScipySolve(IterativeSolver):
             self.solver = eval('splinalg.'+self.method[6:])
             self.args['atol'] = self.atol
         elif self.method in pyamgsolvers:
+            import pyamg
             self.solver = eval('pyamg.krylov.' + self.method[6:])
         else:
             raise ValueError("*** unknown {self.method=}")
