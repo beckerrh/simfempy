@@ -12,7 +12,8 @@ def test(dim, **kwargs):
     data = simfempy.applications.problemdata.ProblemData()
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramsdict = {'fem': kwargs.pop('fem', ['p1','cr1'])}
-    paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['nitsche','strong','new'])
+    # paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['nitsche','strong','new'])
+    if 'dirichletmethod' in kwargs: paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod')
     if 'convection' in kwargs:
         data.params.fct_glob['convection'] = kwargs.pop('convection')
         paramsdict['convmethod'] = kwargs.pop('convmethod', ['supg'])
@@ -42,7 +43,8 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':False}
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    # applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':False}
     # applicationargs['mode'] = 'newton'
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Heat, applicationargs=applicationargs, **kwargs)
     return comp.compare()
@@ -54,6 +56,7 @@ if __name__ == '__main__':
 
     # test dirichletmethod
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='spsolve', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=True)
+    test(dim=2, exactsolution = 'Linear', fem=['rt0'], niter=3, kheat=1, plotsolution=False)
     # test(dim=2, exactsolution = 'Linear', fem=['p1','cr1'], niter=3 , linearsolver='spsolve', dirichletmethod=['nitsche','strong'], kheat=1, plotsolution=False)
     # test convection
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=6, h1=2, convection=["0.8","1.1"], convmethod=['upw', 'lps', 'supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='spsolve', plotsolution=True)
@@ -61,5 +64,5 @@ if __name__ == '__main__':
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk','lgmres','spsolve','pyamg'], plotsolution=False)
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=6, h1=0.5, convection=["1-x","1+y"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False, uniformrefine=True)
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1'], niter=7, h1=0.5, convection=["1-x","1+y"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
-    test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=5, h1=1, convection=["1-x","1+y", "x+y+1"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
+    # test(dim=3, exactsolution = 'Quadratic', fem=['cr1'], niter=5, h1=1, convection=["1-x","1+y", "x+y+1"], convmethod=['lps','supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver=['gcrotmk'], plotsolution=False)
     # test(dim=2, exactsolution = 'Quadratic', fem=['p1'], niter=6, convection=["0.8","1.1"], convmethod=['upw'], dirichletmethod=['nitsche'], kheat=0.0001, linearsolver='pyamg')

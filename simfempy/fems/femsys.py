@@ -33,7 +33,7 @@ class Femsys():
         self.colssys = self.colssys.reshape(-1)
         self.rowssys = self.rowssys.reshape(-1)
     def prepareBoundary(self, colorsdirichlet, colorsflux=[]):
-        return self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        return self.fem._prepareBoundary(colorsdirichlet, colorsflux)
     def computeRhsCells(self, b, rhs):
         rhsall = self.fem.interpolate(rhs)
         for i in range(self.ncomp):

@@ -35,7 +35,8 @@ class NavierStokes(Stokes):
         return self.static(dirname=dirname, mode='newton',sdata=sdata)
     def computeForm(self, u):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
-        d = super().matrixVector(self.Astokes,u)
+        # d = super().matrixVector(self.Astokes,u)
+        d = self.Astokes.matvec(u)
         # d = super().computeForm(u)
         v = self._split(u)[0]
         dv = self._split(d)[0]
@@ -45,11 +46,13 @@ class NavierStokes(Stokes):
         return d
     def computeMatrix(self, u=None):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
-        X = [A.copy() for A in self.Astokes]
+        if u is None: return self.Astokes
+        # X = [A.copy() for A in self.Astokes]
         # X = super().computeMatrix(u)
-        if u is None: return X
+        X = self.Astokes.copy()
         v = self._split(u)[0]
-        X[0] += self.computeMatrixConvection(v)
+        # X[0] += self.computeMatrixConvection(v)
+        X.A += self.computeMatrixConvection(v)
         # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         self.timer.add('matrix')
         return X
@@ -67,11 +70,9 @@ class NavierStokes(Stokes):
         self.femv.massDotBoundary(dv, vdir, colors=colorsdirichlet, ncomp=self.ncomp, coeff=np.minimum(self.convdata.betart, 0))
         for icomp in range(dim):
             self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
-
     def computeMatrixConvection(self, v):
         A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
         return self.femv.matrix2systemdiagonal(A, self.ncomp).tocsr()
-
     def computeBdryNormalFluxNitsche(self, v, p, colors):
         ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
         flux = super().computeBdryNormalFluxNitsche(v,p,colors)
@@ -90,7 +91,8 @@ class NavierStokes(Stokes):
         #     yv = self._split(y)[0]
         #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
         try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=None, linearsolver=self.linearsolver, rtol=rtol)
+            # u, niter = self.linearSolver(self.A, bin=b, uin=None, linearsolver=self.linearsolver, rtol=rtol)
+            u, niter = self.linearSolver(self.A, bin=b, uin=None, rtol=rtol)
         except Warning:
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')

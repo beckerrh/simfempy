@@ -41,7 +41,7 @@ def main(**kwargs):
         model = Stokes(mesh=mesh, problemdata=data, **modelargs)
     else:
         # model = NavierStokes(mesh=mesh, problemdata=data, hdivpenalty=10)
-        model = NavierStokes(mesh=mesh, problemdata=data, **modelargs)
+        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='spsolve', **modelargs)
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")

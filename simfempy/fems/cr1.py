@@ -10,11 +10,12 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
 from simfempy.tools import barycentric, npext, checkmmatrix
-from simfempy import fems
 from simfempy.meshes import move, plotmesh
+from simfempy.fems import p1general
+import simfempy.fems.data, simfempy.fems.rt0
 
 #=================================================================#
-class CR1(fems.fem.Fem):
+class CR1(p1general.P1general):
     def __init__(self, kwargs={}, mesh=None):
         super().__init__(mesh=mesh)
         for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
@@ -44,10 +45,10 @@ class CR1(fems.fem.Fem):
         return unodes
     def prepareAdvection(self, beta, scale):
         method = self.params_str['convmethod']
-        rt = fems.rt0.RT0(self.mesh)
+        rt = simfempy.fems.rt0.RT0(self.mesh)
         betart = scale*rt.interpolate(beta)
         beta = rt.toCell(betart)
-        convdata = fems.data.ConvectionData(beta=beta, betart=betart)
+        convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
         dim = self.mesh.dimension
         self.mesh.constructInnerFaces()
         if method == 'upwalg' or method == 'lps':
@@ -78,8 +79,8 @@ class CR1(fems.fem.Fem):
         normals, facesOfCells, dV = self.mesh.normals, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     # strong bc
-    def prepareBoundary(self, colorsdir, colorsflux=[]):
-        bdrydata = fems.data.BdryData()
+    def _prepareBoundary(self, colorsdir, colorsflux=[]):
+        bdrydata = simfempy.fems.data.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint32)
         bdrydata.colorsdir = colorsdir
         for color in colorsdir:
@@ -91,8 +92,10 @@ class CR1(fems.fem.Fem):
             facesdir = self.mesh.bdrylabels[color]
             bdrydata.facesdirflux[color] = facesdir
         return bdrydata
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir, coeff=1, lumped=False):
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir=None, bdrycondfct=None, coeff=1, lumped=False):
         if self.params_str['dirichletmethod'] != 'nitsche': return
+        if udir is None:
+            udir = self.interpolateBoundary(colorsdir, bdrycondfct)
         nitsche_param=self.params_float['nitscheparam']
         assert udir.shape[0] == self.mesh.nfaces
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
@@ -152,9 +155,11 @@ class CR1(fems.fem.Fem):
             # flux[i] /= np.sum(dS)
         return flux
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
+        if self.params_str['dirichletmethod']=="nitsche": return
         facesdirall = bdrydata.facesdirall
         du[facesdirall] = u[facesdirall]
     def vectorBoundaryStrongZero(self, du, bdrydata):
+        if self.params_str['dirichletmethod']=="nitsche": return
         du[bdrydata.facesdirall] = 0
     def vectorBoundaryStrong(self, b, bdrycond, bdrydata):
         method = self.params_str['dirichletmethod']
@@ -366,9 +371,11 @@ class CR1(fems.fem.Fem):
         A = self.computeMatrixTransportCellWise(data, type='centered')
         # moins bon en L2, mais meilleur en H1
         # A += self.computeMatrixJump(betart)
-        self.diffalg = checkmmatrix.diffudsionForMMatrix(A)
+        self.diffalg = checkmmatrix.diffusionForMMatrix(A)
         return A + self.diffalg
     def computeMatrixTransportUpwind(self, data, method):
+        return self.computeMatrixTransportUpwindAlg(data)
+
         beta, betart, mus = data.beta, data.betart, data.md.mus
         nfaces, ncells, dim, dV = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.mesh.dV
         normalsS, foc, cof = self.mesh.normals, self.mesh.facesOfCells, self.mesh.cellsOfFaces
@@ -616,6 +623,8 @@ class CR1(fems.fem.Fem):
         else: raise ValueError(f"unknown type {type=}")
         np.add.at(du, foc, mat)
         self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
+    def computeFormTransportUpwind(self, du, u, data, method):
+        return self.computeFormTransportUpwindAlg(du, u, data)
     def computeFormTransportUpwindAlg(self, du, u, data):
         self.computeFormTransportCellWise(du, u, data, type='centered')
         if hasattr(self,'diffalg'):

@@ -25,7 +25,7 @@ def _plotCellLabels(tets, xc, yc, zc, ax=plt):
     for i in range(len(tets)):
         ax.text(xc[i], yc[i], zc[i], r'%d' % (i), color='r', fontweight='bold', fontsize=10)
 #=================================================================#
-def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, nodelabels=False, ax=plt):
+def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     # if nodelabels: _plotNodeLabels(x, y, z, ax=ax)

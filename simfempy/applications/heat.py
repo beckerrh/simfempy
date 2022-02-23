@@ -46,6 +46,7 @@ class Heat(Application):
         fem = kwargs.pop('fem','p1')
         if fem == 'p1': self.fem = fems.p1.P1(kwargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(kwargs)
+        elif fem == 'rt0': self.fem = fems.rt0elliptic.RTelliptic(kwargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
         self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
         super().__init__(**kwargs)
@@ -56,8 +57,7 @@ class Heat(Application):
         self.fem.setMesh(self.mesh)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        if self.fem.params_str['dirichletmethod'] != 'nitsche':
-            self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
         self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
         self.problemdata.params.scal_glob.setdefault('rhocp',1)
         # TODO: non-constant rhocp
@@ -152,18 +152,12 @@ class Heat(Application):
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.fem.computeFormDiffusion(du, u, self.kheatcell)
-        if self.fem.params_str['dirichletmethod']=="new":
-            self.fem.formBoundary(du, u, self.bdrydata, self.fem.params_str['dirichletmethod'])
-        elif self.fem.params_str['dirichletmethod']=="nitsche":
-            self.fem.computeFormNitscheDiffusion(du, u, self.kheatcell, colorsdir)
-        # elif self.fem.params_str['dirichletmethod']=="strong":
-        #     self.fem.vectorBoundaryStrongEqual(u, self.b, self.bdrydata, self.fem.params_str['dirichletmethod'])
+        self.fem.formBoundary(du, u, self.bdrydata, self.kheatcell, colorsdir)
         if self.convection:
             self.fem.computeFormConvection(du, u, self.convdata)
         if coeffmass is not None:
             self.fem.massDot(du, u, coeff=coeffmass)
-        if self.fem.params_str['dirichletmethod']=="strong":
-            self.fem.vectorBoundaryStrongEqual(du, u, self.bdrydata)
+        self.fem.vectorBoundaryStrongEqual(du, u, self.bdrydata)
         if not np.allclose(du,du2):
             # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
             raise ValueError(f"\n{du=}\n{du2=}")
@@ -179,7 +173,8 @@ class Heat(Application):
             A += self.fem.computeMatrixConvection(self.convdata)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
-        if hasattr(self, 'bdrydata'):
+        # if hasattr(self, 'bdrydata'):
+        if self.bdrydata:
             A = self.fem.matrixBoundaryStrong(A, self.bdrydata)
         return A
     def computeRhs(self, b=None, coeffmass=None, u=None):
@@ -200,13 +195,18 @@ class Heat(Application):
             self.fem.massDotCell(b, fp1)
         if 'rhspoint' in self.problemdata.params.fct_glob:
             self.fem.computeRhsPoint(b, self.problemdata.params.fct_glob['rhspoint'])
-        if self.fem.params_str['dirichletmethod'] in ['strong','new'] and not hasattr(self.bdrydata,"A_inner_dir"):
-            raise ValueError("matrix() has to be called befor computeRhs()")
-        if self.fem.params_str['dirichletmethod']=="new":
-            self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata, self.fem.params_str['dirichletmethod'])
-        elif self.fem.params_str['dirichletmethod']=="nitsche":
-            fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
-            self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, fp1)
+        # if self.fem.params_str['dirichletmethod'] in ['strong','new'] and not hasattr(self.bdrydata,"A_inner_dir"):
+        #     raise ValueError(f"matrix() has to be called before computeRhs() {self.fem.params_str['dirichletmethod']=}")
+
+        # if self.fem.params_str['dirichletmethod']=="new":
+        #     self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata, self.fem.params_str['dirichletmethod'])
+        # if self.fem.params_str['dirichletmethod']=="nitsche":
+        #     fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
+        #     self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, fp1)
+        # print(f"{type(bdrycond.fct)=}")
+        self.fem.computeRhsNitscheDiffusion(b, self.kheatcell, colorsdir, udir=None, bdrycondfct=bdrycond.fct)
+        self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
+
         if self.convection:
             fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0))

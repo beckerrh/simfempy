@@ -63,6 +63,8 @@ class P1sys(femsys.Femsys):
         for color, nodes in nodesdir.items():
             if color in bdryfct:
                 # dirichlets = bdryfct[color](x[nodes], y[nodes], z[nodes])
+                if len(bdryfct[color])!=ncomp:
+                    raise ValueError(f"{color=} {len(bdryfct[color])=} {ncomp=}")
                 dirichlets = np.vstack([f(x[nodes], y[nodes], z[nodes]) for f in bdryfct[color]])
                 for icomp in range(ncomp):
                     help[icomp + ncomp * nodes] = dirichlets[icomp]

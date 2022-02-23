@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from simfempy.meshes import plotmesh1d, plotmesh2d, plotmesh3d
 import meshio
 

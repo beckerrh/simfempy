@@ -19,6 +19,7 @@ def test(testcase, **kwargs):
     # applicationargs['scalels'] = True
     paramsdict = {'mu@scal_glob': [1]}
     paramsdict['linearsolver'] = ['pyamg_gmres@full@100@0', 'pyamg_fgmres@full@100@0', 'scipy_gcrotmk@full@20@0']
+    paramsdict['linearsolver'] = ['pyamg_gmres@full@100@0']
     paramsdict['solver_v'] = ['pyamg@aggregation@none@gauss_seidel@1@0']
     # paramsdict['solver_p'] = ['scale', 'diag@pyamg@aggregation@none@gauss_seidel@1@0', 'schur@pyamg_cg@@3@0', 'schur_scale@pyamg_cg@@3@0', 'schur_diag@pyamg_cg@@3@0']
     paramsdict['solver_p'] = ['diag@pyamg@aggregation@cg@gauss_seidel@6@0', 'schur|diag@pyamg_cg@@6@0']

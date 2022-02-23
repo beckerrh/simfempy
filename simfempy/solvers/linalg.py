@@ -29,6 +29,82 @@ def _getSolver(args):
         raise ValueError(f"unknwown {method=}")
 
 
+#=================================================================#
+class SaddlePointSystem():
+    """
+    A -B.T
+    B  0
+     or
+    A -B.T 0
+    B  0   M^T
+    0  M   0
+    """
+    def __init__(self, A, B, M=None):
+        self.A, self.B = A, B
+        self.na, self.nb = A.shape[0], B.shape[0]
+        self.nall = self.na + self.nb
+        if M is not None:
+            self.M = M
+            self.nm = M.shape[0]
+            self.nall += self.nm
+        self.constr = hasattr(self, 'M')
+        self.matvec = self.matvec3 if self.constr else self.matvec2
+    def copy(self):
+        M = None
+        if hasattr(self, 'M'): M = self.M.copy()
+        return SaddlePointSystem(self.A.copy(), self.B.copy(), M)
+    def scaleAb(self, b):
+        assert not self.constr
+        DA = self.A.diagonal()
+        assert np.all(DA>0)
+        AD = sparse.diags(1/DA, offsets=(0), shape=self.A.shape)
+        DS = (self.B@AD@self.B.T).diagonal()
+        print(f"{DA.max()=} {DA.min()=} {DS.max()=} {DS.min()=}")
+        assert np.all(DS>0)
+        na = self.A.shape[0]
+        nb = self.B.shape[0]
+        # DA = np.ones(na)
+        # DS = np.ones(nb)
+        # SD = sparse.diags(DS, offsets=(0), shape=(nb,nb))
+        self.vs = sparse.diags(np.power(DA, -0.5), offsets=(0), shape=self.A.shape)
+        # self.ps = sparse.identity(self.A.shape[0])
+        self.ps = sparse.diags(np.power(DS, -0.5), offsets=(0), shape=(nb,nb))
+        # self.ps = sparse.identity(nb)
+        # self.vsi = sparse.diags(np.power(DA, 0.5), offsets=(0), shape=self.A.shape)
+        # self.psi = sparse.diags(np.power(DS, 0.5), offsets=(0), shape=(nb,nb))
+        self.A = self.vs@self.A@self.vs
+        self.B = self.ps@self.B@self.vs
+        bv, bp = b[:self.na], b[self.na:]
+        b[:self.na] = self.vs@bv
+        b[self.na:] = self.ps@bp
+    def scaleu(self, u):
+        v, p = u[:self.na], u[self.na:]
+        u[:self.na] = self.vs@v
+        u[self.na:] = self.ps@p
+    def matvec3(self, x):
+        v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
+        w = self.A.dot(v) - self.B.T.dot(p)
+        q = self.B.dot(v)+ self.M.T.dot(lam)
+        return np.hstack([w, q, self.M.dot(p)])
+    def matvec2(self, x):
+        v, p = x[:self.na], x[self.na:]
+        w = self.A.dot(v) - self.B.T.dot(p)
+        q = self.B.dot(v)
+        return np.hstack([w, q])
+    def to_single_matrix(self):
+        nullP = sparse.dia_matrix((np.zeros(self.nb), 0), shape=(self.nb, self.nb))
+        A1 = sparse.hstack([self.A, -self.B.T])
+        A2 = sparse.hstack([self.B, nullP])
+        Aall = sparse.vstack([A1, A2])
+        if not hasattr(self, 'M'):
+            return Aall.tocsr()
+        nullV = sparse.coo_matrix((1, self.na)).tocsr()
+        ML = sparse.hstack([nullV, self.M])
+        Abig = sparse.hstack([Aall, ML.T])
+        nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
+        Cbig = sparse.hstack([ML, nullL])
+        Aall = sparse.vstack([Abig, Cbig])
+        return Aall.tocsr()
 #-------------------------------------------------------------------#
 def getSolver(**kwargs):
     """
@@ -209,78 +285,6 @@ class Pyamg(IterativeSolver):
         super().__init__(**kwargs)
         self.args['cycle'] = 'V'
         self.args['accel'] = self.accel
-#=================================================================#
-class SaddlePointSystem():
-    """
-    A -B.T
-    B  0
-     or
-    A -B.T 0
-    B  0   M^T
-    0  M   0
-    """
-    def __init__(self, A, B, M=None):
-        self.A, self.B = A, B
-        self.na, self.nb = A.shape[0], B.shape[0]
-        self.nall = self.na + self.nb
-        if M is not None:
-            self.M = M
-            self.nm = M.shape[0]
-            self.nall += self.nm
-        self.constr = hasattr(self, 'M')
-        self.matvec = self.matvec3 if self.constr else self.matvec2
-    def scaleAb(self, b):
-        assert not self.constr
-        DA = self.A.diagonal()
-        assert np.all(DA>0)
-        AD = sparse.diags(1/DA, offsets=(0), shape=self.A.shape)
-        DS = (self.B@AD@self.B.T).diagonal()
-        print(f"{DA.max()=} {DA.min()=} {DS.max()=} {DS.min()=}")
-        assert np.all(DS>0)
-        na = self.A.shape[0]
-        nb = self.B.shape[0]
-        # DA = np.ones(na)
-        # DS = np.ones(nb)
-        # SD = sparse.diags(DS, offsets=(0), shape=(nb,nb))
-        self.vs = sparse.diags(np.power(DA, -0.5), offsets=(0), shape=self.A.shape)
-        # self.ps = sparse.identity(self.A.shape[0])
-        self.ps = sparse.diags(np.power(DS, -0.5), offsets=(0), shape=(nb,nb))
-        # self.ps = sparse.identity(nb)
-        # self.vsi = sparse.diags(np.power(DA, 0.5), offsets=(0), shape=self.A.shape)
-        # self.psi = sparse.diags(np.power(DS, 0.5), offsets=(0), shape=(nb,nb))
-        self.A = self.vs@self.A@self.vs
-        self.B = self.ps@self.B@self.vs
-        bv, bp = b[:self.na], b[self.na:]
-        b[:self.na] = self.vs@bv
-        b[self.na:] = self.ps@bp
-    def scaleu(self, u):
-        v, p = u[:self.na], u[self.na:]
-        u[:self.na] = self.vs@v
-        u[self.na:] = self.ps@p
-    def matvec3(self, x):
-        v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
-        w = self.A.dot(v) - self.B.T.dot(p)
-        q = self.B.dot(v)+ self.M.T.dot(lam)
-        return np.hstack([w, q, self.M.dot(p)])
-    def matvec2(self, x):
-        v, p = x[:self.na], x[self.na:]
-        w = self.A.dot(v) - self.B.T.dot(p)
-        q = self.B.dot(v)
-        return np.hstack([w, q])
-    def to_single_matrix(self):
-        nullP = sparse.dia_matrix((np.zeros(self.nb), 0), shape=(self.nb, self.nb))
-        A1 = sparse.hstack([self.A, -self.B.T])
-        A2 = sparse.hstack([self.B, nullP])
-        Aall = sparse.vstack([A1, A2])
-        if not hasattr(self, 'M'):
-            return Aall.tocsr()
-        nullV = sparse.coo_matrix((1, self.na)).tocsr()
-        ML = sparse.hstack([nullV, self.M])
-        Abig = sparse.hstack([Aall, ML.T])
-        nullL = sparse.dia_matrix((np.zeros(1), 0), shape=(1, 1))
-        Cbig = sparse.hstack([ML, nullL])
-        Aall = sparse.vstack([Abig, Cbig])
-        return Aall.tocsr()
 #=================================================================#
 class PressureSolverScale():
     def __repr__(self):

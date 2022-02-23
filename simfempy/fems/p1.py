@@ -7,10 +7,12 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-from simfempy import fems, tools, meshes
+from simfempy import tools, meshes
+from simfempy.fems import p1general
+import simfempy.fems.data, simfempy.fems.rt0
 
 #=================================================================#
-class P1(fems.fem.Fem):
+class P1(p1general.P1general):
     def __init__(self, kwargs={}, mesh=None):
         super().__init__(mesh=mesh)
         for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
@@ -25,10 +27,10 @@ class P1(fems.fem.Fem):
         self.cellgrads = self.computeCellGrads()
     def prepareAdvection(self, beta, scale):
         method = self.params_str['convmethod']
-        rt = fems.rt0.RT0(self.mesh)
+        rt = simfempy.fems.rt0.RT0(self.mesh)
         betart = scale*rt.interpolate(beta)
         beta = rt.toCell(betart)
-        convdata = fems.data.ConvectionData(beta=beta, betart=betart)
+        convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
         if method == 'upwalg':
              return convdata 
         elif method == 'lps':
@@ -64,8 +66,8 @@ class P1(fems.fem.Fem):
         return scale*(normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     def tonode(self, u): return u
     #  bc
-    def prepareBoundary(self, colorsdir, colorsflux=[]):
-        bdrydata = fems.data.BdryData()
+    def _prepareBoundary(self, colorsdir, colorsflux=[]):
+        bdrydata = simfempy.fems.data.BdryData()
         bdrydata.nodesdir={}
         bdrydata.nodedirall = np.empty(shape=(0), dtype=self.mesh.faces.dtype)
         for color in colorsdir:
@@ -131,19 +133,26 @@ class P1(fems.fem.Fem):
             b[nodedirall] = bdrydata.A_dir_dir * help[nodedirall]
         return b
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
+        if self.params_str['dirichletmethod']=="nitsche": return
         nodedirall = bdrydata.nodedirall
         du[nodedirall] = u[nodedirall]
     def vectorBoundaryStrongZero(self, du, bdrydata):
+        if self.params_str['dirichletmethod']=="nitsche": return
         du[bdrydata.nodedirall] = 0
-    def formBoundary(self, du, u, bdrydata, dirichletmethod):
-        assert(dirichletmethod=='new')
-        nodedirall = bdrydata.nodedirall
-        # du[nodedirall] += bdrydata.A_dir_dir.dot(u[nodedirall])
-        du[nodedirall] += bdrydata.A_dir_dir*u[nodedirall]
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, fp1, coeff=1):
+    def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
+        method = self.params_str['dirichletmethod']
+        if method=='new':
+            nodedirall = bdrydata.nodedirall
+            du[nodedirall] += bdrydata.A_dir_dir*u[bdrydata.nodedirall]
+        elif method == "nitsche":
+            self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
+
+    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir=None, bdrycondfct=None, coeff=1):
         if self.params_str['dirichletmethod'] != 'nitsche': return
+        if udir is None:
+            udir = self.interpolateBoundary(colorsdir, bdrycondfct)
         nitsche_param=self.params_float['nitscheparam']
-        assert fp1.shape[0]==self.mesh.nnodes
+        assert udir.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
         massloc = tools.barycentric.tensor(d=dim - 1, k=2)
         massloc = np.diag(np.sum(massloc,axis=1))
@@ -152,10 +161,10 @@ class P1(fems.fem.Fem):
         dS = linalg.norm(normalsS, axis=1)
         simp, dV = self.mesh.simplices[cells], self.mesh.dV[cells]
         dS *= nitsche_param * coeff * diffcoff[cells] * dS / dV
-        r = np.einsum('n,kl,nl->nk', dS, massloc, fp1[nodes])
+        r = np.einsum('n,kl,nl->nk', dS, massloc, udir[nodes])
         np.add.at(b, nodes, r)
         cellgrads = self.cellgrads[cells, :, :dim]
-        u = fp1[nodes].mean(axis=1)
+        u = udir[nodes].mean(axis=1)
         mat = np.einsum('f,fk,fik->fi', coeff*u*diffcoff[cells], normalsS, cellgrads)
         np.add.at(b, simp, -mat)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):

@@ -140,7 +140,7 @@ class CR1sys(femsys.Femsys):
             np.add.at(dv[icomp::ncomp], foc, r)
     def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp):
         for icomp in range(ncomp):
-            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[:,icomp])
+            self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir=udir[:,icomp], bdrycondfct=None)
     def computeRhsNitscheDiffusionNormal(self, b, diffcoff, colors, udir, ncomp):
         faces = self.mesh.bdryFaces(colors)
         normalsS = self.mesh.normals[faces][:,:ncomp]
@@ -149,11 +149,11 @@ class CR1sys(femsys.Femsys):
         if udir.shape[0] == self.mesh.nfaces*ncomp:
             for icomp in range(ncomp):
                 for jcomp in range(ncomp):
-                    self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir[jcomp::ncomp], coeff=normals[:,icomp]*normals[:,jcomp])
+                    self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir=udir[jcomp::ncomp], bdrycondfct=None, coeff=normals[:,icomp]*normals[:,jcomp])
         else:
             assert udir.shape[0] == self.mesh.nfaces
             for icomp in range(ncomp):
-                self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir, coeff=normals[:,icomp])
+                self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir=udir, bdrycondfct=None, coeff=normals[:,icomp])
     def massDotBoundary(self, b, f, colors, ncomp, coeff=1):
         for icomp in range(ncomp):
             self.fem.massDotBoundary(b[icomp::ncomp], f[icomp::ncomp], colors=colors, coeff=coeff)

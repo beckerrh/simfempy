@@ -39,7 +39,7 @@ data.params.set_scal_cells("kheat", [100], 0.001)
 data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
-heat = Heat(mesh=mesh, problemdata=data, fem='cr1')
+heat = Heat(mesh=mesh, problemdata=data, fem='p1')
 static = True
 if static:
     # run static

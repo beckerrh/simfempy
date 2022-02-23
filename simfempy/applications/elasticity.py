@@ -24,14 +24,6 @@ class Elasticity(Application):
     def material2Lame(self, material):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
-    # def setParameters(self, mu, lam):
-    #     ra
-    #     self.mu, self.lam = mu, lam
-    #     self.mufct = np.vectorize(lambda j: mu)
-    #     self.lamfct = np.vectorize(lambda j: lam)
-    #     if hasattr(self,'mesh'):
-    #         self.mucell = self.mufct(self.mesh.cell_labels)
-    #         self.lamcell = self.lamfct(self.mesh.cell_labels)
     def __init__(self, **kwargs):
         fem = kwargs.pop('fem', 'p1')
         ncomp = kwargs['problemdata'].ncomp
@@ -45,8 +37,6 @@ class Elasticity(Application):
             self.innersides=True
         else:
             raise ValueError("unknown fem '{}'".format(fem))
-        # material = kwargs.pop('material', "Acier")
-        # self.setParameters(*self.material2Lame(material))
         super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)

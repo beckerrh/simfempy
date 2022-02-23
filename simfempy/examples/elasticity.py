@@ -31,7 +31,7 @@ def main():
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithBoundaries(mesh, fig=fig, outer=outer[0])
     # plotmesh.meshWithData(mesh, data=result.data, title="Elast", alpha=1, fig=fig, outer=outer[1])
-    plotmesh.meshWithData(mesh, data=result.data, title="Elast", alpha=1)
+    # plotmesh.meshWithData(mesh, data=result.data, title="Elast", alpha=1)
     plt.show()
 
 
@@ -58,7 +58,9 @@ def createProblemData():
     # boundary conditions
     data.bdrycond.set("Dirichlet", [100, 102])
     data.bdrycond.set("Neumann", [101])
-    data.bdrycond.fct[102] = lambda x, y, z: np.vstack((np.ones(x.shape),-np.ones(x.shape)))
+    # data.bdrycond.fct[102] = lambda x, y, z: np.vstack((np.ones(x.shape),-np.ones(x.shape)))
+    data.bdrycond.fct[102] = [lambda x, y, z: np.ones(x.shape),lambda x, y, z: -np.ones(x.shape),lambda x, y, z:np.zeros(x.shape)]
+    data.ncomp=3
     # postprocess
     # data.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
     # paramaters in equation
