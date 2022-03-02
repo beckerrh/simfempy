@@ -123,6 +123,8 @@ class P1general(fem.Fem):
     def prepareBoundary(self, colorsdirichlet, colorsflux):
         if self.params_str['dirichletmethod'] == 'nitsche': return None
         return self._prepareBoundary(colorsdirichlet, colorsflux)
+    def computeMatrixRobin(self, colorsrobin, param, lumped=False):
+        return self.computeBdryMassMatrix(colorsrobin, param, lumped)
 
 # ====================================================================================
 

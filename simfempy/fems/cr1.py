@@ -226,7 +226,7 @@ class CR1(p1general.P1general):
                 mask = foc != faces[:, np.newaxis]
                 fi = foc[mask].reshape(foc.shape[0], foc.shape[1] - 1)
                 normalsS = self.mesh.normals[faces]
-                dS = linalg.norm(normalsS,axis=1)
+                dS = linalg.norm(normalsS, axis=1)
                 normalsS = normalsS/dS[:,np.newaxis]
                 nx, ny, nz = normalsS.T
                 x, y, z = self.mesh.pointsf[faces].T
@@ -409,7 +409,7 @@ class CR1(p1general.P1general):
             mat = np.einsum('n,i->ni', dbS[faces], matloc).ravel()
             A -= sparse.coo_matrix((mat, (cols,rows0)), shape=(nfaces, nfaces))
             A += self.computeMatrixJump(betart, mode='dual')
-            A += self.computeBdryMassMatrix(coeff=np.maximum(betart, 0), lumped=False)
+            A += self.computeMatrixRobin(coeff=np.maximum(betart, 0), lumped=False)
             # B = self.computeMatrixTransportCellWise(type='centered')
             # if not np.allclose(A.tocsr().A,B.tocsr().A):
             #     raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
@@ -429,7 +429,7 @@ class CR1(p1general.P1general):
         mat = np.einsum('n,ni->ni', dbS[faces], 1-dim*mus[ci0]).ravel()
         A += sparse.coo_matrix((mat, (rows0,cols)), shape=(nfaces, nfaces))
         A += self.computeMatrixJump(betart, mode='primal')
-        A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
+        A -= self.computeMatrixRobin(coeff=np.minimum(betart, 0), lumped=False)
         # B = self.computeMatrixTransportSupg(bdrylumped=False, method='supg')
         # if not np.allclose(A.tocsr().A,B.tocsr().A):
         #     raise ValueError(f"{A.diagonal()=}\n{B.diagonal()=}")
@@ -459,7 +459,7 @@ class CR1(p1general.P1general):
         # mat = np.einsum('n,i->ni', dbS[faces], matloc).ravel()
         # A += sparse.coo_matrix((mat, (rows0,cols)), shape=(nfaces, nfaces))
         #
-        # A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
+        # A -= self.computeMatrixRobin(coeff=np.minimum(betart, 0), lumped=False)
         # A += self.computeMatrixJump(betart, mode='primal')
 
         # B = self.computeMatrixTransportCellWise(type='centered')
@@ -500,7 +500,7 @@ class CR1(p1general.P1general):
         # cols[m] = self.rows[m]
         # A = sparse.coo_matrix((mat, (self.rows, cols)), shape=(nfaces, nfaces))
         # # A += self.computeMatrixJump(betart, mode='primal')
-        # A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0))
+        # A -= self.computeMatrixRobin(coeff=np.minimum(betart, 0))
     def computeMatrixTransportSupg(self, data, method):
         beta, betart, mus = data.beta, data.betart, data.md.mus
         if method=='supg2':

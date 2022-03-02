@@ -149,6 +149,7 @@ class CompareMethods(object):
                     method.paramname = param
                     # method.setParameter(self.paramname, param)
                 result = method.solve(self.dirname)
+                print(f"{result=}")
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, parameters[-1])

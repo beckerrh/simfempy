@@ -44,10 +44,16 @@ class BoundaryConditions(object):
             if color in self.type.keys(): raise ValueError(f"attempt to defone {type=}, butalready defined b.c {color} as {self.type[color]=}")
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]
-    def colorsOfType(self, type):
+    # def colorsOfType(self, type):
+    #     colors = []
+    #     for color, typeofcolor in self.type.items():
+    #         if typeofcolor == type: colors.append(color)
+    #     return colors
+    def colorsOfType(self, types):
+        if isinstance(types, str): types = [types]
         colors = []
         for color, typeofcolor in self.type.items():
-            if typeofcolor == type: colors.append(color)
+            if typeofcolor in types: colors.append(color)
         return colors
     def check(self, colors):
         colors = set(colors)

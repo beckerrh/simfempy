@@ -183,7 +183,7 @@ class CR1sys(femsys.Femsys):
         A = sparse.coo_matrix((ncomp*nfaces, ncomp*nfaces))
         for i in range(ncomp):
             for j in range(i,ncomp):
-                Aij = self.fem.computeBdryMassMatrix(colors, coeff*normalsS[:,i]*normalsS[:,j]/dS**2)
+                Aij = self.fem.computeBdryMassMatrix(colors, coeff * normalsS[:, i] * normalsS[:, j] / dS ** 2)
                 A += self.matrix2system(Aij, ncomp, i, j)
                 if i!=j: A += self.matrix2system(Aij, ncomp, j, i)
         return A
