@@ -178,7 +178,7 @@ class EllipticPrimal(EllipticBase):
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         A = self.fem.computeMatrixDiffusion(self.kheatcell)
         A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colors=colorsdir)
-        A += self.fem.computeMatrixRobin(colorsrobin, bdrycond.param, lumped=True)
+        A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         # A += self.fem.computeMatrixNeumann(colorsneumann, bdrycond.param)
         if self.convection:
             A += self.fem.computeMatrixConvection(self.convdata)
@@ -351,7 +351,7 @@ class EllipticMixed(EllipticBase):
         colorsrobin = bdrycond.colorsOfType("Robin")
         A = self.rt.constructMass(self.divcoeffinv)
         B = self.rt.constructDiv()
-        A += self.rt.computeMatrixRobin(colorsrobin, bdrycond.param)
+        A += self.rt.computeBdryMassMatrix(colorsrobin, bdrycond.param)
         if self.convection:
             raise NotImplementedError(f"convection for rt")
         if coeffmass is not None:
@@ -435,7 +435,7 @@ class EllipticMixed(EllipticBase):
         un = self.rt.reconstruct(u, sigmac, self.divcoeffinv)
         data['point']['U'] = un
         for i in range(dim):
-            data['cell']['v{:1d}'.format(i)] = sigmac[i::dim]
+            data['cell']['v{:1d}'.format(i)] = sigmac[:,i]
         if self.problemdata.solexact:
             erru, errs, errun, ue, se = self.computeError(self.problemdata.solexact, u, sigmac, un)
             # print("vexx", vexx)

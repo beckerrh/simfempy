@@ -15,10 +15,10 @@ We consider the parabolic equation for the temperature $T$, heat flux $\vec{q}$ 
 \left\{
 \begin{aligned}
 \vec{q} = - \kdiff \nabla T\\
-\rho C_p \dt{T} + \div\left(\vec{v} T\right)+\div\vec{q} = \dot{q} \quad \mbox{in $\Omega$}\\
+\rho C_p \dt{T} + \div\left(\vec{v} T\right)+\div\vec{q} = \dot{q} \quad \mbox{on $\Omega$}\\
 T = \TD \quad \mbox{in $\GammaD$}\\
-\kdiff\frac{\partial T}{\partial n} = \qN \quad \mbox{in $\GammaN$}\\
-c_R T + \kdiff\frac{\partial T}{\partial n}= \qR \quad \mbox{in $\GammaR$}
+\kdiff\frac{\partial T}{\partial n} = \qN \quad \mbox{on $\GammaN$}\\
+c_R T + \kdiff\frac{\partial T}{\partial n}= \qR \quad \mbox{on $\GammaR$}
 \end{aligned}
 \right.
 %
@@ -26,7 +26,7 @@ c_R T + \kdiff\frac{\partial T}{\partial n}= \qR \quad \mbox{in $\GammaR$}
 \end{yellowbox}
 %
 \begin{yellowbox}[Heat equation (weak formulation)]
-Let $H^1_{\phi}:= \SetDef{u\in H^1(\Omega)}{\Rest{T}{\GammaD} = \phi}$. The standard weak formulation looks for 
+Let $H^1_{\phi}:= \SetDef{T\in H^1(\Omega)}{\Rest{T}{\GammaD} = \phi}$. The standard weak formulation looks for 
 $T\in H^1_{\TD}$ such that for all $\phi\in H^1_{0}(\Omega)$
 %
 \begin{equation}\label{eq:HeatEquationWeak}
@@ -61,78 +61,6 @@ and then with the different boundary conditions, we find
 %
 \begin{align*}
 \int_{\GammaN\cup\GammaR} \vec{q}_n\phi = \int_{\GammaD} \qN\phi + \int_{\GammaR}\left(\qR - c_R T\right)\phi
-\end{align*}
-%
-%
-%-------------------------------------------------------------------------
-\subsection{Boundary conditions}\label{subsec:}
-%-------------------------------------------------------------------------
-%
-%
-%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-\subsubsection{Nitsche's method}
-%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%
-%
-\begin{equation}\label{eq:laplace:weakform}
-%
-\left\{
-\begin{aligned}
-&u_h\in V_h:\quad a_{\Omega}(u_h, \phi) + a_{\partial\Omega}(u_h,\phi) = l_{\Omega}(\phi)+l_{\partial\Omega}(\phi) \quad\forall \phi\in V_h\\
-&\begin{aligned}
-a_{\Omega}(v,\phi) &:= \int_{\Omega} \mu \nabla u\cdot\nabla\phi \\
- a_{\partial\Omega}(v,\phi) &:= \int_{\GammaD}\frac{\gamma\mu}{h}u\phi - 
- \int_{\GammaD}\mu \left(  \dn{u} \phi + u  \dn{\phi}\right) \\
- l_{\Omega}(\phi) &:= \int_{\Omega} f\phi, \quad
- l_{\partial\Omega}(\phi) = \int_{\GammaD}\mu\uD\left( \frac{\gamma}{h}\phi - \dn{\phi}\right)
-\end{aligned}
-\end{aligned}
-\right.
-%
-\end{equation}
-%
-Let $-\div(\mu \nabla z)= 0$ and $\Rest{z}{\GammaD}=1$ and $\Rest{z}{\GammaN}=0$. Then
-%
-\begin{align*}
-\int_{\Omega} \mu \nabla u\cdot\nabla z -\int_{\Omega} fz =&  \int_{\Omega} \left( \mu \nabla u\cdot\nabla z + \div(\mu \nabla u)z\right) 
-= \int_{\GammaD}\mu\dn{u}.
-\end{align*}
-%
-Now, if $z_h\in V_h$ such that $z-z_h\in H^1_0(\Omega)$ 
-%
-\begin{align*}
-\int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla(z-z_h) =& \int_{\Omega} f(z-z_h) -\int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h)\\
-=&\int_{\Omega} fz - \int_{\Omega} \mu \nabla u_h\cdot\nabla z + \int_{\Omega} \mu \nabla u_h\cdot\nabla(z-z_h) -\int_{\Omega} fz_h\\
-=&-\int_{\GammaD}\mu\dn{u}+ \int_{\Omega} \mu \nabla (u-u_h)\cdot\nabla z 
-+ \int_{\GammaD}\mu(\uD-u_h)\left( \frac{\gamma}{h}z_h - \dn{z_h}\right)+ \int_{\GammaD}\mu \dn{u_h}\\
-=&\int_{\GammaD}\mu \dn{u_h}+ \int_{\GammaD}(\uD-u_h)\frac{\mu\gamma}{h} -\int_{\GammaD}\mu\dn{u}
-+ \int_{\GammaD}\mu(u-u_h) \dn{(z-z_h)},
-\end{align*}
-%
-so we get a possibly second-order approximation of the flux by
-%
-\begin{equation}\label{eq:}
-F_h := \int_{\GammaD}\mu \dn{u_h}+ \int_{\GammaD}(\uD-u_h)\frac{\mu\gamma}{h}.
-\end{equation}
-%
-%
-%-------------------------------------------------------------------------
-\subsection{Computation of the matrices for $\Pspace_h^1(\Omega)$}\label{subsec:}
-%-------------------------------------------------------------------------
-%
-For the convection, we suppose that $\vec{v}\in \RT^0_h(\Omega)$ and let for given $K\in\Cells_h$ 
-$\vec{v}=\sum_{k=1}^{d+1} v_k \Phi_k$. Using
-%
-\begin{align*}
-x_k = x_{S_k}^K,\quad h_k = h_{S_k}^K, \quad \sigma_k = \sigma_{S_k}^K, n_k = n_{S_k}
-\end{align*}
-%
-we compute
-%
-\begin{align*}
-\int_K \lambda_j \vec{v}\cdot \nabla \lambda_i = \sum_{k=1}^{d+1} v_k \int_K \lambda_j \Phi_k\cdot \nabla \lambda_i\\
-\int_K \lambda_j \Phi_k\cdot \nabla \lambda_i = -\frac{\sigma_k \sigma_i}{h_kh_i} \int_K  \lambda_j (x-x_k) \cdot n_i
-= -\frac{\sigma_k \sigma_i}{h_kh_i} \sum_{l=1}^{d+1} (x_l-x_k) \cdot n_i \int_K  \lambda_j\lambda_l 
 \end{align*}
 %
 

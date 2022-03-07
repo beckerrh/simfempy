@@ -269,7 +269,7 @@ class RT0(fems.fem.Fem):
         return pn2
     # def rhsDirichlet(self, faces, ud):
     #     return linalg.norm(self.mesh.normals[faces],axis=1) * ud
-    def computeMatrixRobin(self, colors, param):
+    def computeBdryMassMatrix(self, colors, param):
         nfaces = self.mesh.nfaces
         rows = np.empty(shape=(0), dtype=int)
         cols = np.empty(shape=(0), dtype=int)

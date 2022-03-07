@@ -173,7 +173,7 @@ class Heat(Application):
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         A = self.fem.computeMatrixDiffusion(self.kheatcell)
         A += self.fem.computeMatrixNitscheDiffusion(diffcoff=self.kheatcell, colors=colorsdir)
-        A += self.fem.computeMatrixRobin(colorsrobin, bdrycond.param, lumped=True)
+        A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         # A += self.fem.computeMatrixNeumann(colorsneumann, bdrycond.param)
         if self.convection:
             A += self.fem.computeMatrixConvection(self.convdata)

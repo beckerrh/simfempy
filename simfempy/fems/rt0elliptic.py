@@ -22,7 +22,7 @@ class RTelliptic(fems.fem.Fem):
     #     B = self.rt.constructDiv()
     #     return A,B
     #
-    # def computeMatrixRobin(self, colorsrobin, param, lumped=False):
+    # def computeBdryMassMatrix(self, colorsrobin, param, lumped=False):
     #     return  self.rt.constructRobin(colorsrobin, param), None
     #     raise NotImplementedError
     # def computeMatrixNeumann(self, colorsneumann, param):

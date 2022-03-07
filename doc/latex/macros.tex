@@ -1,32 +1,19 @@
 % !TEX root = simfempy.tex
 %
-
 %----------------------------------------
 %
 \usepackage{imakeidx}
 \makeindex[columns=2, title=Index alphabétique, intoc]
-
-\usepackage{ifluatex}
 %
 \usepackage{amsmath,amssymb,amsthm,latexsym}
 % default !!
 \usepackage[hmargin=2.5cm, top=3.cm, bottom=3.cm]{geometry}
 \usepackage{stmaryrd}
 %
-%---------------------------------------------
-\ifluatex
-\usepackage{csquotes}
-\usepackage[english]{babel}
-\usepackage[no-math]{fontspec}
-\setmainfont{Palatino}
-\usepackage[OT1,euler-digits]{eulervm}
-%---------------------------------------------
-\else
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc} % un second package
 \usepackage[english]{babel}
 \usepackage{eulervm,palatino}
-\fi
 %---------------------------------------------
 %
 \usepackage{hyperref}
@@ -41,17 +28,12 @@
 \usepackage[backend=bibtex,sorting=none,firstinits=true, style=numeric, doi=false,isbn=false,url=false]{biblatex}
 \bibliography{../../Bibliotheque/bibliotheque.bib}
 
-%\usepackage{makeidx}
-%\makeindex
-
 %---------------------------------------------
 \usepackage[toc,page]{appendix}
 \usepackage{arydshln}
 %
 \renewcommand{\thefigure}{\thesection.\arabic{figure}}
 \numberwithin{equation}{section}
-
-
 
 %---------------------------------------------------------
 \newtheorem*{theorem*}{Theorem}
@@ -112,8 +94,8 @@
 }
 %----------------------------------------
 % Spaces
-\newcommand\TildeHdiv[1][\Omega]{\widetilde{H}_{\rm div}(#1)}
-\newcommand\Hdiv[1][\Omega]{H_{\rm div}(#1)}
+\newcommand\TildeHdiv[1][\Omega]{\widetilde{H}({\rm div},#1)}
+\newcommand\Hdiv[1][\Omega]{H({\rm div},#1)}
 %\newcommand\Hdiv[1][]{\ifstrempty{#1}{H({\rm div},\Omega)}{H({\rm div},#1)}}
 %\newcommand{\Hdivzero}{H_0({\rm div},\Omega)}
 \newcommand\Hcurl[1]{H_{\rm curl}(#1)}
@@ -289,6 +271,8 @@
 %
 \newcommand{\northo}{{n^{\perp}}}
 \newcommand{\uD}{u^{\rm D}}
+%\newcommand{\uN}{u^{\rm N}}
+\newcommand{\uR}{u^{\rm R}}
 \newcommand{\uDir}{u^{\rm D}}
 \newcommand{\udir}{u^{\rm D}}
 \newcommand{\uNeu}{u^{\rm N}}
@@ -307,58 +291,6 @@
 \newcommand{\vD}{v^{\rm D}}
 %
 \newcommand{\pitang}{\pi_{n^{\perp}}}
-
-
-
-
-
-%%----------------------------------------------
-%\usepackage[many,breakable,skins]{tcolorbox}
-%\usepackage{marginnote}
-%\usepackage{xcolor}
-%\usepackage[a4paper,margin=2.4cm]{geometry}
-%\usepackage{amsmath,amssymb,amsthm,latexsym}
-%%\usepackage[top=Bcm, bottom=Hcm, outer=Ccm, inner=Acm, heightrounded, marginparwidth=Ecm, marginparsep=Dcm]{geometry}
-%%
-%%----------------------------------------------
-%\usepackage[utf8]{inputenc}
-%\usepackage[T1]{fontenc}
-%\usepackage[english]{babel}
-%\usepackage{eulervm,palatino}
-%%----------------------------------------------
-%%
-%\usepackage{hyperref}
-%\usepackage{url}
-%\usepackage[french,algoruled,lined]{algorithm2e}
-%\usepackage{listings}
-%\usepackage[many,breakable]{tcolorbox}
-%\usepackage{cancel}
-%\usepackage[toc,page]{appendix}
-%\usepackage{stmaryrd}
-%%---------------------------------------------------------
-%\newcommand{\margincomment}[2][0cm]{\marginnote{\textcolor{blue}{#2}}[#1]}
-%\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
-%  \node[shape=circle,draw,inner sep=1pt] (char) {#1};}}
-%%---------------------------------------------------------
-%\usepackage{thmtools}
-%\renewcommand\thmcontinues[1]{continued}
-%\declaretheorem[style=definition,numberwithin=section]{example}
-%\declaretheorem[style=remark,numberwithin=section]{remark}
-%\newtheorem{definition}{Definition}[section]
-%\newtheorem{proposition}{Proposition}[section]
-%\newtheorem{lemma}{Lemma}[section]
-%\newtheorem{theorem}{Theorem}[section]
-%%\newtheorem{remark}{Remark}[section]
-%\newtheorem{corollary}{Corollary}[section]
-%\numberwithin{equation}{section}
-%\renewcommand{\thefigure}{\thesection.\arabic{figure}}
-%%---------------------------------------------------------
-%\newenvironment{uglyproof}{\begin{proof}\color{gray}}{\end{proof}}
-%%
-%%----------------------------------------
-%\usepackage[backend=biber, bibencoding=utf8, defernumbers=true, refsection=section, giveninits=true, doi=false,isbn=false,url=false]{biblatex}
-%\addbibresource{/Users/becker/Latex/Bibliotheque/bibliotheque.bib}
-%
 %%----------------------------------------
 %\definecolor{myyellow}{rgb}{0.9, 0.9, 0.01}
 %\definecolor{myblue}{rgb}{0.004, 0.1, 0.57}
@@ -378,22 +310,6 @@
 \definecolor{yellowlight}{rgb}{0.999, 0.999, 0.85}
 \newenvironment{yellowbox}[1][]{\begin{tcolorbox}[title={#1} , boxrule=2pt, colback=yellowlight]}{\end{tcolorbox}}
 %%-------PYTHON--------------------
-%\usepackage{listings}
-%%\usepackage{fontspec}
-%%\newfontfamily\listingsfont[Scale=.7]{DejaVu Sans Mono}
-%\lstset{ 
-%  backgroundcolor=\color{graylighy},
-%  basicstyle=\linespread{0.8}\ttfamily,
-%%  basicstyle=\ttfamily\footnotesize,
-%  breaklines=true,
-%  commentstyle=\color{mygreen},
-%  deletekeywords={...},
-%  escapeinside={\%*}{*)},
-%  frame=single,
-%  showstringspaces=false,
-%  language=Python,
-%  keywordstyle = \color{myblue}
-%}
 \newcommand{\python}[1]{\textcolor{myblue}{\textbf{\tt{#1}}}}
 %\newcommand{\pythonvar}[1]{\textcolor{mygreen}{\textbf{\tt{#1}}}}
 %\newcommand{\pythonkey}[1]{\textcolor{myviolet}{\textbf{\tt{#1}}}}
@@ -402,48 +318,9 @@
 %%----------------------------------------
 %% Spaces
 %\newcommand\TildeHdiv[1][\Omega]{\widetilde{H}_{\rm div}(#1)}
-%\newcommand\Hdiv[1][\Omega]{H_{\rm div}(#1)}
-%%\newcommand\Hdiv[1][]{\ifstrempty{#1}{H({\rm div},\Omega)}{H({\rm div},#1)}}
-%%\newcommand{\Hdivzero}{H_0({\rm div},\Omega)}
-%\newcommand\Hcurl[1]{H_{\rm curl}(#1)}
-%\newcommand{\Pkhom}[1]{P_{\rm hom}^{#1}}
-%\newcommand{\Phom}{\Pkhom{k}}
-%\newcommand{\multin}{\mathcal I_n}
 %%----------------------------------------
 %% FEM
 \newcommand{\xup}[1][K]{x_{#1}^{\sharp}}
-%\newcommand{\xdown}[1][K]{x_{#1}^{\flat}}
-%\newcommand{\ind}{{\tt ind}}
-%\newcommand{\hK}[1][K]{d_{#1}} 
-%\newcommand{\h}{d_h} 
-%\newcommand{\Cspace}{\mathcal{C}}
-%\newcommand{\Dspace}{\mathcal{D}}
-%\newcommand{\Pspace}{\mathcal{P}}
-%\newcommand{\Qspace}{\mathcal{Q}}
-%\newcommand{\CR}{\mathcal{C\!R}}
-%\newcommand{\RT}{\mathcal{R\!T}}
-%\newcommand{\Ned}{N}
-%\newcommand{\allmeshes}{\mathcal H}
-%%\newcommand{\allmeshes}{\mathcal H(\Omega)}
-%\newcommand{\Edges}{\mathcal E}
-%\newcommand{\Sides}{\mathcal S}
-%\newcommand{\Cells}{\mathcal K}
-%\newcommand{\Nodes}{\mathcal N}
-%\newcommand{\NodesInt}{{\mathcal N}^{int}}
-%\newcommand{\level}{\operatorname{lev}}
-%\newcommand{\SidesInt}{\mathcal S^{\rm int}}
-%\newcommand{\SidesBdry}{\mathcal S^{\partial}}
-%\newcommand{\meanS}[1]{\left\{\{#1\right\}_{S}}
-%\newcommand{\jumpS}[1]{\left[#1\right]_{S}}
-%\newcommand{\jump}[1]{\left[#1\right]}
-%\newcommand{\mean}[1]{\left\{#1\right\}}
-%%
-%%----------------------------------------
-%% meshes
-%%
-%\newcommand{\normal}[1][]{\vec{n}_{#1}}
-%
-%
 %%----------------------------------------
 %% parameters
 %%
