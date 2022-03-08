@@ -123,6 +123,7 @@ class LatexWriter(object):
         self.dirname += os.sep + "tex"
         if not os.path.isdir(self.dirname): os.makedirs(self.dirname)
         self.latexfilename = os.path.join(self.dirname, filename)
+        # raise ValueError(f"{self.latexfilename=}")
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0

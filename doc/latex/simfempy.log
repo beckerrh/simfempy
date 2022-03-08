@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.23)  4 MAR 2022 19:57
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.23)  8 MAR 2022 17:00
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1996,7 +1996,7 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (27 pages, 340567 bytes).
+Output written on simfempy.pdf (27 pages, 340577 bytes).
 PDF statistics:
  592 PDF objects out of 1000 (max. 8388607)
  530 compressed objects within 6 object streams

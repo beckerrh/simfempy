@@ -280,7 +280,7 @@ class RT0(fems.fem.Fem):
             dS = linalg.norm(normalsS, axis=1)
             cols = np.append(cols, faces)
             rows = np.append(rows, faces)
-            mat = np.append(mat, 1 / param[color] * dS)
+            mat = np.append(mat,  dS/param[color])
         A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
         return A
         # nfaces = self.mesh.nfaces

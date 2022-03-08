@@ -120,17 +120,13 @@ class EllipticBase(Application):
     def defineRobinAnalyticalSolution(self, problemdata, color):
         solexact = problemdata.solexact
         alpha = problemdata.bdrycond.param[color]
-        # alpha = 1
+        kheat = self.problemdata.params.scal_glob['kheat']
         def _fctrobin(x, y, z, nx, ny, nz):
-            kheat = self.problemdata.params.scal_glob['kheat']
             rhs = np.zeros(x.shape)
             normals = nx, ny, nz
-            # print(f"{alpha=}")
-            # rhs += alpha*solexact(x, y, z)
-            rhs += solexact(x, y, z)
+            rhs += alpha*solexact(x, y, z)
             for i in range(self.mesh.dimension):
-                # rhs += kheat * solexact.d(i, x, y, z) * normals[i]
-                rhs += kheat * solexact.d(i, x, y, z) * normals[i]/alpha
+                rhs += kheat * solexact.d(i, x, y, z) * normals[i]
             return rhs
         return _fctrobin
     def setParameter(self, paramname, param):
@@ -223,7 +219,8 @@ class EllipticPrimal(EllipticBase):
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0))
         #Fourier-Robin
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
-        self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
+        # self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=bdrycond.param)
+        self.fem.massDotBoundary(b, fp1, colors=colorsrobin, lumped=True, coeff=1)
         #Neumann
         fp1 = self.fem.interpolateBoundary(colorsneu, bdrycond.fct)
         self.fem.massDotBoundary(b, fp1, colorsneu)
@@ -366,9 +363,6 @@ class EllipticMixed(EllipticBase):
         colorsrobin = bdrycond.colorsOfType("Robin")
         colorsdirrobin = bdrycond.colorsOfType(["Dirichlet","Robin"])
         colorsneu = bdrycond.colorsOfType("Neumann")
-        xf, yf, zf = self.mesh.pointsf.T
-        xc, yc, zc = self.mesh.pointsc.T
-        normals =  self.mesh.normals
         if 'rhs' in self.problemdata.params.fct_glob:
             fp1 = self.d0.interpolate(self.problemdata.params.fct_glob['rhs'])
             self.d0.massDot(bcells, fp1)
@@ -383,6 +377,7 @@ class EllipticMixed(EllipticBase):
                 ud = bdrycond.fct[color](xf, yf, zf, nx, ny, nz)
             except:
                 ud = bdrycond.fct[color](xf, yf, zf)
+            if color in colorsrobin: dS /= bdrycond.param[color]
             bsides[faces] += dS * ud
             if self.convection:
                 faces = self.mesh.bdrylabels[color]
@@ -413,16 +408,6 @@ class EllipticMixed(EllipticBase):
         bsides[self.bdrydata.facesinner] -= self.bdrydata.A_inner_neum*help[self.bdrydata.facesneumann]
         bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
         bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
-
-        # for robin
-        for color in colorsrobin:
-            if not color in bdrycond.fct or not bdrycond.fct[color]: continue
-            normalsS = self.mesh.normals[faces]
-            dS = np.linalg.norm(normalsS,axis=1)
-            normalsS = normalsS/dS[:,np.newaxis]
-            xf, yf, zf = self.mesh.pointsf[faces].T
-            nx, ny, nz = normalsS.T
-            bsides[faces] += bdrycond.fct[color](xf, yf, zf, nx, ny, nz) * dS/bdrycond.param[color]
         return bsides, bcells
     def postProcess(self, uin):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
@@ -515,7 +500,7 @@ class EllipticMixed(EllipticBase):
         return Aall.tocsr()
     def linearSolver(self, Ain, bin, u=None, solver = None, verbose=0):
         if solver is None: solver = self.linearsolver
-        if solver == 'direct':
+        if solver == 'spsolve':
             # print("bin", bin)
             Aall = self._to_single_matrix(Ain)
             b = np.concatenate((bin[0], bin[1]))

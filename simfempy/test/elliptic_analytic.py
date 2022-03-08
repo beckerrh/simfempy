@@ -41,7 +41,7 @@ def test(dim, **kwargs):
     data.bdrycond.set("Dirichlet", colorsdir)
     data.bdrycond.set("Neumann", colorsneu)
     data.bdrycond.set("Robin", colorsrob)
-    for col in colorsrob: data.bdrycond.param[col] = 11.
+    for col in colorsrob: data.bdrycond.param[col] = 100.
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
@@ -58,7 +58,8 @@ if __name__ == '__main__':
 
     # test dirichletmethod
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='spsolve', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=True)
-    test(dim=3, exactsolution = 'Linear', fem=['rt0'], niter=3, kheat=1, linearsolver='direct')
+    test(dim=2, exactsolution = 'Linear', fem=['rt0'], niter=3, kheat=1.2, linearsolver='spsolve')
+    # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=3, kheat=1.2, linearsolver='spsolve')
     # test(dim=2, exactsolution = 'Linear', fem=['p1','cr1'], niter=3 , linearsolver='spsolve', dirichletmethod=['nitsche','strong'], kheat=1, plotsolution=False)
     # test convection
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=6, h1=2, convection=["0.8","1.1"], convmethod=['upw', 'lps', 'supg'], dirichletmethod=['nitsche'], kheat=0.0, linearsolver='spsolve', plotsolution=True)
