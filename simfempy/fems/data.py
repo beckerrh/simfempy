@@ -16,4 +16,4 @@ class ConvectionData(object):
     Information for boundary conditions
     """
     def __init__(self, **kwargs):
-        self.beta, self.betart, self.md = kwargs.pop('beta',None), kwargs.pop('betart',None), kwargs.pop('md',None)
+        self.betacell, self.betart, self.md = kwargs.pop('betacell',None), kwargs.pop('betart',None), kwargs.pop('md',None)

@@ -46,7 +46,7 @@ class Beam(Application):
             rhs = solexact.d(0, x, y, z) * nx
             return rhs
         return solexact, _fctneumann
-    def solve(self, iter, dirname): return self.static(iter, dirname)
+    # def solve(self, iter, dirname): return self.static(iter, dirname)
     def setMesh(self, mesh):
         assert mesh.dimension == 1
         super().setMesh(mesh)
@@ -100,7 +100,8 @@ class Beam(Application):
             dn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
             print(f"{dn=} {x[faces]=} {nx=} {faces=}")
             b[faces] += dn
-        return (a,b,c), u
+        return a,b,c
+        # return (a, b, c), u
     def postProcess(self, uin):
         data = {'point':{}, 'cell':{}, 'global':{}}
         u,w,l = uin
@@ -123,7 +124,7 @@ class Beam(Application):
         A3 = sparse.hstack([C, null2, null3])
         Aall = sparse.vstack([A1, A2, A3]).tocsr()
         assert np.allclose(Aall.data, Aall.T.data)
-        print(f"A=\n{Aall.toarray()}")
+        # print(f"A=\n{Aall.toarray()}")
         return Aall
     def linearSolver(self, Ain, bin, uin=None, verbose=0):
         n = self.fem.nunknowns()

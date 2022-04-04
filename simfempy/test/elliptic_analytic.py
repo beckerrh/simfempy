@@ -55,10 +55,12 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     #TODO: pyamg in 1d/3d accel=bicgstab doesn't <ork
     #TODO: p1-new-robin wrong
+    #TODO: cr1-lps-supg wrong
 
     # test dirichletmethod
     # test(dim=2, exactsolution = 'Quadratic', fem=['cr1','p1'], niter=6, linearsolver='spsolve', dirichletmethod=['nitsche'], kheat=0.12, plotsolution=True)
-    test(dim=2, exactsolution = 'Linear', fem=['rt0'], niter=3, kheat=1.2, linearsolver='spsolve')
+    # test(dim=2, exactsolution = 'Linear', fem=['rt0'], niter=3, kheat=1.2, convection=["0.8","1.1"], linearsolver='spsolve')
+    test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=3, kheat=1.2, convection=["0.8","1.1"], convmethod=['lps', 'supg'], linearsolver='spsolve')
     # test(dim=2, exactsolution = 'Linear', fem=['p1'], niter=3, kheat=1.2, linearsolver='spsolve')
     # test(dim=2, exactsolution = 'Linear', fem=['p1','cr1'], niter=3 , linearsolver='spsolve', dirichletmethod=['nitsche','strong'], kheat=1, plotsolution=False)
     # test convection

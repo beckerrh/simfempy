@@ -17,7 +17,7 @@ class P1(p1general.P1general):
         super().__init__(mesh=mesh)
         for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
             self.params_bool[p] = kwargs.pop(p, v)
-        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
+        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'supg']):
             self.params_str[p] = kwargs.pop(p, v)
         if self.params_str['dirichletmethod'] == 'nitsche':
             self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)
@@ -27,32 +27,32 @@ class P1(p1general.P1general):
         self.cellgrads = self.computeCellGrads()
     def prepareAdvection(self, beta, scale):
         method = self.params_str['convmethod']
-        rt = simfempy.fems.rt0.RT0(self.mesh)
+        rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
         betart = scale*rt.interpolate(beta)
-        beta = rt.toCell(betart)
-        convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
+        betacell = rt.toCell(betart)
+        convdata = simfempy.fems.data.ConvectionData(betacell=betacell, betart=betart)
         if method == 'upwalg':
              return convdata 
         elif method == 'lps':
             self.mesh.constructInnerFaces()
             return convdata 
         elif method == 'supg':
-            md = meshes.move.move_midpoints(self.mesh, beta)
+            md = meshes.move.move_midpoints(self.mesh, betacell)
             # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'supg2':
-            md = meshes.move.move_midpoints(self.mesh, beta, extreme=True)
+            md = meshes.move.move_midpoints(self.mesh, betacell, extreme=True)
             # self.md.plot(self.mesh, beta, type='midpoints')
         elif method == 'upwalg':
             pass
         elif method == 'upw':
-            md = meshes.move.move_nodes(self.mesh, -beta)
+            md = meshes.move.move_nodes(self.mesh, -betacell)
             # self.md.plot(self.mesh, beta)
         elif method == 'upw2':
-            md = meshes.move.move_nodes(self.mesh, -beta, second=True)
+            md = meshes.move.move_nodes(self.mesh, -betacell, second=True)
             # self.md.plot(self.mesh, beta)
         elif method == 'upwsides':
             self.mesh.constructInnerFaces()
-            md = meshes.move.move_midpoints(self.mesh, -beta)
+            md = meshes.move.move_midpoints(self.mesh, -betacell)
         else:
             raise ValueError(f"don't know {method=}")
         convdata.md = md
@@ -379,11 +379,11 @@ class P1(p1general.P1general):
     def computeMatrixTransportCellWise(self, data, type):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if type=='centered':
-            beta, mus = data.beta, np.full(dim+1,1.0/(dim+1))
+            beta, mus = data.betacell, np.full(dim+1,1.0/(dim+1))
             mat = np.einsum('n,njk,nk,i -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         elif type=='supg':
-            beta, mus = data.beta, data.md.mus
+            beta, mus = data.betacell, data.md.mus
             mat = np.einsum('n,njk,nk,ni -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         else: raise ValueError(f"unknown type {type=}")

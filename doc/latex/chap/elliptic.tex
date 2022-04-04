@@ -115,7 +115,7 @@ q := A\nabla u, \quad q\in Q_{\phi} := \SetDef{q\in \Hdiv}{\Rest{q}{\GammaN}=\ph
 \begin{aligned}
 &(u,q) \in L^2(\Omega)\times Q_{\qN}\\
 &\int_{\Omega} Cq\cdot p +  \frac{1}{\alpha}\int_{\GammaR} q_np_n+ \int_{\Omega} u\div p &=& \int_{\GammaD}\uD p_n+ \frac{1}{\alpha}\int_{\GammaR}\uR p_n&\quad &\forall p\in Q_0\\
-&\int_{\Omega} v\div q + \int_{\Omega} (b\cdot\nabla u + cu)v&=& \int_{\Omega} fv &\quad&\forall v\in L^2(\Omega).
+&\int_{\Omega} v\div q - \int_{\Omega} (b\cdot\nabla u + cu)v&=& -\int_{\Omega} fv &\quad&\forall v\in L^2(\Omega).
 \end{aligned}
 \right.
 % 

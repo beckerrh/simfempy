@@ -15,9 +15,10 @@ class RT0(fems.fem.Fem):
     """
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """
-    def __init__(self, mesh=None, massproj=None):
+    def __init__(self, kwargs={}, mesh=None):
         super().__init__(mesh=mesh)
-        self.massproj=massproj
+        for p, v in zip(['massproj', 'convmethod'], ['standard', 'supg']):
+            self.params_str[p] = kwargs.pop(p, v)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Mtocell = self.toCellMatrix()
@@ -55,7 +56,8 @@ class RT0(fems.fem.Fem):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.dimension+1, self.mesh.simplices
         p, pc, pf = self.mesh.points, self.mesh.pointsc, self.mesh.pointsf
-        if self.massproj is None:
+        massproj = self.params_str['massproj']
+        if massproj == 'standard':
             # RT
             scalea = 1 / dim / dim / (dim + 2) / (dim + 1)
             scaleb = 1 / dim / dim / (dim + 2) * (dim + 1)
@@ -78,7 +80,7 @@ class RT0(fems.fem.Fem):
             # print("A (RT)", A)
             return A
 
-        elif self.massproj=="L2":
+        elif massproj=="L2":
             # RT avec projection L2
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
             ps = p[simp][:,:,:dim]
@@ -91,7 +93,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces)).tocsr()
             # print("A (RTM)", A)
             return A
-        elif self.massproj == "RT_Bar":
+        elif massproj == "RT_Bar":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             scale = 1/ (dim+1)
             scale = 2/9
@@ -102,7 +104,7 @@ class RT0(fems.fem.Fem):
             cols = np.tile(facesofcells, self.nloc).ravel()
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr()
-        elif self.massproj == "Bar_RT":
+        elif massproj == "Bar_RT":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             scale = 1/ (dim+1)
             scale = 2/9
@@ -114,7 +116,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
-        elif self.massproj == "Hat_RT":
+        elif massproj == "Hat_RT":
             # PG de type RT-Hat (Hat aligned with "m")
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -131,7 +133,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
-        elif self.massproj == "Hat_Hat":
+        elif massproj == "Hat_Hat":
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
             ps2 = np.transpose(ps, axes=(2, 0, 1))
@@ -147,7 +149,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr()
 
-        elif self.massproj=="RT_Tilde":
+        elif massproj=="RT_Tilde":
             # PG de type RT-Tilde (Hat aligned with "n")
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             dT = 1/linalg.norm(normals[facesofcells], axis=2)
@@ -169,7 +171,7 @@ class RT0(fems.fem.Fem):
             # print("A (RTxTilde)", A)
             return A
 
-        elif self.massproj=="Tilde_RT":
+        elif massproj=="Tilde_RT":
             # PG de type RT-Tilde (Hat aligned with "n")
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             dT = 1/linalg.norm(normals[facesofcells], axis=2)
@@ -188,7 +190,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.tocsr().T
 
-        elif self.massproj=="HatxRTOLD":
+        elif massproj=="HatxRTOLD":
             # PG de type Tilde-RT
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -206,7 +208,7 @@ class RT0(fems.fem.Fem):
             # print("A (HatxRT)", A)
             return A
 
-        elif self.massproj=="RTxHatOLD":
+        elif massproj=="RTxHatOLD":
             # PG de type RT-Hat (Hat aligned with "m")
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -223,7 +225,7 @@ class RT0(fems.fem.Fem):
             A = sparse.coo_matrix((mat.ravel(), (rows, cols)), shape=(nfaces, nfaces))
             return A.T.tocsr()
 
-        elif self.massproj=="HatxHatOLD":
+        elif massproj=="HatxHatOLD":
             # G de type Tilde-Tilde
             dS = sigma * linalg.norm(normals[facesofcells], axis=2)
             ps = p[simp][:, :, :dim]
@@ -238,7 +240,7 @@ class RT0(fems.fem.Fem):
             return A
 
         else:
-            raise ValueError("unknown type self.massproj={}".format(self.massproj))
+            raise ValueError(f"unknown type {massproj=}")
     def constructDiv(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         nloc = self.mesh.dimension+1
@@ -255,10 +257,10 @@ class RT0(fems.fem.Fem):
         # print(f"{counts=}")
         pn2 = np.zeros(nnodes)
         xdiff = self.mesh.points[simp, :dim] - self.mesh.pointsc[:, np.newaxis,:dim]
-        rows = np.repeat(simp,dim)
-        cols = np.repeat(dim*np.arange(ncells),dim*(dim+1)).reshape(ncells * (dim+1), dim) + np.arange(dim)
-        mat = np.einsum("nij, n -> nij", xdiff, diffinv)
-        A = sparse.coo_matrix((mat.reshape(-1), (rows.reshape(-1), cols.reshape(-1))), shape=(nnodes, dim*ncells)).tocsr()
+        # rows = np.repeat(simp,dim)
+        # cols = np.repeat(dim*np.arange(ncells),dim*(dim+1)).reshape(ncells * (dim+1), dim) + np.arange(dim)
+        # mat = np.einsum("nij, n -> nij", xdiff, diffinv)
+        # A = sparse.coo_matrix((mat.reshape(-1), (rows.reshape(-1), cols.reshape(-1))), shape=(nnodes, dim*ncells)).tocsr()
         np.add.at(pn2, simp, p[:,np.newaxis])
         assert vc.shape[1]==dim and vc.shape[0]==ncells
         # raise ValueError(f"{nnodes=} {ncells=} {self.mesh.points.shape=} {xdiff.shape=}")
@@ -283,20 +285,6 @@ class RT0(fems.fem.Fem):
             mat = np.append(mat,  dS/param[color])
         A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
         return A
-        # nfaces = self.mesh.nfaces
-        # rows = np.empty(shape=(0), dtype=int)
-        # cols = np.empty(shape=(0), dtype=int)
-        # mat = np.empty(shape=(0), dtype=float)
-        # for color, faces in self.mesh.bdrylabels.items():
-        #     if bdrycond.type[color] != type: continue
-        #     if not bdrycond.param[color]: continue
-        #     normalsS = self.mesh.normals[faces]
-        #     dS = linalg.norm(normalsS, axis=1)
-        #     cols = np.append(cols, faces)
-        #     rows = np.append(rows, faces)
-        #     mat = np.append(mat, 1/bdrycond.param[color] * dS)
-        # A = sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-        # return A
 
     def prepareBoundary(self, colorsneumann):
         bdrydata = fems.data.BdryData()
@@ -307,24 +295,15 @@ class RT0(fems.fem.Fem):
         return bdrydata
     def matrixNeumann(self, A, B, bdrydata):
         nfaces = self.mesh.nfaces
-        # bdrydata = fems.bdrydata.BdryData()
-        # bdrydata.facesneumann = np.empty(shape=(0), dtype=int)
-        # bdrydata.colorsneum = bdrycond.colorsOfType("Neumann")
-        # for color in bdrydata.colorsneum:
-        #     bdrydata.facesneumann = np.unique(np.union1d(bdrydata.facesneumann, self.mesh.bdrylabels[color]))
-        # bdrydata.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int), bdrydata.facesneumann)
-
         bdrydata.B_inner_neum = B[:, :][:, bdrydata.facesneumann]
         help = np.ones(nfaces)
         help[bdrydata.facesneumann] = 0
         help = sparse.dia_matrix((help, 0), shape=(nfaces, nfaces))
         B = B.dot(help)
-
         bdrydata.A_inner_neum = A[bdrydata.facesinner, :][:, bdrydata.facesneumann]
         bdrydata.A_neum_neum = A[bdrydata.facesneumann, :][:, bdrydata.facesneumann]
         help2 = np.zeros((nfaces))
         help2[bdrydata.facesneumann] = 1
         help2 = sparse.dia_matrix((help2, 0), shape=(nfaces, nfaces))
         A = help.dot(A.dot(help)) + help2.dot(A.dot(help2))
-
         return A, B, bdrydata

@@ -46,7 +46,6 @@ class Heat(Application):
         fem = kwargs.pop('fem','p1')
         if fem == 'p1': self.fem = fems.p1.P1(kwargs)
         elif fem == 'cr1': self.fem = fems.cr1.CR1(kwargs)
-        elif fem == 'rt0': self.fem = fems.rt0elliptic.RTelliptic(kwargs)
         else: raise ValueError("unknown fem '{}'".format(fem))
         self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
         super().__init__(**kwargs)

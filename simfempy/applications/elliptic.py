@@ -145,8 +145,8 @@ class EllipticPrimal(EllipticBase):
         else: raise ValueError("unknown fem '{}'".format(fem))
         super().__init__(**kwargs)
     def setMesh(self, mesh):
+        self.fem.setMesh(mesh)
         super().setMesh(mesh)
-        self.fem.setMesh(self.mesh)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
@@ -231,7 +231,6 @@ class EllipticPrimal(EllipticBase):
             self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         return b
     def postProcess(self, u):
-        # TODO: virer 'error' et 'postproc'
         data = {'point':{}, 'cell':{}, 'global':{}}
         # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
         data['point']['U'] = self.fem.tonode(u)
@@ -330,7 +329,7 @@ class EllipticPrimal(EllipticBase):
 # ================================================================= #
 class EllipticMixed(EllipticBase):
     def __init__(self, **kwargs):
-        self.rt = fems.rt0.RT0()
+        self.rt = fems.rt0.RT0(kwargs)
         self.d0 = fems.d0.D0()
         self.fem = "RT0-D0"
         super().__init__(**kwargs)
