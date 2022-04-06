@@ -80,26 +80,43 @@ In addition let $h_i:=x_i-x_{i-1}$ and $x_{i-\frac12}:= \frac{x_{i-1}+x_{i}}{2}$
 We consider the case of a left and right clamped beam. Noticing that, with $u'$ the piecewise derivative of $u\in \Pspace^2_h$, we have
 %
 \begin{equation}\label{eq:beam_C1P2}
-u\in C^1(\Omega) \quad\Leftrightarrow\quad \int_{\Omega} \left(u'\phi'_i + u''\phi_i\right)=0 \quad\forall 1\le i< N,
+u\in C^1(\Omega) 
+\quad\Leftrightarrow\quad \sum_{j=1}^{N-1} \jump{u'}\phi(x_j)=0 \quad\forall 1\le i< N,
+\quad\Leftrightarrow\quad \int_{\Omega} \left(u'\phi'_i + u''\phi_i\right)=0 \quad\forall 1\le i< N,
 \end{equation}
 %
 we define
 %
 \begin{equation}\label{eq:beam_Vh}
-V_h := \SetDef{v\in \Pspace^2_h}{\int_{\Omega} \left(v'\phi'_i + v''\phi_i\right)=0 \quad\forall 0\le i\le N}\cap H^1_0(\Omega).
+V_h := \SetDef{v\in \Pspace^2_h}{\int_{\Omega} \left(v'\phi'_i + v''\phi_i\right)=0 \quad\forall 1\le i< N}\cap H^1_0(\Omega).
 \end{equation}
 %
 and the discrete problem is
 %
 \begin{equation}\label{eq:beam_varinfh}
-\inf\SetDef{\frac12\int_{\Omega}EI \left(\frac{d^2 w}{dx^2}\right)^2 - l(w)}{w\in V_h}.
+\inf\SetDef{\frac12\int_{\Omega}EI \left(w''\right)^2 - l(w)}{w\in V_h}.
 \end{equation}
 %
 For the implementation we consider (\ref{eq:beam_varinfh}) as a constrained minimization and use the representation in terms of the indicated basis and a lagrange multiplier
 %
 \begin{equation}\label{eq:}
-w = \sum_{j=0}^N \alpha_j \phi_j +  \sum_{j=1}^N \beta_j \psi_j,\quad \lambda := \sum_{j=0}^N \gamma_j \phi_j.
+u = \sum_{j=0}^N \alpha_j \phi_j +  \sum_{j=1}^N \beta_j \psi_j =: u_1 + u_2,\quad \lambda := \sum_{j=0}^N \gamma_j \phi_j.
 \end{equation}
+%
+We notice that the constraints can be written as
+%
+\begin{align*}
+\int_{\Omega} \left(u_1'\phi'_i + u_2''\phi_i\right)=0 \quad\forall 1\le i< N
+\end{align*}
+%
+and the stationarity of the functional as
+%
+\begin{align*}
+\int_{\Omega}EIu_2''v_2'' +  \int_{\Omega} \left(v_1'\lambda' + v_2''\lambda\right)=\int_{\Omega}f(v_1+v_2)\quad \forall v=v_1+v_2\in V_h.
+\end{align*}
+%
+
+
 %
 Then the discrete system reads
 %
