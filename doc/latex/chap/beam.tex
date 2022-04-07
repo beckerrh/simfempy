@@ -6,15 +6,18 @@
 %
 \newcommand{\primitive}[3]{\left[{#1}\right]_{#2}^{#3}}
 %
+We consider the beam equation with standard boundary conditions. 
+Let $\Gamma_C\subset\partial\Omega$, $\Gamma_S\subset\partial\Omega$, and $\Gamma_F\subset\partial\Omega$ be the points where the clamped, simply supported and fixed boundary conditions hold.
+%
 \begin{equation}\label{eq:beam_strong}
 \begin{aligned}
-\frac{d^2}{dx^2} (EI \frac{d^2 w}{dx^2})(x) = q(x)\quad \Omega=]0;L[\\
+&\frac{d^2}{dx^2} (EI \frac{d^2 w}{dx^2})(x) = q(x)\quad \Omega=]0;L[\\
 %
-\left\{
+&\left\{
 \begin{aligned}
-w(x) = \frac{d w}{dx}(x) =& 0 &\quad\mbox{(clamped end)}\\
-w(x) = \frac{d^2 w}{dx^2}(x) =& 0 &\quad\mbox{(simply supported end)}\\
-\frac{d^2 w}{dx^2}(x) = \frac{\alpha}{EI}, \frac{d^3 w}{dx^3}(x) =& \frac{\beta}{EI}&\quad\mbox{(free end with forces)}
+w(x) = \frac{d w}{dx}(x) =& 0 &\quad\mbox{on $\Gamma_C$}&\quad\mbox{(clamped end)}\\
+w(x) = \frac{d^2 w}{dx^2}(x) =& 0 &\quad\mbox{on $\Gamma_S$} &\quad\mbox{(simply supported end)}\\
+\frac{d^2 w}{dx^2}(x) = \frac{\alpha}{EI},\; \frac{d^3 w}{dx^3}(x) =& \frac{\beta}{EI} &\quad\mbox{on $\Gamma_F$}&\quad\mbox{(free end with forces)}
 \end{aligned}
 \right.
 %
@@ -27,20 +30,69 @@ w(x) = \frac{d^2 w}{dx^2}(x) =& 0 &\quad\mbox{(simply supported end)}\\
 \subsection{Weak formulation}\label{subsec:}
 %-------------------------------------------------------------------------
 %
+Let
 %
-Let $\Gamma_C\subset\partial\Omega$, $\Gamma_S\subset\partial\Omega$, and $\Gamma_F\subset\partial\Omega$ be the points where the clamped, simply supported and fixed boundary conditions hold.
+\begin{equation}\label{eq:beam_V}
+H^2_0(\Omega):= \SetDef{v\in H^2(\Omega)}{v(x)=\frac{d v}{dx}(x)=0\;,x\in\partial\Omega}.
+\end{equation}
+%
+be the standard Sobolov space.  
+%
+For $H^2_0(\Omega) \subset V\subset H^2(\Omega)$ we consider
+%
+\begin{equation}\label{eq:beam_vareq}
+w\in V:\quad \int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}= \int_{\Omega} qv \quad \forall v\in V.
+\end{equation}
+%
+Integration by parts
+%
+\begin{align*}
+\int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}=&-\int_{\Omega}  \frac{d}{dx}(EI \frac{d^2 w}{dx^2})\frac{d v}{dx} + \primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}\\
+=& \int_{\Omega} \frac{d^2}{dx^2}(EI \frac{d^2 w}{dx^2})v + \primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}- \primitive{EI\frac{d^3 w}{dx^3}v}{0}{L}
+\end{align*}
+%
+shows that a regular solution of (\ref{eq:beam_vareq}) satisfies
+%
+\begin{align*}
+\primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}- \primitive{EI\frac{d^3 w}{dx^3}v}{0}{L} = 
+\int_{\Omega} \left( q - \frac{d^2}{dx^2}(EI \frac{d^2 w}{dx^2})\right)v.
+\end{align*}
+%
+Since $V$ is dense in $L^2(\Omega)$, choosing first $v\in H^2_0(\Omega)$ satisfies $\frac{d^2}{dx^2}(EI \frac{d^2 w}{dx^2})=q$ almost everywhere. Then we have
+%
+\begin{align*}
+\primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}- \primitive{EI\frac{d^3 w}{dx^3}v}{0}{L} = 0\quad \forall v\in V.
+\end{align*}
+%
+So, depending on the choice of $V$ we have the following possible boundary conditions for $x\in\partial\Omega$:
+\begin{center}
+\begin{tabular}{c|c|c}
+constraint in $V$& strong b.c. & implied b.c.\\\hline
+$v(x)=\frac{dv}{dx}(x)=0$ & $w(x)=\frac{d w}{dx}(x)=0$ & --\\
+$v(x)=0$ & $w(x)=0$ & $\frac{d^2 w}{dx^2}=0$\\
+$\frac{dv}{dx}(x)=0$ & $\frac{dw}{dx}(x)=0$ & $\frac{d^3 w}{dx^3}=0$\\
+-- & -- & $\frac{d^2 w}{dx^2}=\frac{d^3 w}{dx^3}=0$\\
+\end{tabular}
+\end{center}
+%
+The third case does not seem to be of practical use.
+It follows that an appropriate choice for our problem is:
 %
 \begin{equation}\label{eq:beam_V}
 V:= \SetDef{v\in H^2(\Omega)}{v(x_c)=\frac{d v}{dx}(x_c)=0, \quad v(x_s)=0,\quad x_c\in\Gamma_C,x_s\in\Gamma_S}
 \end{equation}
 %
-For $a\in L^2(\Omega)$
 %
-\begin{equation}\label{eq:beam_vareq}
-w\in V:\quad \int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}= \int_{\Omega} qv 
-+ \int_{\Gamma_F} (\alpha \frac{d v}{dx}+ \beta v)=:l(v)\quad \forall v\in V.
+In order to take into account the non-homogenuous boundary condition we define
+%
+\begin{equation}\label{eq:beam_vareq2}
+w\in V:\quad \int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}= \int_{\Omega} qv + 
+\delta_{x_f=L}(\alpha\frac{d v}{dx}(L) - \beta v(L)) - \delta_{x_f=0}(\alpha\frac{d v}{dx}(0) - \beta v(0))\quad \forall v\in V.
 \end{equation}
 %
+
+%
+For $a\in L^2(\Omega)$
 %---------------------------------------
 \begin{lemma}\label{lemma:}
 (\ref{eq:beam_vareq}) has a unique solution if $\Gamma_C\ne\emptyset$ and the solution satisfies a weak version of 
@@ -49,24 +101,7 @@ w\in V:\quad \int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}= \int_{\Omega
 %
 %---------------------------------------
 \begin{proof}
-Existence and uniqueness follow from the Lax-Milgram lemma and Poincaré's inequality, for which we need the boundary condition.
-
-If $w$ is smooth enough, integration by parts gives
-%
-\begin{align*}
-\int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}=&-\int_{\Omega}  \frac{d}{dx}(EI \frac{d^2 w}{dx^2})\frac{d v}{dx} + \primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}\\
-=& \int_{\Omega} \frac{d^2}{dx^2}(EI \frac{d^2 w}{dx^2})v + \primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}- \primitive{EI\frac{d^3 w}{dx^3}v}{0}{L}
-\end{align*}
-%
-Taking $v\in H^2_0(\Omega)\subset V$, we have $\frac{d^2}{dx^2} (EI \frac{d^2 w}{dx^2})(x) = q(x)$ a.e. For arbitrary $v\in V$ we 
-then have
-%
-\begin{equation}\label{eq:beam_weakbc}
-\primitive{EI\frac{d^2 w}{dx^2}\frac{d v}{dx}}{0}{L}- \primitive{EI\frac{d^3 w}{dx^3}v}{0}{L}=0
-\end{equation}
-% 
-find the boundary conditions. 
-First of $0=x_c$ we have the boundary conditions by the definition of $V$ and the corresponding boundary terms in (\ref{eq:beam_weakbc}) vanish. If $0=x_s$ we have by definition of $V$ $w(0)=0$ and the remaining term in (\ref{eq:beam_weakbc}) yields $EI\frac{d^2 w}{dx^2}(0)=0$. Finally for $0=x_f$ we find the free end conditions by (\ref{eq:beam_weakbc}) .
+Existence and uniqueness follow from the Lax-Milgram lemma and Poincaré's inequality, applied to the function and its derivative.
 \end{proof}
 %
 %
