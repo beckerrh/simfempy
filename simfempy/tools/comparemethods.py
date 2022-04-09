@@ -5,7 +5,6 @@ Created on Sun Dec  4 18:14:29 2016
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import pygmsh
 from simfempy.tools.latexwriter import LatexWriter
 import simfempy.meshes.pygmshext
 #=================================================================#

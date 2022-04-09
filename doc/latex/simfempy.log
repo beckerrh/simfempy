@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.16)  7 APR 2022 16:22
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.16)  8 APR 2022 13:38
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1273,10 +1273,13 @@ LaTeX Warning: Label `subsec:' multiply defined.
 LaTeX Warning: Label `eq:beam_V' multiply defined.
 
 
-LaTeX Warning: Label `lemma:' multiply defined.
+LaTeX Warning: Label `prop:' multiply defined.
 
 
 LaTeX Warning: Label `subsec:' multiply defined.
+
+
+LaTeX Warning: Label `eq:' multiply defined.
 
 
 LaTeX Warning: Label `eq:' multiply defined.
@@ -1700,7 +1703,7 @@ LaTeX Warning: Empty bibliography on input line 870.
 
 ] [16]
 
-LaTeX Warning: Empty bibliography on input line 224.
+LaTeX Warning: Empty bibliography on input line 233.
 
 ) [17]
 \openout2 = `chap/linearalgebra.aux'.
@@ -1963,9 +1966,9 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37163 strings out of 478994
- 699268 string characters out of 5858184
- 1472412 words of memory out of 5000000
+ 37164 strings out of 478994
+ 699281 string characters out of 5858184
+ 1472413 words of memory out of 5000000
  53793 multiletter control sequences out of 15000+600000
  450859 words of font info for 139 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -1999,10 +2002,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (27 pages, 343033 bytes).
+Output written on simfempy.pdf (27 pages, 343601 bytes).
 PDF statistics:
- 591 PDF objects out of 1000 (max. 8388607)
- 529 compressed objects within 6 object streams
- 155 named destinations out of 1000 (max. 500000)
+ 593 PDF objects out of 1000 (max. 8388607)
+ 531 compressed objects within 6 object streams
+ 156 named destinations out of 1000 (max. 500000)
  349 words of extra memory for PDF output out of 10000 (max. 10000000)
 

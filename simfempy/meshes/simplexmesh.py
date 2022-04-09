@@ -46,8 +46,8 @@ class SimplexMesh(object):
         s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
         return s
     def __init__(self, mesh, **kwargs):
-        if not isinstance(mesh, meshio.Mesh):
-            raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
+        # if not isinstance(mesh, meshio.Mesh):
+        #     raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
         self.timer = timer.Timer(name="SimplexMesh")
         import importlib
         from distutils.version import StrictVersion
@@ -154,6 +154,8 @@ class SimplexMesh(object):
         # print(f"{self.bdrylabels.keys()=}")
         #TODO : remplacer -1 par nan dans les indices
     def _initMeshPyGmsh7(self, cell_sets, cells_dict, celltypes):
+        # print(f"{cell_sets=}")
+        # print(f"{cells_dict=}")
         # cell_sets: dict label --> list of None or np.array for each cell_type
         # the indices of the np.array are not the cellids !
         # ???
@@ -172,7 +174,7 @@ class SimplexMesh(object):
                     try: ilabel=int(label)
                     except: raise ValueError(f"cannot convert to int {label=} {cell_sets=}")
                     cellsoflabel[celltype][ilabel] = info
-                    # print(f"{label=} {type(label)=} {info=}")
+                    # print(f"{label=} {celltype=} {info=}")
                     sizes[celltype] += info.shape[0]
                     typesoflabel[ilabel] = celltype
                     ctorderd.append(celltype)
@@ -188,6 +190,7 @@ class SimplexMesh(object):
         self.linesoflabel = {k:cells_dict['line'][v] for k,v in cellsoflabel['line'].items()}
         if self.facesname not in cellsoflabel:
             raise ValueError(f"{self.facesname=} not in {cellsoflabel=}")
+        # print(f"{self.cellsoflabel=}\n{cellsoflabel[self.facesname]=}")
         return cellsoflabel[self.facesname]
     def _constructFacesFromSimplices(self):
         simplices = self.simplices

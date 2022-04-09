@@ -2,7 +2,7 @@
 #
 from setuptools import setup, find_packages
 
-VERSION = "2.0.25"
+VERSION = "2.0.26"
 
 with open("simfempy/examples/heat.py", "r") as heat:
     example = heat.read()
@@ -24,7 +24,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     platforms="any",
-    install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'matplotlib'],
+    # install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'matplotlib'],
+    install_requires=['meshio', 'scipy', 'sympy', 'matplotlib'],
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",

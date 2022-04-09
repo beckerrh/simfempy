@@ -90,15 +90,13 @@ w\in V:\quad \int_{\Omega} EI \frac{d^2 w}{dx^2}\frac{d^2 v}{dx^2}= \int_{\Omega
 \delta_{x_f=L}(\alpha\frac{d v}{dx}(L) - \beta v(L)) - \delta_{x_f=0}(\alpha\frac{d v}{dx}(0) - \beta v(0))\quad \forall v\in V.
 \end{equation}
 %
-
 %
 For $a\in L^2(\Omega)$
 %---------------------------------------
-\begin{lemma}\label{lemma:}
+\begin{proposition}\label{prop:}
 (\ref{eq:beam_vareq}) has a unique solution if $\Gamma_C\ne\emptyset$ and the solution satisfies a weak version of 
 (\ref{eq:beam_strong}).
-\end{lemma}
-%
+\end{proposition}
 %---------------------------------------
 \begin{proof}
 Existence and uniqueness follow from the Lax-Milgram lemma and Poincaré's inequality, applied to the function and its derivative.
@@ -109,7 +107,11 @@ Existence and uniqueness follow from the Lax-Milgram lemma and Poincaré's inequ
 \subsection{Lowest order approximation}\label{subsec:}
 %-------------------------------------------------------------------------
 %
-We use a mesh $h:0=x_0<x_1<\cdots< x_N=L$ and the spaces of quadratic B-splines, writing them as the subspace of quadratic finite elements of class $C^1$. Let $(\phi_i)_{0\le i\le N}$ be the canonical bases $\Pspace^1_h$ and $\psi_i(x):=\frac{(x-x_{i-1})(x_i-x)}{2h_i^2}$, $1\le i\le N$.
+We use the spaces of quadratic B-splines on a one-dimensional mesh $h:0=x_0<x_1<\cdots< x_N=L$. 
+The B-splines are the subspace of quadratic finite elements, which are of class $C^1$, allowing us to use a  
+standard finite element basis. 
+
+Let $(\phi_i)_{0\le i\le N}$ be the canonical bases $\Pspace^1_h$ and $\psi_i(x):=\frac{(x-x_{i-1})(x_i-x)}{2h_i^2}$, $1\le i\le N$.
 In addition let $h_i:=x_i-x_{i-1}$ and $x_{i-\frac12}:= \frac{x_{i-1}+x_{i}}{2}$, $1\le i\le N$.
 
 We consider the case of a left and right clamped beam. Noticing that, with $u'$ the piecewise derivative of $u\in \Pspace^2_h$, we have
@@ -117,37 +119,44 @@ We consider the case of a left and right clamped beam. Noticing that, with $u'$ 
 \begin{equation}\label{eq:beam_C1P2}
 u\in C^1(\Omega) 
 \quad\Leftrightarrow\quad \sum_{j=1}^{N-1} \jump{u'}\phi(x_j)=0 \quad\forall 1\le i< N,
-\quad\Leftrightarrow\quad \int_{\Omega} \left(u'\phi'_i + u''\phi_i\right)=0 \quad\forall 1\le i< N,
+\quad\Leftrightarrow\quad \int_{\Omega} \left(u'\phi'_i + u''\phi_i\right)=0 \quad\forall 1\le i< N.
 \end{equation}
 %
-we define
+Taking into account the condition on the normal derivative in (\ref{eq:beam_V}), we define
 %
 \begin{equation}\label{eq:beam_Vh}
-V_h := \SetDef{v\in \Pspace^2_h}{\int_{\Omega} \left(v'\phi'_i + v''\phi_i\right)=0 \quad\forall 1\le i< N}\cap H^1_0(\Omega).
+V_h := \SetDef{v\in \Pspace^2_h}{\int_{\Omega} \left(v'\phi'_i + v''\phi_i\right)=0 \quad\forall 0\le i\le N}\cap H^1_0(\Omega).
 \end{equation}
 %
 and the discrete problem is
 %
 \begin{equation}\label{eq:beam_varinfh}
-\inf\SetDef{\frac12\int_{\Omega}EI \left(w''\right)^2 - l(w)}{w\in V_h}.
+w\in V_h:\; \int_{\Omega}EIw''v'' =\int_{\Omega}fv\quad \forall v\in V_h.
 \end{equation}
 %
-For the implementation we consider (\ref{eq:beam_varinfh}) as a constrained minimization and use the representation in terms of the indicated basis and a lagrange multiplier
+Since (\ref{eq:beam_varinfh}) is the optimality condition of energy minimisation, we take into account the constraints defining $V_h$ by a Lagrange multiplier and use the splitting of the space $V_h=V_h^1\times V_h^2$ and $\Lambda_1=V_h^1$
 %
 \begin{equation}\label{eq:}
-u = \sum_{j=0}^N \alpha_j \phi_j +  \sum_{j=1}^N \beta_j \psi_j =: u_1 + u_2,\quad \lambda := \sum_{j=0}^N \gamma_j \phi_j.
+w = \sum_{j=0}^N \alpha_j \phi_j +  \sum_{j=1}^N \beta_j \psi_j =: w_1 + w_2,\quad \lambda := \sum_{j=0}^N \gamma_j \phi_j.
 \end{equation}
 %
-We notice that the constraints can be written as
+We notice that
+%
+\begin{equation}\label{eq:}
+v_1''=0\quad\forall v_1\in V_h^1,\quad \int_{\Omega} v_2'\mu'=0\quad\forall v_2\in V_h^2, \mu\in\Lambda_h,
+\end{equation}
+%
+so we arrive at
 %
 \begin{align*}
-\int_{\Omega} \left(u_1'\phi'_i + u_2''\phi_i\right)=0 \quad\forall 1\le i< N
-\end{align*}
-%
-and the stationarity of the functional as
-%
-\begin{align*}
-\int_{\Omega}EIu_2''v_2'' +  \int_{\Omega} \left(v_1'\lambda' + v_2''\lambda\right)=\int_{\Omega}f(v_1+v_2)\quad \forall v=v_1+v_2\in V_h.
+(w_1,w_2,\lambda)\in V_h^1\times V_h^2 \times \Lambda_h\\
+\left\{
+\begin{aligned}
+\int_{\Omega}v_1'\lambda' =&\int_{\Omega}fv_1\quad& \forall v_1\in V_h^1,\\
+\int_{\Omega}EIw_2''v_2'' +  \int_{\Omega} v_2''\lambda=&\int_{\Omega}fv_2\quad& \forall v_2\in V_h^2,\\
+\int_{\Omega} \left(w_1'\mu' + w_2''\mu\right)=&0\quad&\forall \mu\in \Lambda_h.
+\end{aligned}
+\right.
 \end{align*}
 %
 

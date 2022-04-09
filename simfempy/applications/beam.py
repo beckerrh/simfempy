@@ -18,7 +18,6 @@ class Beam(Application):
     After initialization, the function setMesh(mesh) has to be called
     Then, solve() solves the stationary problem
     Parameters in the constructor:
-        fem: only p1 or cr1
         problemdata
     Paramaters used from problemdata:
         EI
@@ -56,11 +55,18 @@ class Beam(Application):
         self.EIcell = self.compute_cell_vector_from_params('EI', self.problemdata.params)
     def computeMatrix(self, coeffmass=None):
         A = self.fem.computeMatrixDiffusion(coeff=1)
+        # print(f"{A.todense()=}")
         n = self.fem.nunknowns()
+        colors = self.problemdata.bdrycond.colorsOfType("Clamped")
         mats = np.ones(2)
         rows = np.array([0,1])
-        # l'extrémité droite et le deuxième points !
-        cols = np.array([0,1])
+        # l'extrémité droite est le deuxième points !
+        cols = np.empty(2)
+        colors = self.problemdata.bdrycond.colorsOfType("Clamped")
+        assert len(colors)==2
+        for i,color in enumerate(colors):
+            faces = self.mesh.bdrylabels[color]
+            cols[i] = faces[0]
         C = sparse.coo_matrix((mats, (rows, cols)), shape=(2, n)).tocsr()
         dV = self.mesh.dV
         D = dV / self.EIcell / 4
@@ -96,9 +102,11 @@ class Beam(Application):
             nx, ny, nz = normalsS.T
             if not color in self.problemdata.bdrycond.fct: continue
             fct1, fct2 = self.problemdata.bdrycond.fct[color]
-            c[faces[0]] = fct1(x[faces], y[faces], z[faces])
+            # print(f"{faces=}\n{x=}")
+            # c[faces[0]] = fct1(x[faces], y[faces], z[faces])
+            c[i] = fct1(x[faces], y[faces], z[faces])
             dn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
-            print(f"{dn=} {x[faces]=} {nx=} {faces=}")
+            # print(f"{dn=} {x[faces]=} {nx=} {faces=}")
             b[faces] += dn
         return a,b,c
         # return (a, b, c), u
@@ -123,6 +131,7 @@ class Beam(Application):
         A2 = sparse.hstack([A, B, null2.T])
         A3 = sparse.hstack([C, null2, null3])
         Aall = sparse.vstack([A1, A2, A3]).tocsr()
+        assert np.allclose(A.data, A.T.data)
         assert np.allclose(Aall.data, Aall.T.data)
         # print(f"A=\n{Aall.toarray()}")
         return Aall
