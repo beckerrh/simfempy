@@ -104,7 +104,7 @@ Existence and uniqueness follow from the Lax-Milgram lemma and Poincaré's inequ
 %
 %
 %-------------------------------------------------------------------------
-\subsection{Lowest order approximation}\label{subsec:}
+\subsection{Low order approximation}\label{subsec:}
 %-------------------------------------------------------------------------
 %
 We use the spaces of quadratic B-splines on a one-dimensional mesh $h:0=x_0<x_1<\cdots< x_N=L$. 
@@ -199,7 +199,7 @@ C_1 & 0 & 0 & 0&0\\
 0 & 0 & C_2 & 0&0\\
 \end{bmatrix}
 \begin{bmatrix}
-\vec{v_1} \\ \vec{v_2} \\ \vec{\lambda_1}\\ \alpha \\ \beta
+\vec{v_1} \\ \vec{v_2} \\ \vec{\lambda}\\ \alpha \\ \beta
 \end{bmatrix}
 =
 \begin{bmatrix}
@@ -224,7 +224,7 @@ C_1 & 0  & 0& 0\\
 0 & C_2  & 0& 0
 \end{bmatrix}
 \begin{bmatrix}
-\vec{v_1} \\ \vec{\lambda_1}\\ \alpha \\ \beta
+\vec{v_1} \\ \vec{\lambda}\\ \alpha \\ \beta
 \end{bmatrix}
 =
 \begin{bmatrix}
@@ -266,7 +266,9 @@ a  \\ b
 \quad\Rightarrow\quad 
 B\transpose{B}y = Ba- BA x
 \quad\Rightarrow\quad 
-CAx = Ca,\quad C:=I - \transpose{B}\left(B\transpose{B}\right)^{-1}B
+(I-C)Ax = (I-C)a,\quad C:=\transpose{B}\left(B\transpose{B}\right)^{-1}B\\
+\quad\Rightarrow\quad 
+\left((I-C)A + C \right)x = (I-C)a + \transpose{B}\left(B\transpose{B}\right)^{-1}b
 \end{align*}
 
 
