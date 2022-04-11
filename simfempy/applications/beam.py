@@ -135,7 +135,7 @@ class Beam(Application):
             idir += 1
             dn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
             cell = self.mesh.cellsOfFaces[faces[0], 0]
-            print(f"{nx=} {faces=} {self.mesh.simplices[cell]=}")
+            # print(f"{nx=} {faces=} {self.mesh.simplices[cell]=}")
             b[faces] += dn
         colors = self.problemdata.bdrycond.colorsOfType("SimplySupported")
         for i,color in enumerate(colors):
@@ -150,7 +150,7 @@ class Beam(Application):
             idir += 1
             ddn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
             cell = self.mesh.cellsOfFaces[faces[0], 0]
-            print(f"{faces=} {self.mesh.simplices[cell]=} {self.fem.cellgrads[cell]=}")
+            # print(f"{faces=} {self.mesh.simplices[cell]=} {self.fem.cellgrads[cell]=}")
             a[self.mesh.simplices[cell]] -= ddn*self.fem.cellgrads[cell][:,0]
         colors = self.problemdata.bdrycond.colorsOfType("Forces")
         for i,color in enumerate(colors):
@@ -164,14 +164,14 @@ class Beam(Application):
             ddn = fct1(x[faces], y[faces], z[faces], nx, ny, nz)
             dddn = fct2(x[faces], y[faces], z[faces], nx, ny, nz)
             cell = self.mesh.cellsOfFaces[faces[0], 0]
-            print(f"{faces=} {self.mesh.simplices[cell]=} {self.fem.cellgrads[cell]=}")
+            # print(f"{faces=} {self.mesh.simplices[cell]=} {self.fem.cellgrads[cell]=}")
             a[self.mesh.simplices[cell]] -= ddn*self.fem.cellgrads[cell][:,0]
             a[faces] += dddn
         return a,b,c,d
     def postProcess(self, uin):
         data = {'point':{}, 'cell':{}, 'global':{}}
         u,w,l = uin
-        print(f"{l=} {u[0]=} {u[1]=}")
+        # print(f"{l=} {u[0]=} {u[1]=}")
         data['point']['U'] = self.fem.tonode(u)
         data['point']['W'] = self.fem.tonode(w)
         if self.problemdata.solexact:
@@ -183,7 +183,7 @@ class Beam(Application):
         n = self.fem.nunknowns()
         A, B, C1, C2 = Ain
         n1, n2 = C1.shape[0], C2.shape[0]
-        print(f"{n1=} {n2=}")
+        # print(f"{n1=} {n2=}")
         null1 = sparse.csr_matrix(([], ([], [])), shape=(n, n))
         null2 = sparse.csr_matrix(([], ([], [])), shape=(n1, n))
         null3 = sparse.csr_matrix(([], ([], [])), shape=(n1, n1))
