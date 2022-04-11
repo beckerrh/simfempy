@@ -66,12 +66,12 @@ Since $V$ is dense in $L^2(\Omega)$, choosing first $v\in H^2_0(\Omega)$ satisfi
 %
 So, depending on the choice of $V$ we have the following possible boundary conditions for $x\in\partial\Omega$:
 \begin{center}
-\begin{tabular}{c|c|c}
-constraint in $V$& strong b.c. & implied b.c.\\\hline
-$v(x)=\frac{dv}{dx}(x)=0$ & $w(x)=\frac{d w}{dx}(x)=0$ & --\\
-$v(x)=0$ & $w(x)=0$ & $\frac{d^2 w}{dx^2}=0$\\
-$\frac{dv}{dx}(x)=0$ & $\frac{dw}{dx}(x)=0$ & $\frac{d^3 w}{dx^3}=0$\\
--- & -- & $\frac{d^2 w}{dx^2}=\frac{d^3 w}{dx^3}=0$\\
+\begin{tabular}{c|c|c|c}
+&constraint in $V$& strong b.c. & implied b.c.\\\hline
+1&$v(x)=\frac{dv}{dx}(x)=0$ & $w(x)=\frac{d w}{dx}(x)=0$ & --\\
+2&$v(x)=0$ & $w(x)=0$ & $\frac{d^2 w}{dx^2}=0$\\
+3&$\frac{dv}{dx}(x)=0$ & $\frac{dw}{dx}(x)=0$ & $\frac{d^3 w}{dx^3}=0$\\
+4&-- & -- & $\frac{d^2 w}{dx^2}=\frac{d^3 w}{dx^3}=0$
 \end{tabular}
 \end{center}
 %
@@ -114,7 +114,7 @@ standard finite element basis.
 Let $(\phi_i)_{0\le i\le N}$ be the canonical bases $\Pspace^1_h$ and $\psi_i(x):=\frac{(x-x_{i-1})(x_i-x)}{2h_i^2}$, $1\le i\le N$.
 In addition let $h_i:=x_i-x_{i-1}$ and $x_{i-\frac12}:= \frac{x_{i-1}+x_{i}}{2}$, $1\le i\le N$.
 
-We consider the case of a left and right clamped beam. Noticing that, with $u'$ the piecewise derivative of $u\in \Pspace^2_h$, we have
+Noticing that, with $u'$ the piecewise derivative of $u\in \Pspace^2_h$, we have
 %
 \begin{equation}\label{eq:beam_C1P2}
 u\in C^1(\Omega) 
@@ -137,7 +137,7 @@ w\in V_h:\; \int_{\Omega}EIw''v'' =\int_{\Omega}fv\quad \forall v\in V_h.
 Since (\ref{eq:beam_varinfh}) is the optimality condition of energy minimisation, we take into account the constraints defining $V_h$ by a Lagrange multiplier and use the splitting of the space $V_h=V_h^1\times V_h^2$ and $\Lambda_1=V_h^1$
 %
 \begin{equation}\label{eq:}
-w = \sum_{j=0}^N \alpha_j \phi_j +  \sum_{j=1}^N \beta_j \psi_j =: w_1 + w_2,\quad \lambda := \sum_{j=0}^N \gamma_j \phi_j.
+w = \sum_{j=0}^N \vec{w_1}_j \phi_j +  \sum_{j=1}^N \vec{w_2}_j \psi_j =: w_1 + w_2,\quad \lambda := \sum_{j=0}^N \vec{\lambda}_j \phi_j.
 \end{equation}
 %
 We notice that
@@ -159,52 +159,76 @@ so we arrive at
 \right.
 \end{align*}
 %
-
-
+The boundary conditions correspond to
 %
-Then the discrete system reads
+\begin{center}
+\begin{tabular}{c|c|c|c}
+&b.c.&constraint in $V_h^1$& constraint in $\Lambda_h$\\\hline
+1&clamped&$v(x)=0$  & --\\
+2&simply supp.&$v(x)=0$ & $\mu(x)=0$ \\
+3&unknown&-- & --\\
+4&forces&-- & $\mu(x)=0$
+\end{tabular}
+\end{center}
+%
+We use again Lagrange multipliers for these constraints. Letting $\mathcal C_V,\mathcal C_{\Lambda}\subset\Set{0,L}$
+%
+\begin{align*}
+D_{ij} = \int_{\Omega} EI\psi_i''\psi''_j,\quad
+A_{ij} = \int_{\Omega} \mu_i'\phi'_j,\quad
+B_{ij} = \int_{\Omega} \mu_i\psi''_j,\quad
+C_{1,ij} = \phi_j(x_i)\; x_i\in\mathcal C_V,\quad
+C_{2,ij} = \mu_j(x_i)\; x_i\in\mathcal C_{\Lambda}.
+\end{align*}
+%
+and
+%
+\begin{align*}
+a_i := l(\phi_i), \quad b_i:=l(\psi_i),\quad  c_i = \mu(x_i)\dn{\uD}(x_i),\quad d_i = \phi(x_i)\uD(x_i)
+\end{align*}
+%
+
+the discrete system reads
 %
 \begin{equation}\label{eq:}
 \begin{bmatrix}
-0 & 0 & \transpose{A}& \transpose{C}\\
-0 & D & \transpose{B}& 0\\
-A & B & 0 & 0\\
-C & 0 & 0 & 0
+0 & 0 & A& \transpose{C_1}&0\\
+0 & D & \transpose{B}& 0&0\\
+A & B & 0 & 0&\transpose{C_2}\\
+C_1 & 0 & 0 & 0&0\\
+0 & 0 & C_2 & 0&0\\
 \end{bmatrix}
 \begin{bmatrix}
-\alpha \\ \beta \\ \gamma\\ \delta
+\vec{v_1} \\ \vec{v_2} \\ \vec{\lambda_1}\\ \alpha \\ \beta
 \end{bmatrix}
 =
 \begin{bmatrix}
-a \\ b \\ 0\\ 0
+a \\ b \\ c\\ d\\0
 \end{bmatrix},\quad
-%
-\left\{
-\begin{aligned}
-a_i := l(\phi_i), \quad b_i:=l(\psi_i)\\
-D_{ij} = \int_{\Omega} EI\psi_i''\psi''_j,\quad
-A_{ij} = \int_{\Omega} \phi_i'\phi'_j,\\
-B_{ij} = \int_{\Omega} \phi_i'\psi'_j+\phi_i\psi''_j,\\
-C_{ij} = \phi_j(x_i) \quad x_i\in\Set{0;L}.
-\end{aligned}
-\right.
-%
 \end{equation}
 %
-Since $D$ is a regular diagonal matrix we can easily eliminate $\beta$:
+%
+Since $D$ is a regular diagonal matrix we can eliminate $\vec{v_2}$:
+%
+\begin{align*}
+\vec{v_2} = D^{-1}(b-\transpose{B}\vec{\lambda}).
+\end{align*}
+%
+
 %
 \begin{align*}
 \begin{bmatrix}
-0 & \transpose{A}& \transpose{C}\\
-A & X& 0\\
-C & 0  & 0
+0 & {A}& \transpose{C_1}&0\\
+A & X& 0&\transpose{C_2}\\
+C_1 & 0  & 0& 0\\
+0 & C_2  & 0& 0
 \end{bmatrix}
 \begin{bmatrix}
-\alpha \\  \gamma\\ \delta
+\vec{v_1} \\ \vec{\lambda_1}\\ \alpha \\ \beta
 \end{bmatrix}
 =
 \begin{bmatrix}
-a  \\ BD^{-1}b\\ 0
+a  \\ c+ BD^{-1}b\\ d\\0
 \end{bmatrix},\quad X:= -BD^{-1}\transpose{B}
 \end{align*}
 %
@@ -226,6 +250,25 @@ X_{i,i+1} =& \frac{h_{i+1}}{4EI_{i+1}}
 %
 \end{align*}
 %
+
+\begin{align*}
+\begin{bmatrix}
+A & \transpose{B}\\
+B & 0
+\end{bmatrix}
+\begin{bmatrix}
+x\\y
+\end{bmatrix}
+=
+\begin{bmatrix}
+a  \\ b
+\end{bmatrix}
+\quad\Rightarrow\quad 
+B\transpose{B}y = Ba- BA x
+\quad\Rightarrow\quad 
+CAx = Ca,\quad C:=I - \transpose{B}\left(B\transpose{B}\right)^{-1}B
+\end{align*}
+
 
 %
 %

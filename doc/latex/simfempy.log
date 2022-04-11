@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.16)  8 APR 2022 13:38
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.16)  11 APR 2022 11:40
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1702,10 +1702,15 @@ LaTeX Warning: Empty bibliography on input line 870.
 
 
 ] [16]
+Overfull \hbox (36.03253pt too wide) detected at line 182
+[]
+ []
 
-LaTeX Warning: Empty bibliography on input line 233.
+[17]
 
-) [17]
+LaTeX Warning: Empty bibliography on input line 276.
+
+) [18]
 \openout2 = `chap/linearalgebra.aux'.
 
  (./chap/linearalgebra.tex
@@ -1716,7 +1721,7 @@ ur/m/n/10.95 y\U/zeus/m/n/10.95 © º½ \U/zeur/m/n/10.95 J\U/zeus/m/n/10.95 ¨\U/z
 eur/m/n/10.95 x\U/zeus/m/n/10.95 © « [] [][] « []$
  []
 
-[18
+[19
 
 
 
@@ -1724,7 +1729,7 @@ eur/m/n/10.95 x\U/zeus/m/n/10.95 © « [] [][] « []$
 
 LaTeX Warning: Empty bibliography on input line 167.
 
-) [19]
+) [20]
 \openout2 = `chap/fem.aux'.
 
  (./chap/fem.tex
@@ -1744,14 +1749,14 @@ m/n/10.95 x[]\U/zeus/m/n/10.95 ©$\T1/ppl/m/n/10.95 .
  []
 
 
-LaTeX Warning: Citation 'EisenbergMalvern73' on page 20 undefined on input line
+LaTeX Warning: Citation 'EisenbergMalvern73' on page 21 undefined on input line
  56.
 
 
-LaTeX Warning: Citation 'VermolenSegal18' on page 20 undefined on input line 56
+LaTeX Warning: Citation 'VermolenSegal18' on page 21 undefined on input line 56
 .
 
-[20
+[21
 
 
 
@@ -1805,7 +1810,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 133.
 
-[21]
+[22]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
@@ -1835,11 +1840,11 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 156.
 
-[22]
+[23]
 
 LaTeX Warning: Empty bibliography on input line 268.
 
-) [23]
+) [24]
 \openout2 = `chap/transport.aux'.
 
  (./chap/transport.tex
@@ -1863,7 +1868,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 70.
 
-[24
+[25
 
 
 
@@ -1872,7 +1877,7 @@ Overfull \hbox (12.04153pt too wide) detected at line 155
 []
  []
 
-[25]
+[26]
 Overfull \hbox (8.64256pt too wide) detected at line 209
 []
  []
@@ -1920,7 +1925,7 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 
 LaTeX Warning: Empty bibliography on input line 269.
 
-) [26]
+) [27]
 \openout2 = `chap/python.aux'.
 
  (./chap/python.tex
@@ -1941,7 +1946,7 @@ Overfull \hbox (33.86285pt too wide) in paragraph at lines 16--17
 
 LaTeX Warning: Empty bibliography on input line 28.
 
-) [27
+) [28
 
 
 
@@ -1966,8 +1971,8 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 37164 strings out of 478994
- 699281 string characters out of 5858184
+ 37165 strings out of 478994
+ 699288 string characters out of 5858184
  1472413 words of memory out of 5000000
  53793 multiletter control sequences out of 15000+600000
  450859 words of font info for 139 fonts, out of 8000000 for 9000
@@ -2002,10 +2007,10 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (27 pages, 343601 bytes).
+Output written on simfempy.pdf (28 pages, 345346 bytes).
 PDF statistics:
- 593 PDF objects out of 1000 (max. 8388607)
- 531 compressed objects within 6 object streams
- 156 named destinations out of 1000 (max. 500000)
+ 598 PDF objects out of 1000 (max. 8388607)
+ 535 compressed objects within 6 object streams
+ 157 named destinations out of 1000 (max. 500000)
  349 words of extra memory for PDF output out of 10000 (max. 10000000)
 
