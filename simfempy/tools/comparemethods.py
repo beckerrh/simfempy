@@ -3,6 +3,7 @@
 Created on Sun Dec  4 18:14:29 2016
 @author: becker
 """
+import os, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from simfempy.tools.latexwriter import LatexWriter
@@ -31,11 +32,11 @@ class CompareMethods(object):
     """
     def __init__(self, **kwargs):
         self.fullmethodsname = kwargs.pop("fullmethodsname", True)
-        self.dirname = "Results"
-        if 'clean' in kwargs and kwargs.pop("clean")==True:
-            import os, shutil
-            try: shutil.rmtree(os.getcwd() + os.sep + self.dirname)
+        self.dirname = os.getcwd() + os.sep +"Results"
+        if kwargs.pop("clean",True):
+            try: shutil.rmtree(self.dirname)
             except: pass
+        if not os.path.isdir(self.dirname): os.mkdir(self.dirname)
         self.verbose = kwargs.pop("verbose", 1)
         self.latex = kwargs.pop("latex", True)
         self.plotsolution = kwargs.pop("plotsolution", False)

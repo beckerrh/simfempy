@@ -28,8 +28,8 @@ class Beam(Application):
         repr = super(Beam, self).__repr__()
         return repr
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self.fem = fems.p1.P1()
+        super().__init__(**kwargs)
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
         self.problemdata.check(self.mesh)
@@ -167,6 +167,7 @@ class Beam(Application):
             # print(f"{faces=} {self.mesh.simplices[cell]=} {self.fem.cellgrads[cell]=}")
             a[self.mesh.simplices[cell]] -= ddn*self.fem.cellgrads[cell][:,0]
             a[faces] += dddn
+        # print(f"{a=}")
         return a,b,c,d
     def postProcess(self, uin):
         data = {'point':{}, 'cell':{}, 'global':{}}
