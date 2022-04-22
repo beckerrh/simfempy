@@ -14,14 +14,16 @@ import simfempy.applications.problemdata
 from simfempy.meshes import plotmesh
 
 # ================================================================c#
-mesh = testmeshes.unitline(h=0.2)
+mesh = testmeshes.unitline(h=0.02)
 data = simfempy.applications.problemdata.ProblemData()
-data.bdrycond.set("Clamped", [10000])
-# data.bdrycond.set("SimplySupported", [10001])
-data.bdrycond.set("Forces", [10001])
-# data.bdrycond.fct[10001] = lambda x, y, z, nx, ny, nz: 0, lambda x, y, z, nx, ny, nz: 2
-data.params.fct_glob['rhs'] = lambda x, y, z: np.full_like(x, 1)
 data.params.scal_glob["EI"] = 1
+data.bdrycond.set("Clamped", [10000])
+
+# data.bdrycond.set("SimplySupported", [10001])
+data.bdrycond.set("Clamped", [10001])
+# data.bdrycond.set("Forces", [10001])
+# data.bdrycond.fct[10001] = lambda x, y, z, nx, ny, nz: 0, lambda x, y, z, nx, ny, nz: 2
+data.params.fct_glob['rhs'] = lambda x, y, z: np.full_like(x, 24)
 beam = Beam(mesh=mesh, problemdata=data)
 result = beam.static()
 print(f"postproc:")

@@ -219,7 +219,7 @@ Since $D$ is a regular diagonal matrix we can eliminate $\vec{v_2}$:
 \begin{align*}
 \begin{bmatrix}
 0 & {A}& \transpose{C_1}&0\\
-A & X& 0&\transpose{C_2}\\
+A & -X& 0&\transpose{C_2}\\
 C_1 & 0  & 0& 0\\
 0 & C_2  & 0& 0
 \end{bmatrix}
@@ -228,17 +228,19 @@ C_1 & 0  & 0& 0\\
 \end{bmatrix}
 =
 \begin{bmatrix}
-a  \\ c+ BD^{-1}b\\ d\\0
-\end{bmatrix},\quad X:= -BD^{-1}\transpose{B}
+a  \\ c- BD^{-1}b\\ d\\0
+\end{bmatrix},\quad X:= BD^{-1}\transpose{B}
 \end{align*}
 %
 We have
 %
 \begin{align*}
+\begin{aligned}
 \psi'_i(x)=\frac{(x_{i-\frac12} -x)}{h_i^2},\quad
 \psi''_i(x)=\frac{-1}{h_i^2},\\
-B_{ii} = \int_{x_{i-1}}^{x_i} \phi_i'\psi'_i+\phi_i\psi''_i = \int_{x_{i-1}}^{x_i} \phi_i\psi''_i = \frac{-1}{2h_i},\quad
-B_{i,i+1} = \frac{-1}{2h_{i+1}}, \quad D_{ii} = \frac{EI_i}{h_i^3}\\
+B_{ii} = \int_{x_{i-1}}^{x_i} \phi_i\psi''_i = \frac{-1}{2h_i},\quad
+B_{i,i+1} = \frac{-1}{2h_{i+1}}, \quad D_{ii} = \frac{EI_i}{h_i^3}
+\end{aligned}\quad
 %
 \left\{
 \begin{aligned}

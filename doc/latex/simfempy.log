@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.23)  11 APR 2022 14:20
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2022.2.16)  22 APR 2022 14:38
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1706,13 +1706,14 @@ Overfull \hbox (36.03253pt too wide) detected at line 182
 []
  []
 
-[17]
-Overfull \hbox (1.61497pt too wide) detected at line 272
+
+Overfull \hbox (1.61497pt too wide) detected at line 274
 []
  []
 
+[17]
 
-LaTeX Warning: Empty bibliography on input line 278.
+LaTeX Warning: Empty bibliography on input line 280.
 
 ) [18]
 \openout2 = `chap/linearalgebra.aux'.
@@ -1963,14 +1964,8 @@ LaTeX Warning: There were undefined references.
 
 LaTeX Warning: There were multiply-defined labels.
 
-
-Package rerunfilecheck Warning: File `simfempy.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `simfempy.out':
-(rerunfilecheck)             Before: 75627A30AE92FF0E99ABF01F4B5F5FA9;7099
-(rerunfilecheck)             After:  6C2E9AB829C17B1A1F5285809D398BD9;7084.
+Package rerunfilecheck Info: File `simfempy.out' has not changed.
+(rerunfilecheck)             Checksum: 6C2E9AB829C17B1A1F5285809D398BD9;7084.
 
 Package biblatex Warning: Please (re)run BibTeX on the file(s):
 (biblatex)                simfempy
@@ -1983,7 +1978,7 @@ Package logreq Info: Writing requests to 'simfempy.run.xml'.
 Here is how much of TeX's memory you used:
  37165 strings out of 478994
  699288 string characters out of 5858184
- 1472413 words of memory out of 5000000
+ 1472404 words of memory out of 5000000
  53793 multiletter control sequences out of 15000+600000
  450859 words of font info for 139 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -2017,7 +2012,7 @@ al/texlive/2021/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texli
 ve/2021/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/local/texlive/2021
 /texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/local/texlive/2021/texmf-
 dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on simfempy.pdf (28 pages, 345450 bytes).
+Output written on simfempy.pdf (28 pages, 345213 bytes).
 PDF statistics:
  598 PDF objects out of 1000 (max. 8388607)
  535 compressed objects within 6 object streams

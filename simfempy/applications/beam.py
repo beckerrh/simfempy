@@ -62,7 +62,6 @@ class Beam(Application):
             rhs = EI*solexact.xxx(x, y, z) * nx
             return rhs
         return _fctsimsupp2, _fctsimsupp3
-
     def setMesh(self, mesh):
         assert mesh.dimension == 1
         super().setMesh(mesh)
