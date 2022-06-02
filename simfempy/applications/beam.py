@@ -191,7 +191,7 @@ class Beam(Application):
         null5 = sparse.csr_matrix(([], ([], [])), shape=(n2, n2))
         null6 = sparse.csr_matrix(([], ([], [])), shape=(n1, n2))
         A1 = sparse.hstack([null1, A.T, C1.T, null4.T])
-        A2 = sparse.hstack([A, B, null2.T, C2.T])
+        A2 = sparse.hstack([A, -B, null2.T, C2.T])
         A3 = sparse.hstack([C1, null2, null3, null6])
         A4 = sparse.hstack([null4, C2, null6.T, null5])
         Aall = sparse.vstack([A1, A2, A3, A4]).tocsr()

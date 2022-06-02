@@ -18,7 +18,7 @@ mesh = testmeshes.unitline(h=0.02)
 data = simfempy.applications.problemdata.ProblemData()
 data.params.scal_glob["EI"] = 1
 data.bdrycond.set("Clamped", [10000])
-
+# data.bdrycond.set("SimplySupported", [10000])
 # data.bdrycond.set("SimplySupported", [10001])
 data.bdrycond.set("Clamped", [10001])
 # data.bdrycond.set("Forces", [10001])

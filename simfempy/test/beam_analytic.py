@@ -16,9 +16,10 @@ def test(**kwargs):
     data.params.scal_glob['EI'] = kwargs.pop('EI', 1)
     createMesh = testmeshes.unitline
     # data.bdrycond.set("Clamped", [10000, 10001])
-    data.bdrycond.set("Clamped", [10000])
+    data.bdrycond.set("SimplySupported", [10000, 10001])
+    # data.bdrycond.set("Clamped", [10000])
     # data.bdrycond.set("SimplySupported", [10001])
-    data.bdrycond.set("Forces", [10001])
+    # data.bdrycond.set("Forces", [10001])
     linearsolver = kwargs.pop('linearsolver', 'spsolve')
     applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Beam, applicationargs=applicationargs, **kwargs)
@@ -27,4 +28,4 @@ def test(**kwargs):
 #================================================================#
 if __name__ == '__main__':
     # test(exactsolution = '(x-0.5)**2', niter=8, h1=0.5, linearsolver='spsolve', plotsolution=True)
-    test(exactsolution = 'x**2', niter=6, h1=0.5, linearsolver='spsolve', plotsolution=True)
+    test(exactsolution = 'x**4', niter=6, h1=0.5, linearsolver='spsolve', plotsolution=True)
