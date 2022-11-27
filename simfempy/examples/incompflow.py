@@ -81,7 +81,7 @@ def poiseuille2d(h= 0.1, mu=0.1):
     data.params.scal_glob["navier"] = 1.01
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================ #
 def poiseuille3d(h= 0.1, mu=0.1):
     with pygmsh.geo.Geometry() as geom:
@@ -101,7 +101,7 @@ def poiseuille3d(h= 0.1, mu=0.1):
     # parameters
     data.params.scal_glob["mu"] = mu
     data.ncomp = 3
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================c#
 def drivenCavity2d(h=0.1, mu=0.01):
     with pygmsh.geo.Geometry() as geom:
@@ -120,7 +120,7 @@ def drivenCavity2d(h=0.1, mu=0.01):
     data.params.scal_glob["navier"] = mu
     #TODO pass ncomp with mesh ?!
     data.ncomp = 2
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================c#
 def drivenCavity3d(h=0.1, mu=0.01):
     with pygmsh.geo.Geometry() as geom:
@@ -139,7 +139,7 @@ def drivenCavity3d(h=0.1, mu=0.01):
     data.params.scal_glob["mu"] = mu
     data.params.scal_glob["navier"] = mu
     data.ncomp = 3
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================ #
 def backwardFacingStep2d(h=0.2, mu=0.02):
     with pygmsh.geo.Geometry() as geom:
@@ -165,7 +165,7 @@ def backwardFacingStep2d(h=0.2, mu=0.02):
     # parameters
     data.params.scal_glob["mu"] = mu
     data.ncomp = 2
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================ #
 def backwardFacingStep3d(h=0.2, mu=0.02):
     with pygmsh.geo.Geometry() as geom:
@@ -201,7 +201,7 @@ def backwardFacingStep3d(h=0.2, mu=0.02):
     # parameters
     data.params.scal_glob["mu"] = mu
     data.ncomp = 3
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================ #
 def schaeferTurek2d(h= 0.5, hcircle=None):
     if hcircle is None: hcircle = 0.2*h
@@ -227,7 +227,7 @@ def schaeferTurek2d(h= 0.5, hcircle=None):
         info['err_lift'] =  0.010618937712+50*bdrynflux[1]    
     data.postproc.changepostproc = changepostproc
     data.ncomp = 2
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 # ================================================================ #
 def schaeferTurek3d(h= 1, hcircle=None):
     if hcircle is None: hcircle = 0.25*h
@@ -251,7 +251,7 @@ def schaeferTurek3d(h= 1, hcircle=None):
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=300)
     data.postproc.set(name='mean', type='bdry_vmean', colors=[101,103])
     data.ncomp = 3
-    return mesh, data
+    return SimplexMesh(mesh=mesh), data
 
 #================================================================#
 if __name__ == '__main__':

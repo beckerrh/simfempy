@@ -14,7 +14,8 @@ class NavierStokes(Stokes):
     def __init__(self, **kwargs):
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
-        self.convmethod = kwargs.pop('convmethod', 'lps')
+        # self.convmethod = kwargs.pop('convmethod', 'lps')
+        self.convmethod = kwargs.get('convmethod', 'lps')
         self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
         if kwargs['linearsolver'] != 'spsolve' and not 'precond_p' in kwargs:
@@ -58,7 +59,7 @@ class NavierStokes(Stokes):
         return X
     def computeFormConvection(self, dv, v):
         dim = self.mesh.dimension
-        rt = fems.rt0.RT0(self.mesh)
+        rt = fems.rt0.RT0(mesh=self.mesh)
         self.convdata.betart = rt.interpolateCR1(v)
         self.convdata.beta = rt.toCell(self.convdata.betart)
         if self.convmethod=='supg' or self.convmethod=='lps':

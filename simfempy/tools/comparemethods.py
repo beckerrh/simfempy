@@ -137,7 +137,9 @@ class CompareMethods(object):
                 if self.gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
+                    # raise ValueError(f"{mesh=}")
                     mesh = self._mesh_from_geom_or_fct(param)
+                print(f"{mesh=} {param=}")
                 parameters.append(mesh.ncells)
             else:
                 parameters.append(param)
@@ -197,7 +199,6 @@ class CompareMethods(object):
                     self.infos[key2][key3][name][iter] = np.sum(info3)
             else:
                 self.infos[key2][name][iter] = np.sum(info2)
-
     def generateLatex(self, names, paramname, parameters, infos, title=None):
         if title is None:
             title = self.createMesh.__name__

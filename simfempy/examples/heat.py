@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
+# in shell
+import os, sys
+simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
+sys.path.insert(0,simfempypath)
+
 from simfempy.applications.heat import Heat
 from simfempy.applications.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
@@ -40,6 +45,7 @@ data.params.set_scal_cells("kheat", [200], 10.0)
 data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
 heat = Heat(mesh=mesh, problemdata=data, fem='p1')
+# heat = Heat(mesh=mesh, problemdata=data, fem='p1', dirichletmethod='nitsche')
 static = True
 if static:
     # run static

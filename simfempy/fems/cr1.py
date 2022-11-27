@@ -17,6 +17,7 @@ import simfempy.fems.data, simfempy.fems.rt0
 #=================================================================#
 class CR1(p1general.P1general):
     def __init__(self, kwargs={}, mesh=None):
+        print(f"in CR1 {kwargs=}")
         super().__init__(mesh=mesh)
         for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
             self.params_bool[p] = kwargs.pop(p, v)

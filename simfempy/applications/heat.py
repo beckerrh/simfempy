@@ -54,11 +54,12 @@ class Heat(Application):
         # if mesh is not None: self.mesh = mesh
         self._checkProblemData()
         self.fem.setMesh(self.mesh)
-        # colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-        # colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-        # self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
 
-        self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
+        colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+        colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+        self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+
+        # self.bdrydata = self.fem.prepareBoundary(self.problemdata.bdrycond, self.problemdata.postproc)
 
 
         self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)

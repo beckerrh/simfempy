@@ -56,10 +56,11 @@ class Stokes(Application):
                 return {'type':nsp[0], 'method': nsp[1], 'prec': nsp[2], 'maxiter': int(nsp[3]), 'disp': int(nsp[4])}
         else: raise ValueError(f"*** unknown {type=}")
     def __init__(self, **kwargs):
-        if 'dirichletmethod' in kwargs and kwargs['dirichletmethod']=='nitsche':
+        self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
+        if self.dirichletmethod=='nitsche':
             # correct value ?!
+            kwargs['dirichletmethod'] = 'nitsche'
             kwargs['nitscheparam'] = 10
-        self.dirichletmethod = kwargs.get('dirichletmethod', 'nitsche')
         self.problemdata = kwargs.pop('problemdata')
         self.ncomp = self.problemdata.ncomp
         self.femv = fems.cr1sys.CR1sys(self.ncomp, kwargs)
