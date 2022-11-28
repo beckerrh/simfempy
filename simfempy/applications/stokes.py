@@ -1,10 +1,9 @@
 import copy
 
-from matplotlib import colors
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
-from simfempy import fems, tools, solvers
+from simfempy import fems
 from simfempy.applications.application import Application
 from simfempy.tools.analyticalfunction import analyticalSolution
 from simfempy.solvers import linalg
@@ -565,4 +564,16 @@ class Stokes(Application):
 
 #=================================================================#
 if __name__ == '__main__':
-    raise NotImplementedError("Pas encore de test")
+    import matplotlib.pyplot as plt
+    from simfempy.meshes import plotmesh, animdata
+    from simfempy.examples.incompflow import schaeferTurek2d
+    mesh, data = schaeferTurek2d(h=0.4)
+    stokes = Stokes(mesh=mesh, problemdata=data)
+    print(f"{stokes=}")
+    results = stokes.static()
+    print(f"{results=}")
+    fig = plt.figure(1)
+    gs = fig.add_gridspec(2, 1)
+    plotmesh.meshWithBoundaries(stokes.mesh, gs=gs[0,0], fig=fig)
+    plotmesh.meshWithDataNew(stokes.mesh, data=results.data, alpha=0.5, gs=gs[1,0], fig=fig)
+    plt.show()

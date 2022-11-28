@@ -100,6 +100,9 @@ def plotmeshWithNumbering(meshdata, **kwargs):
 #----------------------------------------------------------------#
 def meshWithBoundaries(meshdata, **kwargs):
     dim, meshdataismesh = _getDim(meshdata)
+    gs = kwargs.get('gs', None)
+    fig = kwargs.get('fig', None)
+    kwargs['ax'] = fig.add_subplot(gs)
     if dim==1:
         x, lines = meshdata.points[:, 0], meshdata.simplices
         plotmesh1d.meshWithBoundaries(x, lines, **kwargs)
@@ -227,6 +230,127 @@ def meshWithData(meshdata, **kwargs):
             ax = plt.Subplot(fig, inner[count])
         else:
             ax = axs[count//ncols,count%ncols]
+        ax.set_aspect(aspect='equal')
+        if dim == 2:
+            if plotmesh: plotmesh2d.plotmesh(x=x, y=y, tris=simp, ax=ax, alpha=0.3)
+            if len(qd)!=2: raise ValueError(f"{len(qd)=} {quiver_data=}")
+            if qd[0].shape[0] == x.shape[0]:
+                ax.quiver(x, y, qd[0], qd[1], units='xy')
+            else:
+                ax.quiver(xc, yc, qd[0], qd[1], units='xy')
+        else:
+            raise NotImplementedError("3d...")
+        ax.set_aspect(aspect='equal')
+        fig.add_subplot(ax)
+        count += 1
+    for addplot in addplots:
+        if 'outer' in kwargs:
+            ax = plt.Subplot(fig, inner[count])
+        else:
+            ax = axs[count//ncols,count%ncols]
+        addplot(ax)
+        count += 1
+    return fig
+#----------------------------------------------------------------#
+def meshWithDataNew(meshdata, **kwargs):
+    """
+    meshdata    : either mesh or coordinates and connectivity
+    point_data  : dictionary name->data
+    cell_data  : dictionary name->data
+    """
+    dim, meshdataismesh = _getDim(meshdata)
+    if meshdataismesh:
+        simp = meshdata.simplices
+        if dim == 2:
+            x, y, xc, yc = meshdata.points[:,0], meshdata.points[:,1], meshdata.pointsc[:,0], meshdata.pointsc[:,1]
+        else:
+            x, y, z = meshdata.points[:, 0], meshdata.points[:, 1], meshdata.points[:, 2]
+            xc, yc, zc = meshdata.pointsc[:, 0], meshdata.pointsc[:, 1], meshdata.pointsc[:, 2]
+    else:
+        if dim == 2:
+            x, y, simp, xc, yc = meshdata
+        else:
+            x, y, z, simp, xc, yc, zc = meshdata
+    addplots = kwargs.pop('addplots',[])
+    numbering = kwargs.pop('numbering',False)
+    alpha = kwargs.pop('alpha', 0.6)
+    plotmesh = kwargs.pop('plotmesh', False)
+    if 'data' in kwargs:
+        point_data = kwargs['data'].get('point', {})
+        cell_data = kwargs['data'].get('cell', {})
+    else:
+        point_data = {}
+        cell_data = {}
+    if 'point_data' in kwargs:
+        assert isinstance(kwargs['point_data'], dict)
+        point_data.update(kwargs['point_data'])
+    if 'cell_data' in kwargs:
+        assert isinstance(kwargs['cell_data'], dict)
+        cell_data.update(kwargs['cell_data'])
+    quiver_data = kwargs.get('quiver_data', {})
+    nplots = len(point_data) + len(cell_data) + len(quiver_data) + len(addplots)
+    if nplots==0: raise ValueError("meshWithData(): no data")
+    ncols = min(nplots,3)
+    nrows = nplots//3 + bool(nplots%3)
+    gs = kwargs.get('gs', None)
+    fig = kwargs.get('fig', None)
+    if hasattr(gs, 'subgridspec'):
+        spec = gs.subgridspec(ncols, nrows)
+    else:
+        spec = fig.add_gridspec(ncols=ncols, nrows=nrows)
+    axs = []
+    for row in range(nrows):
+        for col in range(ncols):
+            ax = fig.add_subplot(spec[col, row])
+            axs.append(ax)
+
+    # if dim==2:
+    #     fig, axs = plt.subplots(nrows, ncols,figsize=(ncols*4.5,nrows*4), squeeze=False)
+    # else:
+    #     fig = plt.figure(figsize=(ncols*4.5,nrows*4))
+    #     axl=[]
+    #     for ir in range(nrows):
+    #         for ic in range(ncols):
+    #             pos = 100*nplots + 10*(ir+1) + (ic+1)
+    #             axl.append(fig.add_subplot(pos, projection='3d'))
+    #     axs = np.array(axl).reshape(nrows,ncols)
+    count=0
+    for pdn, pd in point_data.items():
+        ax = axs[count]
+        if dim==1:
+            plotmesh1d.plotMeshWithPointData(ax, pdn, pd, x, alpha)
+        elif dim==2:
+            plotmesh2d.plotMeshWithPointData(ax, pdn, pd, x, y, simp, alpha)
+        else:
+            plotmesh3d.plotMeshWithPointData(ax, pdn, pd, x, y, z, simp, alpha)
+        if numbering:
+            if dim == 2:
+                plotmesh2d._plotVertices(x, y, simp, xc, yc, ax=ax)
+                plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
+            else: raise NotImplementedError("3d...")
+        ax.set_aspect(aspect='equal')
+        if 'title' in kwargs: ax.set_title(kwargs['title'])
+        fig.add_subplot(ax)
+        count += 1
+    for cdn, cd in cell_data.items():
+        ax = axs[count]
+        if dim==1:
+            plotmesh1d.plotMeshWithCellData(ax, cdn, cd, x, alpha)
+        elif dim==2:
+            plotmesh2d.plotMeshWithCellData(ax, cdn, cd, x, y, simp, alpha)
+        else:
+            plotmesh3d.plotMeshWithCellData(ax, cdn, cd, x, y, z, simp, alpha)
+        if numbering:
+            if dim == 2:
+                plotmesh2d._plotVertices(x, y, simp, xc, yc, ax=ax)
+                plotmesh2d._plotCellsLabels(x, y, simp, xc, yc, ax=ax)
+            else:
+                raise NotImplementedError("3d...")
+        ax.set_aspect(aspect='equal')
+        fig.add_subplot(ax)
+        count += 1
+    for qdn, qd in quiver_data.items():
+        ax = axs[count]
         ax.set_aspect(aspect='equal')
         if dim == 2:
             if plotmesh: plotmesh2d.plotmesh(x=x, y=y, tris=simp, ax=ax, alpha=0.3)

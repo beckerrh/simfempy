@@ -51,11 +51,8 @@ class SimplexMesh(object):
         self.timer = timer.Timer(name="SimplexMesh")
         import importlib
         from distutils.version import StrictVersion
-        newmeshio = StrictVersion(importlib.metadata.version('meshio')) > StrictVersion('5.0.0')
-        if newmeshio:
-            celltypes = [c.type for c in mesh.cells]
-        else:
-            celltypes = [key for key, cellblock in mesh.cells]
+        celltypes = [c.type for c in mesh.cells]
+        # celltypes = [key for key, cellblock in mesh.cells]
         self._initMeshPyGmsh(mesh, celltypes)
         self.check()
         # print(self.timer)
@@ -426,4 +423,5 @@ if __name__ == '__main__':
     fig, axarr = plt.subplots(2, 1, sharex='col')
     plotmesh.meshWithBoundaries(mesh, ax=axarr[0])
     plotmesh.plotmeshWithNumbering(mesh, ax=axarr[1])
+    plt.show()
     # plotmesh.plotmeshWithNumbering(mesh, localnumbering=True)
