@@ -60,11 +60,6 @@ class Application(object):
             self.random_exactsolution = kwargs.pop('random',False)
         else:
             self._generatePDforES = False
-        if 'geom' in kwargs:
-            self.geom = kwargs.pop('geom')
-            print(f"{self.geom=}")
-            mesh = self.geom.generate_mesh()
-            self.mesh = simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
         if 'mesh' in kwargs:
             # self.mesh = kwargs.pop('mesh')
             self.setMesh(kwargs.pop('mesh'))
@@ -165,7 +160,10 @@ class Application(object):
             else:
                 maxiter = kwargs.pop('maxiter', 100)
                 sdata = simfempy.solvers.newtondata.StoppingData(maxiter=maxiter)
-            sdata.addname = self.linearsolver
+            if isinstance(self.linearsolver, str):
+                sdata.addname = self.linearsolver
+            else:
+                sdata.addname = self.linearsolver['method']
             if mode == 'newton':
                 info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx, verbose=True, sdata=sdata)
                 # print(f"{info=}")

@@ -100,7 +100,7 @@ def plotmeshWithNumbering(meshdata, **kwargs):
 #----------------------------------------------------------------#
 def meshWithBoundaries(meshdata, **kwargs):
     dim, meshdataismesh = _getDim(meshdata)
-    gs = kwargs.get('gs', None)
+    gs = kwargs.get('gs', 111)
     fig = kwargs.get('fig', None)
     kwargs['ax'] = fig.add_subplot(gs)
     if dim==1:

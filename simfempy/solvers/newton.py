@@ -125,13 +125,15 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
+    # print(f"{sdata.addname=}")
     if hasattr(sdata,'addname'): name += '_' + sdata.addname
     if verbose:
-        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format(name, "it", "|x|", "|dx|", '|r|','rhodx','rhor','lin', 'step'))
+        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step'))
         print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format(name, 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
     iterdata = newtondata.IterationData(resnorm)
+    # print(f"{sdata.steptype=}")
     if sdata.steptype == 'rb':
         bt = Baseopt(f, sdata, x.shape[0], verbose)
     while(resnorm>tol  and iterdata.iter < maxiter):
@@ -154,7 +156,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         if verbose:
-            print(f"{name} {iterdata.iter:3} {xnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {resnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
+            print(f"{name} {iterdata.iter:3} {resnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {xnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
         if xnorm >= divx:
             return (x, maxiter, np.mean(iterdata.liniter))
     return (x,iterdata.iter, np.mean(iterdata.liniter))

@@ -42,14 +42,17 @@ data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
 # paramaters in equation
 data.params.set_scal_cells("kheat", [100], 0.001)
 data.params.set_scal_cells("kheat", [200], 10.0)
-data.params.fct_glob["convection"] = ["0", "0.001"]
+# data.params.fct_glob["convection"] = ["0", "0.001"]
 # create application
-heat = Heat(mesh=mesh, problemdata=data, fem='p1')
+femparams={'dirichletmethod':'nitsche'}
+# femparams={'dirichletmethod':'strong'}
+heat = Heat(mesh=mesh, problemdata=data, fem='p1', femparams=femparams)
+# heat = Heat(mesh=mesh, problemdata=data, fem='cr1')
 # heat = Heat(mesh=mesh, problemdata=data, fem='p1', dirichletmethod='nitsche')
-static = True
+static = False
 if static:
     # run static
-    result = heat.static()
+    result = heat.static(mode="newton")
     print(f"{result=}")
     # for p, v in result.data['global'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))

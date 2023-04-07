@@ -13,14 +13,16 @@ import simfempy.fems.data, simfempy.fems.rt0
 
 #=================================================================#
 class P1(p1general.P1general):
-    def __init__(self, kwargs={}, mesh=None):
-        super().__init__(mesh=mesh)
-        for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
-            self.params_bool[p] = kwargs.pop(p, v)
-        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'supg']):
-            self.params_str[p] = kwargs.pop(p, v)
-        if self.params_str['dirichletmethod'] == 'nitsche':
-            self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)
+    # def __init__(self, kwargs={}, mesh=None):
+    #     super().__init__(mesh=mesh)
+    #     for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
+    #         self.params_bool[p] = kwargs.pop(p, v)
+    #     for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'supg']):
+    #         self.params_str[p] = kwargs.pop(p, v)
+    #     if self.params_str['dirichletmethod'] == 'nitsche':
+    #         self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)
+    #     if len(kwargs.keys()):
+    #         raise ValueError(f"*** unused arguments {kwargs=}")
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
@@ -169,6 +171,7 @@ class P1(p1general.P1general):
         np.add.at(b, simp, -mat)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
         if self.params_str['dirichletmethod'] != 'nitsche': return
+        nitsche_param=self.params_float['nitscheparam']
         assert u.shape[0]==self.mesh.nnodes
         dim  = self.mesh.dimension
         massloc = tools.barycentric.tensor(d=dim - 1, k=2)
@@ -177,7 +180,7 @@ class P1(p1general.P1general):
         nodes, cells, normalsS = self.mesh.faces[faces], self.mesh.cellsOfFaces[faces,0], self.mesh.normals[faces,:dim]
         dS = linalg.norm(normalsS, axis=1)
         simp, dV = self.mesh.simplices[cells], self.mesh.dV[cells]
-        dS *= self.dirichlet_nitsche * diffcoff[cells] * dS / dV
+        dS *= nitsche_param * diffcoff[cells] * dS / dV
         r = np.einsum('n,kl,nl->nk', dS, massloc, u[nodes])
         np.add.at(du, nodes, r)
         cellgrads = self.cellgrads[cells, :, :dim]

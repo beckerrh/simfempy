@@ -11,11 +11,12 @@ from simfempy.tools.comparemethods import CompareMethods
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
     exactsolution = kwargs.pop('exactsolution', 'Linear')
+    femparams = kwargs.pop('femparams', {})
     data = simfempy.applications.problemdata.ProblemData()
     data.params.scal_glob['mu'] = kwargs.pop('mu', 1)
     data.params.scal_glob['navier'] = kwargs.pop('navier', 1)
     paramsdict = {}
-    paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
+    # paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['strong','nitsche'])
     if dim==2:
         data.ncomp=2
         createMesh = testmeshes.unitsquare
@@ -36,7 +37,7 @@ def test(dim, **kwargs):
     colorsp = []
     # TODO Navier donne pas solution pour Linear (mais p)
     colorsdir = [col for col in colors if col not in colorsnav and col not in colorsp and col not in colorsneu]
-    if 'strong' in paramsdict['dirichletmethod']:
+    if 'strong' in femparams['dirichletmethod']:
         if len(colorsnav): colorsdir.append(*colorsnav)
         if len(colorsp): colorsdir.append(*colorsp)
         colorsnav=[]
@@ -47,12 +48,12 @@ def test(dim, **kwargs):
     data.bdrycond.set("Pressure", colorsp)
     data.postproc.set(name='bdrypmean', type='bdry_pmean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir)
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution}
+    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'femparams': femparams}
     applicationargs['scalels'] = True
     solvers=['spsolve', 'scipy_gcrotmk@full@200@1', 'scipy_lgmres@full@200@1', 'schur|diag@pyamg_cg@@9@0']
     applicationargs['linearsolver'] = kwargs.pop('linearsolver', solvers[0])
 
-    # applicationargs['mode'] = 'newton'
+    applicationargs['mode'] = 'newton'
     comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Stokes, applicationargs=applicationargs, **kwargs)
     return comp.compare()
 
@@ -60,9 +61,10 @@ def test(dim, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
+    femparams = {'dirichletmethod':'nitsche'}
     # test(dim=2, exactsolution=[["x**2-y","-2*x*y+x**2"],"x*y"], dirichletmethod='nitsche', niter=6, plotsolution=False, linearsolver='iter_gcrotmk')
     # test(dim=3, exactsolution=[["x**2-y+2","-2*x*y+x**2","x+y"],"x*y*z"], dirichletmethod='nitsche', niter=5, plotsolution=False, linearsolver='iter_gcrotmk')
-    test(dim=2, exactsolution="Linear", niter=3, dirichletmethod=['nitsche'], plotsolution=True, linearsolver='spsolve')
+    test(dim=2, exactsolution="Linear", niter=3, femparams=femparams, plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution="Quadratic", niter=7, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=2, exactsolution=[["1.0","0.0"],"10"], niter=3, dirichletmethod='nitsche', plotsolution=True, linearsolver='spsolve')
     # test(dim=3, exactsolution=[["-z","x","x+y"],"11"], niter=3, dirichletmethod=['nitsche'], linearsolver='spsolve', plotsolution=False)

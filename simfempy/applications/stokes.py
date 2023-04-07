@@ -15,8 +15,8 @@ class Stokes(Application):
     """
     def __format__(self, spec):
         if spec=='-':
-            repr = f"{self.femv=} {self.femp=}"
-            if self.linearsolver=='spsolve': return repr + self.linearsolver
+            repr = f"{self.femv=} {self.femp=} {self.problemdata=}"
+            if self.linearsolver=='spsolve': return repr + f" {self.linearsolver=}"
             ls = '@'.join([str(v) for v in self.linearsolver.values()])
             vs = '@'.join([str(v) for v in self.solver_v.values()])
             # print(f"{self.solver_p=}")
@@ -55,17 +55,18 @@ class Stokes(Application):
                 return {'type':nsp[0], 'method': nsp[1], 'prec': nsp[2], 'maxiter': int(nsp[3]), 'disp': int(nsp[4])}
         else: raise ValueError(f"*** unknown {type=}")
     def __init__(self, **kwargs):
-        self.dirichletmethod = kwargs.pop('dirichletmethod', 'nitsche')
+        femparams = kwargs.pop('femparams', {})
+        self.dirichletmethod = femparams.pop('dirichletmethod', 'nitsche')
         if self.dirichletmethod=='nitsche':
             # correct value ?!
-            kwargs['dirichletmethod'] = 'nitsche'
-            kwargs['nitscheparam'] = 10
+            femparams['dirichletmethod'] = 'nitsche'
+            femparams['nitscheparam'] = femparams.pop('nitscheparam', 10)
         self.problemdata = kwargs.pop('problemdata')
         self.ncomp = self.problemdata.ncomp
-        self.femv = fems.cr1sys.CR1sys(self.ncomp, kwargs)
+        self.hdivpenalty = femparams.pop('hdivpenalty', 0)
+        self.divdivparam = femparams.pop('divdivparam', 0)
+        self.femv = fems.cr1sys.CR1sys(self.ncomp, femparams)
         self.femp = fems.d0.D0()
-        self.hdivpenalty = kwargs.pop('hdivpenalty', 0)
-        self.divdivparam = kwargs.pop('divdivparam', 0)
         self.scalels = kwargs.pop('scalels', False)
         if not 'linearsolver' in kwargs:
             linearsolver_def = {'method': 'pyamg_gmres', 'prec':'full', 'maxiter': 200, 'disp':0}
@@ -96,6 +97,7 @@ class Stokes(Application):
             else:
                 raise ValueError(f"*** need 'solver_v' in the form 'method@prec@maxiter@disp'")
         super().__init__(**kwargs)
+        print(f"{self=}")
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
         n = nv+self.mesh.ncells
@@ -251,7 +253,18 @@ class Stokes(Application):
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
+    def computeDx(self, b, u, info):
+        # print(f"{info.iter=}")
+        if info.iter==0:
+            self.A = self.computeMatrix(u=u)
+        try:
+            u, niter = self.linearSolver(self.A, b, u)
+        except Warning:
+            raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
+        self.timer.add('solve')
+        return u, niter
     def linearSolver(self, Ain, bin, uin=None, verbose=0, atol=1e-16, rtol=1e-10):
+        # print(f"{self.linearsolver=}")
         if self.linearsolver == 'spsolve':
             Aall = Ain.to_single_matrix()
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
@@ -265,7 +278,7 @@ class Stokes(Application):
             prec = linearsolver.pop("prec", "full")
             if solver_p['type']=='scale':
                 solver_p['coeff'] = self.mesh.dV/self.mucell
-            print(f"{self.scalels=}")
+            # print(f"{self.scalels=}")
             if self.scalels: Ain.scaleAb(bin)
             P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
             assert isinstance(self.linearsolver, dict)
@@ -377,7 +390,8 @@ class Stokes(Application):
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
-            self.femv.formBoundary(dv, self.bdrydata, self.dirichletmethod)
+            self.femv.vectorBoundaryStrongEqual(dv, v, self.bdrydata)
+            # self.femv.formBoundary(dv, self.bdrydata, self.dirichletmethod)
         else:
             self.computeFormBdryNitscheDirichlet(dv, dp, v, p, colorsdir, self.mucell)
             self.computeFormBdryNitscheNavier(dv, dp, v, p, colorsnav, self.mucell)
@@ -392,6 +406,8 @@ class Stokes(Application):
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         colorsp = self.problemdata.bdrycond.colorsOfType("Pressure")
+        if len(colorsp):
+            raise NotImplementedError(f"Pressure boundary consition wrong (in newton)")
         if self.dirichletmethod == 'strong':
             A, B = self.matrixBoundaryStrong(A, B, self.bdrydata, self.dirichletmethod)
         else:
@@ -403,11 +419,11 @@ class Stokes(Application):
             A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
             A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
-        if self.hdivpenalty:
-            if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
-            A += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
-        if self.divdivparam:
-            A += self.femv.computeMatrixDivDiv(self.divdivparam)
+        # if self.hdivpenalty:
+        #     if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
+        #     A += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
+        # if self.divdivparam:
+        #     A += self.femv.computeMatrixDivDiv(self.divdivparam)
         if not self.pmean:
             return linalg.SaddlePointSystem(A, B)
         ncells = self.mesh.ncells
@@ -567,11 +583,12 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from simfempy.meshes import plotmesh, animdata
     from simfempy.examples.incompflow import schaeferTurek2d
-    mesh, data = schaeferTurek2d(h=0.4)
-    stokes = Stokes(mesh=mesh, problemdata=data)
+    mesh, data = schaeferTurek2d(h=0.4, mu=1)
+    stokes = Stokes(mesh=mesh, problemdata=data, femparams={'dirichletmethod':'strong'}, linearsolver='spsolve')
     print(f"{stokes=}")
-    results = stokes.static()
-    print(f"{results=}")
+    # results = stokes.static(mode="linear")
+    results = stokes.static(mode="newton")
+    print(f"{results.data['global']=}")
     fig = plt.figure(1)
     gs = fig.add_gridspec(2, 1)
     plotmesh.meshWithBoundaries(stokes.mesh, gs=gs[0,0], fig=fig)

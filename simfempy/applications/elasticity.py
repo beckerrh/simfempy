@@ -25,6 +25,7 @@ class Elasticity(Application):
         E, nu = self.YoungPoisson[material]
         return self.toLame(E, nu)
     def __init__(self, **kwargs):
+        femparams = kwargs.pop('femparams', {})
         fem = kwargs.pop('fem', 'p1')
         ncomp = kwargs['problemdata'].ncomp
         self.dirichletmethod = kwargs.pop('dirichletmethod', 'strong')
@@ -124,7 +125,6 @@ class Elasticity(Application):
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
-
     def pyamg_solver_args(self, maxiter):
         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-12, 'accel': 'bicgstab'}
     def build_pyamg(self,A):

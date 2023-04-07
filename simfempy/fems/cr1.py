@@ -16,15 +16,18 @@ import simfempy.fems.data, simfempy.fems.rt0
 
 #=================================================================#
 class CR1(p1general.P1general):
-    def __init__(self, kwargs={}, mesh=None):
-        print(f"in CR1 {kwargs=}")
-        super().__init__(mesh=mesh)
-        for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
-            self.params_bool[p] = kwargs.pop(p, v)
-        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
-            self.params_str[p] = kwargs.pop(p, v)
-        if self.params_str['dirichletmethod'] == 'nitsche':
-            self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 2)
+    # def __init__(self, kwargs={}, mesh=None):
+    #     print(f"***** in CR1 {kwargs=}")
+    #     super().__init__(mesh=mesh)
+    #     for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
+    #         self.params_bool[p] = kwargs.pop(p, v)
+    #     for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
+    #         self.params_str[p] = kwargs.pop(p, v)
+    #     if self.params_str['dirichletmethod'] == 'nitsche':
+    #         self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 2)
+    #     print(f"***** in CR1 {kwargs=} {self.params_str=} {self.params_float=}")
+    #     if len(kwargs.keys()):
+    #         raise ValueError(f"*** unused arguments {kwargs=}")
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
@@ -46,7 +49,7 @@ class CR1(p1general.P1general):
         return unodes
     def prepareAdvection(self, beta, scale):
         method = self.params_str['convmethod']
-        rt = simfempy.fems.rt0.RT0(self.mesh)
+        rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
         betart = scale*rt.interpolate(beta)
         beta = rt.toCell(betart)
         convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
@@ -108,7 +111,7 @@ class CR1(p1general.P1general):
         self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=coeff*nitsche_param*diffcoff[cells] * dS/dV, lumped=lumped)
     def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
         if self.params_str['dirichletmethod'] != 'nitsche': return
-        nitsche_param=self.dirichlet_nitsche
+        nitsche_param=self.params_float['nitscheparam']
         assert u.shape[0] == self.mesh.nfaces
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces,0]
@@ -136,7 +139,8 @@ class CR1(p1general.P1general):
         dV = self.mesh.dV[cells]
         # AD = sparse.coo_matrix((dS**2/dV,(faces,faces)), shape=(nfaces, nfaces))
         AD = self.computeBdryMassMatrix(colors=colors, coeff=coeff*diffcoff[cells]*nitsche_param*dS/dV, lumped=lumped)
-        return AD - AN -AN.T 
+        return AD - AN - AN.T
+
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
         nitsche_param=self.params_float['nitscheparam']
         #TODO correct flux computation Nitsche
@@ -155,6 +159,15 @@ class CR1(p1general.P1general):
             flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
             # flux[i] /= np.sum(dS)
         return flux
+
+    def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
+        method = self.params_str['dirichletmethod']
+        if method == 'new':
+            nodedirall = bdrydata.nodedirall
+            du[nodedirall] += bdrydata.A_dir_dir * u[bdrydata.nodedirall]
+        elif method == "nitsche":
+            self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
+
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         if self.params_str['dirichletmethod']=="nitsche": return
         facesdirall = bdrydata.facesdirall
@@ -325,7 +338,6 @@ class CR1(p1general.P1general):
     def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=None):
         #TODO CR1 boundary integrals: can do at ones since last index in facesOfCells is the bdry side:
         # assert np.all(faces == foc[:,-1])
-        if lumped is None: lumped=self.params_bool['masslumpedbdry']
         if colors is None: colors = self.mesh.bdrylabels.keys()
         massloc = barycentric.crbdryothers(self.mesh.dimension)
         if not isinstance(coeff, dict):
@@ -337,19 +349,15 @@ class CR1(p1general.P1general):
             else: dS *= coeff
             if b is None: bsum = np.sum(dS*f[faces])
             else: b[faces] += dS*f[faces]
-            if lumped:
-                if b is None: return bsum
-                else: return b
-            else:
-                ci = self.mesh.cellsOfFaces[faces][:, 0]
-                foc = self.mesh.facesOfCells[ci]
-                mask = foc!=faces[:,np.newaxis]
-                fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
-                r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
-                if b is None: return bsum+np.sum(r)
-                # print(f"{np.linalg.norm(f[fi])=}")
-                np.add.at(b, fi, r)
-                return b
+            ci = self.mesh.cellsOfFaces[faces][:, 0]
+            foc = self.mesh.facesOfCells[ci]
+            mask = foc!=faces[:,np.newaxis]
+            fi = foc[mask].reshape(foc.shape[0],foc.shape[1]-1)
+            r = np.einsum('n,kl,nl->nk', dS, massloc, f[fi])
+            if b is None: return bsum+np.sum(r)
+            # print(f"{np.linalg.norm(f[fi])=}")
+            np.add.at(b, fi, r)
+            return b
         assert(isinstance(coeff, dict))
         for color in colors:
             faces = self.mesh.bdrylabels[color]

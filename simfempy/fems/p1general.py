@@ -13,6 +13,16 @@ from simfempy.fems import fem
 
 #=================================================================#
 class P1general(fem.Fem):
+    def __init__(self, kwargs={}, mesh=None):
+        super().__init__(mesh=mesh)
+        for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, False]):
+            self.params_bool[p] = kwargs.pop(p, v)
+        for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'supg']):
+            self.params_str[p] = kwargs.pop(p, v)
+        if self.params_str['dirichletmethod'] == 'nitsche':
+            self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 4)
+        if len(kwargs.keys()):
+            raise ValueError(f"*** unused arguments {kwargs=}")
     def setMesh(self, mesh, innersides=False):
         super().setMesh(mesh)
         self.nloc = self.nlocal()

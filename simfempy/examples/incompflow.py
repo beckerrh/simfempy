@@ -16,7 +16,7 @@ from simfempy.tools import timer
 
 # ================================================================c#
 def main(**kwargs):
-    modelargs = kwargs.pop('modelargs', {})
+    femparams = kwargs.pop('femparams', {})
     testcases = ['drivenCavity', 'backwardFacingStep', 'poiseuille', 'schaeferTurek']
     testcase = kwargs.pop('testcase', testcases[0])
     model = kwargs.pop('model', 'NavierStokes')
@@ -28,7 +28,7 @@ def main(**kwargs):
     t = timer.Timer("mesh")
     mesh, data = eval(testcase)(**kwargs)
     t.add('pygmsh')
-    mesh = SimplexMesh(mesh)
+    # mesh = SimplexMesh(mesh)
     t.add('SimplexMesh')
     print(t)
     print(f"{mesh=}")
@@ -38,10 +38,11 @@ def main(**kwargs):
         return
     # create application
     if model == "Stokes":
-        model = Stokes(mesh=mesh, problemdata=data, **modelargs)
+        model = Stokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
     else:
         # model = NavierStokes(mesh=mesh, problemdata=data, hdivpenalty=10)
-        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='spsolve', **modelargs)
+        model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
+    model.mode='newton'
     result = model.solve()
     print(f"{result.info['timer']}")
     print(f"postproc:")
@@ -72,9 +73,9 @@ def poiseuille2d(h= 0.1, mu=0.1):
     data = ProblemData()
    # boundary conditions
     data.bdrycond.set("Dirichlet", [1002,1000,1003])
-    data.bdrycond.set("Neumann", [])
+    data.bdrycond.set("Neumann", [1001])
     data.bdrycond.set("Navier", [])
-    data.bdrycond.set("Pressure", [1001])
+    data.bdrycond.set("Pressure", [])
     data.bdrycond.fct[1003] = [lambda x, y, z:  4*y*(1-y), lambda x, y, z: 0]
     # parameters
     data.params.scal_glob["mu"] = mu
@@ -203,7 +204,7 @@ def backwardFacingStep3d(h=0.2, mu=0.02):
     data.ncomp = 3
     return SimplexMesh(mesh=mesh), data
 # ================================================================ #
-def schaeferTurek2d(h= 0.5, hcircle=None):
+def schaeferTurek2d(h= 0.5, hcircle=None, mu=0.01):
     if hcircle is None: hcircle = 0.2*h
     with pygmsh.geo.Geometry() as geom:
         circle = geom.add_circle(x0=[2,2], radius=0.5, mesh_size=hcircle, num_sections=10, make_surface=False)
@@ -217,7 +218,7 @@ def schaeferTurek2d(h= 0.5, hcircle=None):
     data.bdrycond.set("Dirichlet", [1002,1000,1003,3000])
     data.bdrycond.set("Neumann", [1001])
     data.bdrycond.fct[1003] = [lambda x, y, z:  0.3*y*(4.1-y)/2.05**2, lambda x, y, z: 0]
-    data.params.scal_glob["mu"] = 0.01
+    data.params.scal_glob["mu"] = mu
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=3000)
     def changepostproc(info):
         bdrynflux = info.pop('bdrynflux')
@@ -255,10 +256,14 @@ def schaeferTurek3d(h= 1, hcircle=None):
 
 #================================================================#
 if __name__ == '__main__':
-    # main(testcase='poiseuille2d', h=0.2, mu=1e-6, modelargs={'convmethod':'lps', 'divdivparam':1., 'hdivpenalty':0.1, 'precond_v':'spsolve'})
-    # main(testcase='drivenCavity2d', h=1, mu=3e-2, precond_p='schur')
+    femparams = {'dirichletmethod':'nitsche', 'convmethod': 'lps', 'divdivparam': 0., 'hdivpenalty': 0.}
+    # main(model='Stokes', testcase='poiseuille2d', h=0.2, mu=1e-2, femparams=femparams)
+    # main(model='NavierStokes', testcase='poiseuille2d', h=0.1, mu=1e-4, femparams=femparams)
+    # main(model='Stokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
+    main(model='NavierStokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
+    # main(model='Stokes', testcase='drivenCavity2d', h=1, mu=3e-2, femparams=femparams)
     # main(testcase='backwardFacingStep2d', mu=2e-3)
-    main(testcase='backwardFacingStep3d', mu=2e-2)
+    # main(testcase='backwardFacingStep3d', mu=2e-2)
     # main(testcase='schaeferTurek2d')
     # main(testcase='poiseuille3d', h=0.2, mu=1e-3)
     # main(testcase='drivenCavity3d', mu=0.001, precond_p='schur')

@@ -39,6 +39,10 @@ class SaddlePointSystem():
     B  0   M^T
     0  M   0
     """
+    def __repr__(self):
+        string =  f" {self.A.shape=} {self.B.shape=}"
+        if hasattr(self, 'M'): string += f"{self.M.shape=}"
+        return string
     def __init__(self, A, B, M=None):
         self.A, self.B = A, B
         self.na, self.nb = A.shape[0], B.shape[0]
@@ -314,7 +318,8 @@ class SaddlePointPreconditioner():
         self.nv = self.AS.na
         self.nvp = self.AS.na + AS.nb
         self.nall = self.nvp
-        if constr: self.nall += AS.m
+        print(f"{AS=}")
+        if constr: self.nall += AS.nm
         if method == 'diag':
             self.matvecprec = self.pmatvec3_diag if constr else self.pmatvec2_diag
         elif method == 'triup':

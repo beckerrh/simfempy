@@ -44,8 +44,9 @@ class Heat(Application):
         return repr
     def __init__(self, **kwargs):
         fem = kwargs.pop('fem','p1')
-        if fem == 'p1': self.fem = fems.p1.P1(kwargs)
-        elif fem == 'cr1': self.fem = fems.cr1.CR1(kwargs)
+        femparams = kwargs.pop('femparams', {})
+        if fem == 'p1': self.fem = fems.p1.P1(femparams)
+        elif fem == 'cr1': self.fem = fems.cr1.CR1(femparams)
         else: raise ValueError("unknown fem '{}'".format(fem))
         self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
         super().__init__(**kwargs)
@@ -150,7 +151,8 @@ class Heat(Application):
             cmd = "self.{} = {}".format(self.paramname, param)
             eval(cmd)
     def computeForm(self, u, coeffmass=None):
-        du2 = self.A@u
+        test = False
+        if test: du2 = self.A@u
         du = np.zeros_like(u)
         bdrycond = self.problemdata.bdrycond
         colorsrobin = bdrycond.colorsOfType("Robin")
@@ -162,9 +164,9 @@ class Heat(Application):
         if coeffmass is not None:
             self.fem.massDot(du, u, coeff=coeffmass)
         self.fem.vectorBoundaryStrongEqual(du, u, self.bdrydata)
-        if not np.allclose(du,du2):
+        if test and not np.allclose(du,du2):
             # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
-            raise ValueError(f"\n{du=}\n{du2=}")
+            raise ValueError(f"\n{np.linalg.norm(du-du2)=}\n{du2[du!=du2]=}")
         return du
     def computeMatrix(self, u=None, coeffmass=None):
         bdrycond = self.problemdata.bdrycond

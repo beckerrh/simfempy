@@ -13,8 +13,8 @@ from simfempy.tools import barycentric, npext
 
 #=================================================================#
 class CR1sys(femsys.Femsys):
-    def __init__(self, ncomp, kwargs={}, mesh=None):
-        super().__init__(cr1.CR1(kwargs=kwargs, mesh=mesh), ncomp, mesh)
+    def __init__(self, ncomp, kwargs={}):
+        super().__init__(cr1.CR1(kwargs=kwargs), ncomp)
     def setMesh(self, mesh):
         super().setMesh(mesh)
     def tonode(self, u):
@@ -73,6 +73,12 @@ class CR1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         b[inddir] = 0
+    def vectorBoundaryStrongEqual(self, b, u, bdrydata):
+        facesdirall, ncomp = bdrydata.facesdirall, self.ncomp
+        inddir = np.repeat(ncomp * facesdirall, ncomp)
+        for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
+        b[inddir] = u[inddir]
+
     def vectorBoundaryStrong(self, b, bdryfct, bdrydata, method):
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
@@ -90,10 +96,12 @@ class CR1sys(femsys.Femsys):
             faces = self.mesh.bdrylabels[color]
             if color in bdryfct:
                 # dirichlets = bdryfct[color](x[faces], y[faces], z[faces])
-                dirichlets = np.vstack([f(x[faces], y[faces], z[faces]) for f in bdryfct[color]])
+                # dirichlets = np.vstack([f(x[faces], y[faces], z[faces]) for f in bdryfct[color]])
                 for icomp in range(ncomp):
-                    help[icomp + ncomp * faces] = dirichlets[icomp]
-        b[indin] -= bdrydata.A_inner_dir * help[inddir]
+                    dirichlets = bdryfct[color][icomp](x[faces], y[faces], z[faces])
+                    # help[icomp + ncomp * faces] = dirichlets[icomp]
+                    help[icomp + ncomp * faces] = dirichlets
+                    b[indin] -= bdrydata.A_inner_dir * help[inddir]
         if method == 'strong':
             b[inddir] = help[inddir]
             # print(f"{b[inddir]=}")
