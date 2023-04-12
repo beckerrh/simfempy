@@ -85,6 +85,9 @@ class SaddlePointSystem():
         v, p = u[:self.na], u[self.na:]
         u[:self.na] = self.vs@v
         u[self.na:] = self.ps@p
+    def dot(self, x):
+        if hasattr(self, "M"): return self.matvec3(x)
+        return self.matvec2(x)
     def matvec3(self, x):
         v, p, lam = x[:self.na], x[self.na:self.na+self.nb], x[self.na+self.nb:]
         w = self.A.dot(v) - self.B.T.dot(p)

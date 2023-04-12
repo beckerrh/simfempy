@@ -183,7 +183,7 @@ class Application(object):
             self.problemdata.postproc.changepostproc(pp['global'])
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter=iter)
-        return result
+        return result, u
     def computeDefect(self, u):
         return self.computeForm(u)-self.b
     def computeForm(self, u):
@@ -211,9 +211,78 @@ class Application(object):
         self.fem.massDot(b, fp1)
         u, niter = self.linearSolver(self.Mass, b, u=fp1)
         return u
-    def dynamic(self, u0, t_span, nframes, dt=None, mode='linear', callback=None, method='BE', verbose=1):
-        if mode=='linear': return self.dynamic_linear(u0, t_span, nframes, dt, callback, method, verbose)
-        raise NotImplementedError()
+
+    def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
+        rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        rhs += (theta-1)/theta * Aimp.dot(u)
+        # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+        rhs2 = self.computeRhs()
+        rhs += (1 / theta) * rhs2
+    def defect_dynamic(self, u):
+        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, b, u, info):
+        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+        return u, niter
+
+    def dynamic(self, u0, t_span, nframes, dt=None, callback=None, theta=0.5, verbose=1, **kwargs):
+        # TODO: passing time
+        """
+        u_t + A(u) = f, u(t_0) = u_0
+        M(u^{n+1}-u^n)/dt + A(theta u^{n+1}+(1-theta)u^n) = theta f^{n+1}+(1-theta)f^n
+        :param u0: initial condition
+        :param t_span: time interval bounds (tuple)
+        :param nframes: number of frames to store
+        :param dt: time-step (fixed for the moment!)
+        :param mode: (only linear for the moment!)
+        :param callback: if given function called for each frame with argumntes t, u
+        :param method: CN or BE for Crank-Nicolson (a=1/2) or backward Euler (a=1)
+        :return: results with data per frame
+        """
+        if not dt or dt<=0: raise NotImplementedError(f"needs constant positive 'dt")
+        if t_span[0]>=t_span[1]: raise ValueError(f"something wrong in {t_span=}")
+        import math
+        nitertotal = math.ceil((t_span[1]-t_span[0])/dt)
+        if nframes > nitertotal:
+            raise ValueError(f"Maximum valiue for nframes is {nitertotal=}")
+        niter = nitertotal//nframes
+        result = simfempy.applications.problemdata.Results(nframes)
+        self.timer.add('init')
+        self.timer.add('matrix')
+        u = u0
+        self.time = t_span[0]
+        # rhs=None
+        self.rhs = np.empty_like(u, dtype=float)
+        niterslinsol = np.zeros(niter, dtype=int)
+        maxiter = kwargs.pop('maxiter', 100)
+        sdata = kwargs.pop('sdata', simfempy.solvers.newtondata.StoppingData(maxiter=maxiter))
+        if isinstance(self.linearsolver, str):
+            sdata.addname = self.linearsolver
+        else:
+            sdata.addname = self.linearsolver['method']
+        if not hasattr(self, 'Mass'):
+            self.Mass = self.computeMassMatrix()
+        if not hasattr(self, 'Aimp'):
+            self.Aimp = self.computeMatrix(coeffmass=1/dt/theta)
+            if self.linearsolver=="pyamg":
+                self.pyamgml = self.build_pyamg(self.Aimp)
+        self.theta, self.dt = theta, dt
+        for iframe in range(nframes):
+            if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=} {theta=}")
+            for iter in range(niter):
+                self.rhs.fill(0)
+                self.rhs_dynamic(self.rhs, u, self.Aimp, self.time, dt, theta)
+                self.timer.add('rhs')
+                self.time += dt
+                info = simfempy.solvers.newton.newton(u, f=self.defect_dynamic,
+                                                      computedx=self.dx_dynamic, verbose=True, sdata=sdata)
+                u, niter, niterlin = info
+                iter = {'lin': niterlin, 'nlin': niter}
+                if niter == sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
+                self.timer.add('solve')
+            result.addData(iframe, self.postProcess(u), time=self.time, iter=niterslinsol.mean())
+            if callback: callback(self.time, u)
+        return result
+
     def dynamic_linear(self, u0, t_span, nframes, dt=None, callback=None, method='CN', verbose=1):
         # TODO: passing time
         """
@@ -246,7 +315,7 @@ class Application(object):
         self.timer.add('init')
         if not hasattr(self, 'Mass'):
             self.Mass = self.fem.computeMassMatrix()
-        if not hasattr(self, 'A'):
+        if not hasattr(self, 'Aimp'):
             self.Aimp = self.computeMatrix(coeffmass=1/dt/a)
             if self.linearsolver=="pyamg":
                 self.pyamgml = self.build_pyamg(self.Aimp)

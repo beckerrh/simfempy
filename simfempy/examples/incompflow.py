@@ -22,6 +22,7 @@ def main(**kwargs):
     model = kwargs.pop('model', 'NavierStokes')
     bdryplot = kwargs.pop('bdryplot', False)
     plot = kwargs.pop('plot', False)
+    static = kwargs.pop('static', True)
     # linearsolver = kwargs.pop('linearsolver', 'gcrotmk_1')
     # precond_p = kwargs.pop('precond_p', 'diag')
     # create mesh and data
@@ -43,24 +44,29 @@ def main(**kwargs):
         # model = NavierStokes(mesh=mesh, problemdata=data, hdivpenalty=10)
         model = NavierStokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
     model.mode='newton'
-    result = model.solve()
-    print(f"{result.info['timer']}")
-    print(f"postproc:")
-    for k, v in result.data['global'].items(): print(f"{k}: {v}")
-    if mesh.dimension ==2:
-        fig = plt.figure(figsize=(10, 8))
-        outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
-        plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[0])
-        plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[1],
-                            quiver_data={"V":list(result.data['point'].values())})
-        plt.show()
+    if static:
+        result = model.solve()
+        print(f"{result.info['timer']}")
+        print(f"postproc:")
+        for k, v in result.data['global'].items(): print(f"{k}: {v}")
+        if mesh.dimension ==2:
+            fig = plt.figure(figsize=(10, 8))
+            outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
+            plotmesh.meshWithData(mesh, data=result.data, title="Stokes", fig=fig, outer=outer[0])
+            plotmesh.meshWithData(mesh, title="Stokes", fig=fig, outer=outer[1],
+                                quiver_data={"V":list(result.data['point'].values())})
+            plt.show()
+        else:
+            filename = testcase+'.vtu'
+            mesh.write(filename, data=result.data)
+            if plot:
+                import pyvista as pv
+                mesh = pv.read(filename)
+                cpos = mesh.plot()
     else:
-        filename = testcase+'.vtu'
-        mesh.write(filename, data=result.data)
-        if plot:
-            import pyvista as pv
-            mesh = pv.read(filename)
-            cpos = mesh.plot()
+        stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
+        result, u = stokes.solve()
+        result = model.dynamic(u, t_span=(0, 200), nframes=100, dt=1)
 
 
 # ================================================================ #
@@ -257,11 +263,13 @@ def schaeferTurek3d(h= 1, hcircle=None):
 #================================================================#
 if __name__ == '__main__':
     femparams = {'dirichletmethod':'nitsche', 'convmethod': 'lps', 'divdivparam': 0., 'hdivpenalty': 0.}
+    # main(model='NavierStokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
+    main(model='Stokes', static=False, testcase='schaeferTurek2d', h=0.2, mu=1e-3, femparams=femparams)
+
     # main(model='Stokes', testcase='poiseuille2d', h=0.2, mu=1e-2, femparams=femparams)
     # main(model='NavierStokes', testcase='poiseuille2d', h=0.1, mu=1e-4, femparams=femparams)
     # main(model='Stokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
-    main(model='NavierStokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
-    # main(model='Stokes', testcase='drivenCavity2d', h=1, mu=3e-2, femparams=femparams)
+   # main(model='Stokes', testcase='drivenCavity2d', h=1, mu=3e-2, femparams=femparams)
     # main(testcase='backwardFacingStep2d', mu=2e-3)
     # main(testcase='backwardFacingStep3d', mu=2e-2)
     # main(testcase='schaeferTurek2d')

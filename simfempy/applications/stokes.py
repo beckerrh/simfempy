@@ -263,8 +263,9 @@ class Stokes(Application):
             raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
         self.timer.add('solve')
         return u, niter
-    def linearSolver(self, Ain, bin, uin=None, verbose=0, atol=1e-16, rtol=1e-10):
+    def linearSolver(self, Ain, b, u=None, verbose=0, atol=1e-16, rtol=1e-10):
         # print(f"{self.linearsolver=}")
+        bin, uin = b, u
         if self.linearsolver == 'spsolve':
             Aall = Ain.to_single_matrix()
             uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
@@ -400,7 +401,36 @@ class Stokes(Application):
         # if not np.allclose(d,d2):
         #     raise ValueError(f"{d=}\n{d2=}")
         return d
-    def computeMatrix(self, u=None):
+    def computeMassMatrix(self):
+        class MassMatrixIncompressible:
+            def __init__(self, app, M):
+                self.app = app
+                self.M = M
+            def addToStokes(self, f, A):
+                A += self.app.femv.matrix2systemdiagonal(f*self.M, self.app.ncomp)
+                return A
+            def dot(self, u):
+                # print(f"{u=}")
+                n = self.M.shape[0]
+                y = np.zeros_like(u)
+                for i in range(self.app.ncomp):
+                    y[i*n:(i+1)*n] += self.M.dot(u[i*n:(i+1)*n])
+                return y
+
+        return MassMatrixIncompressible(self, self.femv.fem.computeMassMatrix())
+    def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
+        print(f"{u.shape=} {rhs.shape=} {type(Aimp)=}")
+        rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        rhs += (theta - 1) / theta * Aimp.dot(u)
+        # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+        rhs2 = self.computeRhs()
+        rhs += (1 / theta) * rhs2
+    def defect_dynamic(self, u):
+        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, b, u, info):
+        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+        return u, niter
+    def computeMatrix(self, u=None, coeffmass=None):
         A = self.femv.computeMatrixLaplace(self.mucell)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
@@ -424,6 +454,8 @@ class Stokes(Application):
         #     A += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         # if self.divdivparam:
         #     A += self.femv.computeMatrixDivDiv(self.divdivparam)
+        if coeffmass:
+            self.Mass.addToStokes(coeffmass, A)
         if not self.pmean:
             return linalg.SaddlePointSystem(A, B)
         ncells = self.mesh.ncells

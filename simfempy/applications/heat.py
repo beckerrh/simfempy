@@ -168,6 +168,8 @@ class Heat(Application):
             # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
             raise ValueError(f"\n{np.linalg.norm(du-du2)=}\n{du2[du!=du2]=}")
         return du
+    def computeMassMatrix(self):
+        return self.fem.computeMassMatrix()
     def computeMatrix(self, u=None, coeffmass=None):
         bdrycond = self.problemdata.bdrycond
         colorsrobin = bdrycond.colorsOfType("Robin")
@@ -180,7 +182,8 @@ class Heat(Application):
         if self.convection:
             A += self.fem.computeMatrixConvection(self.convdata)
         if coeffmass is not None:
-            A += self.fem.computeMassMatrix(coeff=coeffmass)
+            # A += self.fem.computeMassMatrix(coeff=coeffmass)
+            A += coeffmass*self.Mass
         # if hasattr(self, 'bdrydata'):
         if self.bdrydata:
             A = self.fem.matrixBoundaryStrong(A, self.bdrydata)

@@ -45,9 +45,40 @@ class NavierStokes(Stokes):
         # self.femv.computeFormHdivPenaly(dv, v, self.hdivpenalty)
         self.timer.add('form')
         return d
-    def computeMatrix(self, u=None):
+
+    def computeMassMatrix(self):
+        class MassMatrixIncompressible:
+            def __init__(self, app, M):
+                self.app = app
+                self.M = M
+            def addToStokes(self, f, S):
+                S.A + self.app.femv.matrix2systemdiagonal(f*self.M, self.app.ncomp)
+                return S
+            def dot(self, u):
+                # print(f"{u=}")
+                n = self.M.shape[0]
+                y = np.zeros_like(u)
+                for i in range(self.app.ncomp):
+                    y[i*n:(i+1)*n] += self.M.dot(u[i*n:(i+1)*n])
+                return y
+
+        return MassMatrixIncompressible(self, self.femv.fem.computeMassMatrix())
+    def rhs_dynamic(self, rhs, u, time, dt, theta):
+        print(f"{u.shape=} {rhs.shape=} {type(self.Aimp)=}")
+        rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        rhs += (theta - 1) / theta * self.Aimp.dot(u)
+        # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
+        rhs2 = self.computeRhs()
+        rhs += (1 / theta) * rhs2
+    def defect_dynamic(self, u):
+        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, b, u, info):
+        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+        return u, niter
+    def computeMatrix(self, u=None, coeffmass=None):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
-        if u is None: return self.Astokes
+        if u is None:
+            return self.Astokes
         # X = [A.copy() for A in self.Astokes]
         # X = super().computeMatrix(u)
         X = self.Astokes.copy()

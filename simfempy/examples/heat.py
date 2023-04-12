@@ -66,7 +66,8 @@ else:
     # run dynamic
     data.params.fct_glob["initial_condition"] = "200"
     t_final, dt, nframes = 2500, 10, 50
-    result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
+    # result = heat.dynamic_linear(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
+    result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt, theta=0.9)
     # print(f"{result=}")
     nhalf = int(nframes/2)
     u = result.data['point']['U']
