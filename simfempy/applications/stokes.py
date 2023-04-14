@@ -229,8 +229,12 @@ class Stokes(Application):
         #     print(f"{lam=}")
         # else: v,p =  u
         data = {'point':{}, 'cell':{}, 'global':{}}
+        # for icomp in range(self.ncomp):
+        #     data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
+        vnode = np.empty(self.mesh.nnodes*self.ncomp)
         for icomp in range(self.ncomp):
-            data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
+            vnode[icomp::self.ncomp] = self.femv.fem.tonode(v[icomp::self.ncomp])
+        data['point']['V'] = vnode
         data['cell']['P'] = p
         if self.problemdata.solexact:
             err, e = self.femv.computeErrorL2(self.problemdata.solexact[0], v)
@@ -242,16 +246,24 @@ class Stokes(Application):
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    data['global'][name] = self.femp.computeBdryMean(p, colors)
+                    # data['global'][name] = self.femp.computeBdryMean(p, colors)
+                    pp = self.femp.computeBdryMean(p, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.femv.computeBdryMean(v, colors)
+                    # data['global'][name] = self.femv.computeBdryMean(v, colors)
+                    pp = self.femv.computeBdryMean(v, colors)
                 elif type == types[2]:
                     if self.dirichletmethod=='strong':
-                        data['global'][name] = self.computeBdryNormalFluxStrong(v, p, colors)
+                        # data['global'][name] = self.computeBdryNormalFluxStrong(v, p, colors)
+                        pp = self.computeBdryNormalFluxStrong(v, p, colors)
                     else:
-                        data['global'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
+                        # data['global'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
+                        pp = self.computeBdryNormalFluxNitsche(v, p, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
+                assert pp.ndim==2
+                for i,color in enumerate(colors):
+                    data['global'][name+"_"+f"{color}"] = pp[:,i]
+                # print(f"{name=} {data['global'][name].shape=}")
         return data
     def computeDx(self, b, u, info):
         # print(f"{info.iter=}")
@@ -377,7 +389,7 @@ class Stokes(Application):
         else: bmean=0
         b[-1] = bmean
         return b
-    def computeForm(self, u):
+    def computeForm(self, u, coeffmass=None):
         d = np.zeros_like(u)
         if self.pmean: 
             v, p, lam = self._split(u)
@@ -388,6 +400,7 @@ class Stokes(Application):
         # d2 = self.matrixVector(self.A, u)
         self.femv.computeFormLaplace(self.mucell, dv, v)
         self.femv.computeFormDivGrad(dv, dp, v, p)
+        if coeffmass: self.femv.computeFormMass(dv, v, coeffmass)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
@@ -406,32 +419,40 @@ class Stokes(Application):
             def __init__(self, app, M):
                 self.app = app
                 self.M = M
-            def addToStokes(self, f, A):
-                A += self.app.femv.matrix2systemdiagonal(f*self.M, self.app.ncomp)
+            def addToStokes(self, d, A):
+                A += self.app.femv.matrix2systemdiagonal(d*self.M, self.app.ncomp)
                 return A
-            def dot(self, u):
-                # print(f"{u=}")
+            def dot(self, du, d, u):
+                # print(f"{d=}")
                 n = self.M.shape[0]
-                y = np.zeros_like(u)
+                v, p = self.app._split(u)
+                dv, dp = self.app._split(du)
                 for i in range(self.app.ncomp):
-                    y[i*n:(i+1)*n] += self.M.dot(u[i*n:(i+1)*n])
-                return y
-
+                    dv[i::self.app.ncomp] += d*self.M.dot(v[i::self.app.ncomp])
+                return du
         return MassMatrixIncompressible(self, self.femv.fem.computeMassMatrix())
     def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
-        print(f"{u.shape=} {rhs.shape=} {type(Aimp)=}")
-        rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        # print(f"{u.shape=} {rhs.shape=} {type(Aconst)=}")
+        # rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        self.Mass.dot(rhs, 1 / (theta * theta * dt), u)
         rhs += (theta - 1) / theta * Aimp.dot(u)
         # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
         rhs2 = self.computeRhs()
         rhs += (1 / theta) * rhs2
-    def defect_dynamic(self, u):
-        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    def dx_dynamic(self, b, u, info):
-        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+    def defect_dynamic(self, f, u):
+        # y = self.computeForm(u, coeffmass=1 / (self.theta * self.dt))-f
+        y = self.computeForm(u)-f
+        self.Mass.dot(y, 1 / (self.theta * self.dt), u)
+        # n = self.ncomp*self.femv.fem.nunknowns()
+        # print(f"{np.linalg.norm(y[:n])=} {np.linalg.norm(y[n:])=}")
+        return y
+        # return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, A, b, u, info):
+        u, niter = self.linearSolver(A, b=b, u=u)
         return u, niter
     def computeMatrix(self, u=None, coeffmass=None):
-        A = self.femv.computeMatrixLaplace(self.mucell)
+        # A = self.femv.computeMatrixLaplace(self.mucell)
+        A = self.femv.computeMatrixLaplace(self.mucell, coeffmass)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
@@ -454,8 +475,9 @@ class Stokes(Application):
         #     A += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         # if self.divdivparam:
         #     A += self.femv.computeMatrixDivDiv(self.divdivparam)
-        if coeffmass:
-            self.Mass.addToStokes(coeffmass, A)
+        # if coeffmass:
+        #     print(f"{coeffmass=}")
+        #     self.Mass.addToStokes(coeffmass, A)
         if not self.pmean:
             return linalg.SaddlePointSystem(A, B)
         ncells = self.mesh.ncells
@@ -609,6 +631,32 @@ class Stokes(Application):
             # print(f"{flux=}")
             #TODO flux Stokes Dirichlet strong wrong
         return flux
+    def plot_p(self, ax, p=None, uname='p', title='', alpha=0.5):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+        ax.set_title(title)
+        ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+        assert len(p)==self.mesh.ncells
+        cnt = ax.tripcolor(x, y, tris, facecolors=p, edgecolors='k', cmap='jet')
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+        clb.ax.set_title(uname)
+    def plot_v(self, ax, v=None, uname='v', title='', alpha=0.5):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+        ax.set_title(title)
+        ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+        vr = v.reshape(self.mesh.nnodes,self.ncomp)
+        vnorm = np.linalg.norm(vr, axis=1)
+        cnt = ax.tricontourf(x, y, tris, vnorm, levels=16, cmap='jet')
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+        clb.ax.set_title(uname)
+        ax.quiver(x, y, vr[:,0], vr[:,1], units='xy')
 
 #=================================================================#
 if __name__ == '__main__':

@@ -272,19 +272,36 @@ class CR1(p1general.P1general):
             np.put(b, foc, ff.T)
         return b
     # matrices
+    def masslocal(self):
+        dim = self.mesh.dimension
+        scalemass = (2 - dim) / (dim + 1) / (dim + 2)
+        massloc = np.tile(scalemass, (self.nloc, self.nloc))
+        scale = (2 - dim + dim * dim) / (dim + 1) / (dim + 2)
+        massloc.reshape((self.nloc * self.nloc))[::self.nloc + 1] = scale
+        return massloc
+    def _computeMassMatrix(self, coeff=1):
+        dim, dV = self.mesh.dimension, self.mesh.dV
+        # scalemass = coeff * (2 - dim) / (dim + 1) / (dim + 2)
+        # massloc = np.tile(scalemass, (self.nloc, self.nloc))
+        # scale = coeff * (2 - dim + dim * dim) / (dim + 1) / (dim + 2)
+        # massloc.reshape((self.nloc * self.nloc))[::self.nloc + 1] = scale
+        # return np.einsum('n,kl->nkl', dV, massloc)
+        return np.einsum('n,kl->nkl', coeff*dV, self.masslocal())
+
     def computeMassMatrix(self, coeff=1, lumped=False):
-        ncells, normals, cellsOfFaces, facesOfCells, dV = self.mesh.ncells, self.mesh.normals, self.mesh.cellsOfFaces, self.mesh.facesOfCells, self.mesh.dV
-        nfaces, dim = self.mesh.nfaces, self.mesh.dimension
         if lumped:
+            dim, dV = self.mesh.dimension, self.mesh.dV
+            nfaces, facesOfCells = self.mesh.nfaces, self.mesh.facesOfCells
             mass = coeff/(dim+1)*dV.repeat(dim+1)
             rows = self.mesh.facesOfCells.ravel()
             return sparse.coo_matrix((mass, (rows, rows)), shape=(nfaces, nfaces)).tocsr()
-        scalemass = coeff*(2-dim) / (dim+1) / (dim+2)
-        massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        scale = coeff*(2-dim + dim*dim) / (dim+1) / (dim+2)
-        massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = scale
-        mass = np.einsum('n,kl->nkl', dV, massloc).ravel()
-        return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
+        # scalemass = coeff*(2-dim) / (dim+1) / (dim+2)
+        # massloc = np.tile(scalemass, (self.nloc,self.nloc))
+        # scale = coeff*(2-dim + dim*dim) / (dim+1) / (dim+2)
+        # massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = scale
+        nfaces = self.mesh.nfaces
+        mass = self._computeMassMatrix(coeff)
+        return sparse.coo_matrix((mass.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
         nfaces, dim = self.mesh.nfaces, self.mesh.dimension
         massloc = barycentric.crbdryothers(dim)

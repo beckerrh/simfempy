@@ -332,6 +332,21 @@ class Heat(Application):
         }
         # return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
         return pyamg.rootnode_solver(A, B, **SA_build_args)
+    def plot(self, ax, u=None, uname='T', title='', alpha=0.5):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+        ax.set_title(title)
+        ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+        if len(u)==self.mesh.nnodes:
+            cnt = ax.tricontourf(x, y, tris, u, levels=16, cmap='jet')
+        else:
+            assert len(u)==self.mesh.ncells
+            cnt = ax.tripcolor(x, y, tris, facecolors=u, edgecolors='k', cmap='jet')
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+        clb.ax.set_title(uname)
 
 
 #=================================================================#

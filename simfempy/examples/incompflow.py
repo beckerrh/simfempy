@@ -66,7 +66,31 @@ def main(**kwargs):
     else:
         stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
         result, u = stokes.solve()
-        result = model.dynamic(u, t_span=(0, 200), nframes=100, dt=1)
+        u.fill(0)
+        # print(f"StokesStokesStokesStokes {result.data['global']=}")
+        T, dt, nframes = 2000, 0.1, 5
+        result = model.dynamic(u, t_span=(0, T), nframes=nframes, dt=dt, theta=0.8)
+
+        print(f"{result.data['point'].keys()=}")
+        v = result.data['point']['V']
+        p = result.data['cell']['P']
+        fig = plt.figure(constrained_layout=True)
+        fig.suptitle(f"{testcase}")
+        gs = fig.add_gridspec(4,2)
+        nhalf = (nframes - 1) // 2
+        for i in range(3):
+            print(f"{i=} {i*nhalf=} {len(p)=} {result.time[i * nhalf]} {result.time=}")
+            ax = fig.add_subplot(gs[i, 0])
+            model.plot_p(ax, p[i * nhalf], title=f"t={result.time[i * nhalf]}")
+            ax = fig.add_subplot(gs[i, 1])
+            model.plot_v(ax, v[i * nhalf], title=f"t={result.time[i * nhalf]}")
+        postprocs = result.data['global']
+        ax = fig.add_subplot(gs[3, :])
+        for i, k in enumerate(postprocs):
+            ax.plot(result.time, postprocs[k], label=k)
+        ax.legend()
+        ax.grid()
+        plt.show()
 
 
 # ================================================================ #
@@ -227,7 +251,8 @@ def schaeferTurek2d(h= 0.5, hcircle=None, mu=0.01):
     data.params.scal_glob["mu"] = mu
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=3000)
     def changepostproc(info):
-        bdrynflux = info.pop('bdrynflux')
+        bdrynflux = info.pop('bdrynflux_3000')
+        print(f"changepostproc: {bdrynflux=}")
         info['drag'] = -50*bdrynflux[0]
         info['lift'] = -50*bdrynflux[1]
         info['err_drag'] =  5.57953523384+50*bdrynflux[0]
@@ -264,7 +289,8 @@ def schaeferTurek3d(h= 1, hcircle=None):
 if __name__ == '__main__':
     femparams = {'dirichletmethod':'nitsche', 'convmethod': 'lps', 'divdivparam': 0., 'hdivpenalty': 0.}
     # main(model='NavierStokes', testcase='schaeferTurek2d', h=0.2, mu=1e-2, femparams=femparams)
-    main(model='Stokes', static=False, testcase='schaeferTurek2d', h=0.2, mu=1e-3, femparams=femparams)
+    # main(model='Stokes', static=False, testcase='schaeferTurek2d', h=0.2, mu=1e-3, femparams=femparams)
+    main(static=False, testcase='schaeferTurek2d', h=0.2, mu=1e-3, femparams=femparams)
 
     # main(model='Stokes', testcase='poiseuille2d', h=0.2, mu=1e-2, femparams=femparams)
     # main(model='NavierStokes', testcase='poiseuille2d', h=0.1, mu=1e-4, femparams=femparams)

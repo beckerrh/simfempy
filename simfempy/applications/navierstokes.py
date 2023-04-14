@@ -46,45 +46,46 @@ class NavierStokes(Stokes):
         self.timer.add('form')
         return d
 
-    def computeMassMatrix(self):
-        class MassMatrixIncompressible:
-            def __init__(self, app, M):
-                self.app = app
-                self.M = M
-            def addToStokes(self, f, S):
-                S.A + self.app.femv.matrix2systemdiagonal(f*self.M, self.app.ncomp)
-                return S
-            def dot(self, u):
-                # print(f"{u=}")
-                n = self.M.shape[0]
-                y = np.zeros_like(u)
-                for i in range(self.app.ncomp):
-                    y[i*n:(i+1)*n] += self.M.dot(u[i*n:(i+1)*n])
-                return y
-
-        return MassMatrixIncompressible(self, self.femv.fem.computeMassMatrix())
-    def rhs_dynamic(self, rhs, u, time, dt, theta):
-        print(f"{u.shape=} {rhs.shape=} {type(self.Aimp)=}")
-        rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
-        rhs += (theta - 1) / theta * self.Aimp.dot(u)
+    def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
+        # print(f"{u.shape=} {rhs.shape=} {type(Aconst)=}")
+        # rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
+        self.Mass.dot(rhs, 1 / (theta * theta * dt), u)
+        rhs += (theta - 1) / theta * Aimp.dot(u)
         # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
         rhs2 = self.computeRhs()
         rhs += (1 / theta) * rhs2
-    def defect_dynamic(self, u):
-        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    def dx_dynamic(self, b, u, info):
-        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+        # v = self._split(u)[0]
+        # dv = self._split(rhs)[0]
+        # self.computeFormConvection(dv, v)
+    def defect_dynamic(self, f, u):
+        # y = self.computeForm(u, coeffmass=1 / (self.theta * self.dt))-f
+        y = super().computeForm(u)-f
+        self.Mass.dot(y, 1 / (self.theta * self.dt), u)
+        v = self._split(u)[0]
+        vold = self._split(self.uold)[0]
+        dv = self._split(y)[0]
+        self.computeFormConvection(dv, 0.5*(v+vold))
+        return y
+        # return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, Aconst, b, u, info):
+        self.A = self.computeMatrix(u=u)
+        u, niter = self.linearSolver(self.A, b=b, u=u)
         return u, niter
+    def computeMatrixConstant(self, coeffmass):
+        self.Astokes.A  =  self.Mass.addToStokes(coeffmass, self.Astokes.A)
+        return self.Astokes
+        return super().computeMatrix(u, coeffmass)
+
     def computeMatrix(self, u=None, coeffmass=None):
-        # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
-        if u is None:
-            return self.Astokes
+        # return self.Astokes
+        # if u is None:
+        #     return self.Astokes
         # X = [A.copy() for A in self.Astokes]
         # X = super().computeMatrix(u)
         X = self.Astokes.copy()
         v = self._split(u)[0]
         # X[0] += self.computeMatrixConvection(v)
-        X.A += self.computeMatrixConvection(v)
+        X.A += 0.5*self.computeMatrixConvection(v)
         # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         self.timer.add('matrix')
         return X
@@ -106,8 +107,9 @@ class NavierStokes(Stokes):
         A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
         return self.femv.matrix2systemdiagonal(A, self.ncomp).tocsr()
     def computeBdryNormalFluxNitsche(self, v, p, colors):
-        ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
         flux = super().computeBdryNormalFluxNitsche(v,p,colors)
+        if self.convdata.betart is None : return flux
+        ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
         vdir = self.femv.interpolateBoundary(colors, bdryfct).ravel()
         for icomp in range(ncomp):
             for i,color in enumerate(colors):

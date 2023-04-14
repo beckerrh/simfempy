@@ -116,20 +116,19 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     x = np.asarray(x0)
     assert x.ndim == 1
     # n = x.shape[0]
-    # print(f"{x0=}")
     if not computedx:  assert jac
     xnorm = np.linalg.norm(x)
     res = f(x)
     resnorm = np.linalg.norm(res)
-    # print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
+    # print(f"@@@@--------- {np.linalg.norm(x)=} {resnorm=}")
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
     # print(f"{sdata.addname=}")
     if hasattr(sdata,'addname'): name += '_' + sdata.addname
     if verbose:
-        print("{} {:>3} {:^10} {:^10} {:^10} {:^5} {:^5} {:^3} {:^9}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step'))
-        print("{} {:3} {:10.3e} {:^10} {:10.3e} {:^9} {:^5} {:^5} {:^3}".format(name, 0, xnorm, 3*'-', resnorm, 3*'-', 3*'-', 3*'-', 3*'-'))
+        print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
+        print("{:20} {:3} {:9.3e} {:^9} {:9.3e} {:^4} {:^4} {:^3} {:^4} {:^1}".format(name, 0, resnorm, 3*'-', xnorm, 3*'-', 3*'-', 3*'-', 2*'-', 3*'-', '-'))
     # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
     iterdata = newtondata.IterationData(resnorm)
@@ -146,7 +145,6 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         if np.linalg.norm(dx) < sdata.atoldx:
             raise ValueError(f"*** correction too small: {liniter=} {np.linalg.norm(dx)=}")
         resold[:] = res[:]
-        # print(f"--------- {np.linalg.norm(x)=} {resnorm=}")
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:
@@ -155,11 +153,15 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         assert np.allclose(res, res2)
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
+        matsymb = ''
+        if iterdata.rhodx>sdata.rho_aimed: matsymb = 'M'
         if verbose:
-            print(f"{name} {iterdata.iter:3} {resnorm:10.3e} {iterdata.dxnorm[-1]:10.3e} {xnorm:10.3e} {iterdata.rhodx:5.2f} {iterdata.rhor:5.2f} {liniter:3d} {step}")
+            print(f"{name:20s} {iterdata.iter:3d} {resnorm:9.3e} {iterdata.dxnorm[-1]:9.3e} {xnorm:9.3e} {iterdata.rhodx:4.2f} {iterdata.rhor:4.2f} {liniter:3d} {step:4.2f} {matsymb:1s}")
+        if iterdata.iter == sdata.maxiter:
+            return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='maxiter')
         if xnorm >= divx:
-            return (x, maxiter, np.mean(iterdata.liniter))
-    return (x,iterdata.iter, np.mean(iterdata.liniter))
+            return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='divx')
+    return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter))
 
 
 # ------------------------------------------------------ #

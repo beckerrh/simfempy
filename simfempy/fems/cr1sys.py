@@ -139,13 +139,18 @@ class CR1sys(femsys.Femsys):
             r = np.einsum('n,ni->ni', -dV*p, cellgrads[:,:,icomp])
             np.add.at(dv[icomp::ncomp], foc, r)
             dp += np.einsum('n,ni,ni->n', dV, cellgrads[:,:,icomp], v[icomp::ncomp][foc])
-    def computeMatrixLaplace(self, mucell):
-        return self.matrix2systemdiagonal(self.fem.computeMatrixDiffusion(mucell), self.ncomp).tocsr()
+    def computeMatrixLaplace(self, mucell, coeffM=None):
+        return self.matrix2systemdiagonal(self.fem.computeMatrixDiffusion(mucell, coeffM), self.ncomp).tocsr()
     def computeFormLaplace(self, mu, dv, v):
         ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*mu, cellgrads, cellgrads, v[icomp::ncomp][foc])
             np.add.at(dv[icomp::ncomp], foc, r)
+    def computeFormMass(self, du, u, coeff):
+        ncomp = self.ncomp
+        for icomp in range(ncomp):
+            self.fem.computeFormMass(du[icomp::ncomp], u[icomp::ncomp], coeff)
+
     def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp):
         for icomp in range(ncomp):
             self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir=udir[:,icomp], bdrycondfct=None)

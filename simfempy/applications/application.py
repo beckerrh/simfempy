@@ -218,11 +218,13 @@ class Application(object):
         # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
         rhs2 = self.computeRhs()
         rhs += (1 / theta) * rhs2
-    def defect_dynamic(self, u):
-        return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    def dx_dynamic(self, b, u, info):
-        u, niter = self.linearSolver(self.Aimp, b=b, u=u)
+    def defect_dynamic(self, rhs, u):
+        return self.computeForm(u)-rhs + self.Mass.dot(u)/(self.theta * self.dt)
+    def dx_dynamic(self, A, b, u, info):
+        u, niter = self.linearSolver(A, b=b, u=u)
         return u, niter
+    def computeMatrixConstant(self, coeffmass):
+        return self.computeMatrix(coeffmass=coeffmass)
 
     def dynamic(self, u0, t_span, nframes, dt=None, callback=None, theta=0.5, verbose=1, **kwargs):
         # TODO: passing time
@@ -238,6 +240,7 @@ class Application(object):
         :param method: CN or BE for Crank-Nicolson (a=1/2) or backward Euler (a=1)
         :return: results with data per frame
         """
+        from functools import partial
         if not dt or dt<=0: raise NotImplementedError(f"needs constant positive 'dt")
         if t_span[0]>=t_span[1]: raise ValueError(f"something wrong in {t_span=}")
         import math
@@ -253,31 +256,35 @@ class Application(object):
         # rhs=None
         self.rhs = np.empty_like(u, dtype=float)
         niterslinsol = np.zeros(niter, dtype=int)
-        maxiter = kwargs.pop('maxiter', 100)
-        sdata = kwargs.pop('sdata', simfempy.solvers.newtondata.StoppingData(maxiter=maxiter))
+        maxiternewton = kwargs.pop('maxiternewton', 100)
+        rtolnewton = kwargs.pop('rtolnewton', 1e-3)
+        sdata = kwargs.pop('sdata', simfempy.solvers.newtondata.StoppingData(maxiter=maxiternewton, rtol=rtolnewton))
         if isinstance(self.linearsolver, str):
             sdata.addname = self.linearsolver
         else:
             sdata.addname = self.linearsolver['method']
         if not hasattr(self, 'Mass'):
             self.Mass = self.computeMassMatrix()
-        if not hasattr(self, 'Aimp'):
-            self.Aimp = self.computeMatrix(coeffmass=1/dt/theta)
+        if not hasattr(self, 'Aconst'):
+            Aconst = self.computeMatrixConstant(coeffmass=1 / dt / theta)
             if self.linearsolver=="pyamg":
-                self.pyamgml = self.build_pyamg(self.Aimp)
+                self.pyamgml = self.build_pyamg(Aconst)
         self.theta, self.dt = theta, dt
         for iframe in range(nframes):
             if verbose: print(f"*** {self.time=} {iframe=} {niter=} {nframes=} {theta=}")
             for iter in range(niter):
                 self.rhs.fill(0)
-                self.rhs_dynamic(self.rhs, u, self.Aimp, self.time, dt, theta)
+                self.rhs_dynamic(self.rhs, u, Aconst, self.time, dt, theta)
                 self.timer.add('rhs')
                 self.time += dt
-                info = simfempy.solvers.newton.newton(u, f=self.defect_dynamic,
-                                                      computedx=self.dx_dynamic, verbose=True, sdata=sdata)
-                u, niter, niterlin = info
-                iter = {'lin': niterlin, 'nlin': niter}
-                if niter == sdata.maxiter: raise ValueError(f"*** Attained maxiter {sdata.maxiter=}")
+                self.uold = u.copy()
+                u, info_new = simfempy.solvers.newton.newton(u,
+                                                                        f=partial(self.defect_dynamic, self.rhs),
+                                                                        computedx=partial(self.dx_dynamic, Aconst),
+                                                                        verbose=True, sdata=sdata)
+                # iter = {'lin': niterlin, 'nlin': niter}
+                if not info_new.success:
+                    raise ValueError(f"*** {info_new.failure=}")
                 self.timer.add('solve')
             result.addData(iframe, self.postProcess(u), time=self.time, iter=niterslinsol.mean())
             if callback: callback(self.time, u)
@@ -315,10 +322,10 @@ class Application(object):
         self.timer.add('init')
         if not hasattr(self, 'Mass'):
             self.Mass = self.fem.computeMassMatrix()
-        if not hasattr(self, 'Aimp'):
-            self.Aimp = self.computeMatrix(coeffmass=1/dt/a)
+        if not hasattr(self, 'Aconst'):
+            Aconst = self.computeMatrix(coeffmass=1 / dt / a)
             if self.linearsolver=="pyamg":
-                self.pyamgml = self.build_pyamg(self.Aimp)
+                self.pyamgml = self.build_pyamg(Aconst)
         self.timer.add('matrix')
         u = u0
         self.time = t_span[0]
@@ -333,7 +340,7 @@ class Application(object):
                 self.time += dt
                 rhs.fill(0)
                 rhs += 1/(a*a*dt)*self.Mass.dot(u)
-                rhs += expl*self.Aimp.dot(u)
+                rhs += expl*Aconst.dot(u)
                 # print(f"@1@{np.min(u)=} {np.max(u)=} {np.min(rhs)=} {np.max(rhs)=}")
                 rhs2 = self.computeRhs()
                 rhs += (1/a)*rhs2
@@ -341,7 +348,7 @@ class Application(object):
                 self.timer.add('rhs')
                 # u, niterslinsol[iter] = self.linearSolver(self.ml, rhs, u=u, verbose=0)
                 #TODO organiser solveur linéaire
-                u, niterslinsol[iter] = self.linearSolver(self.Aimp, b=rhs, u=u)
+                u, niterslinsol[iter] = self.linearSolver(Aconst, b=rhs, u=u)
                 # print(f"{niterslinsol=} {np.linalg.norm(u)=}")
                 # u, res = self.solve_pyamg(self.pyamgml, rhs, u=u, maxiter = 100)
                 # u, niterslinsol[iter] = u, len(res)

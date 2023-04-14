@@ -69,20 +69,20 @@ else:
     # result = heat.dynamic_linear(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
     result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt, theta=0.9)
     # print(f"{result=}")
-    nhalf = int(nframes/2)
+    nhalf = (nframes-1)//2
     u = result.data['point']['U']
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(constrained_layout=True)
     fig.suptitle("Heat dynamic", fontsize=16)
-    outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
-    plotmesh.meshWithData(heat.mesh, title=f't={result.time[0]}', point_data={'u': u[0]}, fig=fig, outer=outer[0])
-    plotmesh.meshWithData(heat.mesh, title=f't={result.time[nhalf]}', point_data={'u': u[nhalf]}, fig=fig, outer=outer[1])
-    plotmesh.meshWithData(heat.mesh, title=f't={result.time[-1]}', point_data={'u': u[-1]}, fig=fig, outer=outer[2])
-    plt.show()
+    gs = fig.add_gridspec(2, 3)
+    for i in range(3):
+        ax = fig.add_subplot(gs[0, i])
+        heat.plot(ax, u[i*nhalf], title=f't={result.time[i*nhalf]}')
     postprocs = result.data['global']
+    ax = fig.add_subplot(gs[1, :])
     for i,k in enumerate(postprocs):
-        plt.plot(result.time, postprocs[k], label=k)
-    plt.legend()
-    plt.grid()
+        ax.plot(result.time, postprocs[k], label=k)
+    ax.legend()
+    ax.grid()
     plt.show()
     anim = animdata.AnimData(mesh, u)
     plt.show()

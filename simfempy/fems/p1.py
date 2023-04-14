@@ -265,13 +265,14 @@ class P1(p1general.P1general):
                 b[nodes] = f[color](x, y, z)
         return b
     # matrices
+    def masslocal(self): return tools.barycentric.tensor(d=self.mesh.dimension, k=2)
     def computeMassMatrix(self, coeff=1, lumped=False):
         dim, dV, nnodes = self.mesh.dimension, self.mesh.dV, self.mesh.nnodes
         if lumped:
             mass = coeff/(dim+1)*dV.repeat(dim+1)
             rows = self.mesh.simplices.ravel()
             return sparse.coo_matrix((mass, (rows, rows)), shape=(nnodes, nnodes)).tocsr()
-        massloc = tools.barycentric.tensor(d=dim, k=2)
+        massloc = self.masslocal()
         mass = np.einsum('n,kl->nkl', coeff*dV, massloc).ravel()
         return sparse.coo_matrix((mass, (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
     def computeBdryMassMatrix(self, colors=None, coeff=1, lumped=False):
