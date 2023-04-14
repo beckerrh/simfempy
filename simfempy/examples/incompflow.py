@@ -66,12 +66,12 @@ def main(**kwargs):
     else:
         stokes = Stokes(mesh=mesh, problemdata=data, linearsolver='spsolve', femparams=femparams)
         result, u = stokes.solve()
-        u.fill(0)
+        # u.fill(0)
         # print(f"StokesStokesStokesStokes {result.data['global']=}")
-        T, dt, nframes = 2000, 0.1, 5
+        T, dt, nframes = 10, 1, 5
         result = model.dynamic(u, t_span=(0, T), nframes=nframes, dt=dt, theta=0.8)
 
-        print(f"{result.data['point'].keys()=}")
+        print(f"{model.timer=}")
         v = result.data['point']['V']
         p = result.data['cell']['P']
         fig = plt.figure(constrained_layout=True)
@@ -79,7 +79,6 @@ def main(**kwargs):
         gs = fig.add_gridspec(4,2)
         nhalf = (nframes - 1) // 2
         for i in range(3):
-            print(f"{i=} {i*nhalf=} {len(p)=} {result.time[i * nhalf]} {result.time=}")
             ax = fig.add_subplot(gs[i, 0])
             model.plot_p(ax, p[i * nhalf], title=f"t={result.time[i * nhalf]}")
             ax = fig.add_subplot(gs[i, 1])
