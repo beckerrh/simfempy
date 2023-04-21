@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
 from simfempy.meshes import plotmesh 
-from simfempy.applications.stokes import Stokes
-from simfempy.applications.navierstokes import NavierStokes
-from simfempy.applications.problemdata import ProblemData
+from simfempy.models.stokes import Stokes
+from simfempy.models.app_navierstokes import NavierStokes
+from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from scipy.interpolate import interp1d 
 from scipy.optimize import least_squares

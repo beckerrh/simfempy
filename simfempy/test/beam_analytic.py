@@ -4,13 +4,13 @@ simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.insert(0,simfempypath)
 
 import simfempy.meshes.testmeshes as testmeshes
-from simfempy.applications.beam import Beam
-import simfempy.applications.problemdata
+from simfempy.models.beam import Beam
+import simfempy.models.problemdata
 from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test(**kwargs):
-    data = simfempy.applications.problemdata.ProblemData()
+    data = simfempy.models.problemdata.ProblemData()
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramsdict = {}
     data.params.scal_glob['EI'] = kwargs.pop('EI', 1)
@@ -21,8 +21,8 @@ def test(**kwargs):
     # data.bdrycond.set("SimplySupported", [10001])
     # data.bdrycond.set("Forces", [10001])
     linearsolver = kwargs.pop('linearsolver', 'spsolve')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Beam, applicationargs=applicationargs, **kwargs)
+    modelargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, model=Beam, modelargs=modelargs, **kwargs)
     return comp.compare()
 
 #================================================================#

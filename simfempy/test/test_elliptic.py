@@ -15,4 +15,4 @@ class TestAnalyticalElliptic(testcaseanalytical.TestCaseAnalytical):
 #================================================================#
 from simfempy.tools import tools
 paramsdicts = {'dim':[1,2,3], 'fem':['p1','cr1'], 'dirichletmethod':['nitsche','strong']}
-testcaseanalytical.run(testcase=TestAnalyticalElliptic, argss=tools.dictproduct(paramsdicts))
+testcaseanalytical.run(testcase=TestAnalyticalElliptic, argss=tools.dicttensorproduct(paramsdicts))

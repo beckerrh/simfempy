@@ -4,13 +4,13 @@ SIMple Finite Element Methods in PYthon
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
-from simfempy.applications.heat import Heat
-from simfempy.applications.problemdata import ProblemData
+from simfempy.models.heat import Heat
+from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh, animdata
 
 # create mesh
-h=0.1
+h = 0.1
 with pygmsh.geo.Geometry() as geom:
     holes = []
     rectangle = geom.add_rectangle(xmin=-1.5, xmax=-0.5, ymin=-1.5, ymax=-0.5, z=0, mesh_size=h)
@@ -62,17 +62,18 @@ else:
     t_final, dt, nframes = 2500, 10, 50
     result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
     # print(f"{result=}")
-    nhalf = int(nframes/2)
+    nhalf = int(nframes / 2)
     u = result.data['point']['U']
     fig = plt.figure(figsize=(10, 8))
     fig.suptitle("Heat dynamic", fontsize=16)
     outer = gridspec.GridSpec(1, 3, wspace=0.2, hspace=0.2)
     plotmesh.meshWithData(heat.mesh, title=f't={result.time[0]}', point_data={'u': u[0]}, fig=fig, outer=outer[0])
-    plotmesh.meshWithData(heat.mesh, title=f't={result.time[nhalf]}', point_data={'u': u[nhalf]}, fig=fig, outer=outer[1])
+    plotmesh.meshWithData(heat.mesh, title=f't={result.time[nhalf]}', point_data={'u': u[nhalf]}, fig=fig,
+                          outer=outer[1])
     plotmesh.meshWithData(heat.mesh, title=f't={result.time[-1]}', point_data={'u': u[-1]}, fig=fig, outer=outer[2])
     plt.show()
     postprocs = result.data['global']
-    for i,k in enumerate(postprocs):
+    for i, k in enumerate(postprocs):
         plt.plot(result.time, postprocs[k], label=k)
     plt.legend()
     plt.grid()

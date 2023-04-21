@@ -45,7 +45,7 @@ def unitline(h=0.5):
     # return mesh
 
 # ------------------------------------- #
-def unitsquare(h=0.5):
+def unitsquare(h=2):
     import pygmsh
     __pygmsh6__ = False
     a=1

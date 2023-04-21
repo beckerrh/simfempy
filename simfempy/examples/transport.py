@@ -8,8 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
-from simfempy.applications.heat import Heat
-from simfempy.applications.problemdata import ProblemData
+from simfempy.models.heat import Heat
+from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
 
@@ -17,7 +17,7 @@ from simfempy.meshes import plotmesh
 def main(h):
     #create mesh
     mesh, problemdata = ramp(h=h)
-    #create application
+    #create model
     heat = Heat(mesh=mesh, problemdata=problemdata, fem='cr1', convmethod='upw', dirichletmethod='nitsche', masslumpedbdry=False)
     # heat = Heat(mesh=mesh, problemdata=problemdata, fem='p1', convmethod='upw2', dirichletmethod='strong', masslumpedbdry=True)
     # heat.fem.plotBetaDownwind()

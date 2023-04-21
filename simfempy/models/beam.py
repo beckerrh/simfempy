@@ -1,12 +1,12 @@
 import numpy as np
 from scipy import sparse
 from simfempy import fems
-from simfempy.applications.application import Application
+from simfempy.models.model import Model
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 import scipy.sparse.linalg as splinalg
 
 #=================================================================#
-class Beam(Application):
+class Beam(Model):
     """
     Class for the (stationary) 1D beam equation
     $$
@@ -199,7 +199,7 @@ class Beam(Application):
         assert np.allclose(Aall.data, Aall.T.data)
         # print(f"A=\n{Aall.toarray()}")
         return Aall.tocsr()
-    def linearSolver(self, Ain, bin, uin=None, verbose=0):
+    def solvelinear(self, Ain, bin, uin=None, verbose=0):
         n = self.fem.nunknowns()
         if self.linearsolver == 'spsolve':
             Aall = self._to_single_matrix(Ain)

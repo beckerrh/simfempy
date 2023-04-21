@@ -16,4 +16,4 @@ class TestAnalyticalElasticity(testcaseanalytical.TestCaseAnalytical):
 #================================================================#
 from simfempy.tools import tools
 paramsdicts = {'dim':[2,3], 'fem':['p1','cr1'], 'dirichletmethod':['strong']}
-testcaseanalytical.run(testcase=TestAnalyticalElasticity, argss=tools.dictproduct(paramsdicts))
+testcaseanalytical.run(testcase=TestAnalyticalElasticity, argss=tools.dicttensorproduct(paramsdicts))

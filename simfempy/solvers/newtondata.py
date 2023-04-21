@@ -8,10 +8,10 @@ Created on Mon Dec  5 15:38:16 2016
 
 import numpy as np
 
-class IterationInfo:
-    def __init__(self, niter, nliniter, success=True, failure=""):
-        self.success, self.failure = success, failure
-        self.niter, self.nliniter = niter, nliniter
+# class IterationInfo:
+#     def __init__(self, niter, nliniter, success=True, failure=""):
+#         self.success, self.failure = success, failure
+#         self.niter, self.nliniter = niter, nliniter
 
 class StoppingData:
     def __init__(self, **kwargs):
@@ -31,9 +31,18 @@ class StoppingData:
         self.maxter_stepsize = 5
 
 class IterationData:
+    def __repr__(self):
+        all = [f"{k}: {v}" for k,v in self.__dict__.items()]
+        return ' '.join(all)
     def __init__(self, resnorm, **kwargs):
+        self.totaliter, self.totalliniter = 0, 0
+        self.reset(resnorm)
+    def reset(self, resnorm):
+        if hasattr(self, 'iter'): self.totaliter += self.iter
+        if hasattr(self, 'liniter'): self.totalliniter += np.sum(self.liniter)
         self.liniter, self.dxnorm, self.resnorm, self.step = [], [], [], []
         self.iter = 0
+        self.success = True
         self.resnorm.append(resnorm)
     def newstep(self, dx, liniter, resnorm, step):
         self.liniter.append(liniter)

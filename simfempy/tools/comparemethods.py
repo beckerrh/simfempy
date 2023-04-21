@@ -31,7 +31,7 @@ class CompareMethods(object):
       verb: in [0,5]
     """
     def __init__(self, **kwargs):
-        self.fullmethodsname = kwargs.pop("fullmethodsname", True)
+        self.only_iter_and_timer = kwargs.pop("only_iter_and_timer", False)
         self.dirname = os.getcwd() + os.sep +"Results"
         if kwargs.pop("clean",True):
             try: shutil.rmtree(self.dirname)
@@ -76,16 +76,16 @@ class CompareMethods(object):
         if 'methods' in kwargs:
             self.methods = kwargs.pop("methods")
         else:
-            requiredargs = ['application', 'applicationargs']
+            requiredargs = ['model', 'modelargs']
             for requiredarg in requiredargs:
                 if not requiredarg in kwargs:
-                    raise ValueError("need 'application' (class) and 'applicationargs' (dict) and  'paramsdict' (dict)")
-            self._definemethods(kwargs.pop("application"), kwargs.pop("applicationargs"))
+                    raise ValueError("need 'model' (class) and 'modelargs' (dict) and  'paramsdict' (dict)")
+            self._definemethods(kwargs.pop("model"), kwargs.pop("modelargs"))
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
-    def _definemethods(self, application, applicationargs):
-        if not 'problemdata' in applicationargs:
-            raise KeyError(f"'problemdata' should be set in 'applicationargs'")
+    def _definemethods(self, model, modelargs):
+        if not 'problemdata' in modelargs:
+            raise KeyError(f"'problemdata' should be set in 'modelargs'")
         import itertools
         paramsdict = self.paramsdict
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
@@ -94,21 +94,48 @@ class CompareMethods(object):
         # paramsprod = list(itertools.product(*paramsdict.values()))
         # paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
         from simfempy.tools import tools
-        paramslist = tools.dictproduct(paramsdict)
+        paramslist = tools.dicttensorproduct(paramsdict)
         #TODO virer itertools ici
         self.methods = {}
+        # print(f"***{paramslist=}")
         import copy
-        for p in paramslist:
+        sep = '@'
+        for i,p in enumerate(paramslist):
             name = ''
-            applicationargs2 = copy.deepcopy(applicationargs)
+            modelargs2 = copy.deepcopy(modelargs)
             for pname, param in p.items():
-                ps = pname.split('@')
-                if self.fullmethodsname or len(paramsdict[pname])>1: name += str(param)
-                if len(ps)>1:
-                    exec(f"applicationargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
+                print(f"{pname=} {param=} {len(paramsdict[pname])=}")
+                # if len(paramsdict[pname])==1:
+                #     modelargs2[pname] = param
+                if isinstance(param,list) and len(param)==2:
+                    if hasattr(self,'names2names'):
+                        raise ValueError(f"paramsdict should all be in the form {{paramname:[name,param]}} or {{paramname:param}} got {pname=} {param=}")
+                    name += param[0] + sep
+                    modelargs2[pname] = param[1]
                 else:
-                    applicationargs2[pname] = param
-            self.methods[name] = application(**applicationargs2)
+                    ps = pname.split('@')
+                    if len(ps)>1:
+                        name += f"{ps[0]}={str(param)}" + sep
+                        exec(f"modelargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
+                    else:
+                        modelargs2[pname] = param
+                        name += str(param) + sep
+                    if isinstance(param,dict) and len(paramsdict[pname]) > 1:
+                        if not hasattr(self, 'names2names'): self.names2names={}
+            name = name[:-1]
+                    # if len(paramsdict[pname])>1: name += str(param)
+                # ps = pname.split('@')
+                # if len(ps)>1:
+                #     exec(f"modelargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
+                # else:
+                #     modelargs2[pname] = param
+            # modelargs2[pname] = param
+            # print(f"***{modelargs2=}")
+            if hasattr(self, 'names2names'):
+                self.names2names[f"{i}"] = name
+                self.methods[f"{i}"] = model(**modelargs2)
+            else:
+                self.methods[name] = model(**modelargs2)
     def _mesh_from_geom_or_fct(self, h=None):
         if h is None:
             if self.createMesh is not None: return self.createMesh()
@@ -132,30 +159,31 @@ class CompareMethods(object):
             plotcount = 0
         parameters = []
         for iter, param in enumerate(self.params):
-            if self.verbose: print(f"{iter:2d} {self.paramname=} {param=}")
+            if self.verbose: print(f"{self.__class__.__name__} {iter:2d} {self.paramname=} {param=}")
             if self.paramname == "ncells":
                 if self.gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
                     # raise ValueError(f"{mesh=}")
                     mesh = self._mesh_from_geom_or_fct(param)
-                print(f"{mesh=} {param=}")
+                print(f"{self.__class__.__name__} {mesh=} {param=}")
                 parameters.append(mesh.ncells)
             else:
                 parameters.append(param)
             for name, method in self.methods.items():
-                if self.verbose: print(f"{method:-}")
+                if self.verbose: print(f"\t{self.__class__.__name__} {name=}")
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": 
                     method.paramname = param
                     # method.setParameter(self.paramname, param)
-                result = method.solve(self.dirname)
+                result,u = method.solve()
                 # print(f"{result=}")
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, parameters[-1])
-                    plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
+                    method.plot(result.data, fig=fig, gs=outer[plotcount])
+                    # plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
                     plotcount += 1
                     # plt.show()
                 resdict = result.info.copy()
@@ -227,7 +255,8 @@ class CompareMethods(object):
                     for key2, val2 in val.items():
                         sumdict[name] += val2[name]
                         newdict[key2] = val2[name]
-                    latexwriter.append(**kwargs, name = f"{key}-{name}", values=newdict, percentage=True)
+                    if not self.only_iter_and_timer:
+                        latexwriter.append(**kwargs, name = f"{key}-{name}", values=newdict, percentage=True)
                 latexwriter.append(**kwargs, name=key, values=sumdict)
             else:
                 iserr = len(keysplit) >= 2 and keysplit[0] == 'err'
@@ -237,7 +266,9 @@ class CompareMethods(object):
                 kwargs['name'] = '{}'.format(key)
                 kwargs['values'] = val
                 latexwriter.append(**kwargs)
-        latexwriter.write()
+
+        if hasattr(self, 'names2names'): latexwriter.write(names2names=self.names2names)
+        else: latexwriter.write()
         latexwriter.compile()
     def computeOrder(self, ncells, values, dim):
         fnd = float(ncells[-1]) / float(ncells[0])

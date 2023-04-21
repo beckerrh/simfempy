@@ -1,8 +1,7 @@
 import numpy as np
-from numpy.lib.function_base import copy
-from simfempy.applications.stokes import Stokes
+from simfempy.models.stokes import Stokes
 from simfempy import fems, meshes, solvers
-import scipy.sparse as sparse
+from simfempy.solvers import linalg
 
 class NavierStokes(Stokes):
     def __format__(self, spec):
@@ -18,22 +17,16 @@ class NavierStokes(Stokes):
         self.convmethod = kwargs.get('convmethod', 'lps')
         self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
-        if kwargs['linearsolver'] != 'spsolve' and not 'precond_p' in kwargs:
-            kwargs['precond_p'] = 'schur@diag@3@scipy_gmres'
-        if kwargs['linearsolver'] != 'spsolve' and not not 'precond_v' in kwargs:
-            defsolvers = ['scipy_lgmres', 'pyamg_gmres']
-            defsolvers.append('pyamg@aggregation@none@gauss_seidel')
-            defsolvers.append('pyamg@aggregation@none@schwarz')
-            # defsolvers.append('pyamg@aggregation@fgmres@gauss_seidel')
-            defsolvers.append('pyamg@aggregation@fgmres@schwarz')
-            kwargs['precond_v'] = defsolvers
+        linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 20, 'prec': 'Chorin', 'disp':0, 'rtol':1e-3}
+        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = linearsolver_def
         super().__init__(**kwargs)
+        self.newmatrix = 0
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Astokes = super().computeMatrix()
-    def solve(self, dirname="Run"):
+    def solve(self):
         sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
-        return self.static(dirname=dirname, mode='newton',sdata=sdata)
+        return self.static(mode='newton',sdata=sdata)
     def computeForm(self, u):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
         # d = super().matrixVector(self.Astokes,u)
@@ -45,7 +38,6 @@ class NavierStokes(Stokes):
         # self.femv.computeFormHdivPenaly(dv, v, self.hdivpenalty)
         self.timer.add('form')
         return d
-
     def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
         # print(f"{u.shape=} {rhs.shape=} {type(Aconst)=}")
         # rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
@@ -65,27 +57,27 @@ class NavierStokes(Stokes):
         vold = self._split(self.uold)[0]
         dv = self._split(y)[0]
         self.computeFormConvection(dv, 0.5*(v+vold))
+        self.timer.add('defect_dynamic')
         return y
         # return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    def dx_dynamic(self, Aconst, b, u, info):
-        self.A = self.computeMatrix(u=u)
-        u, niter = self.linearSolver(self.A, b=b, u=u)
-        return u, niter
-    def computeMatrixConstant(self, coeffmass):
-        self.Astokes.A  =  self.Mass.addToStokes(coeffmass, self.Astokes.A)
+    # def dx_dynamic(self, Aconst, b, u, info):
+    #     if info.bad_convergence or not hasattr(self, 'A'):
+    #         # print(f"*** new Matrix")
+    #         self.A = self.computeMatrix(u=u)
+    #         self.newmatrix += 1
+    #     u, niter = self.solvelinear(self.A, b=b, u=u)
+    #     self.timer.add('dx_dynamic')
+    #     return u, niter
+    def computeMatrixConstant(self, coeffmass, coeffmassold=0):
+        self.Astokes.A  =  self.Mass.addToStokes(coeffmass-coeffmassold, self.Astokes.A)
         return self.Astokes
         return super().computeMatrix(u, coeffmass)
-
     def computeMatrix(self, u=None, coeffmass=None):
-        # return self.Astokes
-        # if u is None:
-        #     return self.Astokes
-        # X = [A.copy() for A in self.Astokes]
-        # X = super().computeMatrix(u)
         X = self.Astokes.copy()
         v = self._split(u)[0]
-        # X[0] += self.computeMatrixConvection(v)
-        X.A += 0.5*self.computeMatrixConvection(v)
+        theta = 1
+        if hasattr(self,'uold'): theta = 0.5
+        X.A += theta*self.computeMatrixConvection(v)
         # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         self.timer.add('matrix')
         return X
@@ -102,10 +94,17 @@ class NavierStokes(Stokes):
         vdir = self.femv.interpolateBoundary(colorsdirichlet, self.problemdata.bdrycond.fct).ravel()
         self.femv.massDotBoundary(dv, vdir, colors=colorsdirichlet, ncomp=self.ncomp, coeff=np.minimum(self.convdata.betart, 0))
         for icomp in range(dim):
-            self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
+            # self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
+            self.femv.fem.computeFormTransportCellWise(dv[icomp::dim], v[icomp::dim], self.convdata, type='centered')
+            self.femv.fem.computeFormJump(dv[icomp::dim], v[icomp::dim], self.convdata.betart)
     def computeMatrixConvection(self, v):
-        A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
-        return self.femv.matrix2systemdiagonal(A, self.ncomp).tocsr()
+        # A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
+        A = self.femv.fem.computeMatrixTransportCellWise(self.convdata, type='centered')
+        A += self.femv.fem.computeMatrixJump(self.convdata.betart)
+        # boundary also done by self.femv.fem.computeMatrixTransportCellWise()
+        if self.singleA:
+            return A
+        return linalg.matrix2systemdiagonal(A, self.ncomp).tocsr()
     def computeBdryNormalFluxNitsche(self, v, p, colors):
         flux = super().computeBdryNormalFluxNitsche(v,p,colors)
         if self.convdata.betart is None : return flux
@@ -115,28 +114,3 @@ class NavierStokes(Stokes):
             for i,color in enumerate(colors):
                 flux[icomp,i] -= self.femv.fem.massDotBoundary(b=None, f=v[icomp::ncomp]-vdir[icomp::ncomp], colors=[color], coeff=np.minimum(self.convdata.betart, 0))
         return flux
-    def computeDx(self, b, u, info):
-        # it,rhor,dx, step, y = info
-        if info.iter>1: rtol = min(0.1,info.rhor)
-        else: rtol = 0.1
-        self.A = self.computeMatrix(u=u) 
-        # if dx is not None and it>2:
-        #     dv = self._split(dx)[0]
-        #     yv = self._split(y)[0]
-        #     self.A[0] = tools.matrix.addRankOne(self.A[0], step*dv, yv, relax=1)          
-        try:
-            # u, niter = self.linearSolver(self.A, bin=b, uin=None, linearsolver=self.linearsolver, rtol=rtol)
-            u, niter = self.linearSolver(self.A, bin=b, uin=None, rtol=rtol)
-        except Warning:
-            raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
-        self.timer.add('solve')
-        return u, niter
-    def computePrec(self, b, u=None):
-        self.A = self.computeMatrix(u=u) 
-        try:
-            u, niter = self.linearSolver(self.A, bin=b, uin=u, rtol=0.1)
-        except Warning:
-            raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
-        self.timer.add('solve')
-        return u
-      

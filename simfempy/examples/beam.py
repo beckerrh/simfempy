@@ -9,13 +9,13 @@ sys.path.insert(0,simfempypath)
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import simfempy.meshes.testmeshes as testmeshes
-from simfempy.applications.beam import Beam
-import simfempy.applications.problemdata
+from simfempy.models.beam import Beam
+import simfempy.models.problemdata
 from simfempy.meshes import plotmesh
 
 # ================================================================c#
 mesh = testmeshes.unitline(h=0.02)
-data = simfempy.applications.problemdata.ProblemData()
+data = simfempy.models.problemdata.ProblemData()
 data.params.scal_glob["EI"] = 1
 data.bdrycond.set("Clamped", [10000])
 # data.bdrycond.set("SimplySupported", [10000])

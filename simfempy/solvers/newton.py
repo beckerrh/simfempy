@@ -102,7 +102,7 @@ class Baseopt:
         return self.u, self.r, np.linalg.norm(self.r), out.x
 
 #--------------------------------------------------------------------
-def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1):
+def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=None, resred=0.1, iterdata=None):
     """
     Aims to solve f(x) = 0, starting at x0
     computedx: gets dx from f'(x) dx =  -f(x)
@@ -124,23 +124,28 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     tol = max(atol, rtol*resnorm)
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
-    # print(f"{sdata.addname=}")
     if hasattr(sdata,'addname'): name += '_' + sdata.addname
     if verbose:
         print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
         print("{:20} {:3} {:9.3e} {:^9} {:9.3e} {:^4} {:^4} {:^3} {:^4} {:^1}".format(name, 0, resnorm, 3*'-', xnorm, 3*'-', 3*'-', 3*'-', 2*'-', 3*'-', '-'))
-    # while( (resnorm>tol or dxnorm>toldx) and it < maxiter):
     dx, step, resold = None, None, np.zeros_like(res)
-    iterdata = newtondata.IterationData(resnorm)
-    # print(f"{sdata.steptype=}")
+    if iterdata is None:
+        iterdata = newtondata.IterationData(resnorm)
+    else:
+        iterdata.reset(resnorm)
     if sdata.steptype == 'rb':
         bt = Baseopt(f, sdata, x.shape[0], verbose)
+    iterdata.bad_convergence = False
     while(resnorm>tol  and iterdata.iter < maxiter):
         if not computedx:
             J = jac(x)
-            dx, liniter = linalg.solve(J, -res), 1
+            dx, liniter, success = linalg.solve(J, -res), 1, True
         else:
-            dx, liniter = computedx(-res, x, iterdata)
+            dx, liniter, success = computedx(-res, x, iterdata)
+        if not success:
+            iterdata.success = False
+            iterdata.failure = 'linear solver did not converge'
+            return x, iterdata
         assert dx.shape == x0.shape
         if np.linalg.norm(dx) < sdata.atoldx:
             raise ValueError(f"*** correction too small: {liniter=} {np.linalg.norm(dx)=}")
@@ -154,14 +159,24 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         matsymb = ''
-        if iterdata.rhodx>sdata.rho_aimed: matsymb = 'M'
+        iterdata.bad_convergence = False
+        if iterdata.rhodx>sdata.rho_aimed:
+            iterdata.bad_convergence = True
+            matsymb = 'M'
         if verbose:
             print(f"{name:20s} {iterdata.iter:3d} {resnorm:9.3e} {iterdata.dxnorm[-1]:9.3e} {xnorm:9.3e} {iterdata.rhodx:4.2f} {iterdata.rhor:4.2f} {liniter:3d} {step:4.2f} {matsymb:1s}")
         if iterdata.iter == sdata.maxiter:
-            return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='maxiter')
+            iterdata.success = False
+            iterdata.failure = 'maxiter exceded'
+            return x, iterdata
+            # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='maxiter')
         if xnorm >= divx:
-            return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='divx')
-    return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter))
+            iterdata.success = False
+            iterdata.failure = 'divx'
+            return x, iterdata
+            # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='divx')
+    return x, iterdata
+    # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter))
 
 
 # ------------------------------------------------------ #
@@ -172,7 +187,7 @@ if __name__ == '__main__':
     f = lambda x: x**2 -11
     df = lambda x: 2.0 * x
     def computedx(r, x, info):
-        return r/df(x),1
+        return r/df(x),1, True
     x0 = [3.]
     info = newton(x0, f, jac=df, verbose=True, maxiter=10)
     info2 = newton(x0, f, computedx=computedx, verbose=True, maxiter=10)

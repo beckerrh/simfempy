@@ -15,5 +15,5 @@ class TestAnalyticalStokes(testcaseanalytical.TestCaseAnalytical):
 
 #================================================================#
 from simfempy.tools import tools
-paramsdicts = {'dim':[2,3], 'dirichletmethod':['nitsche','strong']}
-testcaseanalytical.run(testcase=TestAnalyticalStokes, argss=tools.dictproduct(paramsdicts))
+paramsdicts = {'dim':[2,3]}
+testcaseanalytical.run(testcase=TestAnalyticalStokes, argss=tools.dicttensorproduct(paramsdicts))

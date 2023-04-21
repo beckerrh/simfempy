@@ -10,6 +10,7 @@ import scipy.linalg as linalg
 import scipy.sparse as sparse
 from simfempy.fems import femsys, cr1
 from simfempy.tools import barycentric, npext
+import simfempy.solvers.linalg
 
 #=================================================================#
 class CR1sys(femsys.Femsys):
@@ -78,8 +79,10 @@ class CR1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         b[inddir] = u[inddir]
-
     def vectorBoundaryStrong(self, b, bdryfct, bdrydata, method):
+        if not hasattr(bdrydata,'A_inner_dir'):
+            print(f"#### vectorBoundaryStrong has to be called after matrix is constructed!!!!")
+            return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         nfaces, ncomp = self.mesh.nfaces, self.ncomp
@@ -92,6 +95,7 @@ class CR1sys(femsys.Femsys):
         inddir = np.repeat(ncomp * facesdirall, ncomp)
         for icomp in range(ncomp): inddir[icomp::ncomp] += icomp
         help = np.zeros_like(b)
+        # print(f"{bdrydata=}")
         for color in colorsdir:
             faces = self.mesh.bdrylabels[color]
             if color in bdryfct:
@@ -140,7 +144,7 @@ class CR1sys(femsys.Femsys):
             np.add.at(dv[icomp::ncomp], foc, r)
             dp += np.einsum('n,ni,ni->n', dV, cellgrads[:,:,icomp], v[icomp::ncomp][foc])
     def computeMatrixLaplace(self, mucell, coeffM=None):
-        return self.matrix2systemdiagonal(self.fem.computeMatrixDiffusion(mucell, coeffM), self.ncomp).tocsr()
+        return simfempy.solvers.linalg.matrix2systemdiagonal(self.fem.computeMatrixDiffusion(mucell, coeffM), self.ncomp).tocsr()
     def computeFormLaplace(self, mu, dv, v):
         ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.fem.cellgrads, self.mesh.facesOfCells
         for icomp in range(ncomp):
@@ -150,7 +154,6 @@ class CR1sys(femsys.Femsys):
         ncomp = self.ncomp
         for icomp in range(ncomp):
             self.fem.computeFormMass(du[icomp::ncomp], u[icomp::ncomp], coeff)
-
     def computeRhsNitscheDiffusion(self, b, diffcoff, colors, udir, ncomp):
         for icomp in range(ncomp):
             self.fem.computeRhsNitscheDiffusion(b[icomp::ncomp], diffcoff, colors, udir=udir[:,icomp], bdrycondfct=None)
@@ -183,10 +186,9 @@ class CR1sys(femsys.Femsys):
             assert f.shape[0] == self.mesh.nfaces
             for icomp in range(ncomp):
                 self.fem.massDotBoundary(b[icomp::ncomp], f, colors=colors, coeff=normals[:,icomp]*coeff)
-
     def computeMassMatrixBoundary(self, colors, ncomp, coeff):
         A = self.fem.computeBdryMassMatrix(colors, coeff)
-        return self.matrix2systemdiagonal(A, ncomp)
+        return simfempy.solvers.linalg.matrix2systemdiagonal(A, ncomp)
     def computeMassMatrixBoundaryNormal(self, colors, ncomp, coeff):
         nfaces, ncells, dim  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension
         assert dim == ncomp
@@ -202,7 +204,7 @@ class CR1sys(femsys.Femsys):
         return A
     def computeMatrixNitscheDiffusion(self, diffcoff, colors, ncomp):
         A = self.fem.computeMatrixNitscheDiffusion(diffcoff, colors)
-        return self.matrix2systemdiagonal(A, ncomp)
+        return simfempy.solvers.linalg.matrix2systemdiagonal(A, ncomp)
     def computeMatrixNitscheDiffusionNormal(self, diffcoff, colors, ncomp):
         nfaces, ncells, dim  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension
         assert dim == ncomp

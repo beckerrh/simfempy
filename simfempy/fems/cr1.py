@@ -140,7 +140,6 @@ class CR1(p1general.P1general):
         # AD = sparse.coo_matrix((dS**2/dV,(faces,faces)), shape=(nfaces, nfaces))
         AD = self.computeBdryMassMatrix(colors=colors, coeff=coeff*diffcoff[cells]*nitsche_param*dS/dV, lumped=lumped)
         return AD - AN - AN.T
-
     def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
         nitsche_param=self.params_float['nitscheparam']
         #TODO correct flux computation Nitsche
@@ -159,7 +158,6 @@ class CR1(p1general.P1general):
             flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
             # flux[i] /= np.sum(dS)
         return flux
-
     def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
         method = self.params_str['dirichletmethod']
         if method == 'new':
@@ -167,7 +165,6 @@ class CR1(p1general.P1general):
             du[nodedirall] += bdrydata.A_dir_dir * u[bdrydata.nodedirall]
         elif method == "nitsche":
             self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
-
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         if self.params_str['dirichletmethod']=="nitsche": return
         facesdirall = bdrydata.facesdirall
@@ -287,7 +284,6 @@ class CR1(p1general.P1general):
         # massloc.reshape((self.nloc * self.nloc))[::self.nloc + 1] = scale
         # return np.einsum('n,kl->nkl', dV, massloc)
         return np.einsum('n,kl->nkl', coeff*dV, self.masslocal())
-
     def computeMassMatrix(self, coeff=1, lumped=False):
         if lumped:
             dim, dV = self.mesh.dimension, self.mesh.dV
@@ -391,6 +387,107 @@ class CR1(p1general.P1general):
             # print(f"{np.linalg.norm(f[fi])=}")
             np.add.at(b, fi, r)
         return b
+    def computeFormTransportCellWise(self, du, u, data, type):
+        beta, betart = data.beta, data.betart
+        nfaces, dim, dV, foc = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV, self.mesh.facesOfCells
+        cellgrads = self.cellgrads[:,:,:dim]
+        if type=='centered':
+            mat = np.einsum('n,njk,nk,i,nj -> ni', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1),u[foc])
+        elif type=='supg':
+            mus = data.md.mus
+            mat = np.einsum('n,njk,nk,ni,nj -> ni', dV, cellgrads, beta, 1-dim*mus,u[foc])
+        else: raise ValueError(f"unknown type {type=}")
+        np.add.at(du, foc, mat)
+        self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
+    def computeMatrixTransportCellWise(self, data, type):
+        beta, betart = data.beta, data.betart
+        nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
+        cellgrads = self.cellgrads[:,:,:dim]
+        if type=='centered':
+            # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
+            mat = np.einsum('n,njk,nk,i -> nij', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1))
+            # mat += np.einsum('n,nj,ni -> nij', dV*deltas, betagrad, betagrad)
+        elif type=='supg':
+            mus = data.md.mus
+            mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
+        else: raise ValueError(f"unknown type {type=}")
+        A = sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces))
+        return A - self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
+    def computeMatrixJump(self, betart, mode='primal', monotone=False):
+        dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        innerfaces = self.mesh.innerfaces
+        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
+        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
+        normalsS = self.mesh.normals[innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        faces = self.mesh.faces[self.mesh.innerfaces]
+        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
+        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
+        # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
+        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
+        ifaces = np.arange(nfaces)[innerfaces]
+        A = sparse.coo_matrix((ndofs, ndofs))
+        rows0 = np.repeat(fi0, nloc-1).ravel()
+        cols0 = np.tile(fi0,nloc-1).ravel()
+        rows1 = np.repeat(fi1, nloc-1).ravel()
+        cols1 = np.tile(fi1,nloc-1).ravel()
+        massloc = barycentric.crbdryothers(self.mesh.dimension)
+        if mode == 'primal':
+            mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
+            A -= sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+            mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0)*dS, massloc).ravel()
+            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
+            A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+        elif mode =='dual':
+            mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
+            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+            mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0) * dS, massloc).ravel()
+            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
+        elif mode =='centered':
+            mat = np.einsum('n,kl->nkl', betart[innerfaces] * dS, massloc).ravel()
+            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
+            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
+        else:
+            raise ValueError(f"unknown {mode=}")
+        return A
+    def computeFormJump(self, du, u, betart, mode='primal'):
+        dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
+        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        innerfaces = self.mesh.innerfaces
+        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
+        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
+        normalsS = self.mesh.normals[innerfaces]
+        dS = linalg.norm(normalsS, axis=1)
+        faces = self.mesh.faces[self.mesh.innerfaces]
+        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
+        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
+        # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
+        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
+        # fi0, fi1 = self.mesh.facesOfCellsNotOnFaces(faces, ci0, ci1)
+        # ifaces = np.arange(nfaces)[innerfaces]
+        # A = sparse.coo_matrix((ndofs, ndofs))
+        # rows0 = np.repeat(fi0, nloc-1).ravel()
+        # cols0 = np.tile(fi0,nloc-1).ravel()
+        # rows1 = np.repeat(fi1, nloc-1).ravel()
+        # cols1 = np.tile(fi1,nloc-1).ravel()
+        massloc = barycentric.crbdryothers(self.mesh.dimension)
+        if mode == 'primal':
+            mat = np.einsum('n,kl,nl->nk', np.minimum(betart[innerfaces], 0) * dS, massloc, u[fi1]-u[fi0])
+            np.add.at(du, fi0, mat)
+            mat = np.einsum('n,kl,nl->nk', np.maximum(betart[innerfaces], 0)*dS, massloc, u[fi1]-u[fi0])
+            np.add.at(du, fi1, mat)
+        elif mode =='dual':
+            assert 0
+        elif mode =='centered':
+            assert 0
+        else:
+            raise ValueError(f"unknown {mode=}")
     def computeMassMatrixSupg(self, xd, coeff=1):
         raise NotImplemented(f"computeMassMatrixSupg")
     def computeMatrixTransportUpwindAlg(self, data):
@@ -548,107 +645,6 @@ class CR1(p1general.P1general):
         A += self.computeMatrixJump(data.betart)
         A += self.computeMatrixLps(data.betart, **kwargs)
         return A
-    def computeMatrixTransportCellWise(self, data, type):
-        beta, betart = data.beta, data.betart
-        nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
-        cellgrads = self.cellgrads[:,:,:dim]
-        if type=='centered':
-            # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
-            mat = np.einsum('n,njk,nk,i -> nij', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1))
-            # mat += np.einsum('n,nj,ni -> nij', dV*deltas, betagrad, betagrad)
-        elif type=='supg':
-            mus = data.md.mus
-            mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
-        else: raise ValueError(f"unknown type {type=}")
-        A = sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces))
-        return A - self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
-    def computeMatrixJump(self, betart, mode='primal', monotone=False):
-        dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
-        nloc, dofspercell = self.nlocal(), self.dofspercell()
-        innerfaces = self.mesh.innerfaces
-        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
-        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
-        normalsS = self.mesh.normals[innerfaces]
-        dS = linalg.norm(normalsS, axis=1)
-        faces = self.mesh.faces[self.mesh.innerfaces]
-        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
-        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
-        # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
-        # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
-        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
-        ifaces = np.arange(nfaces)[innerfaces]
-        A = sparse.coo_matrix((ndofs, ndofs))
-        rows0 = np.repeat(fi0, nloc-1).ravel()
-        cols0 = np.tile(fi0,nloc-1).ravel()
-        rows1 = np.repeat(fi1, nloc-1).ravel()
-        cols1 = np.tile(fi1,nloc-1).ravel()
-        massloc = barycentric.crbdryothers(self.mesh.dimension)
-        if mode == 'primal':
-            mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A -= sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
-            mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0)*dS, massloc).ravel()
-            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
-            A += sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
-        elif mode =='dual':
-            mat = np.einsum('n,kl->nkl', np.minimum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A += sparse.coo_matrix((mat, (rows0, cols1)), shape=(ndofs, ndofs))
-            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
-            mat = np.einsum('n,kl->nkl', np.maximum(betart[innerfaces], 0) * dS, massloc).ravel()
-            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-            A -= sparse.coo_matrix((mat, (rows1, cols0)), shape=(ndofs, ndofs))
-        elif mode =='centered':
-            mat = np.einsum('n,kl->nkl', betart[innerfaces] * dS, massloc).ravel()
-            A += sparse.coo_matrix((mat, (rows0, cols0)), shape=(ndofs, ndofs))
-            A -= sparse.coo_matrix((mat, (rows1, cols1)), shape=(ndofs, ndofs))
-        else:
-            raise ValueError(f"unknown {mode=}")
-        return A
-    def computeFormJump(self, du, u, betart, mode='primal'):
-        dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
-        nloc, dofspercell = self.nlocal(), self.dofspercell()
-        innerfaces = self.mesh.innerfaces
-        ci0 = self.mesh.cellsOfInteriorFaces[:,0]
-        ci1 = self.mesh.cellsOfInteriorFaces[:,1]
-        normalsS = self.mesh.normals[innerfaces]
-        dS = linalg.norm(normalsS, axis=1)
-        faces = self.mesh.faces[self.mesh.innerfaces]
-        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
-        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
-        # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
-        # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
-        fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
-        # fi0, fi1 = self.mesh.facesOfCellsNotOnFaces(faces, ci0, ci1)
-        # ifaces = np.arange(nfaces)[innerfaces]
-        # A = sparse.coo_matrix((ndofs, ndofs))
-        # rows0 = np.repeat(fi0, nloc-1).ravel()
-        # cols0 = np.tile(fi0,nloc-1).ravel()
-        # rows1 = np.repeat(fi1, nloc-1).ravel()
-        # cols1 = np.tile(fi1,nloc-1).ravel()
-        massloc = barycentric.crbdryothers(self.mesh.dimension)
-        if mode == 'primal':
-            mat = np.einsum('n,kl,nl->nk', np.minimum(betart[innerfaces], 0) * dS, massloc, u[fi1]-u[fi0])
-            np.add.at(du, fi0, mat)
-            mat = np.einsum('n,kl,nl->nk', np.maximum(betart[innerfaces], 0)*dS, massloc, u[fi1]-u[fi0])
-            np.add.at(du, fi1, mat)
-        elif mode =='dual':
-            assert 0
-        elif mode =='centered':
-            assert 0
-        else:
-            raise ValueError(f"unknown {mode=}")
-    def computeFormTransportCellWise(self, du, u, data, type):
-        beta, betart = data.beta, data.betart
-        nfaces, dim, dV, foc = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV, self.mesh.facesOfCells
-        cellgrads = self.cellgrads[:,:,:dim]
-        if type=='centered':
-            mat = np.einsum('n,njk,nk,i,nj -> ni', dV, cellgrads, beta, 1/(dim+1)*np.ones(dim+1),u[foc])
-        elif type=='supg':
-            mus = data.md.mus
-            mat = np.einsum('n,njk,nk,ni,nj -> ni', dV, cellgrads, beta, 1-dim*mus,u[foc])
-        else: raise ValueError(f"unknown type {type=}")
-        np.add.at(du, foc, mat)
-        self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
     def computeFormTransportUpwind(self, du, u, data, method):
         return self.computeFormTransportUpwindAlg(du, u, data)
     def computeFormTransportUpwindAlg(self, du, u, data):

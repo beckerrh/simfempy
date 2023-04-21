@@ -5,7 +5,7 @@ simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.insert(0, simfempypath)
 
 from simfempy.tools.comparemethods import CompareMethods
-from simfempy.applications.navierstokes import NavierStokes
+from simfempy.models.app_navierstokes import NavierStokes
 from simfempy.examples.incompflow import schaeferTurek2d
 
 
@@ -16,15 +16,15 @@ from simfempy.examples.incompflow import schaeferTurek2d
 #     info['err_drag'] =  5.57953523384+50*bdrynflux[0]
 #     info['err_lift'] =  0.010618937712+50*bdrynflux[1]
 
-def run(paramsdict, applicationargs={}, **kwargs):
+def run(paramsdict, modelargs={}, **kwargs):
     # niter = kwargs.pop('niter', 3)
     # h1 = kwargs.pop('h1', 1)
     # h = [h1*0.5**i for i in range(niter)]
     mesh, data = schaeferTurek2d()
-    applicationargs['problemdata'] = data
+    modelargs['problemdata'] = data
     def createMesh(h): return schaeferTurek2d(h)[0]
     # kwargs['postproc'] = postproc
-    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=NavierStokes, applicationargs=applicationargs, **kwargs)
+    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, model=NavierStokes, modelargs=modelargs, **kwargs)
     result = comp.compare()
 
 #================================================================#

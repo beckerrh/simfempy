@@ -2,15 +2,14 @@ import copy
 
 import numpy as np
 import scipy.sparse as sparse
-import scipy.sparse.linalg as splinalg
 from simfempy import fems
-from simfempy.applications.application import Application
+from simfempy.models.model import Model
 from simfempy.tools.analyticalfunction import analyticalSolution
-from simfempy.solvers import linalg
+from simfempy.solvers import linalg, saddle_point
 from functools import partial
 
 #=================================================================#
-class Stokes(Application):
+class Stokes(Model):
     """
     """
     def __format__(self, spec):
@@ -18,86 +17,43 @@ class Stokes(Application):
             repr = f"{self.femv=} {self.femp=} {self.problemdata=}"
             if self.linearsolver=='spsolve': return repr + f" {self.linearsolver=}"
             ls = '@'.join([str(v) for v in self.linearsolver.values()])
-            vs = '@'.join([str(v) for v in self.solver_v.values()])
-            # print(f"{self.solver_p=}")
-            ps = '@'.join([str(v) for v in self.solver_p.values()])
-            repr += f"\tlinearsolver={ls} V:{vs} P:{ps}"
+            repr += f"\tlinearsolver={ls}"
             return repr
         return self.__repr__()
-    def _solvername_to_dict(self, name, type=None):
-        nsp = name.split('@')
-        if type == 'linearsolver':
-            if len(nsp) != 4:
-                raise ValueError(f"*** need 'linearsolver' in the form 'method@prec@maxiter@disp' got '{name}'")
-            return {'method': nsp[0], 'prec': nsp[1], 'maxiter': int(nsp[2]), 'disp': int(nsp[3])}
-        elif type == 'solver_v':
-            if nsp[0]=='pyamg':
-                if len(nsp)!=6:
-                    raise ValueError(f"*** need 'solver_v' in the form 'pyamg@pyamgtype@accel@smoother@maxiter@disp'")
-                return {'method':nsp[0], 'pyamgtype':nsp[1], 'accel':nsp[2], 'smoother':nsp[3],
-                            'maxiter':int(nsp[4]), 'disp':int(nsp[5])}
-            else:
-                return {'method': nsp[0], 'prec': nsp[1], 'maxiter': int(nsp[2]), 'disp': int(nsp[3])}
-        elif type == 'solver_p':
-            if nsp[0] == 'scale': return {'type': 'scale'}
-            if len(nsp)<2:
-                raise ValueError(f"*** need 'solver_p' in the form 'tye@method@...@disp'")
-            elif nsp[1]=='pyamg':
-                if len(nsp) != 7:
-                    raise ValueError(
-                        f"*** need 'solver_p' in the form 'type@pyamg@pyamgtype@accel@smoother@maxiter@disp'")
-                return {'type':nsp[0], 'method':nsp[1], 'pyamgtype':nsp[2], 'accel':nsp[3], 'smoother':nsp[4],
-                        'maxiter':int(nsp[5]), 'disp':int(nsp[6])}
-            else:
-                if len(nsp) != 5:
-                    raise ValueError(
-                        f"*** need 'solver_p' in the form 'type@method@prec@maxiter@disp'")
-                return {'type':nsp[0], 'method': nsp[1], 'prec': nsp[2], 'maxiter': int(nsp[3]), 'disp': int(nsp[4])}
-        else: raise ValueError(f"*** unknown {type=}")
     def __init__(self, **kwargs):
-        femparams = kwargs.pop('femparams', {})
+        linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 300, 'prec': 'Chorin', 'disp':1, 'rtol':1e-6}
+        # linearsolver_def = {'method': 'pyamg_fgmres', 'maxiter': 300, 'prec': 'tridown', 'disp':0, 'rtol':1e-6}
+        self.linearsolver = kwargs.pop('linearsolver', linearsolver_def)
+        if self.linearsolver is None: self.linearsolver = linearsolver_def
+        self.singleA = kwargs.pop('singleA', True)
+        super().__init__(**kwargs)
+        # print(f"{self=}")
+    def createFem(self, femparams):
+        # femparams = kwargs.pop('femparams', {})
+        self.hdivpenalty = femparams.pop('hdivpenalty', 0)
+        self.divdivparam = femparams.pop('divdivparam', 0)
         self.dirichletmethod = femparams.pop('dirichletmethod', 'nitsche')
+        if self.dirichletmethod == 'strong' and self.singleA:
+            raise ValueError(f"strong Dirichlet needs system matrix {self.singleA=}")
         if self.dirichletmethod=='nitsche':
             # correct value ?!
             femparams['dirichletmethod'] = 'nitsche'
             femparams['nitscheparam'] = femparams.pop('nitscheparam', 10)
-        self.problemdata = kwargs.pop('problemdata')
-        self.ncomp = self.problemdata.ncomp
-        self.hdivpenalty = femparams.pop('hdivpenalty', 0)
-        self.divdivparam = femparams.pop('divdivparam', 0)
         self.femv = fems.cr1sys.CR1sys(self.ncomp, femparams)
         self.femp = fems.d0.D0()
-        self.scalels = kwargs.pop('scalels', False)
-        if not 'linearsolver' in kwargs:
-            linearsolver_def = {'method': 'pyamg_gmres', 'prec':'full', 'maxiter': 200, 'disp':0}
-            kwargs['linearsolver'] = linearsolver_def
-        else:
-            linearsolver = kwargs['linearsolver']
-            if not isinstance(linearsolver, str):
-                raise ValueError(f"*** need 'linearsolver' as str")
-            if not kwargs['linearsolver'] == 'spsolve':
-                kwargs['linearsolver'] = self._solvername_to_dict(linearsolver, type='linearsolver')
-        if not 'solver_p' in kwargs:
-            self.solver_p = {'type': 'scale'}
-        else:
-            solver_p = kwargs.pop('solver_p')
-            if isinstance(solver_p, str):
-                self.solver_p = self._solvername_to_dict(solver_p, type='solver_p')
-                # print(f"???? {self.solver_p=}")
-            else:
-                raise ValueError(f"*** need 'solver_p' as str")
-        if not 'solver_v' in kwargs:
-            solver_v_def = {'method': 'pyamg', 'pyamgtype': 'aggregation', 'accel': 'none', 'smoother': 'gauss_seidel',
-                            'maxiter': 1, 'disp': 0}
-            self.solver_v = solver_v_def
-        else:
-            solver_v = kwargs.pop('solver_v')
-            if isinstance(solver_v, str):
-                self.solver_v = self._solvername_to_dict(solver_v, type='solver_v')
-            else:
-                raise ValueError(f"*** need 'solver_v' in the form 'method@prec@maxiter@disp'")
-        super().__init__(**kwargs)
-        print(f"{self=}")
+    def setMesh(self, mesh):
+        super().setMesh(mesh)
+        self._checkProblemData()
+        if not self.ncomp==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
+        self.femv.setMesh(self.mesh)
+        self.femp.setMesh(self.mesh)
+        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
+        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
+        if self.dirichletmethod=='strong':
+            assert 'Navier' not in self.problemdata.bdrycond.type.values()
+            colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
+            colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
+            self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
         n = nv+self.mesh.ncells
@@ -109,19 +65,6 @@ class Stokes(Application):
         if self.pmean: ind.append(nv+self.mesh.ncells)
         # print(f"{ind=} {np.split(x, ind)=}")
         return np.split(x, ind)
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
-        self._checkProblemData()
-        assert self.ncomp==self.mesh.dimension
-        self.femv.setMesh(self.mesh)
-        self.femp.setMesh(self.mesh)
-        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
-        if self.dirichletmethod=='strong':
-            assert 'Navier' not in self.problemdata.bdrycond.type.values()
-            colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
-            colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
-            self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
     def _checkProblemData(self):
         # TODO checkProblemData() incomplete
         for col, fct in self.problemdata.bdrycond.fct.items():
@@ -260,61 +203,42 @@ class Stokes(Application):
                         pp = self.computeBdryNormalFluxNitsche(v, p, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
-                assert pp.ndim==2
-                for i,color in enumerate(colors):
-                    data['global'][name+"_"+f"{color}"] = pp[:,i]
+                if pp.ndim==1:
+                    for i, color in enumerate(colors):
+                        data['global'][name + "_" + f"{color}"] = pp[i]
+                else:
+                    assert pp.ndim==2
+                    for i,color in enumerate(colors):
+                        data['global'][name+"_"+f"{color}"] = pp[:,i]
                 # print(f"{name=} {data['global'][name].shape=}")
         return data
-    def computeDx(self, b, u, info):
-        # print(f"{info.iter=}")
-        if info.iter==0:
-            self.A = self.computeMatrix(u=u)
-        try:
-            u, niter = self.linearSolver(self.A, b, u)
-        except Warning:
-            raise ValueError(f"matrix is singular {self.A.shape=} {self.A.diagonal()=}")
-        self.timer.add('solve')
-        return u, niter
-    def linearSolver(self, Ain, b, u=None, verbose=0, atol=1e-16, rtol=1e-10):
-        # print(f"{self.linearsolver=}")
-        bin, uin = b, u
+    def computelinearSolver(self, A):
         if self.linearsolver == 'spsolve':
-            Aall = Ain.to_single_matrix()
-            uall =  splinalg.spsolve(Aall, bin, permc_spec='COLAMD')
-            self.timer.add("linearsolve")
-            return uall, 1
+            args = {'method':'spsolve'}
         else:
-            linearsolver = copy.deepcopy(self.linearsolver)
-            solver_p = copy.deepcopy(self.solver_p)
-            # print(f"{self.solver_p=}")
-            solver_v = copy.deepcopy(self.solver_v)
-            prec = linearsolver.pop("prec", "full")
-            if solver_p['type']=='scale':
-                solver_p['coeff'] = self.mesh.dV/self.mucell
-            # print(f"{self.scalels=}")
-            if self.scalels: Ain.scaleAb(bin)
-            P = linalg.SaddlePointPreconditioner(Ain, solver_v=solver_v, solver_p=solver_p, method=prec)
-            assert isinstance(self.linearsolver, dict)
-            linearsolver['counter'] = 'sys '
-            linearsolver['matvec'] = Ain.matvec
-            linearsolver['matvecprec'] = P.matvecprec
-            linearsolver['n'] = Ain.nall
-            S = linalg.getSolver(args=linearsolver)
-            maxiter = S.maxiter
-            uall =  S.solve(b=bin, x0=uin)
-            if self.scalels: Ain.scaleu(uall)
-            self.timer.add("linearsolve")
-            it = S.counter.niter
-            if it==maxiter or np.linalg.norm(uall)<atol:
-                msg = f"*** linear system solver not converged in {maxiter=}"
-                msg += f"\n{np.linalg.norm(uall)=} {np.linalg.norm(bin)=}"
-                msg += f"\n{S=}"
-                msg += f"\n{P=}"
-                msg += f"\n{S.counter=}"
-                # raise ValueError(msg)
-                print(msg)
-                it = -1
-            return uall, it
+            args = copy.deepcopy(self.linearsolver)
+        if args['method'] != 'spsolve':
+            if self.scale_ls and hasattr(A,'scale_A'):
+                A.scale_A()
+                args['scale'] = self.scale_ls
+            # args['counter'] = 'sys'
+            args['matvec'] = A.matvec
+            args['n'] = A.nall
+            prec = args.pop('prec', 'full')
+            solver_v = args.pop('solver_v', None)
+            solver_p = args.pop('solver_p', None)
+            if prec == 'BS':
+                alpha = args.pop('alpha', 10)
+                P = saddle_point.BraessSarazin(A, alpha=alpha)
+            elif prec == 'Chorin':
+                alpha = args.pop('alpha', 10)
+                P = saddle_point.Chorin(A, solver_v=solver_v, solver_p=solver_p)
+            else:
+                # if solver_p['type']=='scale':
+                # solver_p['coeff'] = self.mesh.dV/self.mucell
+                P = saddle_point.SaddlePointPreconditioner(A, solver_v=solver_v, solver_p=solver_p, method=prec)
+            args['matvecprec'] = P.matvecprec
+        return linalg.getLinearSolver(args=args)
     def computeRhs(self, b=None, u=None, coeffmass=None):
         b = self._zeros()
         bs  = self._split(b)
@@ -328,9 +252,7 @@ class Stokes(Application):
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         colorsp = self.problemdata.bdrycond.colorsOfType("Pressure")
         self.femv.computeRhsBoundary(bv, colorsneu, self.problemdata.bdrycond.fct)
-        if self.dirichletmethod=='strong':
-            self.vectorBoundaryStrong((bv, bp), self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
-        else:
+        if not self.dirichletmethod == 'strong':
             vdir = self.femv.interpolateBoundary(colorsdir, self.problemdata.bdrycond.fct)
             self.computeRhsBdryNitscheDirichlet((bv,bp), colorsdir, vdir, self.mucell)
             bdryfct = self.problemdata.bdrycond.fct
@@ -420,7 +342,10 @@ class Stokes(Application):
                 self.app = app
                 self.M = M
             def addToStokes(self, d, A):
-                A += self.app.femv.matrix2systemdiagonal(d*self.M, self.app.ncomp)
+                if self.app.singleA:
+                    A += d*self.M
+                else:
+                    A += linalg.matrix2systemdiagonal(d*self.M, self.app.ncomp)
                 return A
             def dot(self, du, d, u):
                 # print(f"{d=}")
@@ -440,19 +365,17 @@ class Stokes(Application):
         rhs2 = self.computeRhs()
         rhs += (1 / theta) * rhs2
     def defect_dynamic(self, f, u):
-        # y = self.computeForm(u, coeffmass=1 / (self.theta * self.dt))-f
         y = self.computeForm(u)-f
         self.Mass.dot(y, 1 / (self.theta * self.dt), u)
-        # n = self.ncomp*self.femv.fem.nunknowns()
-        # print(f"{np.linalg.norm(y[:n])=} {np.linalg.norm(y[n:])=}")
         return y
-        # return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    def dx_dynamic(self, A, b, u, info):
-        u, niter = self.linearSolver(A, b=b, u=u)
-        return u, niter
+   #     return u, niter
     def computeMatrix(self, u=None, coeffmass=None):
-        # A = self.femv.computeMatrixLaplace(self.mucell)
-        A = self.femv.computeMatrixLaplace(self.mucell, coeffmass)
+        if coeffmass is None and 'alpha' in self.problemdata.params.scal_glob.keys():
+            coeffmass = self.problemdata.params.scal_glob['alpha']
+        if self.singleA:
+            A = self.femv.fem.computeMatrixDiffusion(self.mucell, coeffmass)
+        else:
+            A = self.femv.computeMatrixLaplace(self.mucell, coeffmass)
         B = self.femv.computeMatrixDivergence()
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
@@ -461,14 +384,16 @@ class Stokes(Application):
             raise NotImplementedError(f"Pressure boundary consition wrong (in newton)")
         if self.dirichletmethod == 'strong':
             A, B = self.matrixBoundaryStrong(A, B, self.bdrydata, self.dirichletmethod)
+            self.vectorBoundaryStrong(self.b, self.problemdata.bdrycond.fct, self.bdrydata, self.dirichletmethod)
         else:
             #TODO eviter le retour de A,B
             # print(f"{id(A)=} {id(B)=}")
-            A, B = self.computeMatrixBdryNitscheDirichlet(A, B, colorsdir, self.mucell)
+            A, B = self.computeMatrixBdryNitscheDirichlet(A, B, colorsdir, self.mucell, self.singleA)
             # print(f"{id(A)=} {id(B)=}")
-            lam = self.problemdata.params.scal_glob.get('navier',0) 
-            A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
-            A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
+            if len(colorsnav):
+                lam = self.problemdata.params.scal_glob.get('navier', 0)
+                A, B = self.computeMatrixBdryNitscheNavier(A, B, colorsnav, self.mucell, lam)
+            if len(colorsp): A, B = self.computeMatrixBdryNitschePressure(A, B, colorsp, self.mucell)
             # print(f"{id(A)=} {id(B)=}")
         # if self.hdivpenalty:
         #     if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
@@ -478,13 +403,14 @@ class Stokes(Application):
         # if coeffmass:
         #     print(f"{coeffmass=}")
         #     self.Mass.addToStokes(coeffmass, A)
+        # print(f"{self.linearsolver=}")
         if not self.pmean:
-            return linalg.SaddlePointSystem(A, B)
+            return linalg.SaddlePointSystem(A, B, singleA=self.singleA, ncomp=self.ncomp)
         ncells = self.mesh.ncells
         rows = np.zeros(ncells, dtype=int)
         cols = np.arange(0, ncells)
         C = sparse.coo_matrix((self.mesh.dV, (rows, cols)), shape=(1, ncells)).tocsr()
-        return linalg.SaddlePointSystem(A, B, C)
+        return linalg.SaddlePointSystem(A, B, singleA=self.singleA, ncomp=self.ncomp)
     def computeFormMeanPressure(self,dp, dlam, p, lam):
         dlam += self.mesh.dV.dot(p)
         dp += lam*self.mesh.dV
@@ -547,9 +473,12 @@ class Stokes(Application):
     def computeFormBdryNitscheNavier(self, dv, dp, v, p, colors, mu):
         if not len(colors): return
         raise NotImplementedError()
-    def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell):
+    def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell, singleA):
         nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp, self.mesh.dimension
-        A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, ncomp)
+        if singleA:
+            A += self.femv.fem.computeMatrixNitscheDiffusion(mucell, colors)
+        else:
+            A += self.femv.computeMatrixNitscheDiffusion(mucell, colors, ncomp)
         #grad-div
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -582,7 +511,9 @@ class Stokes(Application):
         A -= self.femv.computeMatrixNitscheDiffusionNormal(mucell, colors, self.ncomp)
         return A,B
     def vectorBoundaryStrong(self, b, bdryfctv, bdrydata, method):
-        bv, bp = b
+        # bv, bp = b
+        bs = self._split(b)
+        bv, bp = bs[0], bs[1]
         bv = self.femv.vectorBoundaryStrong(bv, bdryfctv, bdrydata, method)
         facesdirall, facesinner, colorsdir, facesdirflux = bdrydata.facesdirall, bdrydata.facesinner, bdrydata.colorsdir, bdrydata.facesdirflux
         nfaces, ncells, ncomp  = self.mesh.nfaces, self.mesh.ncells, self.femv.ncomp
@@ -631,11 +562,26 @@ class Stokes(Application):
             # print(f"{flux=}")
             #TODO flux Stokes Dirichlet strong wrong
         return flux
+    def plot(self, data, fig=None, gs=None, title='', alpha=0.5):
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        if fig is None:
+            fig = plt.figure(constrained_layout=True)
+            appname = 'no application'
+            fig.suptitle(f"{appname}")
+            gs = fig.add_gridspec(1, 1)[0,0]
+        inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=1, subplot_spec=gs, wspace=0.1, hspace=0.1)
+        v = data['point']['V']
+        p = data['cell']['P']
+        ax = fig.add_subplot(inner[0])
+        self.plot_p(ax, p)
+        ax = fig.add_subplot(inner[1])
+        self.plot_v(ax, v)
     def plot_p(self, ax, p=None, uname='p', title='', alpha=0.5):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-        ax.set_title(title)
+        if title: ax.set_title(title)
         ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
         assert len(p)==self.mesh.ncells
         cnt = ax.tripcolor(x, y, tris, facecolors=p, edgecolors='k', cmap='jet')
@@ -647,7 +593,7 @@ class Stokes(Application):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-        ax.set_title(title)
+        if title: ax.set_title(title)
         ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
         vr = v.reshape(self.mesh.nnodes,self.ncomp)
         vnorm = np.linalg.norm(vr, axis=1)

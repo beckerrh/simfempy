@@ -197,7 +197,7 @@ class ProblemData(object):
 # ---------------------------------------------------------------- #
 class Results(object):
     """
-    Contains results from an application:
+    Contains results from an model:
     - point_data, side_data, cell_data, gobal_data
     - info on iteration
     """
@@ -227,14 +227,18 @@ class Results(object):
                 assert isinstance(v, dict)
                 self.data[k] = {}
                 for k2, v2 in v.items():
-                    assert isinstance(v2, np.ndarray)
-                    if sum(v2.shape)==1:
+                    # print(f"{k2=} {type(v2)=}")
+                    if isinstance(v2, np.floating):
                         self.data[k][k2] = np.zeros(nframes)
                     else:
-                        self.data[k][k2] = np.zeros(shape=(nframes,*v2.shape))
+                        if not isinstance(v2, np.ndarray): raise ValueError(f"for {k2} is unknown {type(v2)}")
+                        if sum(v2.shape)==1:
+                            self.data[k][k2] = np.zeros(nframes)
+                        else:
+                            self.data[k][k2] = np.zeros(shape=(nframes,*v2.shape))
         for k,v in data.items():
             assert isinstance(v,dict)
             assert k in self.data.keys()
             for k2,v2 in v.items():
-                assert isinstance(v2, np.ndarray)
+                # assert isinstance(v2, np.ndarray)
                 self.data[k][k2][iframe,...] = v2

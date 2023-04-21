@@ -8,8 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pygmsh
-from simfempy.applications.elasticity import Elasticity
-from simfempy.applications.problemdata import ProblemData
+from simfempy.models.elasticity import Elasticity
+from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh
 
@@ -21,7 +21,7 @@ def main():
     # plotmesh.meshWithBoundaries(mesh)
     # create problem data
     data = createProblemData()
-    # create application
+    # create model
     elasticity = Elasticity(mesh=mesh, problemdata=data)
     result = elasticity.static()
     print(f"{result.info['timer']}")

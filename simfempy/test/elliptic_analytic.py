@@ -3,13 +3,13 @@ from os import path
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.insert(0,simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
-from simfempy.applications.elliptic import Elliptic
-import simfempy.applications.problemdata
+from simfempy.models.elliptic import Elliptic
+import simfempy.models.problemdata
 from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
-    data = simfempy.applications.problemdata.ProblemData()
+    data = simfempy.models.problemdata.ProblemData()
     exactsolution = kwargs.pop('exactsolution', 'Linear')
     paramsdict = {'fem': kwargs.pop('fem', ['p1','cr1'])}
     # paramsdict['dirichletmethod'] = kwargs.pop('dirichletmethod', ['nitsche','strong','new'])
@@ -45,10 +45,10 @@ def test(dim, **kwargs):
     data.postproc.set(name='bdrymean', type='bdry_mean', colors=colorsneu)
     data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=colorsdir[0])
     linearsolver = kwargs.pop('linearsolver', 'pyamg')
-    applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
-    # applicationargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':False}
-    # applicationargs['mode'] = 'newton'
-    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, application=Elliptic, applicationargs=applicationargs, **kwargs)
+    modelargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver}
+    # modelargs= {'problemdata': data, 'exactsolution': exactsolution, 'linearsolver': linearsolver, 'masslumpedbdry':False}
+    # modelargs['mode'] = 'newton'
+    comp =  CompareMethods(createMesh=createMesh, paramsdict=paramsdict, model=Elliptic, modelargs=modelargs, **kwargs)
     return comp.compare()
 
 #================================================================#

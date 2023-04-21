@@ -6,8 +6,8 @@ import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
 
-from simfempy.applications.heat import Heat
-from simfempy.applications.problemdata import ProblemData
+from simfempy.models.heat import Heat
+from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from simfempy.meshes import plotmesh, animdata
 
@@ -43,16 +43,17 @@ data.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
 data.params.set_scal_cells("kheat", [100], 0.001)
 data.params.set_scal_cells("kheat", [200], 10.0)
 # data.params.fct_glob["convection"] = ["0", "0.001"]
-# create application
+# create model
 femparams={'dirichletmethod':'nitsche'}
 # femparams={'dirichletmethod':'strong'}
-heat = Heat(mesh=mesh, problemdata=data, fem='p1', femparams=femparams)
+heat = Heat(mesh=mesh, problemdata=data, fem='p1', femparams=femparams, linearsolver='pyamg')
+# heat = Heat(mesh=mesh, problemdata=data, fem='p1', femparams=femparams, linearsolver='spsolve')
 # heat = Heat(mesh=mesh, problemdata=data, fem='cr1')
 # heat = Heat(mesh=mesh, problemdata=data, fem='p1', dirichletmethod='nitsche')
 static = False
 if static:
     # run static
-    result = heat.static(mode="newton")
+    result, u = heat.static(mode="newton")
     print(f"{result=}")
     # for p, v in result.data['global'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))

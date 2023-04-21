@@ -127,7 +127,6 @@ class LatexWriter(object):
         self.sep = '%' + 30*'='+'\n'
         self.data = {}
         self.countdata = 0
-        self.rotatenames = True
     def __del__(self):
         try:
             self.latexfile.close()
@@ -136,6 +135,8 @@ class LatexWriter(object):
     def append(self, **kwargs):
         if 'name' in kwargs: name = kwargs.pop('name')
         else: name = 'table_{:d}'.format(self.countdata+1)
+        # print(f"append {name=} {kwargs.values()=}")
+        # raise ValueError(f"{name=}")
         self.countdata += 1
         tabledata = TableData(**kwargs)
         if 'diffandredrate' in kwargs and kwargs.pop('diffandredrate'):
@@ -146,9 +147,10 @@ class LatexWriter(object):
         if 'percentage' in kwargs and kwargs.pop('percentage'):
             tabledata.computePercentage()
         self.data[name] = tabledata
-    def write(self, sort=False):
+    def write(self, sort=False, names2names=None):
         self.latexfile = open(self.latexfilename, "w")
-        if len(self.data) < 4: self.rotatenames=False
+        if len(self.data) < 4: self.namestype='short'
+        # if len(list(self.data.keys())[0]) > 4: self.namestype='list'
         self.writePreamble()
         if sort:
             for key,tabledata in sorted(self.data.items()):
@@ -157,6 +159,17 @@ class LatexWriter(object):
             for key, tabledata in self.data.items():
                 # print(f"{key=} {tabledata=}")
                 self.writeTable(name=key, tabledata=tabledata)
+        if names2names:
+            texta = '\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
+            texta += 'r|r' + '}\n'
+            self.latexfile.write(texta)
+            for k,v in names2names.items():
+                vr = v.replace('_', r'\_').replace('{','').replace('}','')
+                self.latexfile.write(f"{k}&{vr}\\\\\n")
+            texte = f"\n\\end{{tabular}}\n\\caption{{{'name'}}}"
+            texte += f"\n\\end{{center}}\n\\label{{tab:{'name'}}}\n\\end{{table}}\n"
+            texte += f"%\n%{30*'-'}\n%\n"
+            self.latexfile.write(texte)
         self.writePostamble()
         self.latexfile.close()
     def writeTable(self, name, tabledata, sort=False):
@@ -164,12 +177,16 @@ class LatexWriter(object):
         nname = nname.replace('_', r'\_')
         name = name.replace('_', '')
         keys_to_write = sorted(values.keys()) if sort else list(values.keys())
+        # print(f"{name=} {tabledata.nname=} {keys_to_write=}")
         size = len(keys_to_write)
         if size==0: return
         texta ='\\begin{table}[!htbp]\n\\begin{center}\n\\begin{tabular}{'
         texta += 'r|' + size*'|r' + '}\n'
         self.latexfile.write(texta)
-        if self.rotatenames:
+        if max([len(keys_to_write[i]) for i in range(size)])>4: rotate=True
+        else: rotate=False
+        # print(f"{self.rotate=} {ks=} {max([len(k) for k in kwargs['values'].keys()])=}")
+        if rotate:
             # itemformated = "\sw{%s} &" %nname
             itemformated = f"\sw{{{nname}}} &"
             for i in range(size-1):
@@ -206,8 +223,7 @@ class LatexWriter(object):
     def writePreamble(self, name="none"):
         texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n'
         texta += '\\usepackage{times,graphicx,rotating,subfig}\n'
-        if self.rotatenames:
-            texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
+        texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
         texta += f"\\author{{{self.author}}}\n"
         texta += f"\\title{{{self.title}}}\n"
         texta += self.sep + '\\begin{document}\n' + self.sep + '\n'

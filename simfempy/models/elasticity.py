@@ -2,11 +2,11 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as splinalg
 from simfempy import fems
-from simfempy.applications.application import Application
+from simfempy.models.model import Model
 from functools import partial
 
 #=================================================================#
-class Elasticity(Application):
+class Elasticity(Model):
     """
     -div( lam*div(u) + mu*D(u)) = f
     """
