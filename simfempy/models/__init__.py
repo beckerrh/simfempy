@@ -1,1 +1,1 @@
-from . import model, heat, elasticity, stokes, navierstokes, app_navierstokes
+from . import application, model, heat, elasticity, stokes, navierstokes

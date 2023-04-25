@@ -44,7 +44,7 @@ class CompareMethods(object):
         if self.verbose == 0: self.latex = False
         self.paramname = kwargs.pop("paramname", "ncells")
         self.plot = kwargs.pop("plot", False)
-        self.createMesh = kwargs.pop("createMesh", None)
+        self.application = kwargs.pop("application", None)
         self.geom = kwargs.pop("geom", None)
         self.mesh = kwargs.pop("mesh", None)
         self.postproc = kwargs.pop("postproc", None)
@@ -64,7 +64,7 @@ class CompareMethods(object):
             else:
                 # raise NotImplementedError(f"gmeshrefine not working")
                 # ne marche pas à cause de pygmsh !!!
-                mesh = self._mesh_from_geom_or_fct()
+                mesh = self.application.createMesh()
                 self.gmshrefine = True
                 niter = kwargs.pop("niter", None)
                 if niter is None: raise KeyError("please give 'niter' ({self.paramname=}")
@@ -75,38 +75,36 @@ class CompareMethods(object):
             self.gmshrefine = False
         if 'methods' in kwargs:
             self.methods = kwargs.pop("methods")
+            if len(kwargs.keys()):
+                raise ValueError(f"*** unused arguments {kwargs=}")
         else:
             requiredargs = ['model', 'modelargs']
             for requiredarg in requiredargs:
                 if not requiredarg in kwargs:
                     raise ValueError("need 'model' (class) and 'modelargs' (dict) and  'paramsdict' (dict)")
-            self._definemethods(kwargs.pop("model"), kwargs.pop("modelargs"))
-        if len(kwargs.keys()):
-            raise ValueError(f"*** unused arguments {kwargs=}")
+            model, modelargs = kwargs.pop("model"), kwargs.pop("modelargs")
+            if len(kwargs.keys()):
+                raise ValueError(f"*** unused arguments {kwargs=}")
+            self._definemethods(model, modelargs)
+
     def _definemethods(self, model, modelargs):
-        if not 'problemdata' in modelargs:
-            raise KeyError(f"'problemdata' should be set in 'modelargs'")
-        import itertools
+        # if not 'problemdata' in modelargs:
+        #     raise KeyError(f"'problemdata' should be set in 'modelargs'")
         paramsdict = self.paramsdict
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
             if isinstance(params, str): paramsdict[pname] = [params]
-        # paramsprod = list(itertools.product(*paramsdict.values()))
-        # paramslist = [{k:params[i] for i,k in enumerate(paramsdict)} for params in paramsprod]
         from simfempy.tools import tools
         paramslist = tools.dicttensorproduct(paramsdict)
-        #TODO virer itertools ici
         self.methods = {}
-        # print(f"***{paramslist=}")
         import copy
         sep = '@'
         for i,p in enumerate(paramslist):
             name = ''
             modelargs2 = copy.deepcopy(modelargs)
+            problemdataparamchange = simfempy.models.problemdata.Params()
             for pname, param in p.items():
-                print(f"{pname=} {param=} {len(paramsdict[pname])=}")
-                # if len(paramsdict[pname])==1:
-                #     modelargs2[pname] = param
+                # print(f"{pname=} {param=} {len(paramsdict[pname])=}")
                 if isinstance(param,list) and len(param)==2:
                     if hasattr(self,'names2names'):
                         raise ValueError(f"paramsdict should all be in the form {{paramname:[name,param]}} or {{paramname:param}} got {pname=} {param=}")
@@ -116,42 +114,42 @@ class CompareMethods(object):
                     ps = pname.split('@')
                     if len(ps)>1:
                         name += f"{ps[0]}={str(param)}" + sep
-                        exec(f"modelargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
+                        exec(f"problemdataparamchange.{ps[1]}['{ps[0]}']={param}")
+                        # exec(f"modelargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
                     else:
                         modelargs2[pname] = param
                         name += str(param) + sep
                     if isinstance(param,dict) and len(paramsdict[pname]) > 1:
                         if not hasattr(self, 'names2names'): self.names2names={}
             name = name[:-1]
-                    # if len(paramsdict[pname])>1: name += str(param)
-                # ps = pname.split('@')
-                # if len(ps)>1:
-                #     exec(f"modelargs2['problemdata'].params.{ps[1]}['{ps[0]}']={param}")
-                # else:
-                #     modelargs2[pname] = param
-            # modelargs2[pname] = param
-            # print(f"***{modelargs2=}")
+            modelargs2['application'] = copy.deepcopy(self.application)
+            model_of_name = model(**modelargs2)
+            model_of_name.problemdata.params.update(problemdataparamchange)
             if hasattr(self, 'names2names'):
                 self.names2names[f"{i}"] = name
-                self.methods[f"{i}"] = model(**modelargs2)
+                key = f"{i}"
             else:
-                self.methods[name] = model(**modelargs2)
-    def _mesh_from_geom_or_fct(self, h=None):
-        if h is None:
-            if self.createMesh is not None: return self.createMesh()
-            if self.mesh is not None: return self.mesh
-            if self.h is None: raise ValueError(f"I need h({self.h=})")
-            h = self.h
-        if self.createMesh is not None: return self.createMesh(h)
-        if hasattr(pygmsh, "built_in"):
-            mesh = pygmsh.generate_mesh(self.geom(h), verbose=False)
-        else:
-            with self.geom(h) as geom:
-                mesh = geom.generate_mesh()
-        return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
+                key = name
+            self.methods[key] = model(**modelargs2)
+            self.methods[key].problemdata.params.update(problemdataparamchange)
+
+    # def _mesh_from_geom_or_fct(self, h=None):
+    #     assert self.application
+    #     return self.application.createMesh(h)
+    #     if h is None:
+    #         if self.mesh is not None: return self.mesh
+    #         if self.h is None: raise ValueError(f"I need h({self.h=})")
+    #         h = self.h
+    #     if self.application is not None: return self.createMesh(h)
+        # if hasattr(pygmsh, "built_in"):
+        #     mesh = pygmsh.generate_mesh(self.geom(h), verbose=False)
+        # else:
+        #     with self.geom(h) as geom:
+        #         mesh = geom.generate_mesh()
+        # return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     def compare(self, **kwargs):
         if (self.gmshrefine or self.paramname != "ncells") and self.mesh is None:
-            mesh = self._mesh_from_geom_or_fct()
+            mesh = self.application.createMesh()
         if self.plotsolution:
             import matplotlib.gridspec as gridspec
             fig = plt.figure(figsize=(10, 8))
@@ -165,7 +163,7 @@ class CompareMethods(object):
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
                 else:
                     # raise ValueError(f"{mesh=}")
-                    mesh = self._mesh_from_geom_or_fct(param)
+                    mesh = self.application.createMesh(param)
                 print(f"{self.__class__.__name__} {mesh=} {param=}")
                 parameters.append(mesh.ncells)
             else:
@@ -182,13 +180,13 @@ class CompareMethods(object):
                 if self.plotsolution:
                     from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, parameters[-1])
-                    method.plot(result.data, fig=fig, gs=outer[plotcount])
+                    method.plot(u=u, fig=fig, gs=outer[plotcount])
                     # plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
                     plotcount += 1
                     # plt.show()
                 resdict = result.info.copy()
-                if self.postproc: self.postproc(result.data['global'])
-                resdict.update(result.data['global'])
+                if self.postproc: self.postproc(result.data['scalar'])
+                resdict.update(result.data['scalar'])
                 self.fillInfo(iter, name, resdict, len(self.params))
         if self.plotsolution:
             import os
@@ -229,7 +227,7 @@ class CompareMethods(object):
                 self.infos[key2][name][iter] = np.sum(info2)
     def generateLatex(self, names, paramname, parameters, infos, title=None):
         if title is None:
-            title = self.createMesh.__name__
+            title = self.application.__class__.__name__
             # title = f"mesh({mesh})\\\\"
             # for name, method in self.methods.items():
             #     title += f"{name}\\\\"

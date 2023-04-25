@@ -240,8 +240,14 @@ class Chorin(SaddlePointPreconditioner):
         self.SP = linalg.getLinearSolver(args=solver_p)
         self.SV = linalg.getLinearSolver(args=solver_v)
 
-    def matvecprec(self, x):
+    def matvecprec2(self, x):
         v, p = x[:self.nv], x[self.nv:]
         q = self.SP.solve(b=p)
         w = self._solve_v(b=v+self.AS.B.T.dot(q))
+        return np.hstack([w, q])
+    def matvecprec(self, x):
+        v, p = x[:self.nv], x[self.nv:]
+        w = self._solve_v(v)
+        q = self.SP.solve(b=p-self.AS.B@w)
+        w += self.AS.B.T@q
         return np.hstack([w, q])

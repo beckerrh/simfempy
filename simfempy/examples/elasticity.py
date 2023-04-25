@@ -26,7 +26,7 @@ def main():
     result = elasticity.static()
     print(f"{result.info['timer']}")
     print(f"postproc:")
-    for p, v in result.data['global'].items(): print(f"{p}: {v}")
+    for p, v in result.data['scalar'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithBoundaries(mesh, fig=fig, outer=outer[0])

@@ -168,15 +168,18 @@ class Beam(Model):
             a[faces] += dddn
         # print(f"{a=}")
         return a,b,c,d
-    def postProcess(self, uin):
-        data = {'point':{}, 'cell':{}, 'global':{}}
-        u,w,l = uin
+    def sol_to_data(self, u):
+        data = {'point': {}, 'cell': {}, 'global': {}}
+        u, w, l = u
         # print(f"{l=} {u[0]=} {u[1]=}")
         data['point']['U'] = self.fem.tonode(u)
         data['point']['W'] = self.fem.tonode(w)
+        return data
+    def postProcess(self, uin):
+        data = {}
         if self.problemdata.solexact:
-            data['global']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            data['scalar']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['scalar']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
             data['cell']['err'] = ec
         return data
     def _to_single_matrix(self, Ain):

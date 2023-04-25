@@ -44,14 +44,17 @@ class Heat(Model):
         return repr
     def __init__(self, **kwargs):
         self.femname = kwargs.pop('fem','p1')
-        self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
         super().__init__(**kwargs)
+        # self.convection = 'convection' in self.application.params.fct_glob.keys()
+        # raise ValueError(f"{self.convection=}")
+        # self.convection = 'convection' in kwargs['problemdata'].params.fct_glob.keys()
     def createFem(self, femparams):
         if self.femname == 'p1': self.fem = fems.p1.P1(femparams)
         elif self.femname == 'cr1': self.fem = fems.cr1.CR1(femparams)
         else: raise ValueError("unknown fem '{}'".format(self.femname))
     def setMesh(self, mesh):
         super().setMesh(mesh)
+        self.convection = 'convection' in self.problemdata.params.fct_glob.keys()
         # if mesh is not None: self.mesh = mesh
         self._checkProblemData()
         self.fem.setMesh(self.mesh)
@@ -233,37 +236,40 @@ class Heat(Model):
         if hasattr(self, 'bdrydata'):
             self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         return b
+    def sol_to_data(self, u):
+        data = {'point': {}}
+        data['point']['U'] = self.fem.tonode(u)
+        return data
     def postProcess(self, u):
         # TODO: virer 'error' et 'postproc'
-        data = {'point':{}, 'cell':{}, 'global':{}}
+        data = {'scalar':{}}
         # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        data['point']['U'] = self.fem.tonode(u)
         if self.problemdata.solexact:
-            data['global']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['global']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
-            data['global']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
+            data['scalar']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['scalar']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            data['scalar']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
+            data['scalar']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
             data['cell']['err'] = ec
         if self.problemdata.postproc:
             types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues", "linemeans"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    data['global'][name] = self.fem.computeBdryMean(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryFct(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
                     if self.fem.params_str['dirichletmethod'] == 'nitsche':
                         udir = self.fem.interpolateBoundary(colors, self.problemdata.bdrycond.fct)
-                        data['global'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
+                        data['scalar'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
                     else:
-                        data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
+                        data['scalar'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
                 elif type == types[3]:
-                    data['global'][name] = self.fem.computePointValues(u, colors)
+                    data['scalar'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:
-                    data['global'][name] = self.fem.computeMeanValues(u, colors)
+                    data['scalar'][name] = self.fem.computeMeanValues(u, colors)
                 elif type == types[5]:
-                    data['global'][name] = self.fem.computeLineValues(u, colors)
+                    data['scalar'][name] = self.fem.computeLineValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
@@ -332,21 +338,39 @@ class Heat(Model):
         }
         # return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
         return pyamg.rootnode_solver(A, B, **SA_build_args)
-    def plot(self, ax, u=None, uname='T', title='', alpha=0.5):
+
+    def _plot2d(self, data, fig, gs, title='', alpha=0.5, uname='T'):
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+        ax = fig.add_subplot(gs)
         ax.set_title(title)
         ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-        if len(u)==self.mesh.nnodes:
-            cnt = ax.tricontourf(x, y, tris, u, levels=16, cmap='jet')
+        # print(f"{data['point']['U']=}")
+        if 'point' in data and 'U' in data['point']:
+            cnt = ax.tricontourf(x, y, tris, data['point']['U'], levels=16, cmap='jet')
         else:
-            assert len(u)==self.mesh.ncells
-            cnt = ax.tripcolor(x, y, tris, facecolors=u, edgecolors='k', cmap='jet')
+            cnt = ax.tripcolor(x, y, tris, facecolors=data['point']['U'], edgecolors='k', cmap='jet')
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
         clb.ax.set_title(uname)
+
+    # def plot(self, ax, u=None, uname='T', title='', alpha=0.5):
+    #     import matplotlib.pyplot as plt
+    #     from mpl_toolkits.axes_grid1 import make_axes_locatable
+    #     x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+    #     ax.set_title(title)
+    #     ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+    #     if len(u)==self.mesh.nnodes:
+    #         cnt = ax.tricontourf(x, y, tris, u, levels=16, cmap='jet')
+    #     else:
+    #         assert len(u)==self.mesh.ncells
+    #         cnt = ax.tripcolor(x, y, tris, facecolors=u, edgecolors='k', cmap='jet')
+    #     divider = make_axes_locatable(ax)
+    #     cax = divider.append_axes('right', size='5%', pad=0.05)
+    #     clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+    #     clb.ax.set_title(uname)
 
 
 #=================================================================#

@@ -13,13 +13,13 @@ import numpy as np
 #         self.success, self.failure = success, failure
 #         self.niter, self.nliniter = niter, nliniter
 
-class StoppingData:
+class StoppingParamaters:
     def __init__(self, **kwargs):
         self.maxiter = kwargs.pop('maxiter',100)
-        self.atol = kwargs.pop('atol',1e-14)
+        self.atol = kwargs.pop('atol',1e-12)
         self.rtol = kwargs.pop('rtol',1e-8)
-        self.atoldx = kwargs.pop('atoldx',1e-14)
-        self.rtoldx = kwargs.pop('rtoldx',1e-10)
+        self.atoldx = kwargs.pop('atoldx',1e-12)
+        self.rtoldx = kwargs.pop('rtoldx',1e-8)
         self.divx = kwargs.pop('divx',1e8)
         self.rho_aimed = kwargs.pop('rho_aimed',0.1)
         self.firststep = 1.0

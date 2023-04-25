@@ -110,7 +110,7 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     """
     if sdata is None:
         if maxiter is None: raise ValueError(f"if sdata is None please give 'maxiter'") 
-        sdata = newtondata.StoppingData(maxiter=maxiter)
+        sdata = newtondata.StoppingParamaters(maxiter=maxiter)
     atol, rtol, atoldx, rtoldx = sdata.atol, sdata.rtol, sdata.atoldx, sdata.rtoldx
     maxiter, divx = sdata.maxiter, sdata.divx
     x = np.asarray(x0)
@@ -125,18 +125,24 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     toldx = max(atoldx, rtoldx*xnorm)
     name = 'newton'
     if hasattr(sdata,'addname'): name += '_' + sdata.addname
-    if verbose:
-        print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
-        print("{:20} {:3} {:9.3e} {:^9} {:9.3e} {:^4} {:^4} {:^3} {:^4} {:^1}".format(name, 0, resnorm, 3*'-', xnorm, 3*'-', 3*'-', 3*'-', 2*'-', 3*'-', '-'))
     dx, step, resold = None, None, np.zeros_like(res)
     if iterdata is None:
         iterdata = newtondata.IterationData(resnorm)
     else:
         iterdata.reset(resnorm)
+    if verbose and iterdata.totaliter==0:
+        print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
+        print("{:20} {:3} {:9.3e} {:^9} {:9.3e} {:^4} {:^4} {:^3} {:^4} {:^1}".format(name, 0, resnorm, 3*'-', xnorm, 3*'-', 3*'-', 3*'-', 2*'-', 3*'-', '-'))
     if sdata.steptype == 'rb':
         bt = Baseopt(f, sdata, x.shape[0], verbose)
     iterdata.bad_convergence = False
+    iterdata.success = True
     while(resnorm>tol  and iterdata.iter < maxiter):
+        if resnorm<atol:
+            iterdata.success = False
+            iterdata.failure = 'residual too small'
+            return x, iterdata
+        iterdata.tol_missing = tol/resnorm
         if not computedx:
             J = jac(x)
             dx, liniter, success = linalg.solve(J, -res), 1, True
@@ -148,7 +154,9 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             return x, iterdata
         assert dx.shape == x0.shape
         if np.linalg.norm(dx) < sdata.atoldx:
-            raise ValueError(f"*** correction too small: {liniter=} {np.linalg.norm(dx)=}")
+            iterdata.success = False
+            iterdata.failure = 'correction too small'
+            return x, iterdata
         resold[:] = res[:]
         if sdata.steptype == 'rb':
             x, res, resnorm, step = bt.step(x, dx, resnorm)
@@ -165,18 +173,19 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             matsymb = 'M'
         if verbose:
             print(f"{name:20s} {iterdata.iter:3d} {resnorm:9.3e} {iterdata.dxnorm[-1]:9.3e} {xnorm:9.3e} {iterdata.rhodx:4.2f} {iterdata.rhor:4.2f} {liniter:3d} {step:4.2f} {matsymb:1s}")
+        if resnorm<atol:
+            iterdata.success = False
+            iterdata.failure = 'residual too small'
+            return x, iterdata
         if iterdata.iter == sdata.maxiter:
             iterdata.success = False
             iterdata.failure = 'maxiter exceded'
             return x, iterdata
-            # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='maxiter')
         if xnorm >= divx:
             iterdata.success = False
             iterdata.failure = 'divx'
             return x, iterdata
-            # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter), success=False, failure='divx')
     return x, iterdata
-    # return x, newtondata.IterationInfo(iterdata.iter, np.mean(iterdata.liniter))
 
 
 # ------------------------------------------------------ #

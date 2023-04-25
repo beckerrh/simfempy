@@ -103,13 +103,17 @@ class Elasticity(Model):
         A = self.fem.computeMatrixElasticity(self.mucell, self.lamcell)
         A = self.fem.matrixBoundaryStrong(A, self.bdrydata, self.dirichletmethod)
         return A
-    def postProcess(self, u):
-        data = {'point':{}, 'cell':{}, 'global':{}}
+    def sol_to_data(self, u):
+        data = {'point': {}, 'cell': {}, 'global': {}}
         for icomp in range(self.ncomp):
             data['point']['U_{:02d}'.format(icomp)] = self.fem.fem.tonode(u[icomp::self.ncomp])
+        return data
+
+    def postProcess(self, u):
+        data = {}
         if self.problemdata.solexact:
             err, e = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['global']['error_L2'] = np.sum(err)
+            data['scalar']['error_L2'] = np.sum(err)
             for icomp in range(self.ncomp):
                 data['point']['E_{:02d}'.format(icomp)] = self.fem.fem.tonode(e[icomp])
         if self.problemdata.postproc:
@@ -117,11 +121,11 @@ class Elasticity(Model):
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    data['global'][name] = self.fem.computeBdryMean(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata)
+                    data['scalar'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata)
                 elif type == types[2]:
-                    data['global'][name] = self.fem.computePointValues(u, colors)
+                    data['scalar'][name] = self.fem.computePointValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data

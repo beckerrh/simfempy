@@ -48,7 +48,7 @@ if static:
     # run static
     result = heat.static()
     print(f"{result=}")
-    # for p, v in result.data['global'].items(): print(f"{p}: {v}")
+    # for p, v in result.data['scalar'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))
     fig.suptitle("Heat static", fontsize=16)
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
@@ -72,7 +72,7 @@ else:
                           outer=outer[1])
     plotmesh.meshWithData(heat.mesh, title=f't={result.time[-1]}', point_data={'u': u[-1]}, fig=fig, outer=outer[2])
     plt.show()
-    postprocs = result.data['global']
+    postprocs = result.data['scalar']
     for i, k in enumerate(postprocs):
         plt.plot(result.time, postprocs[k], label=k)
     plt.legend()

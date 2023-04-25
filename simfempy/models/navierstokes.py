@@ -11,21 +11,21 @@ class NavierStokes(Stokes):
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
+        self.linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 10, 'prec': 'Chorin', 'disp':0, 'rtol':1e-3}
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
         # self.convmethod = kwargs.pop('convmethod', 'lps')
         self.convmethod = kwargs.get('convmethod', 'lps')
         self.lpsparam = kwargs.pop('lpsparam', 0.01)
         self.newtontol = kwargs.pop('newtontol', 1e-8)
-        linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 20, 'prec': 'Chorin', 'disp':0, 'rtol':1e-3}
-        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = linearsolver_def
+        if not 'linearsolver' in kwargs: kwargs['linearsolver'] = self.linearsolver_def
         super().__init__(**kwargs)
         self.newmatrix = 0
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.Astokes = super().computeMatrix()
     def solve(self):
-        sdata = solvers.newtondata.StoppingData(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
+        sdata = solvers.newtondata.StoppingParamaters(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
         return self.static(mode='newton',sdata=sdata)
     def computeForm(self, u):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
@@ -81,8 +81,7 @@ class NavierStokes(Stokes):
         # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
         self.timer.add('matrix')
         return X
-    def computeFormConvection(self, dv, v):
-        dim = self.mesh.dimension
+    def _compute_conv_data(self, v):
         rt = fems.rt0.RT0(mesh=self.mesh)
         self.convdata.betart = rt.interpolateCR1(v)
         self.convdata.beta = rt.toCell(self.convdata.betart)
@@ -90,6 +89,10 @@ class NavierStokes(Stokes):
             if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
         if self.convmethod=='supg':
             self.convdata.md = meshes.move.move_midpoints(self.mesh, self.convdata.beta, bound=1/dim)
+
+    def computeFormConvection(self, dv, v):
+        dim = self.mesh.dimension
+        self._compute_conv_data(v)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         vdir = self.femv.interpolateBoundary(colorsdirichlet, self.problemdata.bdrycond.fct).ravel()
         self.femv.massDotBoundary(dv, vdir, colors=colorsdirichlet, ncomp=self.ncomp, coeff=np.minimum(self.convdata.betart, 0))
@@ -99,6 +102,8 @@ class NavierStokes(Stokes):
             self.femv.fem.computeFormJump(dv[icomp::dim], v[icomp::dim], self.convdata.betart)
     def computeMatrixConvection(self, v):
         # A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
+        if not hasattr(self.convdata,'beta'):
+            self._compute_conv_data(v)
         A = self.femv.fem.computeMatrixTransportCellWise(self.convdata, type='centered')
         A += self.femv.fem.computeMatrixJump(self.convdata.betart)
         # boundary also done by self.femv.fem.computeMatrixTransportCellWise()

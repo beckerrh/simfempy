@@ -10,7 +10,7 @@ doc/latex/*.aux
 doc/latex/*/*.log
 doc/latex/*.log
 simfempy.egg-info
-Results
+Results*
 Resultslatextest
 
 # Apple
@@ -18,6 +18,7 @@ Resultslatextest
 
 # Python
 *.pyc
+*.npy
 dist
 build
 simfempy.egg-info

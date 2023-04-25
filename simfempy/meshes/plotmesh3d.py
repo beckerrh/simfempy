@@ -51,12 +51,8 @@ def meshWithBoundaries(x, y, z, tets, faces, bdrylabels, **kwargs):
 def plotmesh(mesh, **kwargs):
     import pyvista
     import vtk
-    if 'ax' in kwargs: ax = kwargs.pop('ax')
-    else: ax = plt
-    title = 'Mesh'
-    if 'title' in kwargs: title = kwargs.pop('title')
+    title = kwargs.pop('title', 'Mesh')
     x, y, z, tets = mesh.points[:, 0], mesh.points[:, 1], mesh.points[:, 2], mesh.simplices
-
     xyz = np.stack((x, y, z)).T
     ntets = tets.shape[0]
     cell_type = vtk.VTK_TETRA*np.ones(ntets, dtype=int)
@@ -67,8 +63,8 @@ def plotmesh(mesh, **kwargs):
     plotter = pyvista.Plotter()
     plotter.renderer.SetBackground(255, 255, 255)
     plotter.add_axes()
-    plotter.add_mesh(grid, showedges=False, opacity=0.6, color='gray')
-    plotter.remove_scalar_bar()
+    plotter.add_mesh(grid, opacity=0.6, color='gray')
+    # plotter.remove_scalar_bar()
     pltcolors = 'bgrcmykbgrcmyk'
     for i, (color, vertices) in enumerate(mesh.verticesoflabel.items()):
         # print("color", color, "vertices", vertices)

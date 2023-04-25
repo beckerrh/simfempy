@@ -21,10 +21,10 @@ class Stokes(Model):
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
-        linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 300, 'prec': 'Chorin', 'disp':1, 'rtol':1e-6}
-        # linearsolver_def = {'method': 'pyamg_fgmres', 'maxiter': 300, 'prec': 'tridown', 'disp':0, 'rtol':1e-6}
-        self.linearsolver = kwargs.pop('linearsolver', linearsolver_def)
-        if self.linearsolver is None: self.linearsolver = linearsolver_def
+        if not hasattr(self,'linearsolver_def'):
+            self.linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 100, 'prec': 'Chorin', 'disp':0, 'rtol':1e-6}
+        if not hasattr(self,'linearsolver'):
+            self.linearsolver = kwargs.pop('linearsolver', self.linearsolver_def)
         self.singleA = kwargs.pop('singleA', True)
         super().__init__(**kwargs)
         # print(f"{self=}")
@@ -41,13 +41,15 @@ class Stokes(Model):
             femparams['nitscheparam'] = femparams.pop('nitscheparam', 10)
         self.femv = fems.cr1sys.CR1sys(self.ncomp, femparams)
         self.femp = fems.d0.D0()
+    def new_params(self):
+        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self._checkProblemData()
         if not self.ncomp==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
-        self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
+        self.new_params()
         self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
@@ -164,53 +166,56 @@ class Stokes(Model):
             v, p = solexact
             return v[icomp](x,y,z)
         return {'p':_fctpressure, 'v':[partial(_fctpressurevtang, icomp=icomp) for icomp in range(self.ncomp)]}
+    def sol_to_data(self, u, single_vector=True):
+        if self.pmean: v, p, lam = self._split(u)
+        else: v, p = self._split(u)
+        data = {'point':{}, 'cell':{}, 'global':{}}
+        if single_vector:
+            vnode = np.empty(self.mesh.nnodes*self.ncomp)
+            for icomp in range(self.ncomp):
+                vnode[icomp::self.ncomp] = self.femv.fem.tonode(v[icomp::self.ncomp])
+            data['point']['V'] = vnode
+        else:
+            for icomp in range(self.ncomp):
+                data['point'][f'V_{icomp:1d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
+        data['cell']['P'] = p
+        return data
     def postProcess(self, u):
         if self.pmean: v, p, lam = self._split(u)
         else: v, p = self._split(u)
-        # if self.pmean:
-        #     v,p,lam =  u
-        #     print(f"{lam=}")
-        # else: v,p =  u
-        data = {'point':{}, 'cell':{}, 'global':{}}
-        # for icomp in range(self.ncomp):
-        #     data['point'][f'V_{icomp:01d}'] = self.femv.fem.tonode(v[icomp::self.ncomp])
-        vnode = np.empty(self.mesh.nnodes*self.ncomp)
-        for icomp in range(self.ncomp):
-            vnode[icomp::self.ncomp] = self.femv.fem.tonode(v[icomp::self.ncomp])
-        data['point']['V'] = vnode
-        data['cell']['P'] = p
+        data = {'scalar':{}}
         if self.problemdata.solexact:
             err, e = self.femv.computeErrorL2(self.problemdata.solexact[0], v)
-            data['global']['error_V_L2'] = np.sum(err)
+            data['scalar']['error_V_L2'] = np.sum(err)
             err, e = self.femp.computeErrorL2(self.problemdata.solexact[1], p)
-            data['global']['error_P_L2'] = err
+            data['scalar']['error_P_L2'] = err
         if self.problemdata.postproc:
             types = ["bdry_pmean", "bdry_vmean", "bdry_nflux"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    # data['global'][name] = self.femp.computeBdryMean(p, colors)
+                    # data['scalar'][name] = self.femp.computeBdryMean(p, colors)
                     pp = self.femp.computeBdryMean(p, colors)
                 elif type == types[1]:
-                    # data['global'][name] = self.femv.computeBdryMean(v, colors)
+                    # data['scalar'][name] = self.femv.computeBdryMean(v, colors)
                     pp = self.femv.computeBdryMean(v, colors)
                 elif type == types[2]:
                     if self.dirichletmethod=='strong':
-                        # data['global'][name] = self.computeBdryNormalFluxStrong(v, p, colors)
+                        # data['scalar'][name] = self.computeBdryNormalFluxStrong(v, p, colors)
                         pp = self.computeBdryNormalFluxStrong(v, p, colors)
                     else:
-                        # data['global'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
+                        # data['scalar'][name] = self.computeBdryNormalFluxNitsche(v, p, colors)
                         pp = self.computeBdryNormalFluxNitsche(v, p, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
                 if pp.ndim==1:
                     for i, color in enumerate(colors):
-                        data['global'][name + "_" + f"{color}"] = pp[i]
+                        data['scalar'][name + "_" + f"{color}"] = pp[i]
                 else:
                     assert pp.ndim==2
                     for i,color in enumerate(colors):
-                        data['global'][name+"_"+f"{color}"] = pp[:,i]
-                # print(f"{name=} {data['global'][name].shape=}")
+                        data['scalar'][name+"_"+f"{color}"] = pp[:,i]
+                # print(f"{name=} {data['scalar'][name].shape=}")
         return data
     def computelinearSolver(self, A):
         if self.linearsolver == 'spsolve':
@@ -231,7 +236,6 @@ class Stokes(Model):
                 alpha = args.pop('alpha', 10)
                 P = saddle_point.BraessSarazin(A, alpha=alpha)
             elif prec == 'Chorin':
-                alpha = args.pop('alpha', 10)
                 P = saddle_point.Chorin(A, solver_v=solver_v, solver_p=solver_p)
             else:
                 # if solver_p['type']=='scale':
@@ -372,6 +376,7 @@ class Stokes(Model):
     def computeMatrix(self, u=None, coeffmass=None):
         if coeffmass is None and 'alpha' in self.problemdata.params.scal_glob.keys():
             coeffmass = self.problemdata.params.scal_glob['alpha']
+        # print(f"computeMatrix {coeffmass=}")
         if self.singleA:
             A = self.femv.fem.computeMatrixDiffusion(self.mucell, coeffmass)
         else:
@@ -562,14 +567,8 @@ class Stokes(Model):
             # print(f"{flux=}")
             #TODO flux Stokes Dirichlet strong wrong
         return flux
-    def plot(self, data, fig=None, gs=None, title='', alpha=0.5):
-        import matplotlib.pyplot as plt
+    def _plot2d(self, data, fig, gs, title='', alpha=0.5):
         import matplotlib.gridspec as gridspec
-        if fig is None:
-            fig = plt.figure(constrained_layout=True)
-            appname = 'no application'
-            fig.suptitle(f"{appname}")
-            gs = fig.add_gridspec(1, 1)[0,0]
         inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=1, subplot_spec=gs, wspace=0.1, hspace=0.1)
         v = data['point']['V']
         p = data['cell']['P']
@@ -577,32 +576,85 @@ class Stokes(Model):
         self.plot_p(ax, p)
         ax = fig.add_subplot(inner[1])
         self.plot_v(ax, v)
+    def _plot3d(self, mesh, data, fig, gs, **kwargs):
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=2, subplot_spec=gs, wspace=0.01, hspace=0.01)
+        import pyvista
+        alpha = kwargs.pop('alpha', 0.6)
+        p = data['cell']['P']
+        v = data['point']['V']
+        vr = v.reshape(self.mesh.nnodes, self.ncomp)
+        vnorm = np.linalg.norm(vr, axis=1)
+        mesh["V"] = vr
+        mesh["vn"] = vnorm
+        mesh.cell_data['P'] = p
+        plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
+        plotter.renderer.SetBackground(255, 255, 255)
+        plotter.add_mesh(mesh, opacity=alpha, color='gray', show_edges=True)
+        plotter.show(title=kwargs.pop('title', self.__class__.__name__))
+        ax = fig.add_subplot(inner[0])
+        ax.imshow(plotter.image)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+
+        scalar_bar_args = {'title': 'p', 'color':'black'}
+        plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
+        plotter.renderer.SetBackground(255, 255, 255)
+        plotter.add_mesh(mesh, opacity=alpha, color='gray', scalars='P', scalar_bar_args=scalar_bar_args)
+        plotter.show(title=kwargs.pop('title', self.__class__.__name__))
+        ax = fig.add_subplot(inner[1])
+        ax.imshow(plotter.image)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
+        plotter.renderer.SetBackground(255, 255, 255)
+        glyphs = mesh.glyph(orient="V", scale="vn", factor=10)
+        # mesh.set_active_vectors("vectors")
+        plotter.add_mesh(glyphs, show_scalar_bar=False, lighting=False, cmap='coolwarm')
+        # plotter.show(title=kwargs.pop('title', self.__class__.__name__))
+        # mesh.arrows.plot(off_screen=kwargs.pop('off_screen',True))
+        plotter.show(title=kwargs.pop('title', self.__class__.__name__))
+        ax = fig.add_subplot(inner[2])
+        ax.imshow(plotter.image)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
     def plot_p(self, ax, p=None, uname='p', title='', alpha=0.5):
         import matplotlib.pyplot as plt
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-        x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-        if title: ax.set_title(title)
-        ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-        assert len(p)==self.mesh.ncells
-        cnt = ax.tripcolor(x, y, tris, facecolors=p, edgecolors='k', cmap='jet')
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
-        clb.ax.set_title(uname)
+        if self.mesh.dimension==2:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+            if title: ax.set_title(title)
+            ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+            assert len(p)==self.mesh.ncells
+            cnt = ax.tripcolor(x, y, tris, facecolors=p, edgecolors='k', cmap='jet')
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+            clb.ax.set_title(uname)
+        else:
+            from simfempy.meshes.plotmesh3d import plotmesh
+            plotmesh(self.mesh)
     def plot_v(self, ax, v=None, uname='v', title='', alpha=0.5):
         import matplotlib.pyplot as plt
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-        x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-        if title: ax.set_title(title)
-        ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-        vr = v.reshape(self.mesh.nnodes,self.ncomp)
-        vnorm = np.linalg.norm(vr, axis=1)
-        cnt = ax.tricontourf(x, y, tris, vnorm, levels=16, cmap='jet')
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
-        clb.ax.set_title(uname)
-        ax.quiver(x, y, vr[:,0], vr[:,1], units='xy')
+        if self.mesh.dimension==2:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
+            if title: ax.set_title(title)
+            ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
+            vr = v.reshape(self.mesh.nnodes,self.ncomp)
+            vnorm = np.linalg.norm(vr, axis=1)
+            cnt = ax.tricontourf(x, y, tris, vnorm, levels=16, cmap='jet')
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
+            clb.ax.set_title(uname)
+            ax.quiver(x, y, vr[:,0], vr[:,1], units='xy')
+        else:
+            print(f"3D not written")
 
 #=================================================================#
 if __name__ == '__main__':
@@ -614,7 +666,7 @@ if __name__ == '__main__':
     print(f"{stokes=}")
     # results = stokes.static(mode="linear")
     results = stokes.static(mode="newton")
-    print(f"{results.data['global']=}")
+    print(f"{results.data['scalar']=}")
     fig = plt.figure(1)
     gs = fig.add_gridspec(2, 1)
     plotmesh.meshWithBoundaries(stokes.mesh, gs=gs[0,0], fig=fig)

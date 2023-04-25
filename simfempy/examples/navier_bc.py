@@ -1,6 +1,5 @@
 assert __name__ == '__main__'
 # in shell
-from operator import ge
 import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
@@ -11,7 +10,7 @@ import matplotlib.gridspec as gridspec
 import pygmsh
 from simfempy.meshes import plotmesh 
 from simfempy.models.stokes import Stokes
-from simfempy.models.app_navierstokes import NavierStokes
+from simfempy.examples.app_navierstokes import NavierStokes
 from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
 from scipy.interpolate import interp1d 

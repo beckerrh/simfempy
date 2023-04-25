@@ -107,7 +107,7 @@ class SaddlePointSystem():
         else:
             AD = sparse.diags(1/DA, offsets=(0), shape=self.A.shape)
         DS = (self.B@AD@self.B.T).diagonal()
-        print(f"scale_A {DA.max()/DA.min()=:8.2f} {DS.max()/DS.min()=:8.2f}")
+        # print(f"scale_A {DA.max()/DA.min()=:8.2f} {DS.max()/DS.min()=:8.2f}")
         assert np.all(DS>0)
         nb = self.B.shape[0]
         self.vs = sparse.diags(np.power(AD.diagonal(), 0.5), offsets=(0), shape=AD.shape)
@@ -359,6 +359,9 @@ class ScipySolve(IterativeSolver):
             self.args['truncate'] = kwargs.pop('truncate', 'smallest')
             self.solver = splinalg.gcrotmk
             name += '_' + str(self.args['m'])
+        elif self.method=='scipy_lgmres':
+            self.args['inner_m'] = kwargs.pop('m', 20)
+
 #=================================================================#
 class Pyamg(IterativeSolver):
     def __repr__(self):

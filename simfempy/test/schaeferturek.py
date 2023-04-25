@@ -1,11 +1,10 @@
 import sys
-import pygmsh
 from os import path
 simfempypath = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 sys.path.insert(0, simfempypath)
 
 from simfempy.tools.comparemethods import CompareMethods
-from simfempy.models.app_navierstokes import NavierStokes
+from simfempy.examples.app_navierstokes import NavierStokes
 from simfempy.examples.incompflow import schaeferTurek2d
 
 

@@ -230,36 +230,40 @@ class EllipticPrimal(EllipticBase):
         if hasattr(self, 'bdrydata'):
             self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         return b
-    def postProcess(self, u):
-        data = {'point':{}, 'cell':{}, 'global':{}}
+    def sol_to_data(self, u):
+        data = {'point': {}, 'cell': {}, 'global': {}}
         # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
         data['point']['U'] = self.fem.tonode(u)
+        return data
+
+    def postProcess(self, u):
+        data = {'scalar':{}}
         if self.problemdata.solexact:
-            data['global']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['global']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['global']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
-            data['global']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
+            data['scalar']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
+            data['scalar']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
+            data['scalar']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
+            data['scalar']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
             data['cell']['err'] = ec
         if self.problemdata.postproc:
             types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues", "linemeans"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    data['global'][name] = self.fem.computeBdryMean(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryMean(u, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryFct(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
                     if self.fem.params_str['dirichletmethod'] == 'nitsche':
                         udir = self.fem.interpolateBoundary(colors, self.problemdata.bdrycond.fct)
-                        data['global'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
+                        data['scalar'][name] = self.fem.computeBdryNormalFluxNitsche(u, colors, udir, self.kheatcell)
                     else:
-                        data['global'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
+                        data['scalar'][name] = self.fem.computeBdryNormalFlux(u, colors, self.bdrydata, self.problemdata.bdrycond, self.kheatcell)
                 elif type == types[3]:
-                    data['global'][name] = self.fem.computePointValues(u, colors)
+                    data['scalar'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:
-                    data['global'][name] = self.fem.computeMeanValues(u, colors)
+                    data['scalar'][name] = self.fem.computeMeanValues(u, colors)
                 elif type == types[5]:
-                    data['global'][name] = self.fem.computeLineValues(u, colors)
+                    data['scalar'][name] = self.fem.computeLineValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
@@ -408,10 +412,10 @@ class EllipticMixed(EllipticBase):
         bsides[self.bdrydata.facesneumann] += self.bdrydata.A_neum_neum*help[self.bdrydata.facesneumann]
         bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
         return bsides, bcells
-    def postProcess(self, uin):
+    def sol_to_data(self, u):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
         # sigma, u = uin[0], uin[1]
-        sigma, u = uin[:nfaces], uin[nfaces:]
+        sigma, u = u[:nfaces], u[nfaces:]
         data = {'point':{}, 'cell':{}, 'global':{}}
         # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
         data['cell']['U'] = u
@@ -419,7 +423,11 @@ class EllipticMixed(EllipticBase):
         un = self.rt.reconstruct(u, sigmac, self.divcoeffinv)
         data['point']['U'] = un
         for i in range(dim):
-            data['cell']['v{:1d}'.format(i)] = sigmac[:,i]
+            data['cell']['v{:1d}'.format(i)] = sigmac[:, i]
+        return data
+    def postProcess(self, uin):
+        nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
+        data = {}
         if self.problemdata.solexact:
             erru, errs, errun, ue, se = self.computeError(self.problemdata.solexact, u, sigmac, un)
             # print("vexx", vexx)
@@ -428,25 +436,25 @@ class EllipticMixed(EllipticBase):
             data['cell']['err'] = np.abs(ue - u)
             for i in range(dim):
                 data['cell']['err_sigma{:1d}'.format(i)] = np.abs(se[i] - sigmac[:,i])
-            data['global']['err_L2c'] = erru
-            data['global']['err_L2n'] = errun
-            data['global']['err_Flux'] = errs
+            data['scalar']['err_L2c'] = erru
+            data['scalar']['err_L2n'] = errun
+            data['scalar']['err_Flux'] = errs
         if self.problemdata.postproc:
             types = ["bdry_mean", "bdry_fct", "bdry_nflux", "pointvalues", "meanvalues", "linemeans"]
             for name, type in self.problemdata.postproc.type.items():
                 colors = self.problemdata.postproc.colors(name)
                 if type == types[0]:
-                    data['global'][name] = self.computeBdryMean(un, colors)
+                    data['scalar'][name] = self.computeBdryMean(un, colors)
                 elif type == types[1]:
-                    data['global'][name] = self.fem.computeBdryFct(u, colors)
+                    data['scalar'][name] = self.fem.computeBdryFct(u, colors)
                 elif type == types[2]:
-                    data['global'][name] = self.computeBdryDn(sigma, colors)
+                    data['scalar'][name] = self.computeBdryDn(sigma, colors)
                 elif type == types[3]:
-                    data['global'][name] = self.fem.computePointValues(u, colors)
+                    data['scalar'][name] = self.fem.computePointValues(u, colors)
                 elif type == types[4]:
-                    data['global'][name] = self.fem.computeMeanValues(u, colors)
+                    data['scalar'][name] = self.fem.computeMeanValues(u, colors)
                 elif type == types[5]:
-                    data['global'][name] = self.fem.computeLineValues(u, colors)
+                    data['scalar'][name] = self.fem.computeLineValues(u, colors)
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data

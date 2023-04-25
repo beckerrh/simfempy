@@ -26,7 +26,7 @@ def main(h):
     result = heat.static()
     # print(f"{heat=}")
     # print(f"postproc:")
-    for p,v in result.data['global'].items(): print(f"{p}: {v}")
+    for p,v in result.data['scalar'].items(): print(f"{p}: {v}")
     fig = plt.figure(figsize=(10, 8))
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     plotmesh.meshWithData(mesh, point_data=result.data['point'], title="Ramp", alpha=1,fig=fig, outer=outer[0])
