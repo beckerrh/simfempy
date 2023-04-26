@@ -39,8 +39,9 @@ def static(**kwargs):
     mesh = model.mesh
     t = timer.Timer("mesh")
     # result, u = model.static(maxiter=30)
+    model.linearsolver['disp'] = 0
+    model.linearsolver['maxiter'] = 50
     if 'increase_reynolds' in kwargs:
-        # model.linearsolver_def['disp'] = 1
         factor = kwargs['increase_reynolds']
         u = None
         newton_failure = 0
@@ -51,7 +52,9 @@ def static(**kwargs):
                     newton_failure += 1
                     if newton_failure==3:
                         break
-                print(f"{result.data['scalar']}")
+                print(f"{i=} {model.problemdata.params.scal_glob['mu']}\t")
+                for k, v in result.data['scalar'].items(): print(k,v,end='\t')
+                print()
                 model.sol_to_vtu(u=u, suffix=f"_{i:03d}")
                 # model.plot(title=f"{model.problemdata.params.scal_glob['mu']}")
                 # plt.show()
@@ -100,17 +103,20 @@ def dynamic(**kwargs):
 if __name__ == '__main__':
     from simfempy.examples.app_navierstokes import applications
     femparams = {'dirichletmethod': 'nitsche', 'convmethod': 'none', 'divdivparam': 0., 'hdivpenalty': 0.}
-    test = 'st2d'
+    test = 'st3d'
     stat = True
     if test == 'st2d':
-        app = applications.SchaeferTurek2d(h=0.2, mu=10)
+        # app = applications.SchaeferTurek2d(h=0.1)
         # app = applications.SchaeferTurek2d(h=0.2, mu=0.002, errordrag=False)
+        app = applications.Poiseuille2d(h=0.1)
     elif test == 'st3d':
         # app = applications.SchaeferTurek3d(h=0.5, mu=0.01)
-        app = applications.SchaeferTurek3d(h=0.5, mu=0.01)
+        # app = applications.SchaeferTurek3d(h=0.5, mu=0.01)
+        app = applications.Poiseuille3d(h=0.5, mu=0.01)
+        app = applications.BackwardFacingStep3d(h=0.1, mu=0.001)
     if stat:
-        static(increase_reynolds=0.6, application=app, femparams=femparams)
-        # static(application=app, femparams=femparams)
+        # static(increase_reynolds=0.8, application=app, femparams=femparams)
+        static(application=app, femparams=femparams)
     else:
         dynamic(application=app, femparams=femparams)
 

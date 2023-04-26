@@ -16,13 +16,13 @@ class NavierStokes(Stokes):
         self.convdata = fems.data.ConvectionData()
         # self.convmethod = kwargs.pop('convmethod', 'lps')
         self.convmethod = kwargs.get('convmethod', 'lps')
-        self.lpsparam = kwargs.pop('lpsparam', 0.01)
-        self.newtontol = kwargs.pop('newtontol', 1e-8)
+        self.lpsparam = kwargs.pop('lpsparam', 0.)
+        self.newtontol = kwargs.pop('newtontol', 0)
         if not 'linearsolver' in kwargs: kwargs['linearsolver'] = self.linearsolver_def
         super().__init__(**kwargs)
         self.newmatrix = 0
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
+    def new_params(self):
+        super().new_params()
         self.Astokes = super().computeMatrix()
     def solve(self):
         sdata = solvers.newtondata.StoppingParamaters(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
@@ -31,13 +31,25 @@ class NavierStokes(Stokes):
         # if not hasattr(self,'Astokes'): self.Astokes = super().computeMatrix()
         # d = super().matrixVector(self.Astokes,u)
         d = self.Astokes.matvec(u)
-        # d = super().computeForm(u)
+        # d2 = super().computeForm(u)
+        # if not np.allclose(d,d2):
+        #     raise ValueError(f"{np.linalg.norm(d)=} {np.linalg.norm(d2)=}")
         v = self._split(u)[0]
         dv = self._split(d)[0]
         self.computeFormConvection(dv, v)
         # self.femv.computeFormHdivPenaly(dv, v, self.hdivpenalty)
         self.timer.add('form')
         return d
+    def computeMatrix(self, u=None, coeffmass=None):
+        # X = self.Astokes.copy()
+        X = super().computeMatrix(u=u, coeffmass=coeffmass)
+        v = self._split(u)[0]
+        theta = 1
+        if hasattr(self,'uold'): theta = 0.5
+        X.A += theta*self.computeMatrixConvection(v)
+        # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
+        self.timer.add('matrix')
+        return X
     def rhs_dynamic(self, rhs, u, Aimp, time, dt, theta):
         # print(f"{u.shape=} {rhs.shape=} {type(Aconst)=}")
         # rhs += 1 / (theta * theta * dt) * self.Mass.dot(u)
@@ -59,47 +71,35 @@ class NavierStokes(Stokes):
         self.computeFormConvection(dv, 0.5*(v+vold))
         self.timer.add('defect_dynamic')
         return y
-        # return self.computeForm(u)-self.rhs + self.Mass.dot(u)/(self.theta * self.dt)
-    # def dx_dynamic(self, Aconst, b, u, info):
-    #     if info.bad_convergence or not hasattr(self, 'A'):
-    #         # print(f"*** new Matrix")
-    #         self.A = self.computeMatrix(u=u)
-    #         self.newmatrix += 1
-    #     u, niter = self.solvelinear(self.A, b=b, u=u)
-    #     self.timer.add('dx_dynamic')
-    #     return u, niter
     def computeMatrixConstant(self, coeffmass, coeffmassold=0):
         self.Astokes.A  =  self.Mass.addToStokes(coeffmass-coeffmassold, self.Astokes.A)
         return self.Astokes
         return super().computeMatrix(u, coeffmass)
-    def computeMatrix(self, u=None, coeffmass=None):
-        X = self.Astokes.copy()
-        v = self._split(u)[0]
-        theta = 1
-        if hasattr(self,'uold'): theta = 0.5
-        X.A += theta*self.computeMatrixConvection(v)
-        # X[0] += self.femv.computeMatrixHdivPenaly(self.hdivpenalty)
-        self.timer.add('matrix')
-        return X
     def _compute_conv_data(self, v):
         rt = fems.rt0.RT0(mesh=self.mesh)
         self.convdata.betart = rt.interpolateCR1(v)
         self.convdata.beta = rt.toCell(self.convdata.betart)
-        if self.convmethod=='supg' or self.convmethod=='lps':
-            if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
-        if self.convmethod=='supg':
-            self.convdata.md = meshes.move.move_midpoints(self.mesh, self.convdata.beta, bound=1/dim)
+        # if self.convmethod=='supg' or self.convmethod=='lps':
+        #     if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
+        # if self.convmethod=='supg':
+        #     self.convdata.md = meshes.move.move_midpoints(self.mesh, self.convdata.beta, bound=1/dim)
 
     def computeFormConvection(self, dv, v):
         dim = self.mesh.dimension
         self._compute_conv_data(v)
         colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         vdir = self.femv.interpolateBoundary(colorsdirichlet, self.problemdata.bdrycond.fct).ravel()
+        # print(f"{colorsdirichlet=} {np.linalg.norm(vdir)=} {vdir=}")
+        # print(f"1{np.linalg.norm(dv)=}")
         self.femv.massDotBoundary(dv, vdir, colors=colorsdirichlet, ncomp=self.ncomp, coeff=np.minimum(self.convdata.betart, 0))
+        # print(f"2{np.linalg.norm(dv)=}")
         for icomp in range(dim):
             # self.femv.fem.computeFormConvection(dv[icomp::dim], v[icomp::dim], self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
+            # self.femv.fem.massDotBoundary(dv[icomp::dim], vdir[icomp::dim], colors=colorsdirichlet, coeff=np.minimum(self.convdata.betart, 0))
             self.femv.fem.computeFormTransportCellWise(dv[icomp::dim], v[icomp::dim], self.convdata, type='centered')
             self.femv.fem.computeFormJump(dv[icomp::dim], v[icomp::dim], self.convdata.betart)
+        # print(f"3{np.linalg.norm(dv)=}")
+
     def computeMatrixConvection(self, v):
         # A = self.femv.fem.computeMatrixConvection(self.convdata, method=self.convmethod, lpsparam=self.lpsparam)
         if not hasattr(self.convdata,'beta'):

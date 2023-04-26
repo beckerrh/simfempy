@@ -47,7 +47,6 @@ class Model(object):
         self.ncomp = self.problemdata.ncomp
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
-        print(f"{self.__class__.__name__} {self.linearsolver=}")
         if self.application.has_exact_solution:
             self._generatePDforES = True
         else:
@@ -55,6 +54,7 @@ class Model(object):
         femparams = kwargs.pop('femparams', {})
         self.createFem(femparams)
         self.setMesh(self.application.createMesh())
+        print(f"{self.__class__.__name__} {self.mesh=} {self.linearsolver=}")
         if not hasattr(self,'scale_ls'):
             self.scale_ls = kwargs.pop('scale_ls', True)
         if 'newton_stopping_parameters' in kwargs:

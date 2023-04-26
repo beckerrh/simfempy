@@ -348,7 +348,7 @@ class CR1(p1general.P1general):
                 mat = np.append(mat, np.einsum('n,kl->nkl', dS, massloc).ravel())
         # print(f"{mat=}")
         return sparse.coo_matrix((mat, (rows, cols)), shape=(nfaces, nfaces)).tocsr()
-    def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=None):
+    def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=False):
         #TODO CR1 boundary integrals: can do at ones since last index in facesOfCells is the bdry side:
         # assert np.all(faces == foc[:,-1])
         if colors is None: colors = self.mesh.bdrylabels.keys()
@@ -458,6 +458,7 @@ class CR1(p1general.P1general):
     def computeFormJump(self, du, u, betart, mode='primal'):
         dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
+        if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
         innerfaces = self.mesh.innerfaces
         ci0 = self.mesh.cellsOfInteriorFaces[:,0]
         ci1 = self.mesh.cellsOfInteriorFaces[:,1]

@@ -255,6 +255,7 @@ class ScipySpSolve():
     def __init__(self, **kwargs):
         self.matrix = kwargs.pop('matrix', None)
         self.niter = 1
+        self.maxiter = -1
     def solve(self, A=None, b=None, maxiter=None, rtol=None, atol=None, x0=None, verbose=None):
         if A is None: A=self.matrix
         if hasattr(A, 'to_single_matrix'):

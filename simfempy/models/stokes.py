@@ -49,13 +49,13 @@ class Stokes(Model):
         if not self.ncomp==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
-        self.new_params()
         self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
             colorsdirichlet = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
             self.bdrydata = self.femv.prepareBoundary(colorsdirichlet, colorsflux)
+        self.new_params()
     def _zeros(self):
         nv = self.mesh.dimension*self.mesh.nfaces
         n = nv+self.mesh.ncells

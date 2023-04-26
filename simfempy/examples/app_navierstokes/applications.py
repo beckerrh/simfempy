@@ -9,7 +9,7 @@ class Application(simfempy.models.application.Application):
         super().__init__(ncomp=ncomp, h=h, scal_glob={'mu':mu})
 # ================================================================ #
 class Poiseuille2d(Application):
-    def __init__(self, mu=0.1, h=0.5):
+    def __init__(self, mu=0.01, h=0.5):
         super().__init__(mu=mu, h=h)
         # boundary conditions
         self.problemdata.bdrycond.set("Dirichlet", [1002, 1000, 1003])
@@ -25,8 +25,15 @@ class Poiseuille2d(Application):
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
 # ================================================================ #
-def poiseuille3d(h= 0.1, mu=0.1):
-    with pygmsh.geo.Geometry() as geom:
+class Poiseuille3d(Application):
+    def __init__(self, mu=0.01, h=0.5):
+        super().__init__(mu=mu, h=h, ncomp=3)
+        data = self.problemdata
+        # boundary conditions
+        data.bdrycond.set("Dirichlet", [100, 103])
+        data.bdrycond.set("Neumann", [101])
+        data.bdrycond.fct[103] = [lambda x, y, z: 16 * y * (1 - y) * z * (1 - z), lambda x, y, z: 0, lambda x, y, z: 0]
+    def defineGeometry(self, geom, h):
         p = geom.add_rectangle(xmin=0, xmax=4, ymin=0, ymax=1, z=0, mesh_size=h)
         axis = [0, 0, 1]
         top, vol, lat = geom.extrude(p.surface, axis)
@@ -34,16 +41,6 @@ def poiseuille3d(h= 0.1, mu=0.1):
         geom.add_physical(lat[1], label="101")
         geom.add_physical(lat[3], label="103")
         geom.add_physical(vol, label="10")
-        mesh = geom.generate_mesh()
-    data = ProblemData()
-   # boundary conditions
-    data.bdrycond.set("Dirichlet", [100, 103])
-    data.bdrycond.set("Neumann", [101])
-    data.bdrycond.fct[103] = [lambda x, y, z:  16*y*(1-y)*z*(1-z), lambda x, y, z: 0, lambda x, y, z: 0]
-    # parameters
-    data.params.scal_glob["mu"] = mu
-    data.ncomp = 3
-    return SimplexMesh(mesh=mesh), data
 # ================================================================c#
 def drivenCavity2d(h=0.1, mu=0.01):
     with pygmsh.geo.Geometry() as geom:
@@ -158,8 +155,7 @@ class SchaeferTurek2d(Application):
         bdrynflux = info.pop('bdrynflux_3000')
         # print(f"changepostproc: {bdrynflux=}")
         info['drag'] = -50 * bdrynflux[0]
-        info['lift1'] = -50 * bdrynflux[1]
-        info['lift2'] = -50 * bdrynflux[1]
+        info['lift'] = -50 * bdrynflux[1]
         if self.errordrag:
             info['err_drag'] = 5.57953523384 + 50 * bdrynflux[0]
             info['err_lift'] = 0.010618937712 + 50 * bdrynflux[1]
