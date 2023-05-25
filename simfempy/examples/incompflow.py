@@ -103,12 +103,12 @@ def dynamic(**kwargs):
 if __name__ == '__main__':
     from simfempy.examples.app_navierstokes import applications
     femparams = {'dirichletmethod': 'nitsche', 'convmethod': 'none', 'divdivparam': 0., 'hdivpenalty': 0.}
-    test = 'st3d'
-    stat = True
+    test = 'st2d'
+    stat = False
     if test == 'st2d':
         # app = applications.SchaeferTurek2d(h=0.1)
-        # app = applications.SchaeferTurek2d(h=0.2, mu=0.002, errordrag=False)
-        app = applications.Poiseuille2d(h=0.1)
+        app = applications.SchaeferTurek2d(h=0.2, mu=0.002, errordrag=False)
+        # app = applications.Poiseuille2d(h=0.1)
     elif test == 'st3d':
         # app = applications.SchaeferTurek3d(h=0.5, mu=0.01)
         # app = applications.SchaeferTurek3d(h=0.5, mu=0.01)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
         # static(increase_reynolds=0.8, application=app, femparams=femparams)
         static(application=app, femparams=femparams)
     else:
-        dynamic(application=app, femparams=femparams)
+        dynamic(application=app, femparams=femparams, T=50)
 
 
     # main(model='Stokes', static=False, testcase='schaeferTurek2d', h=0.2, mu=1e-3, femparams=femparams)
