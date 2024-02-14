@@ -1,3 +1,0 @@
-import test_elliptic
-import test_stokes
-import test_elasticity

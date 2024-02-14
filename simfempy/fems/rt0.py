@@ -11,16 +11,20 @@ import scipy.sparse as sparse
 from simfempy import fems
 
 #=================================================================#
-class RT0(fems.fem.Fem):
+# class RT0(fems.fem.Fem):
+class RT0():
     """
     on suppose que  self.mesh.edgesOfCell[ic, kk] et oppose à elem[ic,kk] !!!
     """
-    def __init__(self, kwargs={}, mesh=None):
-        super().__init__(mesh=mesh)
-        for p, v in zip(['massproj', 'convmethod'], ['standard', 'supg']):
-            self.params_str[p] = kwargs.pop(p, v)
+    def __init__(self, mesh=None):
+        if mesh is not None:
+            self.setMesh(mesh)
+        pass
+        # super().__init__(mesh=mesh)
+        # for p, v in zip(['massproj', 'convmethod'], ['standard', 'supg']):
+        #     self.params_str[p] = kwargs.pop(p, v)
     def setMesh(self, mesh):
-        super().setMesh(mesh)
+        self.mesh = mesh
         self.Mtocell = self.toCellMatrix()
     def nunknowns(self): return self.mesh.nfaces
     def nlocal(self): return self.mesh.dimension+1
@@ -32,12 +36,14 @@ class RT0(fems.fem.Fem):
         xf, yf, zf = self.mesh.pointsf.T
         fa = np.array([f[i](xf,yf,zf) for i in range(dim)])
         return np.einsum('ni, in -> n', nnormals, fa)
-    def interpolateCR1(self, v):
+    def interpolateCR1(self, v, stack_storage):
         dim = self.mesh.dimension
         nfaces, normals = self.mesh.nfaces, self.mesh.normals[:,:dim]
         assert v.shape[0] == dim*nfaces
         nnormals = normals/linalg.norm(normals, axis=1)[:,np.newaxis]
-        return np.einsum('ni, in -> n', nnormals, v.reshape((dim,nfaces), order='F'))
+        if stack_storage:
+            return np.einsum('ni, in -> n', nnormals, v.reshape(dim, nfaces))
+        return np.einsum('ni, ni -> n', nnormals, v.reshape(nfaces,dim))
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
@@ -52,11 +58,11 @@ class RT0(fems.fem.Fem):
         dS2 = linalg.norm(normals, axis=1)
         sigma2 = sigma/dV[:,np.newaxis]/dim
         return np.einsum('ni,ni,nij,ni -> nj', v[facesofcells], sigma2, pc[:,np.newaxis,:dim]-p[simp,:dim], dS2[facesofcells])
-    def constructMass(self, diffinvcell=None):
+    def constructMass(self, massproj = 'standard', diffinvcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
         dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.dimension+1, self.mesh.simplices
         p, pc, pf = self.mesh.points, self.mesh.pointsc, self.mesh.pointsf
-        massproj = self.params_str['massproj']
+        # massproj = self.params_str['massproj']
         if massproj == 'standard':
             # RT
             scalea = 1 / dim / dim / (dim + 2) / (dim + 1)

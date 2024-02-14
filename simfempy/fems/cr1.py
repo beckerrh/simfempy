@@ -9,25 +9,16 @@ from matplotlib import colors
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-from simfempy.tools import barycentric, npext, checkmmatrix
-from simfempy.meshes import move, plotmesh
+# from simfempy.tools import barycentric, npext, checkmmatrix
+from simfempy.tools import barycentric
+# from simfempy.meshes import move, plotmesh
 from simfempy.fems import p1general
 import simfempy.fems.data, simfempy.fems.rt0
 
 #=================================================================#
 class CR1(p1general.P1general):
-    # def __init__(self, kwargs={}, mesh=None):
-    #     print(f"***** in CR1 {kwargs=}")
-    #     super().__init__(mesh=mesh)
-    #     for p,v in zip(['masslumpedvol', 'masslumpedbdry'], [False, True]):
-    #         self.params_bool[p] = kwargs.pop(p, v)
-    #     for p, v in zip(['dirichletmethod', 'convmethod'], ['strong', 'upw']):
-    #         self.params_str[p] = kwargs.pop(p, v)
-    #     if self.params_str['dirichletmethod'] == 'nitsche':
-    #         self.params_float['nitscheparam'] = kwargs.pop('nitscheparam', 2)
-    #     print(f"***** in CR1 {kwargs=} {self.params_str=} {self.params_float=}")
-    #     if len(kwargs.keys()):
-    #         raise ValueError(f"*** unused arguments {kwargs=}")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     def setMesh(self, mesh):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.facesOfCells)
@@ -37,53 +28,72 @@ class CR1(p1general.P1general):
     def dofspercell(self): return self.mesh.facesOfCells
     def tonode(self, u):
         # print(f"{u=}")
-        unodes = np.zeros(self.mesh.nnodes)
         if u.shape[0] != self.mesh.nfaces: raise ValueError(f"{u.shape=} {self.mesh.nfaces=}")
+        unodes = np.zeros(self.mesh.nnodes, dtype=u.dtype)
         scale = self.mesh.dimension
-        np.add.at(unodes, self.mesh.simplices.T, np.sum(u[self.mesh.facesOfCells], axis=1))
+        np.add.at(unodes, self.mesh.simplices.T, np.sum(u[self.mesh.facesOfCells], axis=1)[np.newaxis,:])
         np.add.at(unodes, self.mesh.simplices.T, -scale*u[self.mesh.facesOfCells].T)
         countnodes = np.zeros(self.mesh.nnodes, dtype=int)
         np.add.at(countnodes, self.mesh.simplices.T, 1)
         unodes /= countnodes
+        # print(f"{u.max()=} {unodes.max()=} {u.min()=} {unodes.min()=}")
+        # if np.isnan(unodes).any() or unodes.max()>1e6 or unodes.min()<-1e6:
+        #     print(f"{u=}")
+        #     print(f"{unodes=}")
+        #     ufc = u[self.mesh.facesOfCells]
+        #     print(f"{ufc.shape=} {self.mesh.simplices.T.shape=}")
+        #     print(f"{ufc=}")
+        #     ufcs = np.sum(ufc, axis=1)
+        #     print(f"{ufcs=}")
+        #     unodes.fill(0)
+        #     print(f"{unodes.shape=} {self.mesh.simplices.T.shape=} {ufcs.shape=}")
+        #     np.add.at(unodes, self.mesh.simplices.T, ufcs[np.newaxis,:])
+        #     np.add.at(unodes, self.mesh.simplices.T, -scale * u[self.mesh.facesOfCells].T)
+        #     countnodes = np.zeros(self.mesh.nnodes, dtype=int)
+        #     np.add.at(countnodes, self.mesh.simplices.T, 1)
+        #     unodes /= countnodes
+        #     print(f"{unodes=}")
+        #     print(f"{countnodes=}")
+        #     raise ValueError("SCHROTT")
         # print(f"{unodes=}")
         return unodes
-    def prepareAdvection(self, beta, scale):
-        method = self.params_str['convmethod']
-        rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
-        betart = scale*rt.interpolate(beta)
-        beta = rt.toCell(betart)
-        convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
-        dim = self.mesh.dimension
-        self.mesh.constructInnerFaces()
-        if method == 'upwalg' or method == 'lps':
-             return convdata 
-        elif method == 'supg':
-            md = move.move_midpoints(self.mesh, beta, bound=1/dim)
-            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
-            # self.md.plot(self.mesh, beta, type='midpoints')
-        elif method == 'supg2':
-            md = move.move_midpoint_to_neighbour(self.mesh, betart)
-            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
-            # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
-            # print(f"{self.md.mus=}")
-            # self.md.plot(self.mesh, beta, type='midpoints')
-        elif method == 'upw':
-            md = move.move_midpoints(self.mesh, beta, bound=1/dim)
-            # self.md = move.move_midpoint_to_neighbour(self.mesh, betart)
-            # self.md = move.move_midpoints(self.mesh, -beta, bound=1/d)
-            # self.md = move.move_midpoints(self.mesh, -beta, candidates='all')
-            # self.md.plot(self.mesh, beta, type='midpoints')
-        elif method == 'upw2':
-            md = move.move_midpoints(self.mesh, -beta, bound=1/dim)
-        else:
-            raise ValueError(f"don't know {method=}")
-        convdata.md = md
-        return convdata
+    # def prepareAdvection(self, beta, scale):
+    #     method = self.params_str['convmethod']
+    #     rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
+    #     betart = scale*rt.interpolate(beta)
+    #     beta = rt.toCell(betart)
+    #     convdata = simfempy.fems.data.ConvectionData(beta=beta, betart=betart)
+    #     dim = self.mesh.dimension
+    #     self.mesh.constructInnerFaces()
+    #     if method == 'upwalg' or method == 'lps':
+    #          return convdata 
+    #     elif method == 'supg':
+    #         md = move.move_midpoints(self.mesh, beta, bound=1/dim)
+    #         # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
+    #         # self.md.plot(self.mesh, beta, type='midpoints')
+    #     elif method == 'supg2':
+    #         md = move.move_midpoint_to_neighbour(self.mesh, betart)
+    #         # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
+    #         # self.md = move.move_midpoints(self.mesh, beta, candidates='all')
+    #         # print(f"{self.md.mus=}")
+    #         # self.md.plot(self.mesh, beta, type='midpoints')
+    #     elif method == 'upw':
+    #         md = move.move_midpoints(self.mesh, beta, bound=1/dim)
+    #         # self.md = move.move_midpoint_to_neighbour(self.mesh, betart)
+    #         # self.md = move.move_midpoints(self.mesh, -beta, bound=1/d)
+    #         # self.md = move.move_midpoints(self.mesh, -beta, candidates='all')
+    #         # self.md.plot(self.mesh, beta, type='midpoints')
+    #     elif method == 'upw2':
+    #         md = move.move_midpoints(self.mesh, -beta, bound=1/dim)
+    #     else:
+    #         raise ValueError(f"don't know {method=}")
+    #     convdata.md = md
+    #     return convdata
     def computeCellGrads(self):
         normals, facesOfCells, dV = self.mesh.normals, self.mesh.facesOfCells, self.mesh.dV
         return (normals[facesOfCells].T * self.mesh.sigma.T / dV.T).T
     # strong bc
-    def _prepareBoundary(self, colorsdir, colorsflux=[]):
+    def prepareBoundary(self, colorsdir, colorsflux=[]):
         bdrydata = simfempy.fems.data.BdryData()
         bdrydata.facesdirall = np.empty(shape=(0), dtype=np.uint32)
         bdrydata.colorsdir = colorsdir
@@ -93,25 +103,25 @@ class CR1(p1general.P1general):
         bdrydata.facesinner = np.setdiff1d(np.arange(self.mesh.nfaces, dtype=int), bdrydata.facesdirall)
         bdrydata.facesdirflux = {}
         for color in colorsflux:
-            facesdir = self.mesh.bdrylabels[color]
-            bdrydata.facesdirflux[color] = facesdir
+            bdrydata.facesdirflux[color] = self.mesh.bdrylabels[color]
         return bdrydata
-    def computeRhsNitscheDiffusion(self, b, diffcoff, colorsdir, udir=None, bdrycondfct=None, coeff=1, lumped=False):
-        if self.params_str['dirichletmethod'] != 'nitsche': return
+    def computeRhsNitscheDiffusion(self, nitsche_param, b, diffcoff, colors, udir=None, bdrycondfct=None, coeff=1, lumped=False):
+        # if self.params_str['dirichletmethod'] != 'nitsche': return
         if udir is None:
-            udir = self.interpolateBoundary(colorsdir, bdrycondfct)
-        nitsche_param=self.params_float['nitscheparam']
-        assert udir.shape[0] == self.mesh.nfaces
-        dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
+            udir = self.interpolateBoundary(colors, bdrycondfct)
+        # nitsche_param=self.params_float['nitscheparam']
+        if not udir.shape[0] == self.mesh.nfaces:
+            raise ValueError(f"{udir.shape[0]=} {self.mesh.nfaces=}")
+        dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces,0]
         normalsS = self.mesh.normals[faces][:,:dim]
         dS, dV = np.linalg.norm(normalsS,axis=1), self.mesh.dV[cells]
         mat = np.einsum('f,fi,fji->fj', coeff*udir[faces]*diffcoff[cells], normalsS, self.cellgrads[cells, :, :dim])
         np.add.at(b, self.mesh.facesOfCells[cells], -mat)
-        self.massDotBoundary(b, f=udir, colors=colorsdir, coeff=coeff*nitsche_param*diffcoff[cells] * dS/dV, lumped=lumped)
-    def computeFormNitscheDiffusion(self, du, u, diffcoff, colorsdir):
-        if self.params_str['dirichletmethod'] != 'nitsche': return
-        nitsche_param=self.params_float['nitscheparam']
+        self.massDotBoundary(b, f=udir, colors=colors, coeff=coeff*nitsche_param*diffcoff[cells] * dS/dV, lumped=lumped)
+    def computeFormNitscheDiffusion(self, nitsche_param, du, u, diffcoff, colorsdir):
+        # if self.params_str['dirichletmethod'] != 'nitsche': return
+        # nitsche_param=self.params_float['nitscheparam']
         assert u.shape[0] == self.mesh.nfaces
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colorsdir)
         cells = self.mesh.cellsOfFaces[faces,0]
@@ -122,10 +132,10 @@ class CR1(p1general.P1general):
         mat = np.einsum('f,fk,fjk,fj->f', diffcoff[cells], normalsS, cellgrads, u[foc])
         np.add.at(du, faces, -mat)
         self.massDotBoundary(du, f=u, colors=colorsdir, coeff=nitsche_param*diffcoff[cells]* dS/dV)
-    def computeMatrixNitscheDiffusion(self, diffcoff, colors, coeff=1, lumped=False):
+    def computeMatrixNitscheDiffusion(self, nitsche_param, diffcoff, colors, coeff=1, lumped=False):
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
-        if self.params_str['dirichletmethod'] != 'nitsche': return sparse.coo_matrix((nfaces,nfaces))
-        nitsche_param=self.params_float['nitscheparam']
+        # if self.params_str['dirichletmethod'] != 'nitsche': return sparse.coo_matrix((nfaces,nfaces))
+        # nitsche_param=self.params_float['nitscheparam']
         faces = self.mesh.bdryFaces(colors)
         if not isinstance(coeff, (float,int)): assert coeff.shape[0]==faces.shape[0]
         cells = self.mesh.cellsOfFaces[faces, 0]
@@ -140,8 +150,8 @@ class CR1(p1general.P1general):
         # AD = sparse.coo_matrix((dS**2/dV,(faces,faces)), shape=(nfaces, nfaces))
         AD = self.computeBdryMassMatrix(colors=colors, coeff=coeff*diffcoff[cells]*nitsche_param*dS/dV, lumped=lumped)
         return AD - AN - AN.T
-    def computeBdryNormalFluxNitsche(self, u, colors, udir, diffcoff):
-        nitsche_param=self.params_float['nitscheparam']
+    def computeBdryNormalFluxNitsche(self, nitsche_param, u, colors, udir, diffcoff):
+        # nitsche_param=self.params_float['nitscheparam']
         #TODO correct flux computation Nitsche
         flux= np.zeros(len(colors))
         nfaces, ncells, dim, nlocal  = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.nlocal()
@@ -158,23 +168,23 @@ class CR1(p1general.P1general):
             flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
             # flux[i] /= np.sum(dS)
         return flux
-    def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
-        method = self.params_str['dirichletmethod']
-        if method == 'new':
-            nodedirall = bdrydata.nodedirall
-            du[nodedirall] += bdrydata.A_dir_dir * u[bdrydata.nodedirall]
-        elif method == "nitsche":
-            self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
+    # def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
+    #     method = self.params_str['dirichletmethod']
+    #     if method == 'new':
+    #         nodedirall = bdrydata.nodedirall
+    #         du[nodedirall] += bdrydata.A_dir_dir * u[bdrydata.nodedirall]
+    #     elif method == "nitsche":
+    #         self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
-        if self.params_str['dirichletmethod']=="nitsche": return
+        # if self.params_str['dirichletmethod']=="nitsche": return
         facesdirall = bdrydata.facesdirall
         du[facesdirall] = u[facesdirall]
     def vectorBoundaryStrongZero(self, du, bdrydata):
-        if self.params_str['dirichletmethod']=="nitsche": return
+        # if self.params_str['dirichletmethod']=="nitsche": return
         du[bdrydata.facesdirall] = 0
     def vectorBoundaryStrong(self, b, bdrycond, bdrydata):
-        method = self.params_str['dirichletmethod']
-        if method not in ['strong','new']: return
+        # method = self.params_str['dirichletmethod']
+        # if method not in ['strong','new']: return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         x, y, z = self.mesh.pointsf.T
         for color, faces in facesdirflux.items():
@@ -186,13 +196,13 @@ class CR1(p1general.P1general):
                 dirichlet = bdrycond.fct[color]
                 help[faces] = dirichlet(x[faces], y[faces], z[faces])
         # b[facesinner] -= bdrydata.A_inner_dir * help[facesdirall]
-        if method == 'strong':
-            b[facesdirall] = help[facesdirall]
-        else:
-            b[facesdirall] = bdrydata.A_dir_dir * help[facesdirall]
+        # if method == 'strong':
+        b[facesdirall] = help[facesdirall]
+        # else:
+        #     b[facesdirall] = bdrydata.A_dir_dir * help[facesdirall]
     def matrixBoundaryStrong(self, A, bdrydata):
-        method = self.params_str['dirichletmethod']
-        if method not in ['strong','new']: return
+        # method = self.params_str['dirichletmethod']
+        # if method not in ['strong','new']: return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
         nfaces = self.mesh.nfaces
         for color, faces in facesdirflux.items():
@@ -278,11 +288,6 @@ class CR1(p1general.P1general):
         return massloc
     def _computeMassMatrix(self, coeff=1):
         dim, dV = self.mesh.dimension, self.mesh.dV
-        # scalemass = coeff * (2 - dim) / (dim + 1) / (dim + 2)
-        # massloc = np.tile(scalemass, (self.nloc, self.nloc))
-        # scale = coeff * (2 - dim + dim * dim) / (dim + 1) / (dim + 2)
-        # massloc.reshape((self.nloc * self.nloc))[::self.nloc + 1] = scale
-        # return np.einsum('n,kl->nkl', dV, massloc)
         return np.einsum('n,kl->nkl', coeff*dV, self.masslocal())
     def computeMassMatrix(self, coeff=1, lumped=False):
         if lumped:
@@ -291,10 +296,6 @@ class CR1(p1general.P1general):
             mass = coeff/(dim+1)*dV.repeat(dim+1)
             rows = self.mesh.facesOfCells.ravel()
             return sparse.coo_matrix((mass, (rows, rows)), shape=(nfaces, nfaces)).tocsr()
-        # scalemass = coeff*(2-dim) / (dim+1) / (dim+2)
-        # massloc = np.tile(scalemass, (self.nloc,self.nloc))
-        # scale = coeff*(2-dim + dim*dim) / (dim+1) / (dim+2)
-        # massloc.reshape((self.nloc*self.nloc))[::self.nloc+1] = scale
         nfaces = self.mesh.nfaces
         mass = self._computeMassMatrix(coeff)
         return sparse.coo_matrix((mass.ravel(), (self.rows, self.cols)), shape=(nfaces, nfaces)).tocsr()
@@ -416,6 +417,7 @@ class CR1(p1general.P1general):
     def computeMatrixJump(self, betart, mode='primal', monotone=False):
         dim, dV, nfaces, ndofs = self.mesh.dimension, self.mesh.dV, self.mesh.nfaces, self.nunknowns()
         nloc, dofspercell = self.nlocal(), self.dofspercell()
+        if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
         innerfaces = self.mesh.innerfaces
         ci0 = self.mesh.cellsOfInteriorFaces[:,0]
         ci1 = self.mesh.cellsOfInteriorFaces[:,1]
@@ -659,16 +661,16 @@ class CR1(p1general.P1general):
         self.computeFormTransportCellWise(du, u, data, type='centered')
         self.computeFormJump(du, u, data.betart)
         self.computeFormLps(du, u, data.betart, **kwargs)
-    def massDotSupg(self, b, f, data, coeff=1):
-        if self.params_str['convmethod'][:4] != 'supg': return
-        dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
-        # beta, mus, deltas = beta, self.md.mus, self.md.deltas
-        # cellgrads = self.cellgrads[:,:,:dim]
-        # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
-        # r = np.einsum('n,ni->ni', deltas*dV*f[facesOfCells].mean(axis=1), betagrad)
-        r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*data.md.mus)
-        np.add.at(b, facesOfCells, r)
-        return b
+    # def massDotSupg(self, b, f, data, coeff=1):
+    #     if self.params_str['convmethod'][:4] != 'supg': return
+    #     dim, facesOfCells, dV = self.mesh.dimension, self.mesh.facesOfCells, self.mesh.dV
+    #     # beta, mus, deltas = beta, self.md.mus, self.md.deltas
+    #     # cellgrads = self.cellgrads[:,:,:dim]
+    #     # betagrad = np.einsum('njk,nk -> nj', cellgrads, beta)
+    #     # r = np.einsum('n,ni->ni', deltas*dV*f[facesOfCells].mean(axis=1), betagrad)
+    #     r = np.einsum('n,nk->nk', coeff*dV*f[facesOfCells].mean(axis=1), dim/(dim+1)-dim*data.md.mus)
+    #     np.add.at(b, facesOfCells, r)
+    #     return b
     # dotmat
     def massDotCell(self, b, f, coeff=1):
         assert f.shape[0] == self.mesh.ncells

@@ -1,1 +1,1 @@
-from . import newton, optimize, newtondata, linalg, saddle_point
+from . import newton, newtondata

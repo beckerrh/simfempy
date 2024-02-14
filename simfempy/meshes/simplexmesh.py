@@ -9,7 +9,8 @@ import meshio
 import numpy as np
 from numpy.lib.shape_base import take_along_axis
 from scipy import sparse
-from simfempy.tools import npext, timer
+# from simfempy.tools import npext, timer
+from simfempy.tools import timer
 
 #=================================================================#
 class SimplexMesh(object):

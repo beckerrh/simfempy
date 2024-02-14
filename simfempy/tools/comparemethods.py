@@ -6,8 +6,11 @@ Created on Sun Dec  4 18:14:29 2016
 import os, shutil
 import numpy as np
 import matplotlib.pyplot as plt
+from simfempy.models import problemdata
 from simfempy.tools.latexwriter import LatexWriter
-import simfempy.meshes.pygmshext
+import simfempy.tools.timer
+
+
 #=================================================================#
 
 class Results():
@@ -94,15 +97,18 @@ class CompareMethods(object):
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
             if isinstance(params, str): paramsdict[pname] = [params]
-        from simfempy.tools import tools
-        paramslist = tools.dicttensorproduct(paramsdict)
+        def dicttensorproduct(paramsdicts):
+            import itertools
+            paramslist = [[(name, param) for param in params] for name, params in paramsdicts.items()]
+            return [{p[0]: p[1] for p in params} for params in itertools.product(*paramslist)]
+        paramslist = dicttensorproduct(paramsdict)
         self.methods = {}
         import copy
         sep = '@'
         for i,p in enumerate(paramslist):
             name = ''
             modelargs2 = copy.deepcopy(modelargs)
-            problemdataparamchange = simfempy.models.problemdata.Params()
+            problemdataparamchange = problemdata.Params()
             for pname, param in p.items():
                 # print(f"{pname=} {param=} {len(paramsdict[pname])=}")
                 if isinstance(param,list) and len(param)==2:
@@ -133,29 +139,15 @@ class CompareMethods(object):
             self.methods[key] = model(**modelargs2)
             self.methods[key].problemdata.params.update(problemdataparamchange)
 
-    # def _mesh_from_geom_or_fct(self, h=None):
-    #     assert self.application
-    #     return self.application.createMesh(h)
-    #     if h is None:
-    #         if self.mesh is not None: return self.mesh
-    #         if self.h is None: raise ValueError(f"I need h({self.h=})")
-    #         h = self.h
-    #     if self.application is not None: return self.createMesh(h)
-        # if hasattr(pygmsh, "built_in"):
-        #     mesh = pygmsh.generate_mesh(self.geom(h), verbose=False)
-        # else:
-        #     with self.geom(h) as geom:
-        #         mesh = geom.generate_mesh()
-        # return simfempy.meshes.simplexmesh.SimplexMesh(mesh=mesh)
     def compare(self, **kwargs):
         if (self.gmshrefine or self.paramname != "ncells") and self.mesh is None:
             mesh = self.application.createMesh()
+        parameters = []
         if self.plotsolution:
             import matplotlib.gridspec as gridspec
             fig = plt.figure(figsize=(10, 8))
-            outer = gridspec.GridSpec(1, len(self.params)*len(self.methods), wspace=0.1, hspace=0.1)
+            outer = gridspec.GridSpec(1, len(self.params)*len(self.methods), wspace=0.6, hspace=0.3)
             plotcount = 0
-        parameters = []
         for iter, param in enumerate(self.params):
             if self.verbose: print(f"{self.__class__.__name__} {iter:2d} {self.paramname=} {param=}")
             if self.paramname == "ncells":
@@ -176,14 +168,15 @@ class CompareMethods(object):
                     method.paramname = param
                     # method.setParameter(self.paramname, param)
                 result,u = method.solve()
-                # print(f"{result=}")
+                if self.verbose: print(f"{result=}")
                 if self.plotsolution:
-                    from simfempy.meshes import plotmesh
                     suptitle = "{}={}".format(self.paramname, parameters[-1])
-                    method.plot(u=u, fig=fig, gs=outer[plotcount])
-                    # plotmesh.meshWithData(mesh, data=result.data, title=name, suptitle=suptitle, fig=fig, outer=outer[plotcount])
+                    method.application.plot(mesh, method.sol_to_data(u), fig=fig, gs=outer[plotcount])
                     plotcount += 1
-                    # plt.show()
+                # if self.plotsolution:
+                #     method.application.plot(mesh, method.sol_to_data(u))
+                #     plt.suptitle(f"{self.paramname}={parameters[-1]}")
+                #     plt.show()
                 resdict = result.info.copy()
                 if self.postproc: self.postproc(result.data['scalar'])
                 resdict.update(result.data['scalar'])
@@ -257,7 +250,8 @@ class CompareMethods(object):
                         latexwriter.append(**kwargs, name = f"{key}-{name}", values=newdict, percentage=True)
                 latexwriter.append(**kwargs, name=key, values=sumdict)
             else:
-                iserr = len(keysplit) >= 2 and keysplit[0] == 'err'
+                iserr = len(keysplit) >= 2 and keysplit[0][:3] == 'err'
+                # print(f"{iserr=} {keysplit=} {keysplit[0][:3]=}")
                 kwargs['redrate'] = iserr and (paramname=="ncells")
                 kwargs['diffandredrate'] = not kwargs['redrate'] and (paramname=="ncells")
                 kwargs['dim'] = self.dim
@@ -312,4 +306,4 @@ class CompareMethods(object):
         plt.show()
 # ------------------------------------- #
 if __name__ == '__main__':
-    print("so far no test")
+    print("so far no tests")

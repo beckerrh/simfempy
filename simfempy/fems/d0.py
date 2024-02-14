@@ -6,16 +6,15 @@ Created on Sun Dec  4 18:14:29 2016
 """
 import numpy as np
 import scipy.linalg as linalg
-import scipy.sparse as sparse
-from simfempy.fems import fem
-from simfempy.tools import barycentric
+# from simfempy.fems import fem
 
 #=================================================================#
-class D0(fem.Fem):
+class D0():
     def __init__(self, mesh=None):
-        super().__init__(mesh=mesh)
+        pass
+        # super().__init__(mesh=mesh)
     def setMesh(self, mesh):
-        super().setMesh(mesh)
+        self.mesh = mesh
     def nlocal(self): return 1
     def nunknowns(self): return self.mesh.ncells
     def tonode(self, u):
@@ -57,6 +56,7 @@ class D0(fem.Fem):
             cells = self.mesh.cellsOfFaces[faces,0]
             normalsS = self.mesh.normals[faces]
             dS = linalg.norm(normalsS, axis=1)
+            # print(f"{color=} {faces.shape=} {cells.shape=} {dS.shape=} {b[cells].shape=}")
             res += dS*b[cells]
             omega += np.sum(dS)
         return res/omega
@@ -72,4 +72,4 @@ class D0(fem.Fem):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    raise NotImplementedError("no test")
+    raise NotImplementedError("no tests")
