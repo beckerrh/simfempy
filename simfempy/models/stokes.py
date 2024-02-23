@@ -28,8 +28,8 @@ class Stokes(Model):
         self.femp = fems.d0.D0()
     def new_params(self):
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
-    def setMesh(self, mesh):
-        super().setMesh(mesh)
+    def meshSet(self):
+        # super().setMesh(mesh)
         self._checkProblemData()
         if not self.ncomp==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
         self.femv.setMesh(self.mesh)
@@ -44,14 +44,18 @@ class Stokes(Model):
         if self.singleA:
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
             assert 'Pressure' not in self.problemdata.bdrycond.type.values()
+        # ncomps, ns = self.getSystemSize()
+        # print(f"Stokes {self.stack_storage=} {ncomps=} {ns=}")
+        # self.vectorview = vectorview.VectorView(ncomps=ncomps, ns=ns, stack_storage=self.stack_storage)
+        self.new_params()
+    def getSystemSize(self):
         if self.pmean:
             ncomps = [self.mesh.dimension, 1, 1]
             ns = [self.mesh.nfaces, self.mesh.ncells, 1]
         else:
             ncomps = [self.mesh.dimension, 1]
-            ns = [self.mesh.nfaces,self.mesh.ncells]
-        self.vectorview = vectorview.VectorView(ncomps=ncomps, ns=ns, stack_storage=self.stack_storage)
-        self.new_params()
+            ns = [self.mesh.nfaces, self.mesh.ncells]
+        return ncomps, ns
     def _checkProblemData(self):
         # TODO checkProblemData() incomplete
         for col, fct in self.problemdata.bdrycond.fct.items():
@@ -696,100 +700,6 @@ class Stokes(Model):
         #     # print(f"{flux=}")
         #     #TODO flux Stokes Dirichlet strong wrong
         # return flux
-#------------------------------------------------------------------------
-#-------------------------       Plotting       -------------------------
-# ------------------------------------------------------------------------
-
-    # def _plot2d(self, data, fig, gs, title='', alpha=0.5):
-    #     import matplotlib.gridspec as gridspec
-    #     inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=1, subplot_spec=gs, wspace=0.3, hspace=0.3)
-    #     v = data['point']['V']
-    #     p = data['cell']['P']
-    #     ax = fig.add_subplot(inner[0])
-    #     ax.get_xaxis().set_visible(False)
-    #     ax.get_yaxis().set_visible(False)
-    #     self.plot_v(ax, v)
-    #     ax = fig.add_subplot(inner[1])
-    #     ax.get_xaxis().set_visible(False)
-    #     ax.get_yaxis().set_visible(False)
-    #     self.plot_p(ax, p)
-    # def _plot3d(self, mesh, data, fig, gs, **kwargs):
-    #     import matplotlib.pyplot as plt
-    #     import matplotlib.gridspec as gridspec
-    #     inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=2, subplot_spec=gs, wspace=0.3, hspace=0.3)
-    #     import pyvista
-    #     alpha = kwargs.pop('alpha', 0.6)
-    #     p = data['cell']['P']
-    #     v = data['point']['V']
-    #     vr = v.reshape(self.mesh.nnodes, self.ncomp)
-    #     vnorm = np.linalg.norm(vr, axis=1)
-    #     mesh["V"] = vr
-    #     mesh["vn"] = vnorm
-    #     mesh.cell_data['P'] = p
-    #     plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
-    #     plotter.renderer.SetBackground(255, 255, 255)
-    #     plotter.add_mesh(mesh, opacity=alpha, color='gray', show_edges=True)
-    #     plotter.show(title=kwargs.pop('title', self.__class__.__name__))
-    #     ax = fig.add_subplot(inner[0])
-    #     ax.imshow(plotter.image)
-    #     ax.set_xticks([])
-    #     ax.set_yticks([])
-    #     scalar_bar_args = {'title': 'p', 'color':'black'}
-    #     plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
-    #     plotter.renderer.SetBackground(255, 255, 255)
-    #     plotter.add_mesh(mesh, opacity=alpha, color='gray', scalars='P', scalar_bar_args=scalar_bar_args)
-    #     plotter.show(title=kwargs.pop('title', self.__class__.__name__))
-    #     ax = fig.add_subplot(inner[1])
-    #     ax.imshow(plotter.image)
-    #     ax.set_xticks([])
-    #     ax.set_yticks([])
-    #     plotter = pyvista.Plotter(off_screen=kwargs.pop('off_screen',True))
-    #     plotter.renderer.SetBackground(255, 255, 255)
-    #     glyphs = mesh.glyph(orient="V", scale="vn", factor=10)
-    #     # mesh.set_active_vectors("vectors")
-    #     plotter.add_mesh(glyphs, show_scalar_bar=False, lighting=False, cmap='coolwarm')
-    #     # plotter.show(title=kwargs.pop('title', self.__class__.__name__))
-    #     # mesh.arrows.plot(off_screen=kwargs.pop('off_screen',True))
-    #     plotter.show(title=kwargs.pop('title', self.__class__.__name__))
-    #     ax = fig.add_subplot(inner[2])
-    #     ax.imshow(plotter.image)
-    #     ax.set_xticks([])
-    #     ax.set_yticks([])
-
-    # def plot_p(self, ax, p=None, uname='p', title='', alpha=0.5):
-    #     import matplotlib.pyplot as plt
-    #     assert self.mesh.dimension==2
-    #     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    #     x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-    #     if title: ax.set_title(title)
-    #     # ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-    #     assert len(p)==self.mesh.ncells
-    #     cnt = ax.tripcolor(x, y, tris, facecolors=p, edgecolors='k', cmap='jet')
-    #     divider = make_axes_locatable(ax)
-    #     cax = divider.append_axes('right', size='3%', pad=0.4)
-    #     clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
-    #     clb.ax.set_title(uname)
-    #     return cnt
-    # def plot_v(self, ax, v=None, uname='v', title='', alpha=0.5):
-    #     import matplotlib.pyplot as plt
-    #     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    #     x, y, tris = self.mesh.points[:,0], self.mesh.points[:,1], self.mesh.simplices
-    #     if title: ax.set_title(title)
-    #     ax.triplot(x, y, tris, color='gray', lw=1, alpha=alpha)
-    #     print(f"{v.shape=} {x.shape=} {v=}")
-    #     # vr = v.reshape(self.mesh.nnodes,self.ncomp)
-    #     vr = v.reshape(self.ncomp,self.mesh.nnodes).T
-    #     vnorm = np.linalg.norm(vr, axis=1)
-    #     # vnorm = np.linalg.norm(vr, axis=0)
-    #     print(f"{vnorm=}")
-    #     cnt = ax.tricontourf(x, y, tris, vnorm, levels=16, cmap='jet', alpha=0.)
-    #     divider = make_axes_locatable(ax)
-    #     cax = divider.append_axes('right', size='3%', pad=0.4)
-    #     clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
-    #     # clb.ax.tick_params(axis="both", labelsize=12)
-    #     # clb.ax.set_title(uname)
-    #     qv = ax.quiver(x, y, vr[:,0], vr[:,1], units='xy')
-    #     return cnt, qv
 
 #=================================================================#
 if __name__ == '__main__':

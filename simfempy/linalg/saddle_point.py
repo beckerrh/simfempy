@@ -58,31 +58,13 @@ class SaddlePointSystem():
             self.A = vss @ self.A @ vss
         else:
             self.A = vs@self.A@vs
-        # DS = (self.B@AD@self.B.T).diagonal()
-        # print(f"scale_matrix {DA.max()/DA.min()=:8.2f} {DS.max()/DS.min()=:8.2f}")
-        # assert np.all(DS>0)
-        # makes diag(tilde(B)@tilde(B.T)) = 1
         nb = self.B.shape[0]
-        # ps = sparse.diags(np.power(DS, -0.5), offsets=(0), shape=(nb,nb))
         ps = sparse.diags(np.power((self.B@vs**2@self.B.T).diagonal(), -0.5), offsets=(0), shape=(nb,nb))
-        # assert np.allclose(ps.data,ps2.data)
-        # if not np.allclose(self.A.diagonal(), np.ones(self.A.shape[0])):
-        #     raise ValueError(f"not ones on diagona\n{self.A.diagonal()=}")
         self.B = ps@self.B@vs
         self.scalings = [vs, ps]
         if self.C is None: return
-        # sparse.diags(
-        # DSP = (self.B@self.B.T).diagonal()
-        # DSP = 1/DSP
-        # print(f"{DSP=}")
-        # print(f'{DSP.shape=} {self.C.shape=} {ps.shape=}')
-        # ls = self.C@ps@DSP@ps@self.C.T
-        # ls = self.C@ps**2@self.C.T
         nc = self.C.shape[0]
         ls = sparse.diags(np.power((self.C@ps**2@self.C.T).diagonal(), -0.5), offsets=(0), shape=(nc,nc))
-        # ls = self.C@self.C.T
-        # print(f"{ls.todense()=} {(self.C@self.C.T).todense()=}")
-        # ls = np.sqrt(ls)
         self.C = ls@self.C@ps
         self.scalings.append(ls)
     def scale_vec(self, b):

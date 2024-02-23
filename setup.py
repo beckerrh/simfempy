@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 VERSION = "2.0.29"
 
-with open("simfempy/examples/heat.py", "r") as heat:
+with open("simfempy/examples/elliptic.py", "r") as heat:
     example = heat.read()
 with open("README.md", "w") as readme:
     readme.write("SIMple Finite Element Methods in PYthon\n\n```python\n")

@@ -1,2 +1,2 @@
-from . import simplexmesh
+from . import simplexmesh, plotmesh, testmeshes
 

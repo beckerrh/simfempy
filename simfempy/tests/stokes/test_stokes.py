@@ -1,6 +1,6 @@
 import pathlib, sys
-SCRIPT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
-sys.path.insert(0,SCRIPT_DIR)
+simfempypath = str(pathlib.Path(__file__).parent.parent.parent)
+sys.path.insert(0,simfempypath)
 
 import simfempy.tests.testcaseanalytical
 import stokes_analytic

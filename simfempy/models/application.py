@@ -50,7 +50,7 @@ class Application:
                 clb.ax.set_title(name)
                 iplot += 1
             for name,values in data['point'].items():
-                print(f"{name=} {values.min()=}  {values.max()=}")
+                # print(f"{name=} {values.min()=}  {values.max()=}")
                 ax = fig.add_subplot(inner[iplot])
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)

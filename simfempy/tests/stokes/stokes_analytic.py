@@ -1,7 +1,6 @@
 import pathlib, sys
-SCRIPT_DIR = str(pathlib.Path(__file__).parent.parent.parent.parent)
-sys.path.insert(0,SCRIPT_DIR)
-print(f"{SCRIPT_DIR=}")
+simfempypath = str(pathlib.Path(__file__).parent.parent.parent.parent)
+sys.path.insert(0,simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.models.stokes import Stokes
 import simfempy.models.problemdata
@@ -68,11 +67,12 @@ if __name__ == '__main__':
     # tests(dim=2, exactsolution="Linear", niter=3, plotsolution=True, paramsdict=paramsdict, bctype="dir-neu")
     # tests(dim=3, exactsolution="Linear", niter=3, plotsolution=True, paramsdict=paramsdict, bctype="dir-neu")
 
-    modelargs= {'stack_storage': False}
-    modelargs['singleA']=True
+    modelargs= {'stack_storage': True}
+    modelargs['singleA']=False
     modelargs['mode']='newton'
+    exactsolution = [["sin(pi*x)**2*sin(pi*y)", "-sin(pi*x)*sin(pi*y)**2"], "cos(pi*x)+cos(pi*y)"]
     # tests(dim=2, exactsolution="Linear", niter=4, plotsolution=True, modelargs=modelargs, bctype="dir")
-    test(dim=2, exactsolution=[["sin(pi*x)**2*sin(pi*y)", "-sin(pi*x)*sin(pi*y)**2"], "cos(pi*x)+cos(pi*y)"], niter=6, plotsolution=True, modelargs=modelargs, bctype="dir")
+    test(dim=2, exactsolution=exactsolution, niter=6, plotsolution=True, modelargs=modelargs, bctype="dir-neu")
     # test(dim=2, exactsolution=[["-y","x"],"2"], niter=3, plotsolution=True, modelargs=modelargs)
     # modelargs['mode']='dynamic'
     # tests(dim=2, exactsolution=[["cos(t)*sin(pi*x)**2*sin(pi*y)", "-cos(t)*sin(pi*x)*sin(pi*y)**2"], "cos(t)*cos(pi*x)+cos(pi*y)"], niter=6, plotsolution=True, modelargs=modelargs, bctype="dir")

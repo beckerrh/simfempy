@@ -36,26 +36,6 @@ class CR1(p1general.P1general):
         countnodes = np.zeros(self.mesh.nnodes, dtype=int)
         np.add.at(countnodes, self.mesh.simplices.T, 1)
         unodes /= countnodes
-        # print(f"{u.max()=} {unodes.max()=} {u.min()=} {unodes.min()=}")
-        # if np.isnan(unodes).any() or unodes.max()>1e6 or unodes.min()<-1e6:
-        #     print(f"{u=}")
-        #     print(f"{unodes=}")
-        #     ufc = u[self.mesh.facesOfCells]
-        #     print(f"{ufc.shape=} {self.mesh.simplices.T.shape=}")
-        #     print(f"{ufc=}")
-        #     ufcs = np.sum(ufc, axis=1)
-        #     print(f"{ufcs=}")
-        #     unodes.fill(0)
-        #     print(f"{unodes.shape=} {self.mesh.simplices.T.shape=} {ufcs.shape=}")
-        #     np.add.at(unodes, self.mesh.simplices.T, ufcs[np.newaxis,:])
-        #     np.add.at(unodes, self.mesh.simplices.T, -scale * u[self.mesh.facesOfCells].T)
-        #     countnodes = np.zeros(self.mesh.nnodes, dtype=int)
-        #     np.add.at(countnodes, self.mesh.simplices.T, 1)
-        #     unodes /= countnodes
-        #     print(f"{unodes=}")
-        #     print(f"{countnodes=}")
-        #     raise ValueError("SCHROTT")
-        # print(f"{unodes=}")
         return unodes
     # def prepareAdvection(self, beta, scale):
     #     method = self.params_str['convmethod']
@@ -106,10 +86,8 @@ class CR1(p1general.P1general):
             bdrydata.facesdirflux[color] = self.mesh.bdrylabels[color]
         return bdrydata
     def computeRhsNitscheDiffusion(self, nitsche_param, b, diffcoff, colors, udir=None, bdrycondfct=None, coeff=1, lumped=False):
-        # if self.params_str['dirichletmethod'] != 'nitsche': return
         if udir is None:
             udir = self.interpolateBoundary(colors, bdrycondfct)
-        # nitsche_param=self.params_float['nitscheparam']
         if not udir.shape[0] == self.mesh.nfaces:
             raise ValueError(f"{udir.shape[0]=} {self.mesh.nfaces=}")
         dim, faces = self.mesh.dimension, self.mesh.bdryFaces(colors)
@@ -168,13 +146,6 @@ class CR1(p1general.P1general):
             flux[i] -= self.massDotBoundary(b=None, f=u-udir, colors=[color], coeff=nitsche_param * diffcoff[cells]*dS/dV)
             # flux[i] /= np.sum(dS)
         return flux
-    # def formBoundary(self, du, u, bdrydata, kheatcell, colorsdir):
-    #     method = self.params_str['dirichletmethod']
-    #     if method == 'new':
-    #         nodedirall = bdrydata.nodedirall
-    #         du[nodedirall] += bdrydata.A_dir_dir * u[bdrydata.nodedirall]
-    #     elif method == "nitsche":
-    #         self.computeFormNitscheDiffusion(du, u, kheatcell, colorsdir)
     def vectorBoundaryStrongEqual(self, du, u, bdrydata):
         # if self.params_str['dirichletmethod']=="nitsche": return
         facesdirall = bdrydata.facesdirall
@@ -200,7 +171,7 @@ class CR1(p1general.P1general):
         b[facesdirall] = help[facesdirall]
         # else:
         #     b[facesdirall] = bdrydata.A_dir_dir * help[facesdirall]
-    def matrixBoundaryStrong(self, A, bdrydata):
+    def matrixBoundaryStrong(self, A, bdrydata, method='strong'):
         # method = self.params_str['dirichletmethod']
         # if method not in ['strong','new']: return
         facesdirflux, facesinner, facesdirall, colorsdir = bdrydata.facesdirflux, bdrydata.facesinner, bdrydata.facesdirall, bdrydata.colorsdir
@@ -304,7 +275,6 @@ class CR1(p1general.P1general):
         massloc = barycentric.crbdryothers(dim)
         # lumped = False
         if colors is None: colors = self.mesh.bdrylabels.keys()
-
         if not isinstance(coeff, dict):
             faces = self.mesh.bdryFaces(colors)
             normalsS = self.mesh.normals[faces]

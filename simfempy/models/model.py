@@ -15,6 +15,7 @@ import simfempy.tools.iterationcounter
 import simfempy.models.problemdata
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 import simfempy.solvers
+from simfempy.linalg import vectorview
 
 # import warnings
 # warnings.filterwarnings("error")
@@ -38,6 +39,7 @@ class Model(object):
         repr += f"\n{self.timer}"
         return repr
     def __init__(self, **kwargs):
+        # print(f"Model {kwargs=}")
         self.stack_storage = kwargs.pop("stack_storage", False)
         self.mode = kwargs.pop('mode', 'linear')
         self.verbose = kwargs.pop('verbose', 0)
@@ -56,9 +58,10 @@ class Model(object):
         # femparams = kwargs.pop('femparams', {})
         # self.createFem(femparams)
         self.disc_params = kwargs.pop('disc_params', {})
+        print(f"Model {self.disc_params=}")
         self.createFem()
         self.setMesh(self.application.createMesh())
-        print(f"{self.__class__.__name__} {self.stack_storage=} {self.singleA=} {self.mesh=} {self.linearsolver=}")
+        # print(f"{self.__class__.__name__} {self.stack_storage=} {self.singleA=} {self.mesh=} {self.linearsolver=}")
         if not hasattr(self,'scale_ls'):
             self.scale_ls = kwargs.pop('scale_ls', True)
         if 'newton_stopping_parameters' in kwargs:
@@ -88,16 +91,20 @@ class Model(object):
     def createFem(self):
         raise NotImplementedError(f"createFem has to be overwritten")
     def setMesh(self, mesh):
+        self._setMeshCalled = True
         self.timer.reset_all()
         self.problemdata.check(mesh)
         self.mesh = mesh
         if self.verbose: print(f"{self.mesh=}")
-        self._setMeshCalled = True
         if hasattr(self, 'LS'):
             del self.LS
         if hasattr(self,'_generatePDforES') and self._generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
             self._generatePDforES = False
+        self.meshSet()
+        ncomps, ns = self.getSystemSize()
+        # print(f"Model {self.stack_storage=} {ncomps=} {ns=}")
+        self.vectorview = vectorview.VectorView(ncomps=ncomps, ns=ns, stack_storage=self.stack_storage)
     def solve(self):
         if self.mode=='dynamic':
             return self.dynamic()
@@ -159,28 +166,31 @@ class Model(object):
             raise ValueError(msg)
         return arr
     def initsolution(self, b):
-        # print(f"{type(b)=}")
         if isinstance(b,tuple):
-            raise NotImplementedError()
+            # raise KeyError("i don't know how to handle {type(b)=}")
             return [np.copy(bi) for bi in b]
         return b.copy()
     def computelinearSolver(self, A):
+        # print(f"{self.linearsolver=} {A=}")
         if isinstance(self.linearsolver,str):
             args = {'method': self.linearsolver}
         else:
             args = self.linearsolver.copy()
+        # args['matrix'] = A
         if args['method'] != 'spsolve':
             if self.scale_ls:
-                A.scale_matrix()
+                if hasattr(A, 'scale_matrix'):
+                    A.scale_matrix()
                 args['scale'] = self.scale_ls
             args['matrix'] = A
-            if hasattr(A,'matvec'):
-                args['matvec'] = A.matvec
-                args['n'] = A.nall
-            else:
-                args['matvec'] = lambda x: np.matmul(A,x)
-                args['n'] = A.shape[0]
-        return simfempy.solvers.linalg.getLinearSolver(args=args)
+            if args['method'] != 'pyamg':
+                if hasattr(A,'matvec'):
+                    args['matvec'] = A.matvec
+                    args['n'] = A.nall
+                else:
+                    args['matvec'] = lambda x: np.matmul(A,x)
+                    args['n'] = A.shape[0]
+        return simfempy.linalg.linalg.getLinearSolver(**args)
     def static(self, **kwargs):
         method = kwargs.pop('method','newton')
         # raise ValueError(f"{method=}")
@@ -287,7 +297,9 @@ class Model(object):
         else:
             coeffmass = self.coeffmass
         self.A = self.computeMatrix(u=u, coeffmass=coeffmass)
-        self.A.scale_matrix()
+        # print(f"{self.A=}")
+        if hasattr(self.A, 'scale_matrix'):
+            self.A.scale_matrix()
         if hasattr(self, 'LS'):
             # self.LS = self.computelinearSolver(self.A)
             self.LS.update(self.A)
@@ -565,7 +577,7 @@ class Model(object):
             data['postproc'][pname] = np.load(q)
         return data
     def sol_to_vtu(self, **kwargs):
-        print(f"sol_to_vtu {kwargs=}")
+        # print(f"sol_to_vtu {kwargs=}")
         niter = kwargs.pop('niter', None)
         suffix = kwargs.pop('suffix', '')
         solnamebase = "sol" + suffix

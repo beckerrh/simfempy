@@ -97,7 +97,8 @@ class DiagonalScaleSolver():
         return self.BP.dot(b)
 #-------------------------------------------------------------------#
 def getLinearSolver(**kwargs):
-    method = kwargs.pop('method')
+    # print(f"{kwargs=}")
+    method = kwargs.pop('method', 'pyamg')
     matrix = kwargs.pop('matrix', None)
     if method in scipysolvers or method in pyamgsolvers or method in othersolvers:
         if matrix is not None:
@@ -201,8 +202,9 @@ class IterativeSolver():
         if hasattr(self, 'counter'):
             self.counter.reset()
             self.args['callback'] = self.counter
-        if self.scale and A and hasattr(A,'scale_matrix'):
-            A.scale_vec(b)
+        if A is not None:
+            if self.scale and hasattr(A,'scale_matrix'):
+                A.scale_vec(b)
         self.args['b'] = b
         self.args['maxiter'] = maxiter
         self.args['x0'] = x0
@@ -213,8 +215,9 @@ class IterativeSolver():
         else:
             self.niter = -1
         sol = res[0] if isinstance(res, tuple) else res
-        if self.scale and A and hasattr(A,'scale_matrix'):
-            A.scale_vec(sol)
+        if A is not None:
+            if self.scale and hasattr(A,'scale_matrix'):
+                A.scale_vec(sol)
         return sol
 
     def testsolve(self, b, maxiter, rtol):

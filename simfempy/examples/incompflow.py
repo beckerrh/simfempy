@@ -1,7 +1,7 @@
-import pathlib, sys
 import matplotlib.pyplot as plt
-SCRIPT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
-sys.path.insert(0,SCRIPT_DIR)
+import pathlib, sys
+simfempypath = str(pathlib.Path(__file__).parent.parent.parent)
+sys.path.insert(0,simfempypath)
 from simfempy.models.navierstokes import NavierStokes
 from simfempy.models.stokes import Stokes
 from simfempy.examples import navier_stokes

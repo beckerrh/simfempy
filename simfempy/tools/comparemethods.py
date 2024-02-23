@@ -12,7 +12,6 @@ import simfempy.tools.timer
 
 
 #=================================================================#
-
 class Results():
     def __init__(self, names, paramname, parameters, infos):
         self.names = names
@@ -23,6 +22,7 @@ class Results():
         for k, v in infos.items():
             if k[:3]=='err': self.errors[k] = v
 
+#=================================================================#
 class CompareMethods(object):
     """
     Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes)
@@ -46,7 +46,7 @@ class CompareMethods(object):
         self.plotpostprocs = kwargs.pop("plotpostprocs", False)
         if self.verbose == 0: self.latex = False
         self.paramname = kwargs.pop("paramname", "ncells")
-        self.plot = kwargs.pop("plot", False)
+        # self.plot = kwargs.pop("plot", False)
         self.application = kwargs.pop("application", None)
         self.geom = kwargs.pop("geom", None)
         self.mesh = kwargs.pop("mesh", None)
@@ -91,8 +91,7 @@ class CompareMethods(object):
             self._definemethods(model, modelargs)
 
     def _definemethods(self, model, modelargs):
-        # if not 'problemdata' in modelargs:
-        #     raise KeyError(f"'problemdata' should be set in 'modelargs'")
+        print(f" _definemethods {modelargs=}")
         paramsdict = self.paramsdict
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
@@ -129,8 +128,6 @@ class CompareMethods(object):
                         if not hasattr(self, 'names2names'): self.names2names={}
             name = name[:-1]
             modelargs2['application'] = copy.deepcopy(self.application)
-            model_of_name = model(**modelargs2)
-            model_of_name.problemdata.params.update(problemdataparamchange)
             if hasattr(self, 'names2names'):
                 self.names2names[f"{i}"] = name
                 key = f"{i}"
@@ -149,7 +146,7 @@ class CompareMethods(object):
             outer = gridspec.GridSpec(1, len(self.params)*len(self.methods), wspace=0.6, hspace=0.3)
             plotcount = 0
         for iter, param in enumerate(self.params):
-            if self.verbose: print(f"{self.__class__.__name__} {iter:2d} {self.paramname=} {param=}")
+            if self.verbose: print(f"{self.__class__.__name__} {self.paramname=} {iter:2d} {param=}")
             if self.paramname == "ncells":
                 if self.gmshrefine:
                     mesh = simfempy.meshes.pygmshext.gmshRefine(mesh)
@@ -161,14 +158,14 @@ class CompareMethods(object):
             else:
                 parameters.append(param)
             for name, method in self.methods.items():
-                if self.verbose: print(f"\t{self.__class__.__name__} {name=}")
+                if self.verbose: print(f"\t{self.__class__.__name__} {self.paramname=} {name=}")
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": 
                     method.paramname = param
                     # method.setParameter(self.paramname, param)
                 result,u = method.solve()
-                if self.verbose: print(f"{result=}")
+                if self.verbose>=2: print(f"{result=}")
                 if self.plotsolution:
                     suptitle = "{}={}".format(self.paramname, parameters[-1])
                     method.application.plot(mesh, method.sol_to_data(u), fig=fig, gs=outer[plotcount])
