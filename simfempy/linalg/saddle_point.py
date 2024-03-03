@@ -69,6 +69,15 @@ class SaddlePointSystem():
         self.scalings.append(ls)
     def scale_vec(self, b):
         self.vectorview.scale(b, self.scalings)
+    def __matmul___(self, x):
+        print("@@@@@@@@@@@@@@@@")
+        return self.dot(x)
+    def __imatmul___(self, x):
+        print("@@@@@@@@@@@@@@@@")
+        return self.dot(x)
+    def __rmatmul___(self, x):
+        print("@@@@@@@@@@@@@@@@")
+        return self.dot(x)
     def dot(self, x):
         if self.C is None: return self.matvec2(x)
         return self.matvec3(x)
@@ -106,16 +115,16 @@ class SaddlePointSystem():
         na, nb = self.A.shape[0], self.B.shape[0]
         nullP = sparse.dia_matrix((np.zeros(nb), 0), shape=(nb, nb))
         if self.singleA:
-            A = linalg.matrix2systemdiagonal(self.A, self.ncompA)
+            A = linalg.matrix2systemdiagonal(self.A, self.ncompA, self.stack_storage)
         else:
             A = self.A
         A1 = sparse.hstack([A, -self.B.T])
         A2 = sparse.hstack([self.B, nullP])
         Aall = sparse.vstack([A1, A2])
-        if not self.C:
+        if self.C is None:
             return Aall.tocsr()
         nc = self.C.shape[0]
-        nullV = sparse.coo_matrix((1, self.na)).tocsr()
+        nullV = sparse.coo_matrix((1, na)).tocsr()
         ML = sparse.hstack([nullV, self.C])
         Abig = sparse.hstack([Aall, -ML.T])
         nullL = sparse.dia_matrix((np.zeros(nc), 0), shape=(nc, nc))

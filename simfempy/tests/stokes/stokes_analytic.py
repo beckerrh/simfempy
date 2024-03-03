@@ -11,11 +11,11 @@ from simfempy.tools.comparemethods import CompareMethods
 def test(dim, **kwargs):
     class StokesApplicationWithExactSolution(simfempy.models.application.Application):
         def __init__(self, dim, exactsolution, bctype):
-            super().__init__(has_exact_solution=True)
-            self.exactsolution = exactsolution
+            super().__init__(exactsolution=exactsolution)
+            # self.exactsolution = exactsolution
             data = self.problemdata
             if dim == 2:
-                data.ncomp = 2
+                data.ncomp = (2,1)
                 self.defineGeometry = testmeshes.unitsquare
                 colors = [1000, 1001, 1002, 1003]
                 colorsneu = [1000]
@@ -23,7 +23,7 @@ def test(dim, **kwargs):
                 colorsnav = [1001]
                 colorsp = [1002]
             else:
-                data.ncomp = 3
+                data.ncomp = (3,1)
                 self.defineGeometry = testmeshes.unitcube
                 colors = [100, 101, 102, 103, 104, 105]
                 colorsneu = [103]
@@ -51,9 +51,14 @@ def test(dim, **kwargs):
     app.problemdata.params.scal_glob['navier'] = kwargs.pop('navier', 1)
     paramsdict = kwargs.pop('paramsdict', {})
     modelargs = kwargs.pop('modelargs', {})
-    if 'linearsolver' in kwargs: modelargs['linearsolver'] = kwargs.pop('linearsolver')
+    modelargs['stack_storage']=False
+    modelargs['singleA']=False
+    modelargs['mode']='newton'
+    modelargs['mode']='linear'
     linsolver_def = {'method': 'scipy_lgmres', 'maxiter': 100, 'prec': 'Chorin', 'disp': 0, 'rtol': 1e-3}
     modelargs['linearsolver'] = kwargs.pop('linearsolver', linsolver_def)
+    modelargs['linearsolver']='spsolve'
+    if 'linearsolver' in kwargs: modelargs['linearsolver'] = kwargs.pop('linearsolver')
     modelargs['newton_rtol'] = 1e-12
     comp =  CompareMethods(application=app, paramsdict=paramsdict, model=Stokes, modelargs=modelargs, **kwargs)
     return comp.compare()
@@ -64,15 +69,11 @@ def test(dim, **kwargs):
 if __name__ == '__main__':
     # tests strong - weak
     paramsdict = {'disc_params':[['nitsche',{'dirichletmethod':'nitsche'}], ['strong',{'dirichletmethod':'strong'}]]}
-    # tests(dim=2, exactsolution="Linear", niter=3, plotsolution=True, paramsdict=paramsdict, bctype="dir-neu")
-    # tests(dim=3, exactsolution="Linear", niter=3, plotsolution=True, paramsdict=paramsdict, bctype="dir-neu")
-
-    modelargs= {'stack_storage': True}
-    modelargs['singleA']=False
-    modelargs['mode']='newton'
     exactsolution = [["sin(pi*x)**2*sin(pi*y)", "-sin(pi*x)*sin(pi*y)**2"], "cos(pi*x)+cos(pi*y)"]
-    # tests(dim=2, exactsolution="Linear", niter=4, plotsolution=True, modelargs=modelargs, bctype="dir")
-    test(dim=2, exactsolution=exactsolution, niter=6, plotsolution=True, modelargs=modelargs, bctype="dir-neu")
+    # test(dim=2, exactsolution=exactsolution, niter=6, plotsolution=True, bctype="dir")
+    test(dim=2, exactsolution=["Linear","Constant"], niter=3, plotsolution=True, bctype="dir")
+
+
     # test(dim=2, exactsolution=[["-y","x"],"2"], niter=3, plotsolution=True, modelargs=modelargs)
     # modelargs['mode']='dynamic'
     # tests(dim=2, exactsolution=[["cos(t)*sin(pi*x)**2*sin(pi*y)", "-cos(t)*sin(pi*x)*sin(pi*y)**2"], "cos(t)*cos(pi*x)+cos(pi*y)"], niter=6, plotsolution=True, modelargs=modelargs, bctype="dir")

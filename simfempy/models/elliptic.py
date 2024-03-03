@@ -164,10 +164,13 @@ class EllipticPrimal(EllipticBase):
         ncomps = [1]
         ns = [self.fem.nunknowns()]
         return ncomps, ns
-    def computeForm(self, u, coeffmass=None):
+    def computeMassMatrix(self):
+        lumped = self.disc_params.get('masslumped', False)
+        return self.fem.computeMassMatrix(lumped=lumped)
+    def computeForm(self, u):
         if not hasattr(self, 'A'):
             self.A = self.computeMatrix()
-        du2 = self.A@u
+        # du2 = self.A@u
         du = np.zeros_like(u)
         bdrycond = self.problemdata.bdrycond
         colorsrobin = bdrycond.colorsOfType("Robin")
@@ -175,16 +178,16 @@ class EllipticPrimal(EllipticBase):
         self.fem.computeFormDiffusion(du, u, self.kheatcell)
         if self.convection:
             self.fem.computeFormConvection(du, u, self.convdata)
-        if coeffmass is not None:
-            self.fem.massDot(du, u, coeff=coeffmass)
+        # if coeffmass is not None:
+        #     self.fem.massDot(du, u, coeff=coeffmass)
         self.fem.massDotBoundary(du, u, colorsrobin, bdrycond.param, lumped=True)
         if self.dirichletmethod!="nitsche":
             self.fem.vectorBoundaryStrongEqual(du, u, self.bdrydata)
         else:
             self.fem.computeFormNitscheDiffusion(self.nitscheparam, du, u, self.kheatcell, colorsdir)
-        if not np.allclose(du,du2):
-            # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
-            raise ValueError(f"\n{du=}\n{du2=}")
+        # if not np.allclose(du,du2):
+        #     # f = (f"\n{du[self.bdrydata.facesdirall]}\n{du2[self.bdrydata.facesdirall]}")
+        #     raise ValueError(f"{np.linalg.norm(du-du2)}\n{du=}\n{du2=}")
         return du
     def computeMatrix(self, u=None, coeffmass=None):
         bdrycond = self.problemdata.bdrycond
@@ -249,11 +252,12 @@ class EllipticPrimal(EllipticBase):
         return data
     def postProcess(self, u):
         data = {'scalar':{}}
-        if self.problemdata.solexact:
-            data['scalar']['err_L2c'], ec = self.fem.computeErrorL2Cell(self.problemdata.solexact, u)
-            data['scalar']['err_L2n'], en = self.fem.computeErrorL2(self.problemdata.solexact, u)
-            data['scalar']['err_H1'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u)
-            data['scalar']['err_Flux'] = self.fem.computeErrorFluxL2(self.problemdata.solexact, u, self.kheatcell)
+        solexact = self.application.exactsolution
+        if solexact:
+            data['scalar']['err_L2c'], ec = self.fem.computeErrorL2Cell(solexact, u)
+            data['scalar']['err_L2n'], en = self.fem.computeErrorL2 (solexact, u)
+            data['scalar']['err_H1'] = self.fem.computeErrorFluxL2  (solexact, u)
+            data['scalar']['err_Flux'] = self.fem.computeErrorFluxL2(solexact, u, self.kheatcell)
             data['cell'] = {}
             data['cell']['err'] = ec
         if self.problemdata.postproc:
@@ -343,8 +347,8 @@ class EllipticMixed(EllipticBase):
         ncomps = [1, 1]
         ns = [self.rt.nunknowns(), self.d0.nunknowns()]
         return ncomps, ns
-    def computeForm(self, u, coeffmass=None):
-        raise NotImplementedError(f"computeForm for rt")
+    # def computeForm(self, u, coeffmass=None):
+    #     raise NotImplementedError(f"computeForm for rt")
     def computeMatrix(self, u=None, coeffmass=None):
         # print("Hallo computeMatrix")
         bdrycond = self.problemdata.bdrycond
@@ -444,8 +448,8 @@ class EllipticMixed(EllipticBase):
         vc = self.rt.toCell(v)
         pn = self.rt.reconstruct(p, vc, self.divcoeffinv)
         data = {}
-        if self.problemdata.solexact:
-            errp, errs, errpn, pe, ve = self.computeError(self.problemdata.solexact, p, vc, pn)
+        if self.application.exactsolution:
+            errp, errs, errpn, pe, ve = self.computeError(self.application.exactsolution, p, vc, pn)
             data['cell']={}
             data['cell']['err_p'] = np.abs(pe - p)
             for i in range(dim):
@@ -520,12 +524,12 @@ class EllipticMixed(EllipticBase):
         A2 = scipy.sparse.hstack([B, help])
         Aall = scipy.sparse.vstack([A1, A2])
         return Aall.tocsr()
-    def computelinearSolver(self, A):
-        if isinstance(self.linearsolver,str):
-            args = {'method': self.linearsolver}
-        else:
-            args = self.linearsolver.copy()
-        return simfempy.linalg.linalg.getLinearSolver(**args)
+    # def computelinearSolver(self, A):
+    #     if isinstance(self.linearsolver,str):
+    #         args = {'method': self.linearsolver}
+    #     else:
+    #         args = self.linearsolver.copy()
+    #     return simfempy.linalg.linalg.getLinearSolver(**args)
     # def solvelinear(self, Ain, bin, u=None, solver = None, verbose=0):
     #     if solver is None: solver = self.linearsolver
     #     if solver == 'spsolve':

@@ -4,12 +4,12 @@ Created on Sun Dec  4 18:14:29 2016
 
 @author: becker
 """
-import os, shutil, pathlib
+import shutil, pathlib
 import numpy as np
 import scipy.sparse.linalg as splinalg
 from scipy.optimize import newton_krylov
 
-import simfempy.tools.analyticalfunction
+# import simfempy.tools.analyticalfunction
 import simfempy.tools.timer
 import simfempy.tools.iterationcounter
 import simfempy.models.problemdata
@@ -51,19 +51,17 @@ class Model(object):
         self.ncomp = self.problemdata.ncomp
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
-        if self.application.has_exact_solution:
-            self._generatePDforES = True
-        else:
-            self._generatePDforES = False
-        # femparams = kwargs.pop('femparams', {})
-        # self.createFem(femparams)
         self.disc_params = kwargs.pop('disc_params', {})
         print(f"Model {self.disc_params=}")
         self.createFem()
         self.setMesh(self.application.createMesh())
+        self.application.createExactSolution(self.mesh)
+        if self.application.generatePDforES:
+            self.generatePoblemDataForAnalyticalSolution()
         # print(f"{self.__class__.__name__} {self.stack_storage=} {self.singleA=} {self.mesh=} {self.linearsolver=}")
         if not hasattr(self,'scale_ls'):
             self.scale_ls = kwargs.pop('scale_ls', True)
+        print(f"{self.scale_ls=}")
         if 'newton_stopping_parameters' in kwargs:
             self.newton_stopping_parameters = kwargs.pop('newton_stopping_parameters')
         else:
@@ -98,9 +96,12 @@ class Model(object):
         if self.verbose: print(f"{self.mesh=}")
         if hasattr(self, 'LS'):
             del self.LS
-        if hasattr(self,'_generatePDforES') and self._generatePDforES:
-            self.generatePoblemDataForAnalyticalSolution()
-            self._generatePDforES = False
+        if hasattr(self, 'A'):
+            del self.A
+        # if hasattr(self,'_generatePDforES') and self._generatePDforES:
+        # if self.application.generatePDforES:
+        #     self.generatePoblemDataForAnalyticalSolution()
+            # self._generatePDforES = False
         self.meshSet()
         ncomps, ns = self.getSystemSize()
         # print(f"Model {self.stack_storage=} {ncomps=} {ns=}")
@@ -114,23 +115,23 @@ class Model(object):
     def dirichletfct(self):
         if self.ncomp > 1:
             # def _solexactdir(x, y, z):
-            #     return [self.problemdata.solexact[icomp](x, y, z) for icomp in range(self.ncomp)]
+            #     return [self.application.exactsolution[icomp](x, y, z) for icomp in range(self.ncomp)]
             # return _solexactdir
             from functools import partial
-            solexact = self.problemdata.solexact
+            solexact = self.application.exactsolution
             def _solexactdir(x, y, z, icomp):
                 return solexact[icomp](x, y, z)
             return [partial(_solexactdir, icomp=icomp) for icomp in range(self.ncomp)]
         else:
-            return self.problemdata.solexact
+            return self.application.exactsolution
             def _solexactdir(x, y, z):
-                return self.problemdata.solexact(x, y, z)
+                return self.application.exactsolution(x, y, z)
         return _solexactdir
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
-        self.problemdata.solexact = self.defineAnalyticalSolution(exactsolution=self.application.exactsolution, random=self.application.random_exactsolution)
-        # print("self.problemdata.solexact", self.problemdata.solexact)
-        solexact = self.problemdata.solexact
+        # self.application.exactsolution = self.defineAnalyticalSolution(exactsolution=self.application.exactsolution, random=self.application.random_exactsolution)
+        # print("self.application.exactsolution", self.application.exactsolution)
+        solexact = self.application.exactsolution
         self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         if hasattr(self, 'time'):
             self.problemdata.params.fct_glob['initial_condition'] = self.defineInitialConditionAnalyticalSolution(solexact)
@@ -144,10 +145,10 @@ class Model(object):
                     bdrycond.fct[color] = eval(cmd)
                 else:
                     bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color, solexact)
-    def defineAnalyticalSolution(self, exactsolution, random=True):
-        dim = self.mesh.dimension
-        # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
-        return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
+    # def defineAnalyticalSolution(self, exactsolution, random=True):
+    #     dim = self.mesh.dimension
+    #     # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
+    #     return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
             fct = np.vectorize(params.fct_glob[name])
@@ -171,7 +172,7 @@ class Model(object):
             return [np.copy(bi) for bi in b]
         return b.copy()
     def computelinearSolver(self, A):
-        # print(f"{self.linearsolver=} {A=}")
+        print(f"{self.linearsolver=} {self.scale_ls=}")
         if isinstance(self.linearsolver,str):
             args = {'method': self.linearsolver}
         else:
@@ -266,6 +267,7 @@ class Model(object):
     def computeDefect(self, u):
         return self.computeForm(u)-self.b
     def computeForm(self, u):
+        print(f"{type(self.A)=} {type(u)=}")
         return self.A@u
     def initialCondition(self, interpolate=True):
         #TODO: higher order interpolation
@@ -315,11 +317,13 @@ class Model(object):
             computeMatrix = True
         if computeMatrix:
             self.newMatrix(u)
-        rtol = 1e-5
+        rtol = 1e-7
         if hasattr(info,'rhor'):
             rtol = min(0.01, info.rhor)
             rtol = max(rtol, info.tol_missing)
         try:
+            # raise ValueError(f"{rtol=} {info=}")
+            print(f"{rtol=}")
             du = self.LS.solve(A=self.A, b=b, rtol=rtol)
             niter = self.LS.niter
             if niter==self.LS.maxiter:
@@ -377,6 +381,7 @@ class Model(object):
         if not hasattr(self, 'Mass'):
             self.Mass = self.computeMassMatrix()
         self.coeffmass = 1 / dt / theta
+        # print(f"dynamic {self.coeffmass=}")
         if not hasattr(self, 'Aconst'):
             Aconst = self.computeMatrixConstant(coeffmass=self.coeffmass)
             if self.linearsolver=="pyamg":
@@ -390,6 +395,7 @@ class Model(object):
             print(30*"*" + f" {theta=} "+30*"*")
             print(f"*** {'t':12s} {'it':6s} {'dt':6s} {'n_lin_av':8s} {'n_nl_av':8s} {'n_bad':6s} {'nnew':4s}")
         for iframe in range(nframes):
+            # print(f"dynamic {self.coeffmass=}")
             info_new.totaliter = 0
             info_new.totalliniter = 0
             info_new.bad_convergence_count = 0
@@ -405,6 +411,7 @@ class Model(object):
                 filename = "sol" + f"_{iframe:05d}" + ".vtu"
                 self.mesh.write(self.datadir/filename, data=data)
             while self.time<times[iframe+1]:
+                # print(f"dynamic {self.coeffmass=}")
                 self.rhs.fill(0)
                 self.time += dt
                 self.application.time = self.time
@@ -561,13 +568,18 @@ class Model(object):
         if datadir is None: datadir=self.datadir
         name += ".npy"
         return np.load(datadir/name)
+    def load_data(self, iter=None, datadir=None, name= "sol", add=''):
+        if add: name += add
+        if iter is not None: name += f"_{iter:05d}"
+        if datadir is None: datadir=self.datadir
+        name += ".npy"
+        return self.sol_to_data(np.load(datadir/name))
     def get_t(self, datadir=None):
         if datadir is None: datadir=self.datadir
         times = np.load(self.datadir / "time.npy")
         return times
 
     def get_postprocs_dynamic(self):
-        # filename = os.path.join(self.dirname, "time.npy")
         data = {'time': np.load(self.datadir/"time.npy"), 'postproc':{}}
         from pathlib import Path
         p = Path(self.datadir)

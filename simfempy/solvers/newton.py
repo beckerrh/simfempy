@@ -89,7 +89,7 @@ class Baseopt:
         cons = ({'type': 'ineq', 'fun': lambda x:  self.res(x) - self.resfirst})
         options={'disp':True, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-6}
         out = optimize.minimize(fun=self.res, constraints=cons, x0=x0, method=method, options=options)
-        print(f"*************{out=}")
+        # print(f"*************{out=}")
         if np.linalg.norm(self.r) > self.resfirst:
             print(f"*** nonmonotone {np.linalg.norm(self.r)=} {self.resfirst=} ** run again")
             options={'disp':False, 'maxiter':self.sdata.maxter_stepsize, 'gtol':1e-4}
@@ -131,8 +131,9 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         iterdata = newtondata.IterationData(resnorm)
     else:
         iterdata.reset(resnorm)
-    if verbose and iterdata.totaliter==0:
-        print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
+    if verbose:
+        if iterdata.totaliter==0:
+            print("{:20} {:>3} {:^9} {:^9} {:^9} {:^4} {:^4} {:^3} {:^4} {:1}".format(name, "it", '|r|', "|dx|", "|x|",'rhodx','rhor','lin', 'step', 'r'))
         print("{:20} {:3} {:9.3e} {:^9} {:9.3e} {:^4} {:^4} {:^3} {:^4} {:^1}".format(name, 0, resnorm, 3*'-', xnorm, 3*'-', 3*'-', 3*'-', 2*'-', 3*'-', '-'))
     if sdata.steptype == 'rb':
         bt = Baseopt(f, sdata, x.shape[0], verbose)

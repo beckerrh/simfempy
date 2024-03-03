@@ -164,7 +164,7 @@ class ProblemData(object):
 
     def __repr__(self):
         repr = f"\n{self.__class__}:"
-        repr += f"\n\tncomp = {self.ncomp:2d}"
+        repr += f"\n\tncomp = {self.ncomp}"
         repr += f"\n\tbdrycond:{self._split2string(self.bdrycond)}"
         repr += f"\n\tpostproc:{self._split2string(self.postproc)}"
         # if self.rhs: repr += f"\n\trhs={self.rhs}"

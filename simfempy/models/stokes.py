@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse as sparse
 from simfempy import fems
 from simfempy.models.model import Model
-from simfempy.tools.analyticalfunction import analyticalSolution
+# from simfempy.tools.analyticalfunction import analyticalSolution
 from simfempy.linalg import linalg, saddle_point, vectorview
 from functools import partial
 
@@ -17,6 +17,7 @@ class Stokes(Model):
             self.linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 100, 'prec': 'Chorin', 'disp':0, 'rtol':1e-6}
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', self.linearsolver_def)
+        print(f"{self.linearsolver=}")
         self.singleA = kwargs.pop('singleA', True)
         super().__init__(**kwargs)
         # print(f"{self=}")
@@ -31,7 +32,7 @@ class Stokes(Model):
     def meshSet(self):
         # super().setMesh(mesh)
         self._checkProblemData()
-        if not self.ncomp==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
+        if not self.ncomp[0]==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
         self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
@@ -62,30 +63,32 @@ class Stokes(Model):
             type = self.problemdata.bdrycond.type[col]
             if type == "Dirichlet":
                 if len(fct) != self.mesh.dimension: raise ValueError(f"*** {type=} {len(fct)=} {self.mesh.dimension=}")
-    def defineAnalyticalSolution(self, exactsolution, random=True):
-        dim = self.mesh.dimension
-        # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
-        if exactsolution=="Linear":
-            exactsolution = ["Linear", "Constant"]
-        elif exactsolution=="Quadratic":
-            exactsolution = ["Quadratic", "Linear"]
-        v = analyticalSolution(exactsolution[0], dim, dim, random)
-        p = analyticalSolution(exactsolution[1], dim, 1, random)
-        return v,p
+    # def defineAnalyticalSolution(self, exactsolution, random=True):
+    #     dim = self.mesh.dimension
+    #     # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
+    #     if exactsolution=="Linear":
+    #         exactsolution = ["Linear", "Constant"]
+    #     elif exactsolution=="Quadratic":
+    #         exactsolution = ["Quadratic", "Linear"]
+    #     v = analyticalSolution(exactsolution[0], dim, dim, random)
+    #     p = analyticalSolution(exactsolution[1], dim, 1, random)
+    #     return v,p
     def dirichletfct(self):
-        solexact = self.problemdata.solexact
+        solexact = self.application.exactsolution
         v,p = solexact
+        ncomp = self.ncomp[0]
         def _solexactdirp(x, y, z, nx, ny, nz):
             return p(x, y, z)
         from functools import partial
         def _solexactdirv(x, y, z, icomp):
             return v[icomp](x, y, z)
-        return [partial(_solexactdirv, icomp=icomp) for icomp in range(self.ncomp)]
+        return [partial(_solexactdirv, icomp=icomp) for icomp in range(ncomp)]
     def defineInitialConditionAnalyticalSolution(self, solexact):
         v,p = solexact
+        ncomp = self.ncomp[0]
         def _fcticv(x, y, z):
-            rhsv = np.empty(shape=(self.ncomp, *x.shape))
-            for i in range(self.ncomp):
+            rhsv = np.empty(shape=(ncomp, *x.shape))
+            for i in range(ncomp):
                 rhsv[i] = v[i](x, y, z, 0)
             return rhsv
         return _fcticv
@@ -93,20 +96,21 @@ class Stokes(Model):
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
         mu = self.problemdata.params.scal_glob['mu']
+        ncomp = self.ncomp[0]
         def _fctrhsv(x, y, z):
-            rhsv = np.zeros(shape=(self.ncomp, *x.shape))
+            rhsv = np.zeros(shape=(ncomp, *x.shape))
             if v[0].has_time:
-                for i in range(self.ncomp):
+                for i in range(ncomp):
                     rhsv[i] += v[i].t(x, y, z, self.time)
-            for i in range(self.ncomp):
-                for j in range(self.ncomp):
+            for i in range(ncomp):
+                for j in range(ncomp):
                     rhsv[i] -= mu * v[i].dd(j, j, x, y, z)
                 rhsv[i] += p.d(i, x, y, z)
             # print(f"{rhsv=}")
             return rhsv
         def _fctrhsp(x, y, z):
             rhsp = np.zeros(x.shape)
-            for i in range(self.ncomp):
+            for i in range(ncomp):
                 rhsp += v[i].d(i, x, y, z)
             return rhsp
         return _fctrhsv, _fctrhsp
@@ -178,21 +182,22 @@ class Stokes(Model):
         return u0
     def sol_to_data(self, u):
         data = {'point':{}, 'cell':{}, 'global':{}}
-        for icomp in range(self.ncomp):
+        for icomp in range(self.ncomp[0]):
             data['point'][f'V_{icomp:1d}'] = self.femv.tonode(self.vectorview.get(0,icomp,u))
         data['cell']['P'] = self.vectorview.get_part(1,u)
         return data
     def postProcess(self, u):
         p = self.vectorview.get_part(1,u)
         data = {'scalar':{}}
-        if self.problemdata.solexact:
+        ncomp = self.ncomp[0]
+        if self.application.exactsolution:
             errall, ecall = [], []
-            for icomp in range(self.ncomp):
-                err, ec = self.femv.computeErrorL2(self.problemdata.solexact[0][icomp], self.vectorview.get(0,icomp,u))
+            for icomp in range(ncomp):
+                err, ec = self.femv.computeErrorL2(self.application.exactsolution[0][icomp], self.vectorview.get(0,icomp,u))
                 errall.append(err)
                 ecall.append(ec)
             data['scalar']['error_V_L2'] = np.sum(errall)
-            err, e = self.femp.computeErrorL2(self.problemdata.solexact[1], p)
+            err, e = self.femp.computeErrorL2(self.application.exactsolution[1], p)
             data['scalar']['error_P_L2'] = err
         if self.problemdata.postproc:
             types = ["bdry_pmean", "bdry_vmean", "bdry_nflux"]
@@ -201,7 +206,7 @@ class Stokes(Model):
                 if type == types[0]:
                     data['scalar'][name] = self.femp.computeBdryMean(p, colors)
                 elif type == types[1]:
-                    for icomp in range(self.ncomp):
+                    for icomp in range(ncomp):
                         data['scalar'][name + "_" + f"{icomp}"] = self.femv.computeBdryMean(self.vectorview.get(0,icomp,u), colors)
                 elif type == types[2]:
                     if self.dirichletmethod=='strong':
@@ -246,7 +251,7 @@ class Stokes(Model):
             rhsv, rhsp = self.problemdata.params.fct_glob['rhs']
             if rhsv:
                 rhsall = self.femv.interpolate(rhsv)
-                for icomp in range(self.ncomp):
+                for icomp in range(self.ncomp[0]):
                     self.femv.massDot(self.vectorview.get(0, icomp, b), rhsall[icomp])
             if rhsp: self.femp.computeRhsCells(bp, rhsp)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
@@ -268,7 +273,7 @@ class Stokes(Model):
             self.vectorBoundaryStrong(b, self.problemdata.bdrycond.fct, self.bdrydata)
         else:
             bdryfct = self.problemdata.bdrycond.fct
-            ncomp = self.ncomp
+            ncomp = self.ncomp[0]
             faces = self.mesh.bdryFaces(colorsdir)
             cells = self.mesh.cellsOfFaces[faces, 0]
             normalsS = self.mesh.normals[faces][:, :ncomp]
@@ -333,13 +338,16 @@ class Stokes(Model):
                     self.computeRhsBdryNitschePressureTangent(b, colorsp, self.mucell, v)
 
         if not self.pmean: return b
-        if self.problemdata.solexact is not None:
-            p = self.problemdata.solexact[1]
+        if self.application.exactsolution is not None:
+            p = self.application.exactsolution[1]
             bmean = self.femp.computeMean(p)
         else: bmean=0
         b[-1] = bmean
         return b
-    def computeForm(self, u, coeffmass=None):
+    # def computeForm(self, u, coeffmass=None):
+    def computeForm(self, u):
+        self.A = self.computeMatrix(u)
+        return self.A.dot(u)
         d = np.zeros_like(u)
         dp, p = self.vectorview.get_part(1,d), self.vectorview.get_part(1,u)
         ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.femv.cellgrads, self.mesh.facesOfCells
@@ -351,9 +359,12 @@ class Stokes(Model):
             r = np.einsum('n,ni->ni', -dV*p, cellgrads[:,:,icomp])
             np.add.at(self.vectorview.get(0, icomp, d), foc, r)
             dp += np.einsum('n,ni,ni->n', dV, cellgrads[:, :, icomp], self.vectorview.get(0, icomp, u)[foc])
-        if coeffmass:
+        # if coeffmass:
+        #     for icomp in range(ncomp):
+        #         self.femv.computeFormMass(self.vectorview.get(0, icomp, d), self.vectorview.get(0, icomp, u), coeffmass)
+        if hasattr(self, 'coeffmass' ) and self.coeffmass:
             for icomp in range(ncomp):
-                self.femv.computeFormMass(self.vectorview.get(0, icomp, d), self.vectorview.get(0, icomp, u), coeffmass)
+                self.femv.computeFormMass(self.vectorview.get(0, icomp, d), self.vectorview.get(0, icomp, u), self.coeffmass)
         colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
         colorsnav = self.problemdata.bdrycond.colorsOfType("Navier")
         if self.dirichletmethod == 'strong':
@@ -383,11 +394,11 @@ class Stokes(Model):
     def computeMatrix(self, u=None, coeffmass=None):
         if coeffmass is None and 'alpha' in self.problemdata.params.scal_glob.keys():
             coeffmass = self.problemdata.params.scal_glob['alpha']
-        # print(f"computeMatrix {coeffmass=}")
+        print(f"computeMatrix {coeffmass=}")
         A = self.femv.computeMatrixDiffusion(self.mucell, coeffmass)
+        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp[0], self.mesh.dV
         if not self.singleA:
-            A = linalg.matrix2systemdiagonal(A, self.ncomp, self.stack_storage)
-        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dV
+            A = linalg.matrix2systemdiagonal(A, ncomp, self.stack_storage)
         nloc, cellgrads, foc = self.femv.nloc, self.femv.cellgrads, self.mesh.facesOfCells
         rowsB = np.repeat(np.arange(ncells), ncomp * nloc)
         colsB = self.vectorview.col_indices(0, foc, ncells, nloc, nfaces)
@@ -424,7 +435,7 @@ class Stokes(Model):
         dlam += self.mesh.dV.dot(p)
         dp -= lam*self.mesh.dV
     def computeBdryNormalFluxNitsche(self, u, colors):
-        ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
+        ncomp, bdryfct = self.ncomp[0], self.problemdata.bdrycond.fct
         flux = np.zeros(shape=(ncomp,len(colors)))
         p = self.vectorview.get_part(1,u)
         for col in colors:
@@ -472,7 +483,7 @@ class Stokes(Model):
         raise NotImplementedError()
 
     def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell, singleA):
-        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.ncomp, self.mesh.dimension
+        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.ncomp[0], self.mesh.dimension
         if singleA:
             A += self.femv.computeMatrixNitscheDiffusion(self.nitscheparam, mucell, colors)
         else:
@@ -481,7 +492,7 @@ class Stokes(Model):
         #grad-div
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
-        normalsS = self.mesh.normals[faces][:, :self.ncomp]
+        normalsS = self.mesh.normals[faces][:, :ncomp]
         if self.stack_storage:
             indfaces = np.repeat(faces, ncomp)
             for icomp in range(ncomp):
@@ -652,7 +663,6 @@ class Stokes(Model):
     def matrixBoundaryStrong(self, A, B, bdrydata, singleA):
         facesdirall, facesinner, colorsdir, facesdirflux = bdrydata.facesdirall, bdrydata.facesinner, bdrydata.colorsdir, bdrydata.facesdirflux
         nfaces, ncomp, nf = self.mesh.nfaces, self.ncomp, len(facesdirall)
-
         if singleA:
             help = np.ones(nfaces)
             help[facesdirall] = 0

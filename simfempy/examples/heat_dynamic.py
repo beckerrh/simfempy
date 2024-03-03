@@ -6,11 +6,11 @@ import os, sys
 simfempypath = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, os.path.pardir, os.path.pardir,'simfempy'))
 sys.path.insert(0,simfempypath)
 
-from simfempy.models.heat import Heat
+from simfempy.models.elliptic import Elliptic
 from simfempy.models.application import Application
 from simfempy.models.problemdata import ProblemData
 from simfempy.meshes.simplexmesh import SimplexMesh
-from simfempy.meshes import plotmesh, animdata
+from simfempy.meshes import plotmesh
 
 # define Application class
 class HeatExample(Application):
@@ -43,44 +43,27 @@ class HeatExample(Application):
         p = geom.add_rectangle(xmin=-2, xmax=2, ymin=-2, ymax=2, z=0, mesh_size=h, holes=holes)
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
-femparams={'dirichletmethod':'nitsche'}
-# femparams={'dirichletmethod':'strong'}
-# elliptic = Heat(mesh=mesh, problemdata=data, fem='p1', femparams=femparams, linearsolver='pyamg')
-heat = Heat(application=HeatExample(), fem='p1', femparams=femparams, linearsolver='pyamg')
-static = False
-if static:
-    # run static
-    result, u = heat.static(mode="newton")
-    print(f"{result=}")
-    # for p, v in result.data['scalar'].items(): print(f"{p}: {v}")
-    fig = plt.figure(figsize=(10, 8))
-    fig.suptitle(f"{heat.application.__class__.__name__} (static)", fontsize=16)
-    outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
-    plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
-    data = heat.sol_to_data(u)
-    data.update({'cell': {'k': heat.kheatcell}})
-    plotmesh.meshWithData(heat.mesh, data=data, alpha=0.5, fig=fig, outer=outer[1])
-    plt.show()
-else:
-    # run dynamic
-    heat.problemdata.params.fct_glob["initial_condition"] = "200"
-    t_final, dt, nframes = 5000, 100, 50
-    # result = elliptic.dynamic_linear(elliptic.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt)
-    result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt, theta=0.9)
-    print(f"{result=}")
+disc_params={'dirichletmethod':'nitsche'}
+heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params, linearsolver='pyamg')
+heat.problemdata.params.fct_glob["initial_condition"] = "200"
+t_final, dt, nframes = 5000, 100, 50
+result = heat.dynamic(heat.initialCondition(), t_span=(0, t_final), nframes=nframes, dt=dt, theta=0.9)
+# print(f"{result=}")
 
-    fig = plt.figure(constrained_layout=True)
-    fig.suptitle(f"{heat.application.__class__.__name__} (dynamic)", fontsize=16)
-    gs = fig.add_gridspec(2, 3)
-    nhalf = (nframes-1)//2
-    for i in range(3):
-        heat.plot(fig=fig, gs=gs[i], iter = i*nhalf, title=f't={result.time[i*nhalf]}')
-    pp = heat.get_postprocs_dynamic()
-    ax = fig.add_subplot(gs[1, :])
-    for k,v in pp['postproc'].items():
-        ax.plot(pp['time'], v, label=k)
-    ax.legend()
-    ax.grid()
-    plt.show()
-    # anim = animdata.AnimData(mesh, u)
-    # plt.show()
+fig = plt.figure(constrained_layout=True)
+fig.suptitle(f"{heat.application.__class__.__name__} (dynamic)", fontsize=16)
+gs = fig.add_gridspec(2, 3)
+nhalf = (nframes-1)//2
+for i in range(3):
+    # plotmesh.meshWithData(heat.mesh, data=data, alpha=0.5, fig=fig, outer=outer[1])
+    data = heat.load_data(iter=i*nhalf)
+    heat.application.plot(heat.mesh, data, fig=fig, gs=gs[i], title=f't={result.time[i*nhalf]}')
+pp = heat.get_postprocs_dynamic()
+ax = fig.add_subplot(gs[1, :])
+for k,v in pp['postproc'].items():
+    ax.plot(pp['time'], v, label=k)
+ax.legend()
+ax.grid()
+plt.show()
+# anim = animdata.AnimData(mesh, u)
+# plt.show()

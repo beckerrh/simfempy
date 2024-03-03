@@ -14,6 +14,8 @@ import numpy as np
 #         self.niter, self.nliniter = niter, nliniter
 
 class StoppingParamaters:
+    def __repr__(self):
+        return f"maxiter={self.maxiter} atol={self.atol} rtol={self.rtol}"
     def __init__(self, **kwargs):
         self.maxiter = kwargs.pop('maxiter',100)
         self.atol = kwargs.pop('atol',1e-12)

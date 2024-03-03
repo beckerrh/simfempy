@@ -179,6 +179,8 @@ class ScipySpSolve():
         if hasattr(A, 'to_single_matrix'):
             A = A.to_single_matrix()
         return splinalg.spsolve(A, b)
+    def update(self, A):
+        self.matrix = A
     def testsolve(self, b, maxiter, rtol):
         splinalg.spsolve(self.matrix, b)
         return [0]
@@ -328,7 +330,9 @@ class Pyamg(IterativeSolver):
         self.pyamgargs = pyamgargs
         self.solver = self.mlsolver.solve
         #        cycle : {'V','W','F','AMLI'}
-        self.accel = kwargs.pop('accel', None)
+        if symmetric: accel='cg'
+        else: accel = 'fgmres'
+        self.accel = kwargs.pop('accel', accel)
         super().__init__(kwargs)
         self.args['cycle'] = kwargs.pop('cycle', 'V')
         self.args['accel'] = self.accel

@@ -10,8 +10,8 @@ from simfempy.tools.comparemethods import CompareMethods
 #----------------------------------------------------------------#
 class EllipticApplicationWithExactSolution(simfempy.models.application.Application):
     def __init__(self, dim, exactsolution, **kwargs):
-        super().__init__(has_exact_solution=True)
-        self.exactsolution = exactsolution
+        super().__init__(exactsolution=exactsolution)
+        # self.exactsolution = exactsolution
         data = self.problemdata
         data.ncomp = 1
         colorsneu, colorsrob = [], []
@@ -47,7 +47,7 @@ def test(dim, exactsolution, paramsdict, modelargs, **kwargs):
 if __name__ == '__main__':
     exactsolution = 'Linear'
     disc_params = {'dirichletmethod':'strong'}
-    modelargs = {'fem':'cr1', 'disc_params':disc_params}
+    modelargs = {'fem':'cr1', 'disc_params':disc_params, 'mode':'newton', 'linearsolver':'pyamg'}
     paramsdict = {'fem':['cr1','p1','rt0']}
-    paramsdict = {'fem':['rt0']}
+    paramsdict = {'fem':['cr1']}
     test(dim=2, exactsolution = exactsolution, paramsdict=paramsdict, modelargs=modelargs, plotsolution='True')

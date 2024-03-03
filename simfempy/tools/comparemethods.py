@@ -153,12 +153,12 @@ class CompareMethods(object):
                 else:
                     # raise ValueError(f"{mesh=}")
                     mesh = self.application.createMesh(param)
-                print(f"{self.__class__.__name__} {mesh=} {param=}")
+                # print(f"{self.__class__.__name__} {mesh=} {param=}")
                 parameters.append(mesh.ncells)
             else:
                 parameters.append(param)
             for name, method in self.methods.items():
-                if self.verbose: print(f"\t{self.__class__.__name__} {self.paramname=} {name=}")
+                if self.verbose and len(self.methods)>1: print(f"\t{self.__class__.__name__} {self.paramname=} {name=}")
                 method.setMesh(mesh)
                 self.dim = mesh.dimension
                 if self.paramname != "ncells": 

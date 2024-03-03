@@ -41,8 +41,7 @@ class HeatExample(Application):
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
 
 disc_params={'dirichletmethod':'nitsche'}
-heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params, linearsolver='pyamg')
-static = False
+heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params, linearsolver={'method':'pyamg', 'disp':0, 'smoother':'schwarz'})
 result, u = heat.static(mode="newton")
 print(f"{result=}")
 # for p, v in result.data['scalar'].items(): print(f"{p}: {v}")
