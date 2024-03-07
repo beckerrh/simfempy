@@ -78,4 +78,4 @@ if __name__ == "__main__":
     modelargs = {'fem': 'cr1', 'linearsolver': linearsolver, 'disc_params': {'dirichletmethod': 'strong'}, 'scale_ls': True,
                  'newton_rtol': 1e-10}
     # solve(h=0.02, modelargs=modelargs)
-    compare(niter=9, modelargs=modelargs)
+    compare(niter=7, modelargs=modelargs)

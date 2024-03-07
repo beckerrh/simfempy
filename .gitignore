@@ -23,6 +23,8 @@ dist
 build
 simfempy.egg-info
 venv
+.venv
+.pytest_cache
 
 # PyCharm
 *.bak

@@ -2,9 +2,9 @@
 #
 from setuptools import setup, find_packages
 
-VERSION = "2.0.29"
+VERSION = "2.1.1"
 
-with open("simfempy/examples/elliptic.py", "r") as heat:
+with open("simfempy/examples/heat_static.py", "r") as heat:
     example = heat.read()
 with open("README.md", "w") as readme:
     readme.write("SIMple Finite Element Methods in PYthon\n\n```python\n")
@@ -25,7 +25,8 @@ setup(
     long_description_content_type="text/markdown",
     platforms="any",
     # install_requires=['gmsh', 'pygmsh', 'meshio', 'scipy', 'sympy', 'matplotlib'],
-    install_requires=['meshio', 'scipy', 'sympy', 'matplotlib'],
+    # setuptools for pyamg
+    install_requires=['pygmsh', 'pyamg', 'scipy', 'sympy', 'matplotlib', 'setuptools'],
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",

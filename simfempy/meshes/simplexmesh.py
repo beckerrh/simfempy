@@ -50,8 +50,6 @@ class SimplexMesh(object):
         # if not isinstance(mesh, meshio.Mesh):
         #     raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
         self.timer = timer.Timer(name="SimplexMesh")
-        import importlib
-        from distutils.version import StrictVersion
         celltypes = [c.type for c in mesh.cells]
         # celltypes = [key for key, cellblock in mesh.cells]
         self._initMeshPyGmsh(mesh, celltypes)
