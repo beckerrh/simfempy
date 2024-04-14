@@ -1,1 +1,1 @@
-from . import application, model, stokes, navierstokes
+from . import model, stokes, navierstokes, elliptic

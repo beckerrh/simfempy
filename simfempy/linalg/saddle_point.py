@@ -46,6 +46,7 @@ class SaddlePointSystem():
             return w
         return self.A.dot(b)
     def scale_matrix(self):
+        print(f"** SaddlePointSystem scale_matrix {hasattr(self,'scalings')=}")
         DA = self.A.diagonal()
         assert np.all(DA>0)
         if self.singleA:
@@ -62,6 +63,7 @@ class SaddlePointSystem():
         ps = sparse.diags(np.power((self.B@vs**2@self.B.T).diagonal(), -0.5), offsets=(0), shape=(nb,nb))
         self.B = ps@self.B@vs
         self.scalings = [vs, ps]
+        print(f"{self.scalings=}")
         if self.C is None: return
         nc = self.C.shape[0]
         ls = sparse.diags(np.power((self.C@ps**2@self.C.T).diagonal(), -0.5), offsets=(0), shape=(nc,nc))

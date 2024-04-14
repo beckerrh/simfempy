@@ -19,10 +19,6 @@ class RT0():
     def __init__(self, mesh=None):
         if mesh is not None:
             self.setMesh(mesh)
-        pass
-        # super().__init__(mesh=mesh)
-        # for p, v in zip(['massproj', 'convmethod'], ['standard', 'supg']):
-        #     self.params_str[p] = kwargs.pop(p, v)
     def setMesh(self, mesh):
         self.mesh = mesh
         self.Mtocell = self.toCellMatrix()
@@ -36,7 +32,8 @@ class RT0():
         xf, yf, zf = self.mesh.pointsf.T
         fa = np.array([f[i](xf,yf,zf) for i in range(dim)])
         return np.einsum('ni, in -> n', nnormals, fa)
-    def interpolateCR1(self, v, stack_storage):
+    def interpolateFromFem(self, v, fem, stack_storage):
+        assert isinstance(fem, fems.cr1.CR1)
         dim = self.mesh.dimension
         nfaces, normals = self.mesh.nfaces, self.mesh.normals[:,:dim]
         assert v.shape[0] == dim*nfaces

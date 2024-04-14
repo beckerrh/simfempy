@@ -7,38 +7,48 @@ from simfempy.tools.analyticalfunction import analyticalSolution
 # ================================================================ #
 class Application:
     def __init__(self, **kwargs):
-        self.h = kwargs.pop('h', None)
+        self.h = kwargs.pop('h', 0.5)
         self.exactsolution = kwargs.pop('exactsolution', None)
         self.random_exactsolution = kwargs.pop('random_exactsolution', None)
         self.generatePDforES = kwargs.pop('generatePDforES', None)
         if self.generatePDforES is None and self.exactsolution:
             self.generatePDforES = True
         self.problemdata = ProblemData()
-        self.problemdata.ncomp = kwargs.pop('ncomp', 1)
+        self.defineProblemData(self.problemdata)
+        # print(f"{self.problemdata=}")
         scal_glob = kwargs.pop('scal_glob', {})
         for k,v in scal_glob.items():
             self.problemdata.params.scal_glob[k] = v
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
-    def createExactSolution(self, mesh):
-        dim, ncomp, ran = mesh.dimension, self.problemdata.ncomp, self.random_exactsolution
-        # print(f"****** createExactSolution: {dim=} {ncomp=} {self.exactsolution=}")
-        if isinstance(ncomp, (list,tuple)) or isinstance(self.exactsolution,(list,tuple)):
-            assert len(ncomp)==len(self.exactsolution)
-            es= []
-            for i in range(len(ncomp)):
-                es.append(analyticalSolution(self.exactsolution[i], dim, ncomp[i], ran))
-            self.exactsolution = es
-        else:
-            if isinstance(self.exactsolution, str):
-                self.exactsolution = analyticalSolution(self.exactsolution, dim, ncomp, ran)
 
-    def createMesh(self, h=None):
+    def defineGeometry(self, geom, h): raise ValueError(f"not written")
+    def createExactSolution(self, mesh, ncomps):
+        dim, ran = mesh.dimension, self.random_exactsolution
+        assert isinstance(ncomps, (list,tuple))
+        assert len(ncomps) == len(self.exactsolution)
+        self.exactsolution = []
+        for i in range(len(ncomps)):
+            self.exactsolution.append(analyticalSolution(self.exactsolution[i], dim, ncomps[i], ran))
+        return
+        # print(f"****** createExactSolution: {dim=} {ncomp=} {self.exactsolution=}")
+        # if isinstance(ncomp, (list,tuple)) or isinstance(self.exactsolution,(list,tuple)):
+        #     assert len(ncomp)==len(self.exactsolution)
+        #     es= []
+        #     for i in range(len(ncomp)):
+        #         es.append(analyticalSolution(self.exactsolution[i], dim, ncomp[i], ran))
+        #     self.exactsolution = es
+        # else:
+        #     if isinstance(self.exactsolution, str):
+        #         self.exactsolution = analyticalSolution(self.exactsolution, dim, ncomp, ran)
+    def createMesh(self, h=0.5):
         if h is None: h = self.h
         with pygmsh.geo.Geometry() as geom:
             self.defineGeometry(geom, h)
             mesh = geom.generate_mesh()
         return SimplexMesh(mesh)
+    def defineProblemData(self, problemdata):
+        pass
     def plot(self, mesh, data, **kwargs):
         if mesh.dimension != 2:
             raise ValueError("not written")

@@ -19,38 +19,38 @@ class P1(p1general.P1general):
         super().setMesh(mesh)
         self.computeStencilCell(self.mesh.simplices)
         self.cellgrads = self.computeCellGrads()
-    def prepareAdvection(self, beta, scale):
-        method = self.params_str['convmethod']
-        rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
-        betart = scale*rt.interpolate(beta)
-        betacell = rt.toCell(betart)
-        convdata = simfempy.fems.data.ConvectionData(betacell=betacell, betart=betart)
-        if method == 'upwalg':
-             return convdata 
-        elif method == 'lps':
-            self.mesh.constructInnerFaces()
-            return convdata 
-        elif method == 'supg':
-            md = meshes.move.move_midpoints(self.mesh, betacell)
-            # self.md.plot(self.mesh, beta, type='midpoints')
-        elif method == 'supg2':
-            md = meshes.move.move_midpoints(self.mesh, betacell, extreme=True)
-            # self.md.plot(self.mesh, beta, type='midpoints')
-        elif method == 'upwalg':
-            pass
-        elif method == 'upw':
-            md = meshes.move.move_nodes(self.mesh, -betacell)
-            # self.md.plot(self.mesh, beta)
-        elif method == 'upw2':
-            md = meshes.move.move_nodes(self.mesh, -betacell, second=True)
-            # self.md.plot(self.mesh, beta)
-        elif method == 'upwsides':
-            self.mesh.constructInnerFaces()
-            md = meshes.move.move_midpoints(self.mesh, -betacell)
-        else:
-            raise ValueError(f"don't know {method=}")
-        convdata.md = md
-        return convdata
+    # def prepareAdvection(self, beta, scale):
+    #     method = self.params_str['convmethod']
+    #     rt = simfempy.fems.rt0.RT0(mesh=self.mesh)
+    #     betart = scale*rt.interpolate(beta)
+    #     betacell = rt.toCell(betart)
+    #     convdata = simfempy.fems.data.ConvectionData(betacell=betacell, betart=betart)
+    #     if method == 'upwalg':
+    #          return convdata
+    #     elif method == 'lps':
+    #         self.mesh.constructInnerFaces()
+    #         return convdata
+    #     elif method == 'supg':
+    #         md = meshes.move.move_midpoints(self.mesh, betacell)
+    #         # self.md.plot(self.mesh, beta, type='midpoints')
+    #     elif method == 'supg2':
+    #         md = meshes.move.move_midpoints(self.mesh, betacell, extreme=True)
+    #         # self.md.plot(self.mesh, beta, type='midpoints')
+    #     elif method == 'upwalg':
+    #         pass
+    #     elif method == 'upw':
+    #         md = meshes.move.move_nodes(self.mesh, -betacell)
+    #         # self.md.plot(self.mesh, beta)
+    #     elif method == 'upw2':
+    #         md = meshes.move.move_nodes(self.mesh, -betacell, second=True)
+    #         # self.md.plot(self.mesh, beta)
+    #     elif method == 'upwsides':
+    #         self.mesh.constructInnerFaces()
+    #         md = meshes.move.move_midpoints(self.mesh, -betacell)
+    #     else:
+    #         raise ValueError(f"don't know {method=}")
+    #     convdata.md = md
+    #     return convdata
     def nlocal(self): return self.mesh.dimension+1
     def nunknowns(self): return self.mesh.nnodes
     def dofspercell(self): return self.mesh.simplices
@@ -225,6 +225,9 @@ class P1(p1general.P1general):
         :return:
         """
         b = np.zeros(self.mesh.nnodes)
+        # print(f"{type(f)=} {colors=} {len(f)=}")
+        # if len(f) < len(colors):
+        #     raise ValueError(f"{type(f)=} {colors=} {len(f)=}")
         for color in colors:
             if not color in f or not f[color]: continue
             faces = self.mesh.bdrylabels[color]
@@ -361,6 +364,7 @@ class P1(p1general.P1general):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if type=='centered':
             beta, mus = data.betacell, np.full(dim+1,1.0/(dim+1))
+            print(f"{beta=} {data=}")
             mat = np.einsum('n,njk,nk,i -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         elif type=='supg':

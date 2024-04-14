@@ -5,22 +5,38 @@ import scipy.sparse as sparse
 from simfempy import fems
 from simfempy.models.model import Model
 # from simfempy.tools.analyticalfunction import analyticalSolution
-from simfempy.linalg import linalg, saddle_point, vectorview
+from simfempy.linalg import linalg, saddle_point
 from functools import partial
+
+linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 100, 'prec': 'Chorin', 'disp': 0, 'rtol': 1e-6}
+
 
 #=================================================================#
 class Stokes(Model):
     """
     """
     def __init__(self, **kwargs):
+        # binz for derived class !!
         if not hasattr(self,'linearsolver_def'):
             self.linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 100, 'prec': 'Chorin', 'disp':0, 'rtol':1e-6}
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', self.linearsolver_def)
-        print(f"{self.linearsolver=}")
         self.singleA = kwargs.pop('singleA', True)
         super().__init__(**kwargs)
-        # print(f"{self=}")
+        # print(f"Stokes {self.ncomps=} {self.singleA=} {self.stack_storage=} {self.scale_ls=} {self.linearsolver=}")
+        if not self.singleA and self.scale_ls:
+            raise ValueError(f"*** not working ")
+        if self.linearsolver == 'spsolve' and self.singleA:
+            raise ValueError(f"*** not working ")
+
+    def tofemvector(self, u):
+        femss, names, types = [self.femv, self.femp], ['v', 'p'], ['point', 'cell']
+        if self.pmean:
+            femss.append(None)
+            names.append('lam')
+            types.append('glob')
+        return fems.femvector.FemVector(data = u, vectorview=self.vectorview, fems=femss, names=names, visutypes=types)
+
     def createFem(self):
         self.dirichletmethod = self.disc_params.get('dirichletmethod','nitsche')
         if self.dirichletmethod=='nitsche':
@@ -29,13 +45,14 @@ class Stokes(Model):
         self.femp = fems.d0.D0()
     def new_params(self):
         self.mucell = self.compute_cell_vector_from_params('mu', self.problemdata.params)
+
     def meshSet(self):
         # super().setMesh(mesh)
         self._checkProblemData()
-        if not self.ncomp[0]==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
+        # if not self.ncomp[0]==self.mesh.dimension: raise ValueError(f"{self.mesh.dimension=} {self.ncomp=}")
         self.femv.setMesh(self.mesh)
         self.femp.setMesh(self.mesh)
-        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
+        # self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.dirichletmethod=='strong':
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
             assert 'Pressure' not in self.problemdata.bdrycond.type.values()
@@ -45,18 +62,22 @@ class Stokes(Model):
         if self.singleA:
             assert 'Navier' not in self.problemdata.bdrycond.type.values()
             assert 'Pressure' not in self.problemdata.bdrycond.type.values()
-        # ncomps, ns = self.getSystemSize()
-        # print(f"Stokes {self.stack_storage=} {ncomps=} {ns=}")
-        # self.vectorview = vectorview.VectorView(ncomps=ncomps, ns=ns, stack_storage=self.stack_storage)
         self.new_params()
-    def getSystemSize(self):
+
+    def getNcomps(self, mesh):
+        self.pmean = not ('Neumann' in self.problemdata.bdrycond.type.values() or 'Pressure' in self.problemdata.bdrycond.type.values())
         if self.pmean:
-            ncomps = [self.mesh.dimension, 1, 1]
-            ns = [self.mesh.nfaces, self.mesh.ncells, 1]
+            ncomps = [mesh.dimension, 1, 1]
         else:
-            ncomps = [self.mesh.dimension, 1]
-            ns = [self.mesh.nfaces, self.mesh.ncells]
-        return ncomps, ns
+            ncomps = [mesh.dimension, 1]
+        return ncomps
+    def getSystemSize(self):
+        mesh = self.mesh
+        if self.pmean:
+            ns = [mesh.nfaces, mesh.ncells, 1]
+        else:
+            ns = [mesh.nfaces, mesh.ncells]
+        return ns
     def _checkProblemData(self):
         # TODO checkProblemData() incomplete
         for col, fct in self.problemdata.bdrycond.fct.items():
@@ -92,7 +113,6 @@ class Stokes(Model):
                 rhsv[i] = v[i](x, y, z, 0)
             return rhsv
         return _fcticv
-
     def defineRhsAnalyticalSolution(self, solexact):
         v,p = solexact
         mu = self.problemdata.params.scal_glob['mu']
@@ -171,7 +191,7 @@ class Stokes(Model):
         #TODO: higher order interpolation
         if not 'initial_condition' in self.problemdata.params.fct_glob:
             raise ValueError(f"missing 'initial_condition' in {self.problemdata.params.fct_glob=}")
-        if not self._setMeshCalled: self.setMesh(self.mesh)
+        # if not self._setMeshCalled: self.setMesh(self.mesh)
         u0 = np.zeros(self.vectorview.n())
         assert interpolate
         for icomp in range(self.ncomp):
@@ -180,16 +200,10 @@ class Stokes(Model):
             self.vectorview.set(0, icomp, u0, ui)
             # print(f"{icomp=} {ui=}")
         return u0
-    def sol_to_data(self, u):
-        data = {'point':{}, 'cell':{}, 'global':{}}
-        for icomp in range(self.ncomp[0]):
-            data['point'][f'V_{icomp:1d}'] = self.femv.tonode(self.vectorview.get(0,icomp,u))
-        data['cell']['P'] = self.vectorview.get_part(1,u)
-        return data
     def postProcess(self, u):
         p = self.vectorview.get_part(1,u)
         data = {'scalar':{}}
-        ncomp = self.ncomp[0]
+        ncomp = self.ncomps[0]
         if self.application.exactsolution:
             errall, ecall = [], []
             for icomp in range(ncomp):
@@ -220,13 +234,14 @@ class Stokes(Model):
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
     def computelinearSolver(self, A):
+        # print(f"@@@ computelinearSolver")
         if self.linearsolver == 'spsolve':
             args = {'method':'spsolve'}
         else:
             args = copy.deepcopy(self.linearsolver)
         if args['method'] != 'spsolve':
             if self.scale_ls:
-                A.scale_matrix()
+                # A.scale_matrix()
                 args['scale'] = self.scale_ls
             # args['counter'] = 'sys'
             args['matvec'] = A.matvec
@@ -273,7 +288,7 @@ class Stokes(Model):
             self.vectorBoundaryStrong(b, self.problemdata.bdrycond.fct, self.bdrydata)
         else:
             bdryfct = self.problemdata.bdrycond.fct
-            ncomp = self.ncomp[0]
+            ncomp = self.ncomps[0]
             faces = self.mesh.bdryFaces(colorsdir)
             cells = self.mesh.cellsOfFaces[faces, 0]
             normalsS = self.mesh.normals[faces][:, :ncomp]
@@ -346,11 +361,11 @@ class Stokes(Model):
         return b
     # def computeForm(self, u, coeffmass=None):
     def computeForm(self, u):
-        self.A = self.computeMatrix(u)
-        return self.A.dot(u)
+        # self.A = self.computeMatrix(u)
+        # return self.A.dot(u)
         d = np.zeros_like(u)
         dp, p = self.vectorview.get_part(1,d), self.vectorview.get_part(1,u)
-        ncomp, dV, cellgrads, foc = self.ncomp, self.mesh.dV, self.femv.cellgrads, self.mesh.facesOfCells
+        ncomp, dV, cellgrads, foc = self.ncomps[0], self.mesh.dV, self.femv.cellgrads, self.mesh.facesOfCells
         for icomp in range(ncomp):
             r = np.einsum('n,nil,njl,nj->ni', dV*self.mucell, cellgrads, cellgrads, self.vectorview.get(0, icomp, u)[foc])
             np.add.at(self.vectorview.get(0, icomp, d
@@ -394,9 +409,9 @@ class Stokes(Model):
     def computeMatrix(self, u=None, coeffmass=None):
         if coeffmass is None and 'alpha' in self.problemdata.params.scal_glob.keys():
             coeffmass = self.problemdata.params.scal_glob['alpha']
-        print(f"computeMatrix {coeffmass=}")
+        # print(f"computeMatrix {coeffmass=}")
         A = self.femv.computeMatrixDiffusion(self.mucell, coeffmass)
-        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomp[0], self.mesh.dV
+        nfaces, ncells, ncomp, dV = self.mesh.nfaces, self.mesh.ncells, self.ncomps[0], self.mesh.dV
         if not self.singleA:
             A = linalg.matrix2systemdiagonal(A, ncomp, self.stack_storage)
         nloc, cellgrads, foc = self.femv.nloc, self.femv.cellgrads, self.mesh.facesOfCells
@@ -453,10 +468,10 @@ class Stokes(Model):
                 flux[icomp,i] -= p[cells].dot(normalsS[:,icomp])
         return flux
     def computeFormBdryNitscheDirichlet(self, d, u, colors, mu):
-        ncomp, dim  = self.ncomp, self.mesh.dimension
+        ncomp, dim  = self.ncomps[0], self.mesh.dimension
         faces = self.mesh.bdryFaces(colors)
         cells = self.mesh.cellsOfFaces[faces, 0]
-        normalsS = self.mesh.normals[faces][:, :self.ncomp]
+        normalsS = self.mesh.normals[faces][:, :ncomp]
         dp, p = self.vectorview.get_part(1,d), self.vectorview.get_part(1,u)
         for icomp in range(ncomp):
             dv, v = self.vectorview.get(0, icomp, d), self.vectorview.get(0, icomp,u)
@@ -483,7 +498,7 @@ class Stokes(Model):
         raise NotImplementedError()
 
     def computeMatrixBdryNitscheDirichlet(self, A, B, colors, mucell, singleA):
-        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.ncomp[0], self.mesh.dimension
+        nfaces, ncells, ncomp, dim  = self.mesh.nfaces, self.mesh.ncells, self.ncomps[0], self.mesh.dimension
         if singleA:
             A += self.femv.computeMatrixNitscheDiffusion(self.nitscheparam, mucell, colors)
         else:
@@ -714,8 +729,8 @@ class Stokes(Model):
 #=================================================================#
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from simfempy.meshes import plotmesh, animdata
-    from simfempy.examples.incompflow import schaeferTurek2d
+    from simfempy.meshes import plotmesh
+    from simfempy.tests.navierstokes.incompflow import schaeferTurek2d
     mesh, data = schaeferTurek2d(h=0.4, mu=1)
     stokes = Stokes(mesh=mesh, problemdata=data, femparams={'dirichletmethod':'strong'}, linearsolver='spsolve')
     print(f"{stokes=}")

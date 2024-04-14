@@ -4,14 +4,23 @@ from simfempy.models.model import Model
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 import scipy
 import scipy.sparse.linalg as splinalg
-import simfempy.tools.iterationcounter
+# import simfempy.tools.iterationcounter
 from simfempy.linalg import saddle_point, matrixsystem
 
 # ================================================================= #
 def Elliptic(**kwargs):
-    if kwargs['fem'] == 'rt0': return EllipticMixed(**kwargs)
-    elif kwargs['fem'] in ['p1', 'cr1']: return EllipticPrimal(**kwargs)
-    else: raise NotImplementedError(f"unknown {kwargs['fem']=}")
+    fem = kwargs.pop("fem", "cr1")
+    kwargs["fem"] = fem
+    if fem == 'rt0': return EllipticMixed(**kwargs)
+    else: return EllipticPrimal(**kwargs)
+    # if kwargs['fem'] == 'rt0':
+    #     return EllipticMixed(**kwargs)
+    # elif kwargs['fem'] in ['p1', 'cr1']:
+    #     return EllipticPrimal(**kwargs)
+    # else:
+    #     raise NotImplementedError(f"unknown {kwargs['fem']=}")
+
+
 # ================================================================= #
 class EllipticBase(Model):
     """
@@ -52,10 +61,14 @@ class EllipticBase(Model):
         return repr
     def __init__(self, **kwargs):
         # print(f"{kwargs=}")
-        self.fem = kwargs.pop('fem','p1')
+        # print(f"{kwargs.keys()=}")
+        self.fem = kwargs.pop('fem','cr1')
+        self.linearsolver = kwargs.pop('linearsolver', 'pyamg')
         super().__init__(**kwargs)
     def createFem(self):
-        self.convection = 'convection' in self.disc_params
+        self.convection = 'convection' in self.disc_params \
+                          or 'convection' in self.problemdata.params.data.keys()\
+                          or 'convection' in self.problemdata.params.fct_glob.keys()
         self.dirichletmethod = self.disc_params.pop('dirichletmethod','nitsche')
         if self.dirichletmethod=='nitsche':
             self.nitscheparam = self.disc_params.pop('nitscheparam', 10)
@@ -71,8 +84,14 @@ class EllipticBase(Model):
         self._checkProblemData()
         self.kheatcell = self.compute_cell_vector_from_params('kheat', self.problemdata.params)
         if self.convection:
-            convectionfct = self.problemdata.params.fct_glob['convection']
-            self.convdata = self.fem.prepareAdvection(convectionfct, 1)
+            self.lpsparam = 0.2
+            if not hasattr(self, 'convdata'):
+                convectionfct = self.problemdata.params.fct_glob['convection']
+                rt = fems.rt0.RT0(mesh=self.mesh)
+                self.convdata = fems.data.ConvectionData()
+                self.convdata.betart = rt.interpolate(convectionfct)
+                self.convdata.betacell = rt.toCell(self.convdata.betart)
+                # self.convdata = self.fem.prepareAdvection(convectionfct, 1)
             colorsinflow = self.findInflowColors()
             colorsdir = self.problemdata.bdrycond.colorsOfType("Dirichlet")
             if not set(colorsinflow).issubset(set(colorsdir)):
@@ -86,23 +105,35 @@ class EllipticBase(Model):
     def _checkProblemData(self):
         if self.verbose: print(f"checking problem data {self.problemdata=}")
         if self.convection:
-            convection_given = self.problemdata.params.fct_glob['convection']
-            if not isinstance(convection_given, list):
-                p = "problemdata.params.fct_glob['convection']"
-                raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
-            elif isinstance(convection_given[0],str):
-                self.problemdata.params.fct_glob['convection'] = [AnalyticalFunction(expr=e) for e in convection_given]
+            if 'convection' in self.problemdata.params.fct_glob:
+                convection_given = self.problemdata.params.fct_glob['convection']
+                if not isinstance(convection_given, list):
+                    p = "problemdata.params.fct_glob['convection']"
+                    raise ValueError(f"need '{p}' as a list of length dim of str or AnalyticalSolution")
+                elif isinstance(convection_given[0],str):
+                    self.problemdata.params.fct_glob['convection'] = [AnalyticalFunction(expr=e) for e in convection_given]
+                else:
+                    if not isinstance(convection_given[0], AnalyticalFunction):
+                        raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
+                if len(self.problemdata.params.fct_glob['convection']) != self.mesh.dimension:
+                    raise ValueError(f"{self.mesh.dimension=} {self.problemdata.params.fct_glob['convection']=}")
             else:
-                if not isinstance(convection_given[0], AnalyticalFunction):
-                    raise ValueError(f"convection should be given as 'str' and not '{type(convection_given[0])}'")
-            if len(self.problemdata.params.fct_glob['convection']) != self.mesh.dimension:
-                raise ValueError(f"{self.mesh.dimension=} {self.problemdata.params.fct_glob['convection']=}")
+                data, fem, stack_storage = self.problemdata.params.data['convection']
+                rt = fems.rt0.RT0(mesh=self.mesh)
+                self.convdata = fems.data.ConvectionData()
+                self.convdata.betart = rt.interpolateFromFem(data, fem, stack_storage)
+                self.convdata.betacell = rt.toCell(self.convdata.betart)
+                # print(f"{self.convdata=}")
         bdrycond = self.problemdata.bdrycond
         for color in self.mesh.bdrylabels:
             if not color in bdrycond.type: raise ValueError(f"color={color} not in bdrycond={bdrycond}")
             if bdrycond.type[color] in ["Robin"]:
                 if not color in bdrycond.param:
                     raise ValueError(f"Robin condition needs paral 'alpha' color={color} bdrycond={bdrycond}")
+        if bdrycond.type[color] == "Dirichlet":
+            if not color in bdrycond.fct:
+                bdrycond.fct[color] = lambda x,y,z: 0
+                # raise ValueError(f"Dirichlet condition needs fct for color={color} bdrycond={bdrycond}")
     def defineRhsAnalyticalSolution(self, solexact):
         def _fctu(x, y, z):
             kheat = self.problemdata.params.scal_glob['kheat']
@@ -152,6 +183,7 @@ class EllipticBase(Model):
 # ================================================================= #
 class EllipticPrimal(EllipticBase):
     def __init__(self, **kwargs):
+        # print(f"{kwargs.keys()=}")
         super().__init__(**kwargs)
     def meshSet(self):
         super().meshSet()
@@ -160,10 +192,11 @@ class EllipticPrimal(EllipticBase):
         colorsflux = self.problemdata.postproc.colorsOfType("bdry_nflux")
         if self.dirichletmethod!="nitsche":
             self.bdrydata = self.fem.prepareBoundary(colorsdirichlet, colorsflux)
+    def getNcomps(self, mesh):
+        return [1]
     def getSystemSize(self):
-        ncomps = [1]
         ns = [self.fem.nunknowns()]
-        return ncomps, ns
+        return ns
     def computeMassMatrix(self):
         lumped = self.disc_params.get('masslumped', False)
         return self.fem.computeMassMatrix(lumped=lumped)
@@ -177,6 +210,16 @@ class EllipticPrimal(EllipticBase):
         colorsdir = bdrycond.colorsOfType("Dirichlet")
         self.fem.computeFormDiffusion(du, u, self.kheatcell)
         if self.convection:
+            dv, v = du, u
+            colorsdirichlet, fdict = colorsdir, self.problemdata.bdrycond.fct
+            # dv, v = self.vectorview.get(0,icomp,du), self.vectorview.get(0,icomp,u)
+            # fdict = {col: self.problemdata.bdrycond.fct[col][icomp] for col in colorsdirichlet if col in self.problemdata.bdrycond.fct.keys()}
+            vdir = self.fem.interpolateBoundary(colorsdirichlet, fdict)
+            self.fem.massDotBoundary(dv, vdir, colors=colorsdirichlet, coeff=np.minimum(self.convdata.betart, 0))
+            self.fem.computeFormTransportCellWise(dv, v, self.convdata, type='centered')
+            if hasattr(self.fem, "computeFormJump"):
+                self.fem.computeFormJump(dv, v, self.convdata.betart)
+            self.fem.computeFormLps(dv, v, self.convdata.betart, lpsparam=self.lpsparam)
             self.fem.computeFormConvection(du, u, self.convdata)
         # if coeffmass is not None:
         #     self.fem.massDot(du, u, coeff=coeffmass)
@@ -198,7 +241,11 @@ class EllipticPrimal(EllipticBase):
             A += self.fem.computeMatrixNitscheDiffusion(self.nitscheparam, diffcoff=self.kheatcell, colors=colorsdir)
         A += self.fem.computeBdryMassMatrix(colorsrobin, bdrycond.param, lumped=True)
         if self.convection:
-            A += self.fem.computeMatrixConvection(self.convdata)
+            # A += self.fem.computeMatrixConvection(self.convdata)
+            A += self.fem.computeMatrixTransportCellWise(self.convdata, type='centered')
+            if hasattr(self.fem, 'computeMatrixJump'):
+                A += self.fem.computeMatrixJump(self.convdata.betart)
+            A += self.fem.computeMatrixLps(self.convdata.betart, lpsparam=self.lpsparam)
         if coeffmass is not None:
             A += self.fem.computeMassMatrix(coeff=coeffmass)
         # if hasattr(self, 'bdrydata'):
@@ -230,7 +277,8 @@ class EllipticPrimal(EllipticBase):
         else:
             self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         if self.convection:
-            fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
+            # fp1 = self.fem.interpolateBoundary(self.mesh.bdrylabels.keys(), bdrycond.fct)
+            fp1 = self.fem.interpolateBoundary(colorsdir, bdrycond.fct)
             self.fem.massDotBoundary(b, fp1, coeff=-np.minimum(self.convdata.betart, 0))
         #Fourier-Robin
         fp1 = self.fem.interpolateBoundary(colorsrobin, bdrycond.fct, lumped=True)
@@ -245,11 +293,6 @@ class EllipticPrimal(EllipticBase):
         if hasattr(self, 'bdrydata'):
             self.fem.vectorBoundaryStrong(b, bdrycond, self.bdrydata)
         return b
-    def sol_to_data(self, u):
-        data = {'point': {}, 'cell': {}, 'global': {}}
-        # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        data['point']['U'] = self.fem.tonode(u)
-        return data
     def postProcess(self, u):
         data = {'scalar':{}}
         solexact = self.application.exactsolution
@@ -283,53 +326,61 @@ class EllipticPrimal(EllipticBase):
                 else:
                     raise ValueError(f"unknown postprocess type '{type}' for key '{name}'\nknown types={types=}")
         return data
-    def pyamg_solver_args(self, maxiter):
+    def pyamg_solver_args(self, args):
         if self.convection:
-            return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'bicgstab'}
-        return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'cg'}
-    def build_pyamg(self, A):
-        try:
-            import pyamg
-        except:
-            raise ImportError(f"*** pyamg not found {self.linearsolver=} ***")
-        # return pyamg.smoothed_aggregation_solver(A)
-        B = np.ones((A.shape[0], 1))
-        B = pyamg.solver_configuration(A, verb=False)['B']
-        if self.convection:
-            symmetry = 'nonsymmetric'
-            # smoother = 'gauss_seidel_nr'
-            smoother = 'gauss_seidel'
-            smoother = 'block_gauss_seidel'
-            smoother = 'strength_based_schwarz'
-            smoother = 'schwarz'
-            # smooth = ('energy', {'krylov': 'fgmres'})
-            smooth = ('energy', {'krylov': 'bicgstab'})
-            # improve_candidates =[ (smoother, {'sweep': 'symmetric', 'iterations': 4}), None]
-            improve_candidates = None
+            args['symmetric'] = False
+            args['smoother'] = 'schwarz'
         else:
-            symmetry = 'hermitian'
-            smooth = ('energy', {'krylov': 'cg'})
-            smoother = 'gauss_seidel'
-            # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 4}), None]
-            improve_candidates = None
-        # strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
-        strength = [('symmetric', {'theta': 0.05})]
-        psmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
-        # psmoother = (smoother, {'maxiter': 10})
-        SA_build_args = {
-            'max_levels': 10,
-            'max_coarse': 25,
-            'coarse_solver': 'pinv2',
-            'symmetry': symmetry,
-            'smooth': smooth,
-            'strength': strength,
-            'presmoother': psmoother,
-            'presmoother': psmoother,
-            'improve_candidates': improve_candidates,
-            'diagonal_dominance': False
-        }
-        # return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
-        return pyamg.rootnode_solver(A, B, **SA_build_args)
+            args['symmetric'] = True
+    #
+    #         return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'bicgstab'}
+    #     return {'cycle': 'V', 'maxiter': maxiter, 'tol': 1e-10, 'accel': 'cg'}
+    # def build_pyamg_args(self, args):
+    #     if self.convection:
+    #         args['symmetry'] = 'nonsymmetric'
+    # def build_pyamg(self, A):
+    #     try:
+    #         import pyamg
+    #     except:
+    #         raise ImportError(f"*** pyamg not found {self.linearsolver=} ***")
+    #     # return pyamg.smoothed_aggregation_solver(A)
+    #     B = np.ones((A.shape[0], 1))
+    #     B = pyamg.solver_configuration(A, verb=False)['B']
+    #     if self.convection:
+    #         symmetry = 'nonsymmetric'
+    #         # smoother = 'gauss_seidel_nr'
+    #         smoother = 'gauss_seidel'
+    #         smoother = 'block_gauss_seidel'
+    #         smoother = 'strength_based_schwarz'
+    #         smoother = 'schwarz'
+    #         # smooth = ('energy', {'krylov': 'fgmres'})
+    #         smooth = ('energy', {'krylov': 'bicgstab'})
+    #         # improve_candidates =[ (smoother, {'sweep': 'symmetric', 'iterations': 4}), None]
+    #         improve_candidates = None
+    #     else:
+    #         symmetry = 'hermitian'
+    #         smooth = ('energy', {'krylov': 'cg'})
+    #         smoother = 'gauss_seidel'
+    #         # improve_candidates =[ ('gauss_seidel', {'sweep': 'symmetric', 'iterations': 4}), None]
+    #         improve_candidates = None
+    #     # strength = [('evolution', {'k': 2, 'epsilon': 10.0})]
+    #     strength = [('symmetric', {'theta': 0.05})]
+    #     psmoother = (smoother, {'sweep': 'symmetric', 'iterations': 1})
+    #     # psmoother = (smoother, {'maxiter': 10})
+    #     SA_build_args = {
+    #         'max_levels': 10,
+    #         'max_coarse': 25,
+    #         'coarse_solver': 'pinv2',
+    #         'symmetry': symmetry,
+    #         'smooth': smooth,
+    #         'strength': strength,
+    #         'presmoother': psmoother,
+    #         'presmoother': psmoother,
+    #         'improve_candidates': improve_candidates,
+    #         'diagonal_dominance': False
+    #     }
+    #     # return pyamg.smoothed_aggregation_solver(A, B, **SA_build_args)
+    #     return pyamg.rootnode_solver(A, B, **SA_build_args)
 # ================================================================= #
 class EllipticMixed(EllipticBase):
     def __init__(self, **kwargs):
@@ -343,10 +394,31 @@ class EllipticMixed(EllipticBase):
         colorsneumann = self.problemdata.bdrycond.colorsOfType("Neumann")
         self.bdrydata = self.rt.prepareBoundary(colorsneumann)
         self.divcoeffinv = 1/self.kheatcell
+    def tofemvector(self, u):
+        assert 0
+
+        # def sol_to_data(self, u):
+        #     nfaces, dim = self.mesh.nfaces, self.mesh.dimension
+        #     v = self.vectorview.get_part(0, u)
+        #     p = self.vectorview.get_part(1, u)
+        #     # sigma, u = uin[0], uin[1]
+        #     # sigma, u = u[:nfaces], u[nfaces:]
+        #     data = {'point': {}, 'cell': {}, 'global': {}}
+        #     # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
+        #     data['cell']['p'] = p
+        #     vc = self.rt.toCell(v)
+        #     pn = self.rt.reconstruct(p, vc, self.divcoeffinv)
+        #     data['point']['pn'] = pn
+        #     for i in range(dim):
+        #         data['cell']['v{:1d}'.format(i)] = vc[:, i]
+        #     return data
+
+        return fems.femvector.FemVector(data = u, vectorview=self.vectorview, fems=[self.fem])
+    def getNcomps(self, mesh):
+        return [1, 1]
     def getSystemSize(self):
-        ncomps = [1, 1]
         ns = [self.rt.nunknowns(), self.d0.nunknowns()]
-        return ncomps, ns
+        return ns
     # def computeForm(self, u, coeffmass=None):
     #     raise NotImplementedError(f"computeForm for rt")
     def computeMatrix(self, u=None, coeffmass=None):
@@ -426,21 +498,6 @@ class EllipticMixed(EllipticBase):
             bcells -= self.bdrydata.B_inner_neum*help[self.bdrydata.facesneumann]
         return b
         # return bsides, bcells
-    def sol_to_data(self, u):
-        nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
-        v = self.vectorview.get_part(0, u)
-        p = self.vectorview.get_part(1, u)
-        # sigma, u = uin[0], uin[1]
-        # sigma, u = u[:nfaces], u[nfaces:]
-        data = {'point':{}, 'cell':{}, 'global':{}}
-        # point_data, side_data, cell_data, global_data = {}, {}, {}, {}
-        data['cell']['p'] = p
-        vc = self.rt.toCell(v)
-        pn = self.rt.reconstruct(p, vc, self.divcoeffinv)
-        data['point']['pn'] = pn
-        for i in range(dim):
-            data['cell']['v{:1d}'.format(i)] = vc[:, i]
-        return data
     def postProcess(self, u):
         nfaces, dim =  self.mesh.nfaces, self.mesh.dimension
         v = self.vectorview.get_part(0, u)

@@ -16,6 +16,7 @@ import simfempy.models.problemdata
 from simfempy.tools.analyticalfunction import AnalyticalFunction
 import simfempy.solvers
 from simfempy.linalg import vectorview
+from simfempy import fems
 
 # import warnings
 # warnings.filterwarnings("error")
@@ -48,24 +49,38 @@ class Model(object):
         if self.application is None:
             raise ValueError(f"Model needs application (since 22/04/23)")
         self.problemdata = self.application.problemdata
-        self.ncomp = self.problemdata.ncomp
+        # self._setMeshCalled = True
+        self.timer.reset_all()
+        # print(f"{kwargs.keys()=} {'mesh' in kwargs.keys()=}")
+        if 'mesh' in kwargs.keys(): self.mesh = kwargs.pop('mesh')
+        else: self.mesh =self.application.createMesh()
+        # self.mesh = kwargs.pop('mesh', self.application.createMesh())
+        # self.mesh = self.application.createMesh()
+        self.problemdata.check(self.mesh)
+        if self.verbose: print(f"{self.mesh=}")
+        if hasattr(self, 'LS'):
+            del self.LS
+        if hasattr(self, 'A'):
+            del self.A
+        self.ncomps = self.getNcomps(self.mesh)
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.disc_params = kwargs.pop('disc_params', {})
-        print(f"Model {self.disc_params=}")
         self.createFem()
-        self.setMesh(self.application.createMesh())
-        self.application.createExactSolution(self.mesh)
+        self.meshSet()
+        ns = self.getSystemSize()
+        self.vectorview = vectorview.VectorView(ncomps=self.ncomps, ns=ns, stack_storage=self.stack_storage)
+        if self.application.exactsolution is not None:
+            self.application.createExactSolution(self.mesh, self.ncomps)
         if self.application.generatePDforES:
             self.generatePoblemDataForAnalyticalSolution()
         # print(f"{self.__class__.__name__} {self.stack_storage=} {self.singleA=} {self.mesh=} {self.linearsolver=}")
         if not hasattr(self,'scale_ls'):
-            self.scale_ls = kwargs.pop('scale_ls', True)
-        print(f"{self.scale_ls=}")
+            self.scale_ls = kwargs.pop('scale_ls', False)
         if 'newton_stopping_parameters' in kwargs:
             self.newton_stopping_parameters = kwargs.pop('newton_stopping_parameters')
         else:
-            maxiter = kwargs.pop('newton_maxiter', 10)
+            maxiter = kwargs.pop('newton_maxiter', 100)
             rtol = kwargs.pop('newton_rtol', 1e-6)
             self.newton_stopping_parameters = simfempy.solvers.newtondata.StoppingParamaters(maxiter=maxiter, rtol=rtol)
         if isinstance(self.linearsolver, str):
@@ -86,32 +101,15 @@ class Model(object):
         # check for unused arguments
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
+        # print(f"Model {self.ncomps=} {self.stack_storage=} {self.scale_ls=} {self.linearsolver=}")
+    def tofemvector(self, u):
+        return fems.femvector.FemVector(data = u, vectorview=self.vectorview, fems=[self.fem])
     def createFem(self):
         raise NotImplementedError(f"createFem has to be overwritten")
-    def setMesh(self, mesh):
-        self._setMeshCalled = True
-        self.timer.reset_all()
-        self.problemdata.check(mesh)
-        self.mesh = mesh
-        if self.verbose: print(f"{self.mesh=}")
-        if hasattr(self, 'LS'):
-            del self.LS
-        if hasattr(self, 'A'):
-            del self.A
-        # if hasattr(self,'_generatePDforES') and self._generatePDforES:
-        # if self.application.generatePDforES:
-        #     self.generatePoblemDataForAnalyticalSolution()
-            # self._generatePDforES = False
-        self.meshSet()
-        ncomps, ns = self.getSystemSize()
-        # print(f"Model {self.stack_storage=} {ncomps=} {ns=}")
-        self.vectorview = vectorview.VectorView(ncomps=ncomps, ns=ns, stack_storage=self.stack_storage)
     def solve(self):
         if self.mode=='dynamic':
             return self.dynamic()
         return self.static(method=self.mode)
-    # def setParameter(self, paramname, param):
-    #     assert 0
     def dirichletfct(self):
         if self.ncomp > 1:
             # def _solexactdir(x, y, z):
@@ -145,10 +143,6 @@ class Model(object):
                     bdrycond.fct[color] = eval(cmd)
                 else:
                     bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color, solexact)
-    # def defineAnalyticalSolution(self, exactsolution, random=True):
-    #     dim = self.mesh.dimension
-    #     # print(f"defineAnalyticalSolution: {dim=} {self.ncomp=}")
-    #     return simfempy.tools.analyticalfunction.analyticalSolution(exactsolution, dim, self.ncomp, random)
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
             fct = np.vectorize(params.fct_glob[name])
@@ -172,7 +166,7 @@ class Model(object):
             return [np.copy(bi) for bi in b]
         return b.copy()
     def computelinearSolver(self, A):
-        print(f"{self.linearsolver=} {self.scale_ls=}")
+        # print(f"{self.linearsolver=} {self.scale_ls=}")
         if isinstance(self.linearsolver,str):
             args = {'method': self.linearsolver}
         else:
@@ -180,17 +174,20 @@ class Model(object):
         # args['matrix'] = A
         if args['method'] != 'spsolve':
             if self.scale_ls:
-                if hasattr(A, 'scale_matrix'):
-                    A.scale_matrix()
+                # if hasattr(A, 'scale_matrix'):
+                #     A.scale_matrix()
                 args['scale'] = self.scale_ls
             args['matrix'] = A
             if args['method'] != 'pyamg':
                 if hasattr(A,'matvec'):
-                    args['matvec'] = A.matvec
+                    # args['matvec'] = A.matvec
                     args['n'] = A.nall
                 else:
-                    args['matvec'] = lambda x: np.matmul(A,x)
+                    # args['matvec'] = lambda x: np.matmul(A,x)
                     args['n'] = A.shape[0]
+            else:
+                self.pyamg_solver_args(args)
+        # print(f"{args=}")
         return simfempy.linalg.linalg.getLinearSolver(**args)
     def static(self, **kwargs):
         method = kwargs.pop('method','newton')
@@ -200,7 +197,7 @@ class Model(object):
         if 'rtol' in kwargs: self.newton_stopping_parameters.rtol = kwargs.pop('rtol')
         self.timer.reset_all()
         result = simfempy.models.problemdata.Results()
-        if not self._setMeshCalled: self.setMesh(self.mesh)
+        # if not self._setMeshCalled: self.setMesh(self.mesh)
         self.timer.add('setMesh')
         self.b = kwargs.pop('b',self.computeRhs())
         # self.b = self.computeRhs()
@@ -263,8 +260,9 @@ class Model(object):
         self.timer.add('postp')
         result.setData(pp, timer=self.timer, iter=iter)
         self.save(u=u)
-        return result, u
+        return result, self.tofemvector(u)
     def computeDefect(self, u):
+        # print(f"{np.linalg.norm(self.b)=} {np.linalg.norm(u)=}")
         return self.computeForm(u)-self.b
     def computeForm(self, u):
         print(f"{type(self.A)=} {type(u)=}")
@@ -273,7 +271,7 @@ class Model(object):
         #TODO: higher order interpolation
         if not 'initial_condition' in self.problemdata.params.fct_glob:
             raise ValueError(f"missing 'initial_condition' in {self.problemdata.params.fct_glob=}")
-        if not self._setMeshCalled: self.setMesh(self.mesh)
+        # if not self._setMeshCalled: self.setMesh(self.mesh)
         ic = AnalyticalFunction(self.problemdata.params.fct_glob['initial_condition'])
         fp1 = self.fem.interpolate(ic)
         if interpolate:
@@ -299,9 +297,11 @@ class Model(object):
         else:
             coeffmass = self.coeffmass
         self.A = self.computeMatrix(u=u, coeffmass=coeffmass)
-        # print(f"{self.A=}")
-        if hasattr(self.A, 'scale_matrix'):
+        if hasattr(self.A, 'scale_matrix') and self.scale_ls:
             self.A.scale_matrix()
+        # print(f"{self.A=}")
+        # if hasattr(self.A, 'scale_matrix'):
+        #     self.A.scale_matrix()
         if hasattr(self, 'LS'):
             # self.LS = self.computelinearSolver(self.A)
             self.LS.update(self.A)
@@ -317,13 +317,15 @@ class Model(object):
             computeMatrix = True
         if computeMatrix:
             self.newMatrix(u)
+        # print(f"{computeMatrix=}")
+        # assert hasattr(self.LS, 'scalings')
         rtol = 1e-7
         if hasattr(info,'rhor'):
             rtol = min(0.01, info.rhor)
             rtol = max(rtol, info.tol_missing)
         try:
             # raise ValueError(f"{rtol=} {info=}")
-            print(f"{rtol=}")
+            # print(f"{rtol=}")
             du = self.LS.solve(A=self.A, b=b, rtol=rtol)
             niter = self.LS.niter
             if niter==self.LS.maxiter:
@@ -454,7 +456,8 @@ class Model(object):
                     self.coeffmass = 1 / dt / theta
                     Aconst = self.computeMatrixConstant(coeffmass=self.coeffmass, coeffmassold=coeffmassold)
                     self.A = self.computeMatrix(u=u, coeffmass=self.coeffmass)
-                    self.A.scale_matrix()
+                    if hasattr(self.A, 'scale_matrix') and self.scale_ls:
+                        self.A.scale_matrix()
                     self.LS.update(self.A)
                     print(f"*** {info_new.failure=} {dtold=} {dt=}")
                     info_new.success = True

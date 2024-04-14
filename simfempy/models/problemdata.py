@@ -33,23 +33,23 @@ class BoundaryConditions(object):
         self.type = {}
         self.fct = {}
         self.param = {}
-    # def hasExactSolution(self):
-    #     return hasattr(self, 'fctexact')
+    def convert(self, mesh):
+        if not hasattr(mesh,'labeldict_i2s'): return
+        self.type = {mesh.labeldict_s2i[k]:v for k,v in self.type.items()}
+        self.fct = {mesh.labeldict_s2i[k]: v for k, v in self.fct.items()}
+        self.param = {mesh.labeldict_s2i[k]: v for k, v in self.param.items()}
+
     def colors(self):
         return self.type.keys()
     def types(self):
         return self.type.values()
     def set(self, type, colors, fcts=None):
-        if isinstance(colors, int): colors = [colors]
+        if isinstance(colors, (int,str)): colors = [colors]
+        assert isinstance(colors, (list,tuple))
         for i,color in enumerate(colors):
-            if color in self.type.keys(): raise ValueError(f"attempt to defone {type=}, butalready defined b.c {color} as {self.type[color]=}")
+            if color in self.type.keys(): raise ValueError(f"Attempt to define {color=} for {type=}, but already defined b.c {color} as {self.type[color]=}")
             self.type[color] = type
             if fcts: self.fct[color] = fcts[i]
-    # def colorsOfType(self, type):
-    #     colors = []
-    #     for color, typeofcolor in self.type.items():
-    #         if typeofcolor == type: colors.append(color)
-    #     return colors
     def colorsOfType(self, types):
         if isinstance(types, str): types = [types]
         colors = []
@@ -59,6 +59,8 @@ class BoundaryConditions(object):
     def check(self, colors):
         colors = set(colors)
         typecolors = set(self.type.keys())
+        if not len(typecolors):
+            raise ValueError(f"*** application should write 'defineProblemData(self, problemdata)'")
         if colors != typecolors: 
             raise ValueError(f"*** problem in boundary conditions mesh {colors=} colors with b.c.={typecolors}")
         # _check2setsequal_(colors, typecolors, "mesh colors", "types")
@@ -108,6 +110,7 @@ class Params(object):
         self.fct_glob = {}
         self.scal_glob = {}
         self.scal_cells = {}
+        self.data = {}
     def __repr__(self):
         repr = ""
         if len(self.fct_glob): repr += f" fct_glob={self.fct_glob}"
@@ -137,6 +140,7 @@ class Params(object):
         for k,v in p.fct_glob.items(): self.fct_glob[k] = v
         for k,v in p.scal_glob.items(): self.scal_glob[k] = v
         for k,v in p.scal_cells.items(): self.scal_cells[k] = v
+        for k,v in p.data.items(): self.data[k] = v
 
 
 
@@ -150,8 +154,7 @@ class ProblemData(object):
     - postprocess
     - params: class Params
     """
-    def __init__(self, bdrycond=None, rhs=None, rhscell=None, rhspoint = None, postproc=None, ncomp=1):
-        self.ncomp=ncomp
+    def __init__(self, bdrycond=None, rhs=None, rhscell=None, rhspoint = None, postproc=None):
         if bdrycond is None: self.bdrycond = BoundaryConditions()
         else: self.bdrycond = bdrycond
         if postproc is None: self.postproc = PostProcess()
@@ -164,7 +167,6 @@ class ProblemData(object):
 
     def __repr__(self):
         repr = f"\n{self.__class__}:"
-        repr += f"\n\tncomp = {self.ncomp}"
         repr += f"\n\tbdrycond:{self._split2string(self.bdrycond)}"
         repr += f"\n\tpostproc:{self._split2string(self.postproc)}"
         # if self.rhs: repr += f"\n\trhs={self.rhs}"
@@ -176,9 +178,7 @@ class ProblemData(object):
 
     def check(self, mesh):
         colors = mesh.bdrylabels.keys()
-        # colors = list(mesh.bdrylabels.keys())
-        # colors.extend(list(mesh.verticesoflabel.keys()))
-        # colors.extend(list(mesh.linesoflabel.keys()))
+        self.bdrycond.convert(mesh)
         self.bdrycond.check(colors)
         colors = list(colors)
         colors.extend(list(mesh.verticesoflabel.keys()))
@@ -190,9 +190,6 @@ class ProblemData(object):
         """
         keeps the boundary condition types and parameters !
         """
-        # self.rhs = None
-        # self.rhscell = None
-        # self.rhspoint = None
         self.solexact = None
         self.postproc = None
         for color in self.bdrycond.fct:

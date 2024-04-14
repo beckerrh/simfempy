@@ -8,7 +8,7 @@ from simfempy.tools.comparemethods import CompareMethods
 
 
 #----------------------------------------------------------------#
-class EllipticApplicationWithExactSolution(simfempy.models.application.Application):
+class EllipticApplicationWithExactSolution(simfempy.applications.application.Application):
     def __init__(self, dim, exactsolution, **kwargs):
         super().__init__(exactsolution=exactsolution)
         # self.exactsolution = exactsolution

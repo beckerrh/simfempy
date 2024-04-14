@@ -31,6 +31,8 @@ def backtracking(f, x0, dx, resfirst, sdata, verbose=False):
         x = x0 + step * dx
         res = f(x)
         resnorm = np.linalg.norm(res)
+        # res2 = f(x)
+        # if not np.allclose(res, res2): raise ValueError(f"{sdata.steptype=} {np.linalg.norm(res-res2)=} {resnorm=} {np.linalg.norm(res2)=}")
         if verbose:
             print(f"bt {it:3} {resnorm:10.3e} {resfirst:10.3e} {step:9.2e}")
     return x, res, resnorm, step
@@ -141,8 +143,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
     iterdata.success = True
     while(resnorm>tol  and iterdata.iter < maxiter):
         if resnorm<atol:
-            iterdata.success = False
-            iterdata.failure = 'residual too small'
+            iterdata.success = True
+            # iterdata.failure = 'residual too small'
             return x, iterdata
         iterdata.tol_missing = tol/resnorm
         if not computedx:
@@ -164,8 +166,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
             x, res, resnorm, step = bt.step(x, dx, resnorm)
         else:
             x, res, resnorm, step = backtracking(f, x, dx, resnorm, sdata, verbose=False)
-        res2 = f(x)
-        assert np.allclose(res, res2)
+        # res2 = f(x)
+        # if not np.allclose(res, res2): raise ValueError(f"{sdata.steptype=} {np.linalg.norm(res-res2)=} {resnorm=} {np.linalg.norm(res)=}")
         iterdata.newstep(dx, liniter, resnorm, step)
         xnorm = linalg.norm(x)
         matsymb = ''
@@ -177,8 +179,8 @@ def newton(x0, f, computedx=None, sdata=None, verbose=False, jac=None, maxiter=N
         if verbose:
             print(f"{name:20s} {iterdata.iter:3d} {resnorm:9.3e} {iterdata.dxnorm[-1]:9.3e} {xnorm:9.3e} {iterdata.rhodx:4.2f} {iterdata.rhor:4.2f} {liniter:3d} {step:4.2f} {matsymb:1s}")
         if resnorm<atol:
-            iterdata.success = False
-            iterdata.failure = 'residual too small'
+            iterdata.success = True
+            # iterdata.failure = 'residual too small'
             return x, iterdata
         if iterdata.iter == sdata.maxiter:
             iterdata.success = False

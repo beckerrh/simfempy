@@ -9,9 +9,7 @@ from matplotlib import colors
 import numpy as np
 import scipy.linalg as linalg
 import scipy.sparse as sparse
-# from simfempy.tools import barycentric, npext, checkmmatrix
 from simfempy.tools import barycentric
-# from simfempy.meshes import move, plotmesh
 from simfempy.fems import p1general
 import simfempy.fems.data, simfempy.fems.rt0
 
@@ -359,7 +357,7 @@ class CR1(p1general.P1general):
             np.add.at(b, fi, r)
         return b
     def computeFormTransportCellWise(self, du, u, data, type):
-        beta, betart = data.beta, data.betart
+        beta, betart = data.betacell, data.betart
         nfaces, dim, dV, foc = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV, self.mesh.facesOfCells
         cellgrads = self.cellgrads[:,:,:dim]
         if type=='centered':
@@ -371,7 +369,7 @@ class CR1(p1general.P1general):
         np.add.at(du, foc, mat)
         self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
     def computeMatrixTransportCellWise(self, data, type):
-        beta, betart = data.beta, data.betart
+        beta, betart = data.betacell, data.betart
         nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
         cellgrads = self.cellgrads[:,:,:dim]
         if type=='centered':
@@ -472,7 +470,7 @@ class CR1(p1general.P1general):
     def computeMatrixTransportUpwind(self, data, method):
         return self.computeMatrixTransportUpwindAlg(data)
 
-        beta, betart, mus = data.beta, data.betart, data.md.mus
+        beta, betart, mus = data.betacell, data.betart, data.md.mus
         nfaces, ncells, dim, dV = self.mesh.nfaces, self.mesh.ncells, self.mesh.dimension, self.mesh.dV
         normalsS, foc, cof = self.mesh.normals, self.mesh.facesOfCells, self.mesh.cellsOfFaces
         dbS = linalg.norm(normalsS, axis=1)*betart
@@ -598,7 +596,7 @@ class CR1(p1general.P1general):
         # # A += self.computeMatrixJump(betart, mode='primal')
         # A -= self.computeBdryMassMatrix(coeff=np.minimum(betart, 0))
     def computeMatrixTransportSupg(self, data, method):
-        beta, betart, mus = data.beta, data.betart, data.md.mus
+        beta, betart, mus = data.betacell, data.betart, data.md.mus
         if method=='supg2':
             beta, mus, deltas = beta, self.md.mus, self.md.deltas
             nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV

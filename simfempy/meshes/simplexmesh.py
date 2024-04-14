@@ -7,7 +7,7 @@ Created on Sun Dec  4 18:14:29 2016
 import os
 import meshio
 import numpy as np
-from numpy.lib.shape_base import take_along_axis
+# from numpy.lib.shape_base import take_along_axis
 from scipy import sparse
 # from simfempy.tools import npext, timer
 from simfempy.tools import timer
@@ -43,9 +43,15 @@ class SimplexMesh(object):
 
     def __repr__(self):
         s = f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
-        s += f"\nbdrylabels={list(self.bdrylabels.keys())}"
-        s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
+        if hasattr(self, "labeldict_i2s"):
+            s += f"\nbdrylabels={[self.labeldict_i2s[k] for k in self.bdrylabels.keys()]}"
+            s += f"\ncellsoflabel={[self.labeldict_i2s[k] for k in self.cellsoflabel.keys()]}"
+        else:
+            s += f"\nbdrylabels={list(self.bdrylabels.keys())}"
+            s += f"\ncellsoflabel={list(self.cellsoflabel.keys())}"
         return s
+    def __str__(self):
+        return f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
     def __init__(self, mesh, **kwargs):
         # if not isinstance(mesh, meshio.Mesh):
         #     raise KeyError(f"Needs a meshio.Mesh, got {type(mesh)}")
@@ -160,6 +166,7 @@ class SimplexMesh(object):
         sizes = {key:0 for key in celltypes}
         cellsoflabel = {key:{} for key in celltypes}
         ctorderd = []
+        labeldict_s2i, labeldict_i2s, labind = {}, {}, 0
         for label, cb in cell_sets.items():
             if label=='gmsh:bounding_entities': continue
             # print(f"{label=} {cb=}")
@@ -167,13 +174,24 @@ class SimplexMesh(object):
             for celltype, info in zip(celltypes, cb):
                 # only one is supposed to be not None
                 if info is not None:
-                    try: ilabel=int(label)
-                    except: raise ValueError(f"cannot convert to int {label=} {cell_sets=}")
+                    try:
+                        ilabel=int(label)
+                    except:
+                        if label in labeldict_s2i.keys():
+                            ilabel = labeldict_s2i[label]
+                        else:
+                            labind -= 1
+                            ilabel = labind
+                            labeldict_s2i[label] = ilabel
+                            labeldict_i2s[ilabel] = label
+                            # raise ValueError(f"cannot convert to int {label=} {cell_sets=}")
                     cellsoflabel[celltype][ilabel] = info
                     # print(f"{label=} {celltype=} {info=}")
                     sizes[celltype] += info.shape[0]
                     typesoflabel[ilabel] = celltype
                     ctorderd.append(celltype)
+        if labind:
+            self.labeldict_s2i, self.labeldict_i2s = labeldict_s2i, labeldict_i2s
         # print(f"{celltypes=}\n{cellsoflabel=}")
         #correcting the numbering in cell_sets
         n = 0
@@ -398,6 +416,15 @@ class SimplexMesh(object):
             meshdata =  self.x, self.y, simps, xc, yc
             plotmesh.meshWithNodesAndTriangles(meshdata)
             plt.show()
+    # ----------------------------------------------------------------#
+    def plot(self, **kwargs):
+        from . import plotmesh
+        import matplotlib.pyplot as plt
+        if kwargs.pop("bdry", False):
+            plotmesh.meshWithBoundaries(self, **kwargs)
+        else:
+            plotmesh.meshWithData(self, **kwargs)
+
 
 #=================================================================#
 if __name__ == '__main__':

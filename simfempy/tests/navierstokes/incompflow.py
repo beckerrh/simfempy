@@ -4,7 +4,8 @@ simfempypath = str(pathlib.Path(__file__).parent.parent.parent)
 sys.path.insert(0,simfempypath)
 from simfempy.models.navierstokes import NavierStokes
 from simfempy.models.stokes import Stokes
-from simfempy.examples import navier_stokes
+from simfempy.applications import navierstokes
+
 
 # ================================================================c#
 def getModel(**kwargs):

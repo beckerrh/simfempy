@@ -110,7 +110,7 @@ def getLinearSolver(**kwargs):
     elif method == "pyamg":
         return Pyamg(matrix, **kwargs)
     else:
-        raise ValueError(f"unknwown {method=} not in ['spsolve', 'pyamg', {pyamgsolvers}]")
+        raise ValueError(f"unknwown {method=} not in ['spsolve', 'pyamg', {pyamgsolvers}] nor {scipysolvers=}")
     if len(kwargs.keys()):
         raise ValueError(f"*** unused arguments {kwargs=}")
 
@@ -238,26 +238,33 @@ class ScipySolve(IterativeSolver):
         super().__init__(kwargs)
         # if self.method in strangesolvers: raise ValueError(f"method '{self.method}' is i strange scipy solver")
         self.n = kwargs.pop('n', None)
-        if "prec" in kwargs:
-            self.M = kwargs.pop("prec")
+        if "preconditioner" in kwargs:
+            # n = kwargs.pop('n')
+            self.preconditioner = kwargs.pop('preconditioner')
+            self.M = splinalg.LinearOperator(shape=(self.n, self.n), matvec=self.preconditioner.solve)
+        # else:
+        # self.M = None
+        # if "prec" in kwargs:
+        #     self.M = kwargs.pop("prec")
         if "matrix" in kwargs:
             self.matvec = kwargs.pop('matrix')
             if not "matvecprec" in kwargs:
                 fill_factor = kwargs.pop("fill_factor", 2)
                 drop_tol = kwargs.pop("fill_factor", 0.01)
                 spilu = splinalg.spilu(self.matvec.tocsc(), drop_tol=drop_tol, fill_factor=fill_factor)
-                self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
+                if not hasattr(self, "M"): self.M = splinalg.LinearOperator(self.matvec.shape, lambda x: spilu.solve(x))
         else:
             if self.n is None: raise ValueError(f"need 'n' if no matrix given")
             # n = kwargs.pop('n')
             # raise ValueError(f"@@@@{n=}")
             self.matvec = splinalg.LinearOperator(shape=(self.n, self.n), matvec=kwargs.pop('matvec'))
-        if "preconditioner" in kwargs:
-            # n = kwargs.pop('n')
-            self.preconditioner = kwargs.pop('preconditioner')
-            self.M = splinalg.LinearOperator(shape=(self.n, self.n), matvec=self.preconditioner.solve)
-        else:
-            self.M = None
+        # if "preconditioner" in kwargs:
+        #     # n = kwargs.pop('n')
+        #     if kwargs.pop('preconditioner') == "scipy.sparse.linalg.spilu":
+        #         self.preconditioner = sparse.linalg.spilu()
+        #         self.M = splinalg.LinearOperator(shape=(self.n, self.n), matvec=self.preconditioner.solve)
+        # else:
+        #     self.M = None
         # self.args = {"A": self.matvec, "M":self.M, "atol":self.atol}
         self.args['A'] = self.matvec
         self.args['M'] = self.M
@@ -308,6 +315,8 @@ class Pyamg(IterativeSolver):
         symmetric = kwargs.pop('symmetric', False)
         self.smoother = kwargs.pop('smoother', 'gauss_seidel')
         # pyamgargs = {'B': pyamg.solver_configuration(A, verb=False)['B']}
+        # pyamgargs = kwargs.pop("pyamgargs", {})
+        # print(f"{pyamgargs=}")
         pyamgargs = {}
         smoother = (self.smoother, {'sweep': 'symmetric', 'iterations': nsmooth})
         if symmetric:

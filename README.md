@@ -4,12 +4,14 @@ SIMple Finite Element Methods in PYthon
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pathlib, sys
+
 simfempypath = str(pathlib.Path(__file__).parent.parent.parent)
-sys.path.insert(0,simfempypath)
+sys.path.insert(0, simfempypath)
 
 from simfempy.models.elliptic import Elliptic
-from simfempy.models.application import Application
+from simfempy.applications.application import Application
 from simfempy.meshes import plotmesh
+
 
 # define Application class
 class HeatExample(Application):
@@ -30,6 +32,7 @@ class HeatExample(Application):
         self.problemdata.params.set_scal_cells("kheat", [100], 0.001)
         self.problemdata.params.set_scal_cells("kheat", [200], 10.0)
         # data.params.fct_glob["convection"] = ["0", "0.001"]
+
     def defineGeometry(self, geom, h):
         holes = []
         rectangle = geom.add_rectangle(xmin=-1.5, xmax=-0.5, ymin=-1.5, ymax=-0.5, z=0, mesh_size=h)
@@ -43,8 +46,10 @@ class HeatExample(Application):
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
 
-disc_params={'dirichletmethod':'nitsche'}
-heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params, linearsolver={'method':'pyamg', 'disp':0, 'smoother':'schwarz'})
+
+disc_params = {'dirichletmethod': 'nitsche'}
+heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params,
+                linearsolver={'method': 'pyamg', 'disp': 0, 'smoother': 'schwarz'})
 result, u = heat.static(mode="newton")
 print(f"{result=}")
 # for p, v in result.data['scalar'].items(): print(f"{p}: {v}")

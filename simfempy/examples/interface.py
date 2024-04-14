@@ -5,10 +5,9 @@ sys.path.insert(0,simfempypath)
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib import cm
-from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 from simfempy.models.elliptic import Elliptic
-from simfempy.models.application import Application
+from simfempy.applications.application import Application
 from simfempy.meshes import plotmesh
 from simfempy.tools.comparemethods import CompareMethods
 

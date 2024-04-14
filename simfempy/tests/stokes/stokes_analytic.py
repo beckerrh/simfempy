@@ -4,12 +4,12 @@ sys.path.insert(0,simfempypath)
 import simfempy.meshes.testmeshes as testmeshes
 from simfempy.models.stokes import Stokes
 import simfempy.models.problemdata
-import simfempy.models.application
+import simfempy.applications.application
 from simfempy.tools.comparemethods import CompareMethods
 
 #----------------------------------------------------------------#
 def test(dim, **kwargs):
-    class StokesApplicationWithExactSolution(simfempy.models.application.Application):
+    class StokesApplicationWithExactSolution(simfempy.applications.application.Application):
         def __init__(self, dim, exactsolution, bctype):
             super().__init__(exactsolution=exactsolution)
             # self.exactsolution = exactsolution

@@ -3,34 +3,43 @@ from simfempy.models.stokes import Stokes
 from simfempy import fems, meshes, solvers
 from simfempy.linalg import linalg
 
+linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 20, 'prec': 'Chorin', 'disp': 0, 'rtol': 1e-3}
+
+#=================================================================#
 class NavierStokes(Stokes):
     def __format__(self, spec):
         if spec=='-':
             repr = super().__format__(spec)
-            repr += f"\tconvmethod={self.convmethod}"
+            # repr += f"\tconvmethod={self.convmethod}"
             return repr
         return self.__repr__()
     def __init__(self, **kwargs):
-        self.linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 10, 'prec': 'Chorin', 'disp':0, 'rtol':1e-3}
+        self.linearsolver_def = linearsolver_def
         self.mode='nonlinear'
         self.convdata = fems.data.ConvectionData()
         # self.convmethod = kwargs.pop('convmethod', 'lps')
-        self.convmethod = kwargs.get('convmethod', 'lps')
-        self.lpsparam = kwargs.pop('lpsparam', 0.)
-        self.newtontol = kwargs.pop('newtontol', 0)
+        # self.lpsparam = kwargs.pop('lpsparam', 0.1)
+        # self.newtontol = kwargs.pop('newtontol', 0)
         if not 'linearsolver' in kwargs: kwargs['linearsolver'] = self.linearsolver_def
         super().__init__(**kwargs)
-        self.newmatrix = 0
-    def new_params(self):
-        super().new_params()
+        # self.newmatrix = 0
         self.Astokes = super().computeMatrix()
+        if self.scale_ls:
+            raise ValueError(f"*** not working ")
+
+    # def new_params(self):
+    #     super().new_params()
+    #     # self.Astokes = super().computeMatrix()
     def solve(self):
         sdata = solvers.newtondata.StoppingParamaters(maxiter=200, steptype='bt', nbase=1, rtol=self.newtontol)
         return self.static(mode='newton',sdata=sdata)
     def computeForm(self, u):
-        d = self.Astokes.matvec(u)
+        d = super().computeForm(u)
+        np.allclose(d, self.Astokes.matvec(u))
+        # d = self.Astokes.matvec(u)
         v = self.vectorview.get_part(0,u)
         dv = self.vectorview.get_part(0,d)
+        # print(f"{np.linalg.norm(v)=} {np.linalg.norm(dv)=}")
         # v = self._split(u)[0]
         # dv = self._split(d)[0]
         self.computeFormConvection(dv, v)
@@ -40,11 +49,12 @@ class NavierStokes(Stokes):
         super().rhs_dynamic(rhs, u, Aconst, time, dt, theta, semi_implicit)
         if semi_implicit:
             self.computeFormConvection(rhs, 0.5*u)
-
-
     def computeMatrix(self, u=None, coeffmass=None):
+        return self.Astokes
+        import copy
+        X = copy.deepcopy(self.Astokes)
         # X = self.Astokes.copy()
-        X = super().computeMatrix(u=u, coeffmass=coeffmass)
+        # X = super().computeMatrix(u=u, coeffmass=coeffmass)
         # v = self._split(u)[0]
         v = self.vectorview.get_part(0,u)
         theta = 1
@@ -64,8 +74,9 @@ class NavierStokes(Stokes):
         return super().computeMatrix(u, coeffmass)
     def _compute_conv_data(self, v):
         rt = fems.rt0.RT0(mesh=self.mesh)
-        self.convdata.betart = rt.interpolateCR1(v, self.stack_storage)
-        self.convdata.beta = rt.toCell(self.convdata.betart)
+        # self.convdata.betart = rt.interpolateCR1(v, self.stack_storage)
+        self.convdata.betart = rt.interpolateFromFem(v, self.femv, self.stack_storage)
+        self.convdata.betacell = rt.toCell(self.convdata.betart)
     def computeFormConvection(self, du, u):
         dim = self.mesh.dimension
         self._compute_conv_data(self.vectorview.get_part(0,u))
@@ -83,11 +94,11 @@ class NavierStokes(Stokes):
         A += self.femv.computeMatrixJump(self.convdata.betart)
         if self.singleA:
             return A
-        return linalg.matrix2systemdiagonal(A, self.ncomp).tocsr()
+        return linalg.matrix2systemdiagonal(A, self.ncomps[0], self.stack_storage).tocsr()
     def computeBdryNormalFluxNitsche(self, u, colors):
         flux = super().computeBdryNormalFluxNitsche(u,colors)
         if self.convdata.betart is None : return flux
-        ncomp, bdryfct = self.ncomp, self.problemdata.bdrycond.fct
+        ncomp, bdryfct = self.ncomps[0], self.problemdata.bdrycond.fct
         for icomp in range(ncomp):
             fdict = {col: bdryfct[col][icomp] for col in colors if col in bdryfct.keys()}
             vdir = self.femv.interpolateBoundary(colors, fdict)

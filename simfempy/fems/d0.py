@@ -17,6 +17,7 @@ class D0():
         self.mesh = mesh
     def nlocal(self): return 1
     def nunknowns(self): return self.mesh.ncells
+    def tocell(self, u): return u
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
         if u.shape[0] != self.mesh.ncells: raise ValueError(f"{u.shape=} {self.mesh.ncells=}")

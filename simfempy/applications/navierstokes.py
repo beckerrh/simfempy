@@ -1,10 +1,12 @@
 import numpy as np
-import simfempy.models.application
+from . import  application
 
 # ================================================================ #
-class Application(simfempy.models.application.Application):
-    def __init__(self, ncomp=2, h=None, mu=0.1):
-        super().__init__(ncomp=ncomp, h=h, scal_glob={'mu':mu})
+class Application(application.Application):
+    def __init__(self, h=None, **kwargs):
+        if 'mu' in kwargs: scal_glob={'mu':kwargs.pop('mu')}
+        else: scal_glob={}
+        super().__init__(h=h, scal_glob=scal_glob)
     def plot(self, mesh, data, **kwargs):
         import matplotlib.pyplot as plt
         fig = kwargs.pop('fig', None)
@@ -31,7 +33,7 @@ class Application(simfempy.models.application.Application):
         inner = gridspec.GridSpecFromSubplotSpec(nrows=nplots, ncols=1, subplot_spec=gs, wspace=0.3, hspace=0.3)
         x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
         iplot = 0
-        p = data['cell']['P']
+        p = data['cell']['p']
         ax = fig.add_subplot(inner[iplot])
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -53,7 +55,7 @@ class Application(simfempy.models.application.Application):
             clb = plt.colorbar(cnt, cax=cax, orientation='vertical')
             clb.ax.set_title(name)
             iplot += 1
-        v0,v1 = data['point']['V_0'], data['point']['V_1']
+        v0,v1 = data['point']['v_1'], data['point']['v_2']
         ax = fig.add_subplot(inner[iplot])
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -71,11 +73,11 @@ class Application(simfempy.models.application.Application):
             import matplotlib.gridspec as gridspec
             inner = gridspec.GridSpecFromSubplotSpec(nrows=2, ncols=2, subplot_spec=gs, wspace=0.3, hspace=0.3)
             alpha = kwargs.pop('alpha', 0.6)
-            p = data['cell']['P']
+            p = data['cell']['p']
             v = np.zeros(shape=(mesh.nnodes, 3))
-            v[:,0] = data['point']['V_0']
-            v[:,1] = data['point']['V_1']
-            v[:,2] = data['point']['V_2']
+            v[:,0] = data['point']['v_0']
+            v[:,1] = data['point']['v_1']
+            v[:,2] = data['point']['v_2']
             vnorm = np.linalg.norm(v, axis=1)
             pyvistamesh["V"] = v
             pyvistamesh["vn"] = vnorm
@@ -133,7 +135,7 @@ class Poiseuille2d(Application):
 # ================================================================ #
 class Poiseuille3d(Application):
     def __init__(self, mu=0.01, h=0.5):
-        super().__init__(mu=mu, h=h, ncomp=3)
+        super().__init__(mu=mu, h=h)
         data = self.problemdata
         # boundary conditions
         data.bdrycond.set("Dirichlet", [100, 103])
@@ -150,7 +152,7 @@ class Poiseuille3d(Application):
 # ================================================================ #
 class DrivenCavity2d(Application):
     def __init__(self, h=0.1, mu=0.003):
-        super().__init__(mu=mu, h=h, ncomp=2)
+        super().__init__(mu=mu, h=h)
         data = self.problemdata
         # boundary conditions
         data.bdrycond.set("Dirichlet", [1000, 1002])
@@ -167,7 +169,7 @@ class DrivenCavity2d(Application):
 # ================================================================ #
 class DrivenCavity3d(Application):
     def __init__(self, h=0.1, mu=0.003):
-        super().__init__(mu=mu, h=h, ncomp=3)
+        super().__init__(mu=mu, h=h)
         data = self.problemdata
         data.bdrycond.set("Dirichlet", [100, 102])
         data.bdrycond.fct[102] = [lambda x, y, z: 1, lambda x, y, z: 0, lambda x, y, z: 0]
@@ -210,7 +212,7 @@ class BackwardFacingStep2d(Application):
 # ================================================================ #
 class BackwardFacingStep3d(Application):
     def __init__(self, h=0.2, mu=0.02):
-        super().__init__(mu=mu, h=h, ncomp=3)
+        super().__init__(mu=mu, h=h)
         # boundary conditions
         self.problemdata.bdrycond.set("Dirichlet", [100, 102])
         self.problemdata.bdrycond.set("Neumann", [104])
@@ -271,7 +273,7 @@ class SchaeferTurek2d(Application):
 # ================================================================ #
 class SchaeferTurek3d(Application):
     def __init__(self, hcircle=None, mu=0.01, h=0.5, errordrag=True):
-        super().__init__(mu=mu, h=h, ncomp=3)
+        super().__init__(mu=mu, h=h)
         self.hcircle, self.errordrag = hcircle, errordrag
         # boundary conditions
         self.problemdata.bdrycond.set("Dirichlet", [100, 103, 300])
