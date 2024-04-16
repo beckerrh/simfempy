@@ -33,8 +33,8 @@ class EllipticApplicationWithExactSolution(simfempy.applications.application.App
         data.bdrycond.set("Neumann", colorsneu)
         data.bdrycond.set("Robin", colorsrob)
         for col in colorsrob: data.bdrycond.param[col] = 100.
-        data.params.scal_glob['kheat'] = kwargs.pop('kheat', 1)
-        # data.params.fct_glob['convection'] = ['0.8', '1.1']
+        data.params.scal_glob['kheat'] = kwargs.pop('kheat', 0.01)
+        data.params.fct_glob['convection'] = ['0.8', '1.1']
 
 
 #----------------------------------------------------------------#
@@ -45,9 +45,11 @@ def test(dim, exactsolution, paramsdict, modelargs, **kwargs):
 
 #================================================================#
 if __name__ == '__main__':
+    # TODO P1 with convection (centered) and nitsche wrong (!) termes de bord ?
     exactsolution = 'Linear'
-    disc_params = {'dirichletmethod':'strong'}
-    modelargs = {'fem':'cr1', 'disc_params':disc_params, 'mode':'newton', 'linearsolver':'pyamg'}
+    disc_params = {'dirichletmethod':'nitsche', 'convmethod':'lps', 'lpsparam':0.1}
+    modelargs = {'fem':'cr1', 'disc_params':disc_params, 'mode':'linear', 'linearsolver':{'method':'pyamg', 'rtol':1e-12},'newton_rtol':1e-12}
+    # modelargs = {'fem':'cr1', 'disc_params':disc_params, 'mode':'linear', 'linearsolver':'spsolve'}
     paramsdict = {'fem':['cr1','p1','rt0']}
-    paramsdict = {'fem':['cr1']}
+    paramsdict = {'fem':['p1']}
     test(dim=2, exactsolution = exactsolution, paramsdict=paramsdict, modelargs=modelargs, plotsolution='True')

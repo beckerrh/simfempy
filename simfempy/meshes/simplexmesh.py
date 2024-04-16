@@ -40,7 +40,6 @@ class SimplexMesh(object):
     bdrylabels: dictionary(keys: colors, values: id's of boundary faces)
     cellsoflabel: dictionary(keys: colors, values: id's of cells)
     """
-
     def __repr__(self):
         s = f"dim/nnodes/nfaces/ncells: {self.dimension}/{self.nnodes}/{self.nfaces}/{self.ncells}"
         if hasattr(self, "labeldict_i2s"):
@@ -64,6 +63,15 @@ class SimplexMesh(object):
     def check(self):
         if len(np.unique(self.simplices)) != self.nnodes:
             raise ValueError(f"{len(np.unique(self.simplices))=} BUT {self.nnodes=}")
+    def getBdryPoints(self, colors):
+        if not isinstance(colors, (list,tuple)): colors = [colors]
+        bdrypoints = []
+        for color in colors:
+            if not isinstance(color, int): color = self.labeldict_s2i[color]
+            facesdir = self.bdrylabels[color]
+            bdrypoints.append(np.unique(self.faces[facesdir].flat[:]))
+        return np.array(bdrypoints).reshape(-1)
+
     def bdryFaces(self, colors=None):
         if colors is None: colors = self.bdrylabels.keys()
         pos = [0]
@@ -286,41 +294,6 @@ class SimplexMesh(object):
             # self.bdrylabels[col] = bdryids[fp[bpi[cb]]]
         # print(f"{bp=}")
         # print(f"{fp=}")
-#https://stackoverflow.com/questions/51352527/check-for-identical-rows-in-different-numpy-arrays
-        # t.add("b")
-        ################
-        # print(f"{bdryfacesgmsh.shape=}\n{bdryfaces.shape=}")
-        # print(f"{bp.shape=}\n{fp.shape=}")
-        # print(f"{bdryfacesgmsh[bp]=}\n{bdryfaces[fp]=}")
-        # indices = (bdryfacesgmsh[bp, None] == bdryfaces[fp]).all(-1).any(-1)
-        ################
-        # t.add("c")
-        # print(f"{indices=}")
-        # assert np.all(indices == np.arange(bp.shape[0]))
-
-        # if not np.all(bdryfaces[fp]==bdryfacesgmsh[bp[indices]]):
-        #     raise ValueError(f"{bdryfaces.T=}\n{bdryfacesgmsh.T=}\n{indices=}\n{bdryfaces[fp].T=}\n{bdryfacesgmsh[bp[indices]].T=}")
-        # t.add("d")
-        # bp2 = bp
-        # bp2 = bp[indices]
-        # for i in range(len(fp)):
-        #     if not np.all(bdryfacesgmsh[bp2[i]] == bdryfaces[fp[i]]):
-        #         raise ValueError(f"{i=} {bdryfacesgmsh[bp2[i]]=} {bdryfaces[fp[i]]=}")
-        # t.add("e")
-        # bpi = np.argsort(bp)
-        # binv = -1*np.ones_like(bp)
-        # binv = np.empty_like(bp)
-        # binv[bp2] = np.arange(len(bp2))
-        # self.bdrylabels = {col:bdryids[fp[binv[cb]]] for col, cb in bdrylabelsgmsh.items()}
-        # # t.add("f")
-        # for col, cb in bdrylabelsgmsh.items():
-        #     self.bdrylabels[int(col)] = bdryids[fp[binv[cb]]]
-        #     # if indices[bpi[cb[0]]]:
-        #     #     self.bdrylabels[int(col)] = bdryids[fp[binv[cb]]]
-        #     # else:
-        #     #     assert not indices[bpi[cb[0]]]
-        # t.add("g")
-        # print(t)
     def _constructNormalsAndAreas(self):
         # t = timer.Timer("_constructNormalsAndAreas")
         elem = self.simplices

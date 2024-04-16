@@ -60,8 +60,7 @@ class P1general():
         r = np.einsum('n,nil,njl,nj->ni', self.mesh.dV*coeff, cellgrads, cellgrads, u[doc])
         np.add.at(du, doc, r)
     def computeMatrixLps(self, betart, lpsparam=0.1):
-        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
-        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        dimension, dV, ndofs, nloc, dofspercell = self.mesh.dimension, self.mesh.dV, self.nunknowns(), self.nlocal(), self.dofspercell()
         if not hasattr(self.mesh,'innerfaces'): self.mesh.constructInnerFaces()
         ci = self.mesh.cellsOfInteriorFaces
         ci0, ci1 = ci[:,0], ci[:,1]
@@ -87,9 +86,8 @@ class P1general():
         A11 = sparse.coo_matrix((mat11.reshape(-1), (rows1, cols1)), shape=(ndofs, ndofs))
         return A00+A01+A10+A11
     def computeFormLps(self, du, u, betart, lpsparam=0.1):
-        assert 0
-        dimension, dV, ndofs = self.mesh.dimension, self.mesh.dV, self.nunknowns()
-        nloc, dofspercell = self.nlocal(), self.dofspercell()
+        # assert 0
+        dimension, dV, ndofs, nloc, dofspercell = self.mesh.dimension, self.mesh.dV, self.nunknowns(), self.nlocal(), self.dofspercell()
         ci = self.mesh.cellsOfInteriorFaces
         ci0, ci1 = ci[:,0], ci[:,1]
         normalsS = self.mesh.normals[self.mesh.innerfaces]
@@ -99,16 +97,15 @@ class P1general():
         scale *= lpsparam*dS*betan
         cg0 = self.cellgrads[ci0, :, :]
         cg1 = self.cellgrads[ci1, :, :]
-        r = np.einsum('nki,nli,n,nl->nk', cg0, cg0, scale, u[dofspercell[ci0,:]]-u[dofspercell[ci1,:]])
-        np.add.at(du, dofspercell[ci0,:], r)
-        # mat01 = np.einsum('nki,nli,n,nl->nk', cg0, cg1, -scale, u[dofspercell[ci1,:]])
-        # np.add.at(du, dofspercell[ci0,:], mat01)
-        r = np.einsum('nki,nli,n,nl->nk', cg1, cg0, -scale, u[dofspercell[ci0,:]]-u[dofspercell[ci1,:]])
-        np.add.at(du, dofspercell[ci1,:], r)
-        # mat11 = np.einsum('nki,nli,n,nl->nk', cg1, cg1, scale, u[dofspercell[ci1,:]])
-        # np.add.at(du, dofspercell[ci1,:], mat11)
+        mat = np.einsum('nki,nli,n,nl->nk', cg0, cg0, +scale, u[dofspercell[ci0,:]])
+        np.add.at(du, dofspercell[ci0,:], mat)
+        mat = np.einsum('nki,nli,n,nl->nk', cg0, cg1, -scale, u[dofspercell[ci1,:]])
+        np.add.at(du, dofspercell[ci0,:], mat)
+        mat = np.einsum('nki,nli,n,nl->nk', cg1, cg0, -scale, u[dofspercell[ci0,:]])
+        np.add.at(du, dofspercell[ci1,:], mat)
+        mat = np.einsum('nki,nli,n,nl->nk', cg1, cg1, +scale, u[dofspercell[ci1,:]])
+        np.add.at(du, dofspercell[ci1,:], mat)
     def computeFormTransportCellWise(self, du, u, data, type):
-        assert 0
         beta, betart = data.betacell, data.betart
         ndofs, dim, dV, dofspercell = self.nunknowns(), self.mesh.dimension, self.mesh.dV, self.dofspercell()
         cellgrads = self.cellgrads[:,:,:dim]
@@ -121,7 +118,6 @@ class P1general():
         np.add.at(du, dofspercell, mat)
         self.massDotBoundary(du, u, coeff=-np.minimum(betart, 0))
     def computeMatrixTransportCellWise(self, data, type):
-        assert 0
         beta, betart = data.betacell, data.betart
         ndofs, dim, dV, dofspercell = self.nunknowns(), self.mesh.dimension, self.mesh.dV, self.dofspercell()
         # nfaces, dim, dV = self.mesh.nfaces, self.mesh.dimension, self.mesh.dV
@@ -135,7 +131,7 @@ class P1general():
             mat = np.einsum('n,njk,nk,ni -> nij', dV, cellgrads, beta, 1-dim*mus)
         else: raise ValueError(f"unknown type {type=}")
         A = sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(ndofs, ndofs))
-        return A - self.computeBdryMassMatrix(coeff=np.minimum(betart, 0), lumped=False)
+        return A - self.computeBdryMassMatrix(coeff=np.minimum(betart, 0))
 
 # ====================================================================================
 

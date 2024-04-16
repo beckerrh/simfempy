@@ -26,10 +26,14 @@ class Application:
     def createExactSolution(self, mesh, ncomps):
         dim, ran = mesh.dimension, self.random_exactsolution
         assert isinstance(ncomps, (list,tuple))
-        assert len(ncomps) == len(self.exactsolution)
+        if isinstance(self.exactsolution, str): names=[self.exactsolution]
+        else: names = self.exactsolution
+        # print(f"***{ncomps=} {names=} {self.exactsolution=}")
+        assert len(ncomps) == len(names)
         self.exactsolution = []
         for i in range(len(ncomps)):
-            self.exactsolution.append(analyticalSolution(self.exactsolution[i], dim, ncomps[i], ran))
+            print(f"{i=} {names[i]=} {ncomps[i]=}")
+            self.exactsolution.append(analyticalSolution(names[i], dim, ncomps[i], ran))
         return
         # print(f"****** createExactSolution: {dim=} {ncomp=} {self.exactsolution=}")
         # if isinstance(ncomp, (list,tuple)) or isinstance(self.exactsolution,(list,tuple)):

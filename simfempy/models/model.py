@@ -50,31 +50,9 @@ class Model(object):
             raise ValueError(f"Model needs application (since 22/04/23)")
         self.problemdata = self.application.problemdata
         # self._setMeshCalled = True
-        self.timer.reset_all()
-        # print(f"{kwargs.keys()=} {'mesh' in kwargs.keys()=}")
-        if 'mesh' in kwargs.keys(): self.mesh = kwargs.pop('mesh')
-        else: self.mesh =self.application.createMesh()
-        # self.mesh = kwargs.pop('mesh', self.application.createMesh())
-        # self.mesh = self.application.createMesh()
-        self.problemdata.check(self.mesh)
-        if self.verbose: print(f"{self.mesh=}")
-        if hasattr(self, 'LS'):
-            del self.LS
-        if hasattr(self, 'A'):
-            del self.A
-        self.ncomps = self.getNcomps(self.mesh)
         if not hasattr(self,'linearsolver'):
             self.linearsolver = kwargs.pop('linearsolver', 'spsolve')
         self.disc_params = kwargs.pop('disc_params', {})
-        self.createFem()
-        self.meshSet()
-        ns = self.getSystemSize()
-        self.vectorview = vectorview.VectorView(ncomps=self.ncomps, ns=ns, stack_storage=self.stack_storage)
-        if self.application.exactsolution is not None:
-            self.application.createExactSolution(self.mesh, self.ncomps)
-        if self.application.generatePDforES:
-            self.generatePoblemDataForAnalyticalSolution()
-        # print(f"{self.__class__.__name__} {self.stack_storage=} {self.singleA=} {self.mesh=} {self.linearsolver=}")
         if not hasattr(self,'scale_ls'):
             self.scale_ls = kwargs.pop('scale_ls', False)
         if 'newton_stopping_parameters' in kwargs:
@@ -99,9 +77,34 @@ class Model(object):
         with open(self.datadir / "model", "w") as file:
             file.write(str(self))
         # check for unused arguments
+        if 'mesh' in kwargs.keys():
+            self.mesh = kwargs.pop('mesh')
+        else:
+            self.mesh =self.application.createMesh()
+        # print(f"{kwargs.keys()=}")
         if len(kwargs.keys()):
             raise ValueError(f"*** unused arguments {kwargs=}")
-        # print(f"Model {self.ncomps=} {self.stack_storage=} {self.scale_ls=} {self.linearsolver=}")
+        self.createFem()
+        self.setMesh(self.mesh)
+    def setMesh(self, mesh):
+        self.mesh = mesh
+        self.timer.reset_all()
+        self.problemdata.check(self.mesh)
+        if self.verbose: print(f"{self.mesh=}")
+        if hasattr(self, 'LS'):
+            del self.LS
+        if hasattr(self, 'A'):
+            del self.A
+        self.ncomps = self.getNcomps(self.mesh)
+        self.meshSet()
+        ns = self.getSystemSize()
+        self.vectorview = vectorview.VectorView(ncomps=self.ncomps, ns=ns, stack_storage=self.stack_storage)
+        if not hasattr(self, "exactsolution_created"):
+            if self.application.exactsolution is not None:
+                self.exactsolution_created=True
+                self.application.createExactSolution(self.mesh, self.ncomps)
+            if self.application.generatePDforES:
+                self.generatePoblemDataForAnalyticalSolution()
     def tofemvector(self, u):
         return fems.femvector.FemVector(data = u, vectorview=self.vectorview, fems=[self.fem])
     def createFem(self):
@@ -110,39 +113,27 @@ class Model(object):
         if self.mode=='dynamic':
             return self.dynamic()
         return self.static(method=self.mode)
-    def dirichletfct(self):
-        if self.ncomp > 1:
-            # def _solexactdir(x, y, z):
-            #     return [self.application.exactsolution[icomp](x, y, z) for icomp in range(self.ncomp)]
-            # return _solexactdir
+    def defineDirichletAnalyticalSolution(self, problemdata, color, solexact):
+        ncomp = self.ncomps[0]
+        if ncomp==1:
+            return solexact[0]
+        else:
             from functools import partial
             solexact = self.application.exactsolution
             def _solexactdir(x, y, z, icomp):
                 return solexact[icomp](x, y, z)
-            return [partial(_solexactdir, icomp=icomp) for icomp in range(self.ncomp)]
-        else:
-            return self.application.exactsolution
-            def _solexactdir(x, y, z):
-                return self.application.exactsolution(x, y, z)
-        return _solexactdir
+            return [partial(_solexactdir, icomp=icomp) for icomp in range(ncomp)]
     def generatePoblemDataForAnalyticalSolution(self):
         bdrycond = self.problemdata.bdrycond
-        # self.application.exactsolution = self.defineAnalyticalSolution(exactsolution=self.application.exactsolution, random=self.application.random_exactsolution)
-        # print("self.application.exactsolution", self.application.exactsolution)
+        print(f"{self.application.exactsolution=} {self.mesh.bdrylabels=}")
         solexact = self.application.exactsolution
         self.problemdata.params.fct_glob['rhs'] = self.defineRhsAnalyticalSolution(solexact)
         if hasattr(self, 'time'):
             self.problemdata.params.fct_glob['initial_condition'] = self.defineInitialConditionAnalyticalSolution(solexact)
         for color in self.mesh.bdrylabels:
-            if color in bdrycond.type and bdrycond.type[color] in ["Dirichlet","dirichlet"]:
-                bdrycond.fct[color] = self.dirichletfct()
-            else:
-                if color in bdrycond.type:
-                    cmd = "self.define{}AnalyticalSolution(self.problemdata,{})".format(bdrycond.type[color], color)
-                    # print(f"cmd={cmd}")
-                    bdrycond.fct[color] = eval(cmd)
-                else:
-                    bdrycond.fct[color] = self.defineBdryFctAnalyticalSolution(color, solexact)
+            cmd = f"self.define{bdrycond.type[color]}AnalyticalSolution(self.problemdata,{color},solexact)"
+            # print(f"cmd={cmd}")
+            bdrycond.fct[color] = eval(cmd)
     def compute_cell_vector_from_params(self, name, params):
         if name in params.fct_glob:
             fct = np.vectorize(params.fct_glob[name])
@@ -174,8 +165,8 @@ class Model(object):
         # args['matrix'] = A
         if args['method'] != 'spsolve':
             if self.scale_ls:
-                # if hasattr(A, 'scale_matrix'):
-                #     A.scale_matrix()
+                if hasattr(A, 'scale_matrix'):
+                    A.scale_matrix()
                 args['scale'] = self.scale_ls
             args['matrix'] = A
             if args['method'] != 'pyamg':
@@ -220,8 +211,9 @@ class Model(object):
             iter={'lin':niterlin}
         else:
             if method == 'newton':
+                verbose = self.verbose
                 u, info = simfempy.solvers.newton.newton(u, f=self.computeDefect, computedx=self.computeDx,
-                                                         verbose=True, sdata=self.newton_stopping_parameters)
+                                                         verbose=verbose, sdata=self.newton_stopping_parameters)
                 iter={'nonlin':info.iter, 'lin':np.mean(info.liniter)}
                 result.newtoninfo = info
                 if not info.success:
@@ -367,7 +359,6 @@ class Model(object):
         semi_implicit = kwargs.pop('semi_implicit', False)
         if len(kwargs):
             raise ValueError(f"unused arguments: {kwargs.keys()}")
-
         if not dt or dt<=0: raise NotImplementedError(f"needs constant positive 'dt")
         result = simfempy.models.problemdata.Results(nframes)
         # self.timer.add('init')
@@ -386,8 +377,13 @@ class Model(object):
         # print(f"dynamic {self.coeffmass=}")
         if not hasattr(self, 'Aconst'):
             Aconst = self.computeMatrixConstant(coeffmass=self.coeffmass)
-            if self.linearsolver=="pyamg":
-                self.pyamgml = self.build_pyamg(Aconst)
+            if hasattr(self, 'LS'):
+                # self.LS = self.computelinearSolver(self.A)
+                self.LS.update(Aconst)
+            else:
+                self.LS = self.computelinearSolver(Aconst)
+            # if self.linearsolver=="pyamg":
+            #     self.pyamgml = self.build_pyamg(Aconst)
         self.theta, self.dt = theta, dt
         times = np.linspace(t_span[0], t_span[1], nframes+1)
         count_smallres = 0
@@ -491,7 +487,6 @@ class Model(object):
             self.mesh.write(self.datadir / filename, data=data)
         result.save(self.datadir)
         return result
-
     def dynamic_linear(self, u0, t_span, nframes, dt=None, callback=None, method='CN', verbose=1):
         # TODO: passing time
         """
@@ -572,16 +567,12 @@ class Model(object):
         name += ".npy"
         return np.load(datadir/name)
     def load_data(self, iter=None, datadir=None, name= "sol", add=''):
-        if add: name += add
-        if iter is not None: name += f"_{iter:05d}"
-        if datadir is None: datadir=self.datadir
-        name += ".npy"
-        return self.sol_to_data(np.load(datadir/name))
+        u = self.tofemvector(self.load(iter, datadir, name, add))
+        return u.tovisudata()
     def get_t(self, datadir=None):
         if datadir is None: datadir=self.datadir
         times = np.load(self.datadir / "time.npy")
         return times
-
     def get_postprocs_dynamic(self):
         data = {'time': np.load(self.datadir/"time.npy"), 'postproc':{}}
         from pathlib import Path

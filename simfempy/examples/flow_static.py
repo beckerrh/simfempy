@@ -43,7 +43,7 @@ def test_mesh():
     plt.show()
 
 def solve_flow():
-    flow_solver = simfempy.models.navierstokes.NavierStokes(application=FlowExample())
+    flow_solver = simfempy.models.navierstokes.NavierStokes(application=FlowExample(), verbose=1)
     pp,u = flow_solver.static()
     data = u.tovisudata()
     flow_solver.application.plot(mesh=flow_solver.mesh, data=data)
@@ -54,8 +54,9 @@ def solve_heat(mesh, u_flow):
         def defineProblemData(self, problemdata):
             problemdata.bdrycond.set("Dirichlet", ["Walls", "Inflow"])
             problemdata.bdrycond.set("Neumann", "Outflow")
-            problemdata.bdrycond.fct["Inflow"] = lambda x, y, z: y * (3 - y)
-            problemdata.params.scal_glob["kheat"] = 0.01
+            problemdata.bdrycond.fct["Inflow"] = lambda x, y, z: 290 + 30* max(0,y-0.5) * max(0,1.5 - y)
+            problemdata.bdrycond.fct["Walls"] = lambda x, y, z: 290
+            problemdata.params.scal_glob["kheat"] = 0.001
             problemdata.params.data["convection"] = u_flow.extract(name="v")
     heat_solver = simfempy.models.elliptic.Elliptic(mesh = mesh, application=HeatExample())
     result, u_heat = heat_solver.static(method="linear")

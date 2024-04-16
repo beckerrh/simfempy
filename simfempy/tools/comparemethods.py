@@ -91,7 +91,7 @@ class CompareMethods(object):
             self._definemethods(model, modelargs)
 
     def _definemethods(self, model, modelargs):
-        print(f" _definemethods {modelargs=}")
+        if self.verbose: print(f" _definemethods {modelargs=}")
         paramsdict = self.paramsdict
         if self.paramname in paramsdict: paramsdict.pop(self.paramname)
         for pname,params in paramsdict.items():
@@ -168,7 +168,8 @@ class CompareMethods(object):
                 if self.verbose>=2: print(f"{result=}")
                 if self.plotsolution:
                     suptitle = "{}={}".format(self.paramname, parameters[-1])
-                    method.application.plot(mesh, method.sol_to_data(u), fig=fig, gs=outer[plotcount])
+                    # method.application.plot(mesh, method.sol_to_data(u), fig=fig, gs=outer[plotcount])
+                    method.application.plot(mesh, u.tovisudata(), fig=fig, gs=outer[plotcount])
                     plotcount += 1
                 # if self.plotsolution:
                 #     method.application.plot(mesh, method.sol_to_data(u))

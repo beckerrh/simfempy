@@ -4,36 +4,32 @@ SIMple Finite Element Methods in PYthon
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pathlib, sys
-
 simfempypath = str(pathlib.Path(__file__).parent.parent.parent)
-sys.path.insert(0, simfempypath)
+sys.path.insert(0,simfempypath)
 
 from simfempy.models.elliptic import Elliptic
 from simfempy.applications.application import Application
-from simfempy.meshes import plotmesh
 
-
-# define Application class
+#--------------------------------------------------------------
 class HeatExample(Application):
-    def __init__(self):
-        super().__init__(h=0.1)
-        # fill problem data
+    # nomen est omen
+    def defineProblemData(self, problemdata):
         # boundary conditions
-        self.problemdata.bdrycond.set("Dirichlet", [1000, 3000])
-        self.problemdata.bdrycond.set("Neumann", [1001, 1002, 1003])
-        self.problemdata.bdrycond.fct[1000] = lambda x, y, z: 200
-        self.problemdata.bdrycond.fct[3000] = lambda x, y, z: 320
+        problemdata.bdrycond.set(type="Dirichlet", colors=[1000, 3000])
+        problemdata.bdrycond.set(type="Neumann", colors=[1001, 1002, 1003])
+        problemdata.bdrycond.fct[1000] = lambda x, y, z: 200
+        problemdata.bdrycond.fct[3000] = lambda x, y, z: 320
         # postprocess
-        self.problemdata.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
-        self.problemdata.postproc.set(name='bdrymean_left', type='bdry_mean', colors=1003)
-        self.problemdata.postproc.set(name='bdrymean_up', type='bdry_mean', colors=1002)
-        self.problemdata.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
+        problemdata.postproc.set(name='bdrymean_right', type='bdry_mean', colors=1001)
+        problemdata.postproc.set(name='bdrymean_left', type='bdry_mean', colors=1003)
+        problemdata.postproc.set(name='bdrymean_up', type='bdry_mean', colors=1002)
+        problemdata.postproc.set(name='bdrynflux', type='bdry_nflux', colors=[3000])
         # paramaters in equation
-        self.problemdata.params.set_scal_cells("kheat", [100], 0.001)
-        self.problemdata.params.set_scal_cells("kheat", [200], 10.0)
-        # data.params.fct_glob["convection"] = ["0", "0.001"]
-
+        problemdata.params.set_scal_cells("kheat", [100], 0.001)
+        problemdata.params.set_scal_cells("kheat", [200], 10.0)
+    # nomen est omen
     def defineGeometry(self, geom, h):
+        h=0.2
         holes = []
         rectangle = geom.add_rectangle(xmin=-1.5, xmax=-0.5, ymin=-1.5, ymax=-0.5, z=0, mesh_size=h)
         geom.add_physical(rectangle.surface, label="200")
@@ -46,19 +42,16 @@ class HeatExample(Application):
         geom.add_physical(p.surface, label="100")
         for i in range(len(p.lines)): geom.add_physical(p.lines[i], label=f"{1000 + i}")
 
-
-disc_params = {'dirichletmethod': 'nitsche'}
-heat = Elliptic(application=HeatExample(), fem='p1', disc_params=disc_params,
-                linearsolver={'method': 'pyamg', 'disp': 0, 'smoother': 'schwarz'})
-result, u = heat.static(mode="newton")
+#--------------------------------------------------------------
+heat = Elliptic(application=HeatExample(), fem='cr1')
+result, u = heat.static()
 print(f"{result=}")
-# for p, v in result.data['scalar'].items(): print(f"{p}: {v}")
 fig = plt.figure(figsize=(10, 8))
 fig.suptitle(f"{heat.application.__class__.__name__} (static)", fontsize=16)
 outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
-plotmesh.meshWithBoundaries(heat.mesh, fig=fig, outer=outer[0])
-data = heat.sol_to_data(u)
+heat.mesh.plot(fig=fig, outer=outer[0], bdry=True)
+data = u.tovisudata()
 data.update({'cell': {'k': heat.kheatcell}})
-plotmesh.meshWithData(heat.mesh, data=data, alpha=0.5, fig=fig, outer=outer[1])
+heat.mesh.plot(data=data, alpha=0.5, fig=fig, outer=outer[1])
 plt.show()
 ```

@@ -2,7 +2,7 @@
 #
 from setuptools import setup, find_packages
 
-VERSION = "2.1.1"
+VERSION = "2.2.8"
 
 with open("simfempy/examples/heat_static.py", "r") as heat:
     example = heat.read()

@@ -364,7 +364,7 @@ class P1(p1general.P1general):
         nnodes, ncells, nfaces, dim = self.mesh.nnodes, self.mesh.ncells, self.mesh.nfaces, self.mesh.dimension
         if type=='centered':
             beta, mus = data.betacell, np.full(dim+1,1.0/(dim+1))
-            print(f"{beta=} {data=}")
+            # print(f"{beta=} {data=}")
             mat = np.einsum('n,njk,nk,i -> nij', self.mesh.dV, self.cellgrads[:,:,:dim], beta, mus)
             A =  sparse.coo_matrix((mat.ravel(), (self.rows, self.cols)), shape=(nnodes, nnodes)).tocsr()
         elif type=='supg':
@@ -409,7 +409,6 @@ class P1(p1general.P1general):
         np.add.at(b, simplices, r)
         return b
     def massDotBoundary(self, b=None, f=None, colors=None, coeff=1, lumped=False):
-        # if lumped is None: lumped=self.params_bool['masslumpedbdry']
         if colors is None: colors = self.mesh.bdrylabels.keys()
         for color in colors:
             faces = self.mesh.bdrylabels[color]
@@ -419,6 +418,7 @@ class P1(p1general.P1general):
             if isinstance(coeff, (int,float)): dS *= coeff
             elif isinstance(coeff, dict): dS *= coeff[color]
             else:
+                # print(f"{coeff.shape=} {self.mesh.nfaces=}")
                 assert coeff.shape[0]==self.mesh.nfaces
                 dS *= coeff[faces]
             # print(f"{scalemass=}")
