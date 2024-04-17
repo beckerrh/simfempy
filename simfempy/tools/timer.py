@@ -23,7 +23,7 @@ class Timer():
         if name not in self.data: self.data[name] = 0
         t = time.time()
         self.data[name] += t - self.tlast
-        if self.verbose: print(f"{name=} {self.nameslast=} {(t - self.tlast)=}")
+        if self.verbose>2: print(f"{name=} {self.nameslast=} {(t - self.tlast)=}")
         self.tlast = t
         self.nameslast = name
     def reset(self, name):
