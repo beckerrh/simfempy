@@ -23,7 +23,7 @@ def Elliptic(**kwargs):
 
 # ================================================================= #
 class EllipticBase(Model):
-    """
+    r"""
     Class for the elliptic equation
     $$
     -\div(A \nabla T) + b\cdot\nabla u + c u= f         domain

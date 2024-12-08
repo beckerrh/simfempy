@@ -34,7 +34,7 @@ class EllipticApplicationWithExactSolution(simfempy.applications.application.App
         data.bdrycond.set("Robin", colorsrob)
         for col in colorsrob: data.bdrycond.param[col] = 100.
         data.params.scal_glob['kheat'] = kwargs.pop('kheat', 0.01)
-        data.params.fct_glob['convection'] = ['0.8', '1.1']
+        # data.params.fct_glob['convection'] = ['0.8', '1.1']
 
 
 #----------------------------------------------------------------#

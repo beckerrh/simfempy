@@ -66,7 +66,7 @@ class TableData(object):
                     self.valformat[k] = self._getformat(v)
 
     def computePercentage(self):
-        self.values = dict((k+"(\%)", v) for k, v in self.values.items())
+        self.values = dict((k+r"(\%)", v) for k, v in self.values.items())
         self.values['sum'] = np.zeros(len(self.n))
         for i in range(len(self.n)):
             sum = 0
@@ -188,20 +188,20 @@ class LatexWriter(object):
         # print(f"{self.rotate=} {ks=} {max([len(k) for k in kwargs['values'].keys()])=}")
         if rotate:
             # itemformated = "\sw{%s} &" %nname
-            itemformated = f"\sw{{{nname}}} &"
+            itemformated = f"\\sw{{{nname}}} &"
             for i in range(size-1):
                 # itemformated += "\sw{%s} &" %keys_to_write[i].replace('_','\_')
                 k = keys_to_write[i].replace('_', r'\_')
-                itemformated += f"\sw{{{k}}} &"
+                itemformated += f"\\sw{{{k}}} &"
             # itemformated += "\sw{%s}\\\\\\hline\hline\n" %keys_to_write[size-1].replace('_','\_')
-            k = keys_to_write[size-1].replace('_', '\_')
-            itemformated += f"\sw{{{k}}}\\\\\\hline\hline\n"
+            k = keys_to_write[size-1].replace('_', '\\_')
+            itemformated += f"\\sw{{{k}}}\\\\\\hline\\hline\n"
         else:
             itemformated = f"{nname:15} "
             for i in range(size):
                 k = keys_to_write[i].replace('_', r'\_')
                 itemformated += f" & {k:15} "
-            itemformated += "\\\\\\hline\hline\n"
+            itemformated += "\\\\\\hline\\hline\n"
         self.latexfile.write(itemformated)
         for texline in range(len(n)):
             nt = n[texline]
@@ -223,7 +223,7 @@ class LatexWriter(object):
     def writePreamble(self, name="none"):
         texta = '\\documentclass[11pt]{article}\n\\usepackage[margin=3mm, a4paper]{geometry}\n'
         texta += '\\usepackage{times,graphicx,rotating,subfig}\n'
-        texta += "\\newcommand{\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
+        texta += "\\newcommand{\\sw}[1]{\\begin{sideways} #1 \\end{sideways}}\n"
         texta += f"\\author{{{self.author}}}\n"
         texta += f"\\title{{{self.title}}}\n"
         texta += self.sep + '\\begin{document}\n' + self.sep + '\n'
