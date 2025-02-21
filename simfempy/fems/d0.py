@@ -37,7 +37,7 @@ class D0():
         rhs = self.interpolate(rhsfct)
         self.massDot(b, rhs)
         return b
-    def computeRhsBoundary(self, b, colors, bdryfct):
+    def computeRhsBoundary(self, b, colors, bdryfct, coeff = None):
         for color in colors:
             if not color in bdryfct or not bdryfct[color]: continue
             faces = self.mesh.bdrylabels[color]
@@ -45,9 +45,10 @@ class D0():
             dS = linalg.norm(normalsS, axis=1)
             xf, yf, zf = self.mesh.pointsf[faces].T
             nx, ny, nz = normalsS.T / dS
-            neumanns = bdryfct[color](xf, yf, zf, nx, ny, nz)
+            if coeff is None: vals = bdryfct[color](xf, yf, zf, nx, ny, nz)
+            else: vals = coeff[faces] * bdryfct[color](xf, yf, zf, nx, ny, nz)
             cells = self.mesh.cellsOfFaces[faces,0]
-            # b[cells] -= dS * neumanns
+            b[cells] += dS * vals
         return b
     def computeBdryMean(self, b, colors):
         if not len(colors): return 0

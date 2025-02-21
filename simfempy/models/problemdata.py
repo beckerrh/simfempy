@@ -19,6 +19,7 @@ class BoundaryConditions(object):
     Information can be set with the 'set' function
     """
     def __init__(self, colors=None):
+        self.ignore = False
         if colors is None:
             self.type = {}
             self.fct = {}
@@ -57,10 +58,11 @@ class BoundaryConditions(object):
             if typeofcolor in types: colors.append(color)
         return colors
     def check(self, colors):
+        if self.ignore: return
         colors = set(colors)
         typecolors = set(self.type.keys())
         if not len(typecolors):
-            raise ValueError(f"*** application should write 'defineProblemData(self, problemdata)'")
+            raise ValueError(f"*** application should define 'BoundaryConditions' in 'defineProblemData(self, problemdata)'")
         if colors != typecolors: 
             raise ValueError(f"*** problem in boundary conditions mesh {colors=} colors with b.c.={typecolors}")
         # _check2setsequal_(colors, typecolors, "mesh colors", "types")

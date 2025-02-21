@@ -105,6 +105,10 @@ class Model(object):
                 self.application.createExactSolution(self.mesh, self.ncomps)
             if self.application.generatePDforES:
                 self.generatePoblemDataForAnalyticalSolution()
+    def getNcomps(self, mesh):
+        return [1]
+    def getSystemSize(self):
+        return [self.fem.nunknowns()]
     def tofemvector(self, u):
         return fems.femvector.FemVector(data = u, vectorview=self.vectorview, fems=[self.fem])
     def createFem(self):
@@ -257,7 +261,7 @@ class Model(object):
         # print(f"{np.linalg.norm(self.b)=} {np.linalg.norm(u)=}")
         return self.computeForm(u)-self.b
     def computeForm(self, u):
-        print(f"{type(self.A)=} {type(u)=}")
+        # print(f"{type(self.A)=} {type(u)=}")
         return self.A@u
     def initialCondition(self, interpolate=True):
         #TODO: higher order interpolation
