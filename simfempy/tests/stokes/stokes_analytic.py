@@ -1,7 +1,7 @@
 import pathlib, sys
 simfempypath = str(pathlib.Path(__file__).parent.parent.parent.parent)
 sys.path.insert(0,simfempypath)
-import simfempy.meshes.testmeshes as testmeshes
+import simfempy.meshes_new.testmeshes as testmeshes
 from simfempy.models.stokes import Stokes
 import simfempy.models.problemdata
 import simfempy.applications.application

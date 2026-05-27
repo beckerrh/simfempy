@@ -1,7 +1,7 @@
 import pygmsh
 from simfempy.models.problemdata import ProblemData
-from simfempy.meshes.simplexmesh import SimplexMesh
-# import simfempy.tools.analyticalfunction
+#from simfempy.meshes_new.simplexmesh import SimplexMesh
+from simfempy.meshes_new.simplex_mesh import SimplexMesh
 from simfempy.tools.analyticalfunction import analyticalSolution
 
 # ================================================================ #
@@ -73,7 +73,7 @@ class Application:
         if gs is None:
             gs = fig.add_gridspec(1, 1)[0,0]
         inner = gridspec.GridSpecFromSubplotSpec(nrows=nplots, ncols=1, subplot_spec=gs, wspace=0.3, hspace=0.3)
-        x, y, tris = mesh.points[:,0], mesh.points[:,1], mesh.simplices
+        x, y, tris = mesh.points[:,0], mesh.points[:,1], mesh.cells
         iplot = 0
         for name,values in data['cell'].items():
             ax = fig.add_subplot(inner[iplot])

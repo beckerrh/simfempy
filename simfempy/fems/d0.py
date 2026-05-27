@@ -21,9 +21,9 @@ class D0():
     def tonode(self, u):
         unodes = np.zeros(self.mesh.nnodes)
         if u.shape[0] != self.mesh.ncells: raise ValueError(f"{u.shape=} {self.mesh.ncells=}")
-        np.add.at(unodes, self.mesh.simplices.T, u.T)
+        np.add.at(unodes, self.mesh.cells.T, u.T)
         countnodes = np.zeros(self.mesh.nnodes, dtype=int)
-        np.add.at(countnodes, self.mesh.simplices.T, 1)
+        np.add.at(countnodes, self.mesh.cells.T, 1)
         unodes /= countnodes
         return unodes
     def interpolate(self, f):

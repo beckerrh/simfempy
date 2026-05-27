@@ -25,7 +25,7 @@ class Results():
 #=================================================================#
 class CompareMethods(object):
     """
-    Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes)
+    Run several times a list of methods (typically for comparison of different discretizations on a sequence of meshes_new)
     possible parameters:
       latex
       vtk

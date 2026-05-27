@@ -31,7 +31,7 @@ class Application(application.Application):
         import matplotlib.gridspec as gridspec
         nplots = 4
         inner = gridspec.GridSpecFromSubplotSpec(nrows=nplots, ncols=1, subplot_spec=gs, wspace=0.3, hspace=0.3)
-        x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.simplices
+        x, y, tris = mesh.points[:, 0], mesh.points[:, 1], mesh.cells
         iplot = 0
         p = data['cell']['p']
         ax = fig.add_subplot(inner[iplot])
@@ -64,7 +64,7 @@ class Application(application.Application):
     def plot3d(self, mesh, data, fig, gs, **kwargs):
         try:
             import pyvista
-            tets = mesh.simplices
+            tets = mesh.cells
             ntets = tets.shape[0]
             celltypes = pyvista.CellType.TETRA * np.ones(ntets, dtype=int)
             cells = np.insert(tets, 0, 4, axis=1).ravel()

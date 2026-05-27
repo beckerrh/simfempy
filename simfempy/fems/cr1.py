@@ -29,10 +29,10 @@ class CR1(p1general.P1general):
         if u.shape[0] != self.mesh.nfaces: raise ValueError(f"{u.shape=} {self.mesh.nfaces=}")
         unodes = np.zeros(self.mesh.nnodes, dtype=u.dtype)
         scale = self.mesh.dimension
-        np.add.at(unodes, self.mesh.simplices.T, np.sum(u[self.mesh.facesOfCells], axis=1)[np.newaxis,:])
-        np.add.at(unodes, self.mesh.simplices.T, -scale*u[self.mesh.facesOfCells].T)
+        np.add.at(unodes, self.mesh.cells.T, np.sum(u[self.mesh.facesOfCells], axis=1)[np.newaxis,:])
+        np.add.at(unodes, self.mesh.cells.T, -scale*u[self.mesh.facesOfCells].T)
         countnodes = np.zeros(self.mesh.nnodes, dtype=int)
-        np.add.at(countnodes, self.mesh.simplices.T, 1)
+        np.add.at(countnodes, self.mesh.cells.T, 1)
         unodes /= countnodes
         return unodes
     # def prepareAdvection(self, beta, scale):
@@ -365,8 +365,8 @@ class CR1(p1general.P1general):
         normalsS = self.mesh.normals[innerfaces]
         dS = linalg.norm(normalsS, axis=1)
         faces = self.mesh.faces[self.mesh.innerfaces]
-        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
-        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        # ind0 = npext.positionin(faces, self.mesh.cells[ci0])
+        # ind1 = npext.positionin(faces, self.mesh.cells[ci1])
         # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
         # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
         fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
@@ -408,8 +408,8 @@ class CR1(p1general.P1general):
         normalsS = self.mesh.normals[innerfaces]
         dS = linalg.norm(normalsS, axis=1)
         faces = self.mesh.faces[self.mesh.innerfaces]
-        # ind0 = npext.positionin(faces, self.mesh.simplices[ci0])
-        # ind1 = npext.positionin(faces, self.mesh.simplices[ci1])
+        # ind0 = npext.positionin(faces, self.mesh.cells[ci0])
+        # ind1 = npext.positionin(faces, self.mesh.cells[ci1])
         # fi0 = np.take_along_axis(self.mesh.facesOfCells[ci0], ind0, axis=1)
         # fi1 = np.take_along_axis(self.mesh.facesOfCells[ci1], ind1, axis=1)
         fi0, fi1 = self.mesh.facesOfCellsNotOnInnerFaces(ci0, ci1)
@@ -522,8 +522,8 @@ class CR1(p1general.P1general):
 
 # ------------------------------------- #
 if __name__ == '__main__':
-    from simfempy.meshes import testmeshes
-    from simfempy.meshes import plotmesh
+    from simfempy.meshes_new import testmeshes
+    from simfempy.meshes_new import plotmesh
     import matplotlib.pyplot as plt
     mesh = testmeshes.backwardfacingstep(h=0.2)
     fem = CR1(mesh=mesh)

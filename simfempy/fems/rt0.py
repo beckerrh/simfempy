@@ -43,7 +43,7 @@ class RT0():
         return np.einsum('ni, ni -> n', nnormals, v.reshape(nfaces,dim))
     def toCellMatrix(self):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
+        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.cells
         dS = sigma * linalg.norm(normals[facesofcells], axis=2)/dim
         mat = np.einsum('ni, nij, n->jni', dS, pc[:,np.newaxis,:dim]-p[simp,:dim], 1/dV)
         rows = np.repeat((np.repeat(dim * np.arange(ncells), dim).reshape(ncells,dim) + np.arange(dim)).swapaxes(1,0),dim+1)
@@ -51,13 +51,13 @@ class RT0():
         return  sparse.coo_matrix((mat.ravel(), (rows.ravel(), cols.ravel())), shape=(dim*ncells, nfaces))
     def toCell(self, v):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.simplices
+        dim, dV, p, pc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.points, self.mesh.pointsc, self.mesh.cells
         dS2 = linalg.norm(normals, axis=1)
         sigma2 = sigma/dV[:,np.newaxis]/dim
         return np.einsum('ni,ni,nij,ni -> nj', v[facesofcells], sigma2, pc[:,np.newaxis,:dim]-p[simp,:dim], dS2[facesofcells])
     def constructMass(self, massproj = 'standard', diffinvcell=None):
         ncells, nfaces, normals, sigma, facesofcells = self.mesh.ncells, self.mesh.nfaces, self.mesh.normals, self.mesh.sigma, self.mesh.facesOfCells
-        dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.dimension+1, self.mesh.simplices
+        dim, dV, nloc, simp = self.mesh.dimension, self.mesh.dV, self.mesh.dimension+1, self.mesh.cells
         p, pc, pf = self.mesh.points, self.mesh.pointsc, self.mesh.pointsf
         # massproj = self.params_str['massproj']
         if massproj == 'standard':
@@ -252,7 +252,7 @@ class RT0():
         mat =  (sigma*linalg.norm(normals[facesofcells],axis=2)).ravel()
         return  sparse.coo_matrix((mat, (rows, cols)), shape=(ncells, nfaces)).tocsr()
     def reconstruct(self, p, vc, diffinv):
-        nnodes, ncells, dim, simp = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.mesh.simplices
+        nnodes, ncells, dim, simp = self.mesh.nnodes, self.mesh.ncells, self.mesh.dimension, self.mesh.cells
         if len(diffinv.shape) != 1:
             raise NotImplemented("only scalar diffusion the time being")
         # print(f"{simp=}")

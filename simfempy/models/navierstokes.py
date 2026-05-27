@@ -1,6 +1,6 @@
 import numpy as np
 from simfempy.models.stokes import Stokes
-from simfempy import fems, meshes, solvers
+from simfempy import fems, meshes_new, solvers
 from simfempy.linalg import linalg
 
 linearsolver_def = {'method': 'scipy_lgmres', 'maxiter': 20, 'prec': 'Chorin', 'disp': 0, 'rtol': 1e-3}

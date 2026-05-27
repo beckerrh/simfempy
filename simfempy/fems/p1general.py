@@ -7,7 +7,8 @@ Created on Sun Dec  4 18:14:29 2016
 import numpy as np
 import numpy.linalg as linalg
 import scipy.sparse as sparse
-from simfempy.meshes.simplexmesh import SimplexMesh
+#from simfempy.meshes_new.simplexmesh import SimplexMesh
+from simfempy.meshes_new.simplex_mesh import SimplexMesh
 # from simfempy.fems import fem
 
 

@@ -729,7 +729,7 @@ class Stokes(Model):
 #=================================================================#
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from simfempy.meshes import plotmesh
+    from simfempy.meshes_new import plotmesh
     from simfempy.tests.navierstokes.incompflow import schaeferTurek2d
     mesh, data = schaeferTurek2d(h=0.4, mu=1)
     stokes = Stokes(mesh=mesh, problemdata=data, femparams={'dirichletmethod':'strong'}, linearsolver='spsolve')

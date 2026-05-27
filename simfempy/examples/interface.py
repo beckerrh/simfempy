@@ -8,7 +8,7 @@ from matplotlib import cm
 import numpy as np
 from simfempy.models.elliptic import Elliptic
 from simfempy.applications.application import Application
-from simfempy.meshes import plotmesh
+from simfempy.meshes_new import plotmesh
 from simfempy.tools.comparemethods import CompareMethods
 
 class InterfaceAnalyticalSolution(Application):
@@ -57,7 +57,7 @@ def solve(h=0.1, modelargs={}):
     fig.suptitle(f"{heat.application.__class__.__name__} (static)", fontsize=16)
     outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
     ax = fig.add_subplot(outer[0], projection='3d')
-    x, y, tris = heat.mesh.points[:, 0], heat.mesh.points[:, 1], heat.mesh.simplices
+    x, y, tris = heat.mesh.points[:, 0], heat.mesh.points[:, 1], heat.mesh.cells
     z = data['point']['U']
     # print(f"{data['point'].keys()=} {data['cell'].keys()=} {result.data=}")
     ax.plot_trisurf(x, y, z, cmap=cm.coolwarm)

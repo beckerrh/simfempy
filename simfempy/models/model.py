@@ -91,10 +91,9 @@ class Model(object):
         self.timer.reset_all()
         self.problemdata.check(self.mesh)
         if self.verbose: print(f"{self.mesh=}")
-        if hasattr(self, 'LS'):
-            del self.LS
-        if hasattr(self, 'A'):
-            del self.A
+        for name in ("LS", "A", "bdrydata", "convdata"):
+            if hasattr(self, name):
+                delattr(self, name)
         self.ncomps = self.getNcomps(self.mesh)
         self.meshSet()
         ns = self.getSystemSize()
@@ -250,7 +249,9 @@ class Model(object):
                 iter = {'lin': -1, 'nlin': counter.niter}
             else:
                 raise ValueError(f"unknwon {method=}")
+
         pp = self.postProcess(u)
+
         if hasattr(self.application, "changepostproc"):
             self.application.changepostproc(pp['scalar'])
         self.timer.add('postp')
