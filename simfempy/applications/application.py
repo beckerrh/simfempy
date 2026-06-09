@@ -47,6 +47,7 @@ class Application:
         #         self.exactsolution = analyticalSolution(self.exactsolution, dim, ncomp, ran)
     def createMesh(self, h=0.5):
         if h is None: h = self.h
+        print(f"createMesh {h=}")
         with pygmsh.geo.Geometry() as geom:
             self.defineGeometry(geom, h)
             mesh = geom.generate_mesh()

@@ -15,7 +15,7 @@ Mesh.Algorithm = 8   # Delquad
 def generate(geometry_builder, h=0.2, smooth=10, **kwargs):
 
     with pygmsh.geo.Geometry() as geom:
-
+        print(f"{h=}")
         geometry_builder(geom, h=h, **kwargs)
         gmsh.option.setNumber("Mesh.Algorithm", 6)
         gmsh.option.setNumber("Mesh.Smoothing", smooth)
@@ -114,6 +114,7 @@ def add_unitsquare(geom, h=0.2, a=1.0):
 
 # ================================================================ #
 def unitsquare(h=0.2, a=1.0):
+    print(f"{h=}")
     return generate(add_unitsquare, h=h, a=a)
 
 
